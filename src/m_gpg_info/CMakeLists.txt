@@ -23,42 +23,34 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-# com.bktus.gpgfrontend.module.integrated.version_checking
+# com.bktus.gpgfrontend.module.integrated.gnupg_info_gathering
 
 aux_source_directory(. INTEGRATED_MODULE_SOURCE)
 
 # define libgpgfrontend_module
-add_library(mod_ver_check SHARED ${INTEGRATED_MODULE_SOURCE})
-set(_export_file "${CMAKE_CURRENT_SOURCE_DIR}/GFModuleExport.h")
-generate_export_header(mod_ver_check 
-  BASE_NAME "GF_MODULE"
-  EXPORT_FILE_NAME "${_export_file}")
+add_library(mod_gpg_info SHARED ${INTEGRATED_MODULE_SOURCE})
 
-target_include_directories(mod_ver_check PRIVATE 
+target_include_directories(mod_gpg_info PRIVATE 
   ${CMAKE_SOURCE_DIR}/third_party/spdlog/include)
 
-# set output directory
-set_target_properties(mod_ver_check PROPERTIES
-  LIBRARY_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
-  RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
-
-install(TARGETS mod_ver_check 
-    LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}")
+# install dir
+install(TARGETS mod_gpg_info 
+  LIBRARY DESTINATION "${CMAKE_INSTALL_PREFIX}/modules")
 
 # link sdk
-target_link_libraries(mod_ver_check PRIVATE
+target_link_libraries(mod_gpg_info PRIVATE
   gpgfrontend_module_sdk)
 
 if(GPGFRONTEND_QT5_BUILD)
-  # link Qt
-  target_link_libraries(mod_ver_check PUBLIC Qt5::Core Qt5::Network)
+  # link Qt core
+  target_link_libraries(mod_gpg_info PRIVATE Qt5::Core)
 else()
-  # link Qt
-  target_link_libraries(mod_ver_check PUBLIC Qt6::Core Qt6::Network)
+  # link Qt core
+  target_link_libraries(mod_gpg_info PRIVATE Qt6::Core)
 endif()
 
-# property
-set_property(TARGET mod_ver_check PROPERTY AUTOMOC ON)
-
 # using std c++ 17
-target_compile_features(mod_ver_check PRIVATE cxx_std_17)
+target_compile_features(mod_gpg_info PRIVATE cxx_std_17)
+
+# ui
+set(CMAKE_AUTOUIC_SEARCH_PATHS ${CMAKE_AUTOUIC_SEARCH_PATHS} ${CMAKE_CURRENT_SOURCE_DIR}/ui)

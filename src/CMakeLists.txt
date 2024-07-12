@@ -24,5 +24,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 # modules
-add_subdirectory(ver_check)
-add_subdirectory(gpg_info)
+add_subdirectory(m_ver_check)
+add_subdirectory(m_gpg_info)

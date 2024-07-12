@@ -74,11 +74,11 @@ link_directories(
 if(GPGFRONTEND_QT5_BUILD)
     # Introduce Qt
     # Support Qt version: 5.15.x
-    find_package(Qt5 5.15 COMPONENTS Core Widgets PrintSupport Network LinguistTools REQUIRED)
+    find_package(Qt5 5.15 COMPONENTS Core Widgets Network LinguistTools REQUIRED)
 else()
     # Introduce Qt
     # Support Qt version: 6.x
-    find_package(Qt6 6 COMPONENTS Core Widgets PrintSupport Network LinguistTools REQUIRED)
+    find_package(Qt6 6 COMPONENTS Core Widgets Network LinguistTools REQUIRED)
 endif()
 
 # Qt configuration
@@ -86,6 +86,18 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTORCC_OPTIONS "--compress;9")
+
+# rpath config
+if (WIN32)
+    message(STATUS "Configuring for Windows without rpath")
+elseif (APPLE)
+    set(CMAKE_MACOSX_RPATH 1)
+    set(CMAKE_INSTALL_RPATH "@loader_path/../lib")
+else()
+    set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+    set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
+    set(CMAKE_INSTALL_RPATH "$ORIGIN:$ORIGIN/../lib")
+endif()
 
 # third_party
 add_subdirectory(third_party)

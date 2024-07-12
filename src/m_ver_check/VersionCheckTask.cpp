@@ -39,6 +39,8 @@
 #include <spdlog/spdlog.h>
 
 #include "LogFormatter.h"
+#include "SoftwareVersion.h"
+#include "VersionCheckingModule.h"
 
 VersionCheckTask::VersionCheckTask()
     : network_manager_(new QNetworkAccessManager(this)),
@@ -172,5 +174,48 @@ void VersionCheckTask::slot_parse_current_version_info() {
                        .c_str());
 
   if (current_reply_ != nullptr) current_reply_->deleteLater();
+
+  slot_fill_grt_with_version_info(version_);
   emit SignalUpgradeVersion(version_);
+}
+
+void VersionCheckTask::slot_fill_grt_with_version_info(
+    const SoftwareVersion &version) {
+  GFModuleLogDebug("filling software information info in rt...");
+
+  GFModuleUpsertRTValue(GFGetModuleID(),
+                        GFModuleStrDup("version.current_version"),
+                        GFModuleStrDup(version.current_version.toUtf8()));
+  GFModuleUpsertRTValue(GFGetModuleID(),
+                        GFModuleStrDup("version.latest_version"),
+                        GFModuleStrDup(version.latest_version.toUtf8()));
+  GFModuleUpsertRTValueBool(
+      GFGetModuleID(), GFModuleStrDup("version.current_version_is_drafted"),
+      version.current_version_is_drafted ? 1 : 0);
+  GFModuleUpsertRTValueBool(
+      GFGetModuleID(),
+      GFModuleStrDup("version.current_version_is_a_prerelease"),
+      version.current_version_is_a_prerelease ? 1 : 0);
+  GFModuleUpsertRTValueBool(
+      GFGetModuleID(),
+      GFModuleStrDup("version.current_version_publish_in_remote"),
+      version.current_version_publish_in_remote ? 1 : 0);
+  GFModuleUpsertRTValueBool(
+      GFGetModuleID(),
+      GFModuleStrDup("version.latest_prerelease_version_from_remote"),
+      version.latest_prerelease_version_from_remote ? 1 : 0);
+  GFModuleUpsertRTValueBool(GFGetModuleID(),
+                            GFModuleStrDup("version.need_upgrade"),
+                            version.NeedUpgrade() ? 1 : 0);
+  GFModuleUpsertRTValueBool(GFGetModuleID(),
+                            GFModuleStrDup("version.current_version_released"),
+                            version.CurrentVersionReleased() ? 1 : 0);
+  GFModuleUpsertRTValueBool(
+      GFGetModuleID(), GFModuleStrDup("version.current_a_withdrawn_version"),
+      version.VersionWithdrawn() ? 1 : 0);
+  GFModuleUpsertRTValueBool(GFGetModuleID(),
+                            GFModuleStrDup("version.loading_done"),
+                            version.loading_done ? 1 : 0);
+
+  GFModuleLogDebug("software information filled in rt");
 }
