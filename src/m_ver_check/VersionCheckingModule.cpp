@@ -43,6 +43,10 @@
 #include "UpdateTab.h"
 #include "VersionCheckTask.h"
 
+class GTrC {
+  Q_DECLARE_TR_FUNCTIONS(GTrC)
+};
+
 auto GFGetModuleGFSDKVersion() -> const char* {
   return DUP(GF_SDK_VERSION_STR);
 }
@@ -73,10 +77,6 @@ auto GFActiveModule() -> int {
   GFModuleListenEvent(GFGetModuleID(), DUP("APPLICATION_LOADED"));
   GFModuleListenEvent(GFGetModuleID(), DUP("CHECK_APPLICATION_VERSION"));
 
-  GFUIMountEntry(DUP("AboutDialogTabs"),
-                 QMapToMetaDataArray({{"TabTitle", "Update"}}), 1,
-                 UpdateTabFactory);
-
   // load translations
   QFile f(
       QString(":/i18n/ModuleVersionChecking.%1.qm").arg(GFAppActiveLocale()));
@@ -87,6 +87,11 @@ auto GFActiveModule() -> int {
     auto b = f.readAll();
     GFAppRegisterTranslator(AllocBufferAndCopy(b), b.size());
   }
+
+  GFUIMountEntry(DUP("AboutDialogTabs"),
+                 QMapToMetaDataArray({{"TabTitle", GTrC::tr("Update")}}), 1,
+                 UpdateTabFactory);
+
   return 0;
 }
 
