@@ -39,6 +39,8 @@
 #include "GFSDKModule.h"
 
 #define DUP(v) GFModuleStrDup(v)
+#define UDUP(v) UnStrDup(v)
+#define QDUP(v) QStrDup(v)
 
 inline void MLogDebug(const QString& s) { GFModuleLogDebug(s.toUtf8()); }
 inline void MLogInfo(const QString& s) { GFModuleLogInfo(s.toUtf8()); }
@@ -52,7 +54,16 @@ inline void MLogError(const QString& s) { GFModuleLogError(s.toUtf8()); }
 #define MLogErrorS(format, ...) \
   MLogError(QString::asprintf(format, __VA_ARGS__))
 
-auto QMapToMetaDataArray(const QMap<QString, QString>& map) -> MetaData** {
+inline auto QStrDup(QString str) -> char* { return DUP(str.toUtf8()); }
+
+inline auto UnStrDup(const char* src) -> QString {
+  auto qt_str = QString::fromUtf8(src);
+  GFFreeMemory(static_cast<void*>(const_cast<char*>(src)));
+  return qt_str;
+}
+
+inline auto QMapToMetaDataArray(const QMap<QString, QString>& map)
+    -> MetaData** {
   auto** meta_data_array =
       static_cast<MetaData**>(GFAllocateMemory(sizeof(MetaData*) * map.size()));
 
@@ -74,7 +85,7 @@ auto QMapToMetaDataArray(const QMap<QString, QString>& map) -> MetaData** {
   return meta_data_array;
 }
 
-auto QMapToGFModuleMetaDataList(const QMap<QString, QString>& map)
+inline auto QMapToGFModuleMetaDataList(const QMap<QString, QString>& map)
     -> GFModuleMetaData* {
   GFModuleMetaData* head = nullptr;
   GFModuleMetaData* tail = nullptr;
@@ -105,8 +116,36 @@ auto QMapToGFModuleMetaDataList(const QMap<QString, QString>& map)
   return head;
 }
 
-auto AllocBufferAndCopy(const QByteArray& b) -> char* {
+inline auto AllocBufferAndCopy(const QByteArray& b) -> char* {
   auto* p = static_cast<char*>(GFAllocateMemory(sizeof(char) * b.size()));
   memcpy(p, b.constData(), b.size());
   return p;
+}
+
+template <typename T, typename... Args>
+auto SecureCreateSharedObject(Args&&... args) -> std::shared_ptr<T> {
+  void* mem = GFAllocateMemory(sizeof(T));
+  if (!mem) throw std::bad_alloc();
+
+  try {
+    T* obj = new (mem) T(std::forward<Args>(args)...);
+    return std::shared_ptr<T>(obj, [](T* ptr) {
+      ptr->~T();
+      GFFreeMemory(ptr);
+    });
+  } catch (...) {
+    GFFreeMemory(mem);
+    throw;
+  }
+}
+
+inline auto CharArrayToQStringList(char** pl_components, int size)
+    -> QStringList {
+  QStringList list;
+  for (int i = 0; i < size; ++i) {
+    list.append(QString::fromUtf8(pl_components[i]));
+    GFFreeMemory(pl_components[i]);
+  }
+  GFFreeMemory(pl_components);
+  return list;
 }

@@ -34,6 +34,7 @@
 #include <spdlog/spdlog.h>
 
 // qt
+#include <QCoreApplication>
 #include <QCryptographicHash>
 #include <QFileInfo>
 #include <QJsonDocument>
@@ -42,41 +43,11 @@
 // c++
 #include <optional>
 
+#include "GFModuleCommonUtils.hpp"
 #include "GpgInfo.h"
 
-template <>
-struct fmt::formatter<QString> {
-  // Parses format specifications.
-  constexpr auto parse(format_parse_context &ctx) -> decltype(ctx.begin()) {
-    return ctx.begin();
-  }
-
-  // Formats the QString qstr and writes it to the output.
-  template <typename FormatContext>
-  auto format(const QString &qstr, FormatContext &ctx) const
-      -> decltype(ctx.out()) {
-    // Convert QString to UTF-8 QString (to handle Unicode characters
-    // correctly)
-    QByteArray utf8_array = qstr.toUtf8();
-    return fmt::format_to(ctx.out(), "{}", utf8_array.constData());
-  }
-};
-
-template <>
-struct fmt::formatter<QByteArray> {
-  // Parses format specifications.
-  constexpr auto parse(format_parse_context &ctx) -> decltype(ctx.begin()) {
-    return ctx.begin();
-  }
-
-  // Formats the QString qstr and writes it to the output.
-  template <typename FormatContext>
-  auto format(const QByteArray &qarray, FormatContext &ctx) const
-      -> decltype(ctx.out()) {
-    // Convert QString to UTF-8 QString (to handle Unicode characters
-    // correctly)
-    return fmt::format_to(ctx.out(), "{}", qarray.constData());
-  }
+class GTrC {
+  Q_DECLARE_TR_FUNCTIONS(GTrC)
 };
 
 extern auto CalculateBinaryChacksum(const QString &path)
@@ -87,6 +58,10 @@ extern void GetGpgComponentInfos(void *, int, const char *, const char *);
 extern void GetGpgDirectoryInfos(void *, int, const char *, const char *);
 
 extern void GetGpgOptionInfos(void *, int, const char *, const char *);
+
+extern auto StartGatheringGnuPGInfo() -> int;
+
+extern auto GnupgTabFactory(const char *id) -> void *;
 
 using Context = struct {
   QString gpgme_version;
@@ -133,6 +108,11 @@ auto GFGetModuleMetaData() -> GFModuleMetaData * {
 
 auto GFRegisterModule() -> int {
   GFModuleLogDebug("gnupg info gathering module registering");
+
+  GFUIMountEntry(DUP("AboutDialogTabs"),
+                 QMapToMetaDataArray({{"TabTitle", GTrC::tr("GnuPG")}}), 1,
+                 GnupgTabFactory);
+
   return 0;
 }
 
@@ -144,24 +124,40 @@ auto GFActiveModule() -> int {
 }
 
 auto GFExecuteModule(GFModuleEvent *event) -> int {
-  GFModuleLogDebug(
-      fmt::format("gnupg info gathering module executing, event id: {}",
-                  event->id)
-          .c_str());
+  MLogDebug(QString("gnupg info gathering module executing, event id: %1")
+                .arg(event->id));
 
+  StartGatheringGnuPGInfo();
+
+  char **event_argv =
+      static_cast<char **>(GFAllocateMemory(sizeof(char **) * 1));
+  event_argv[0] = GFModuleStrDup("0");
+
+  GFModuleTriggerModuleEventCallback(event, GFGetModuleID(), 1, event_argv);
+
+  GFModuleLogDebug("gnupg external info gathering done");
+  return 0;
+}
+
+auto GFDeactiveModule() -> int { return 0; }
+
+auto GFUnregisterModule() -> int {
+  GFModuleLogDebug("gnupg info gathering module unregistering");
+  return 0;
+}
+
+auto StartGatheringGnuPGInfo() -> int {
   GFModuleLogDebug("start to load extra info at module gnupginfogathering...");
 
   const auto *const gpgme_version = GFModuleRetrieveRTValueOrDefault(
       GFModuleStrDup("core"), GFModuleStrDup("gpgme.version"),
       GFModuleStrDup("0.0.0"));
-  GFModuleLogDebug(
-      fmt::format("got gpgme version from rt: {}", gpgme_version).c_str());
+  MLogDebug(QString("got gpgme version from rt: %1").arg(gpgme_version));
 
   const auto *const gpgconf_path = GFModuleRetrieveRTValueOrDefault(
       GFModuleStrDup("core"), GFModuleStrDup("gpgme.ctx.gpgconf_path"),
       GFModuleStrDup(""));
-  GFModuleLogDebug(
-      fmt::format("got gpgconf path from rt: {}", gpgconf_path).c_str());
+  MLogDebug(QString("got gpgconf path from rt: %1").arg(gpgconf_path));
 
   auto context = Context{gpgme_version, gpgconf_path};
 
@@ -205,10 +201,8 @@ auto GFExecuteModule(GFModuleEvent *event) -> int {
     assert(jsonlized_component_info.isObject());
 
     auto component_info = GpgComponentInfo(jsonlized_component_info.object());
-    GFModuleLogDebug(fmt::format("gpgconf check options ready, "
-                                 "component: {}",
-                                 component_info.name)
-                         .c_str());
+    MLogDebug(QString("gpgconf check options ready, component: %1")
+                  .arg(component_info.name));
 
     if (component_info.name == "gpgme" || component_info.name == "gpgconf") {
       continue;
@@ -230,40 +224,25 @@ auto GFExecuteModule(GFModuleEvent *event) -> int {
   GFModuleUpsertRTValueBool(GFGetModuleID(),
                             GFModuleStrDup("gnupg.gathering_done"), 1);
 
-  char **event_argv =
-      static_cast<char **>(GFAllocateMemory(sizeof(char **) * 1));
-  event_argv[0] = GFModuleStrDup("0");
-
-  GFModuleTriggerModuleEventCallback(event, GFGetModuleID(), 1, event_argv);
-
-  GFModuleLogDebug("gnupg external info gathering done");
-  return 0;
-}
-
-auto GFDeactiveModule() -> int { return 0; }
-
-auto GFUnregisterModule() -> int {
-  GFModuleLogDebug("gnupg info gathering module unregistering");
   return 0;
 }
 
 auto CalculateBinaryChacksum(const QString &path) -> std::optional<QString> {
   // check file info and access rights
-  QFileInfo info(path);
+  QFileInfo const info(path);
   if (!info.exists() || !info.isFile() || !info.isReadable()) {
-    GFModuleLogError(fmt::format("get info for file {} error, exists: {}",
-                                 info.filePath(), info.exists())
-                         .c_str());
+    MLogDebug(QString("get info for file %1 error, exists: %2")
+                  .arg(info.filePath())
+                  .arg(info.exists()));
     return {};
   }
 
   // open and read file
   QFile f(info.filePath());
   if (!f.open(QIODevice::ReadOnly)) {
-    GFModuleLogError(fmt::format("open {} to calculate checksum error: {}",
-                                 path.toStdString(),
-                                 f.errorString().toStdString())
-                         .c_str());
+    MLogDebug(QString("open %1 to calculate checksum error: %2")
+                  .arg(path)
+                  .arg(f.errorString()));
     return {};
   }
 
@@ -274,10 +253,8 @@ auto CalculateBinaryChacksum(const QString &path) -> std::optional<QString> {
   while (!f.atEnd()) {
     QByteArray const buffer = f.read(buffer_size);
     if (buffer.isEmpty()) {
-      GFModuleLogError(fmt::format("error reading file {} during "
-                                   "checksum calculation",
-                                   path.toStdString())
-                           .c_str());
+      MLogDebug(QString("error reading file %1 during checksum calculation")
+                    .arg(path));
       return {};
     }
     hash_sha.addData(buffer);
@@ -297,17 +274,15 @@ void GetGpgComponentInfos(void *data, int exit_code, const char *out,
   auto p_out = QString::fromUtf8(out);
   auto p_err = QString::fromUtf8(err);
 
-  GFModuleLogDebug(fmt::format("gpgconf components exit_code: {} "
-                               "process stdout size: {}",
-                               exit_code, p_out.size())
-                       .c_str());
+  MLogDebug(QString("gpgconf components exit_code: %1 process stdout size: %2")
+                .arg(exit_code)
+                .arg(p_out.size()));
 
   if (exit_code != 0) {
-    GFModuleLogError(fmt::format("gpgconf execute error, process "
-                                 "stderr: {}, "
-                                 "process stdout: {}",
-                                 p_err, p_out)
-                         .c_str());
+    MLogDebug(
+        QString("gpgconf execute error, process stderr: %1, process stdout: %2")
+            .arg(p_err)
+            .arg(p_out));
     return;
   }
 
@@ -360,13 +335,12 @@ void GetGpgComponentInfos(void *data, int exit_code, const char *out,
 
     auto binary_checksum = CalculateBinaryChacksum(component_path);
 
-    GFModuleLogDebug(
-        fmt::format("gnupg component name: {} desc: "
-                    "{} checksum: {} path: {} ",
-                    component_name, component_desc,
-                    binary_checksum.has_value() ? binary_checksum.value() : "/",
-                    component_path)
-            .c_str());
+    MLogDebug(
+        QString("gnupg component name: %1 desc: %2 checksum: %3 path: %4")
+            .arg(component_name)
+            .arg(component_desc)
+            .arg(binary_checksum.has_value() ? binary_checksum.value() : "/",
+                 component_path));
 
     QString version = "/";
 
@@ -425,10 +399,9 @@ void GetGpgDirectoryInfos(void *, int exit_code, const char *out,
 
   for (const auto &line : line_split_list) {
     auto info_split_list = line.split(":");
-    GFModuleLogDebug(fmt::format("gpgconf direcrotries info line: "
-                                 "{} info size: {}",
-                                 line, info_split_list.size())
-                         .c_str());
+    MLogDebug(QString("gpgconf direcrotries info line: %1 info size: %2")
+                  .arg(line)
+                  .arg(info_split_list.size()));
 
     if (info_split_list.size() != 2) continue;
 
@@ -464,11 +437,12 @@ void GetGpgOptionInfos(void *data, int exit_code, const char *out,
   auto *context = reinterpret_cast<Context *>(data);
   auto component_name = context->component_info.name;
 
-  GFModuleLogDebug(fmt::format("gpgconf {} avaliable options "
-                               "exit_code: {} process stdout "
-                               "size: {} ",
-                               component_name, exit_code, p_out.size())
-                       .c_str());
+  MLogDebug(
+      QString(
+          "gpgconf %1 avaliable options exit_code: %2 process stdout size: %3")
+          .arg(component_name)
+          .arg(exit_code)
+          .arg(p_out.size()));
 
   std::vector<GpgOptionsInfo> options_infos;
 
@@ -477,10 +451,10 @@ void GetGpgOptionInfos(void *data, int exit_code, const char *out,
   for (const auto &line : line_split_list) {
     auto info_split_list = line.split(":");
 
-    GFModuleLogDebug(fmt::format("component {} avaliable options "
-                                 "line: {} info size: {}",
-                                 component_name, line, info_split_list.size())
-                         .c_str());
+    MLogDebug(QString("component %1 available options line: %2 info size: %3")
+                  .arg(component_name)
+                  .arg(line)
+                  .arg(info_split_list.size()));
 
     if (info_split_list.size() < 10) continue;
 

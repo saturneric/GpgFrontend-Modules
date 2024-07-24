@@ -26,31 +26,38 @@
  *
  */
 
+//
+// Created by eric on 2022/7/23.
+//
+
 #pragma once
 
-#include <GFSDKModule.h>
+#include <QtWidgets/QtWidgets>
 
-#include "GFModuleExport.h"
+class Ui_GnuPGInfo;
 
-extern "C" {
+class GnupgTab : public QWidget {
+  Q_OBJECT
+ public:
+  /**
+   * @brief Construct a new Info Tab object
+   *
+   * @param parent
+   */
+  explicit GnupgTab(QWidget* parent = nullptr);
 
-auto GF_MODULE_EXPORT GFGetModuleGFSDKVersion() -> const char *;
+ private:
+  std::shared_ptr<Ui_GnuPGInfo> ui_;  ///<
 
-auto GF_MODULE_EXPORT GFGetModuleQtEnvVersion() -> const char *;
+  /**
+   * @brief
+   *
+   */
+  void process_software_info();
 
-auto GF_MODULE_EXPORT GFGetModuleID() -> const char *;
-
-auto GF_MODULE_EXPORT GFGetModuleVersion() -> const char *;
-
-auto GF_MODULE_EXPORT GFGetModuleMetaData() -> GFModuleMetaData *;
-
-auto GF_MODULE_EXPORT GFRegisterModule() -> int;
-
-auto GF_MODULE_EXPORT GFActiveModule() -> int;
-
-auto GF_MODULE_EXPORT GFExecuteModule(GFModuleEvent *) -> int;
-
-auto GF_MODULE_EXPORT GFDeactiveModule() -> int;
-
-auto GF_MODULE_EXPORT GFUnregisterModule() -> int;
+  /**
+   * @brief
+   *
+   */
+  void gather_gnupg_info();
 };

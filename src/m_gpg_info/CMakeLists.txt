@@ -43,10 +43,10 @@ target_link_libraries(mod_gpg_info PRIVATE
 
 if(GPGFRONTEND_QT5_BUILD)
   # link Qt core
-  target_link_libraries(mod_gpg_info PRIVATE Qt5::Core)
+  target_link_libraries(mod_gpg_info PRIVATE Qt5::Core Qt5::Widgets)
 else()
   # link Qt core
-  target_link_libraries(mod_gpg_info PRIVATE Qt6::Core)
+  target_link_libraries(mod_gpg_info PRIVATE Qt6::Core Qt6::Widgets)
 endif()
 
 # using std c++ 17
@@ -54,3 +54,15 @@ target_compile_features(mod_gpg_info PRIVATE cxx_std_17)
 
 # ui
 set(CMAKE_AUTOUIC_SEARCH_PATHS ${CMAKE_AUTOUIC_SEARCH_PATHS} ${CMAKE_CURRENT_SOURCE_DIR}/ui)
+
+# i18n
+set(LOCALE_TS_PATH ${CMAKE_CURRENT_SOURCE_DIR}/ts)
+set(TS_FILES "${LOCALE_TS_PATH}/ModuleGnuPGInfoGathering.en_US.ts" 
+            "${LOCALE_TS_PATH}/ModuleGnuPGInfoGathering.de_DE.ts"
+            "${LOCALE_TS_PATH}/ModuleGnuPGInfoGathering.fr_FR.ts"
+            "${LOCALE_TS_PATH}/ModuleGnuPGInfoGathering.zh_CN.ts")
+qt_add_translations(mod_gpg_info
+    RESOURCE_PREFIX "/i18n"
+    TS_FILES ${TS_FILES}
+    SOURCES ${MODULE_SOURCE_FILES}
+    INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR})

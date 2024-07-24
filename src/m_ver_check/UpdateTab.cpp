@@ -28,6 +28,7 @@
 
 #include "UpdateTab.h"
 
+#include "GFModuleCommonUtils.hpp"
 #include "GFSDKBasic.h"
 #include "GFSDKLog.h"
 #include "GFSDKModule.h"
@@ -82,7 +83,7 @@ UpdateTab::UpdateTab(QWidget* parent) : QWidget(parent) {
 
 void UpdateTab::showEvent(QShowEvent* event) {
   QWidget::showEvent(event);
-  GFModuleLogDebug("loading version loading info from rt");
+  MLogDebug("loading version loading info from rt");
 
   auto is_loading_done = GFModuleRetrieveRTValueOrDefaultBool(
       GFGetModuleID(), GFModuleStrDup("version.loading_done"), 0);
@@ -102,14 +103,14 @@ void UpdateTab::showEvent(QShowEvent* event) {
 }
 
 void UpdateTab::slot_show_version_status() {
-  GFModuleLogDebug("loading version info from rt");
+  MLogDebug("loading version info from rt");
   this->pb_->setHidden(true);
 
   auto is_loading_done = GFModuleRetrieveRTValueOrDefaultBool(
       GFGetModuleID(), GFModuleStrDup("version.loading_done"), 0);
 
   if (is_loading_done == 0) {
-    GFModuleLogDebug("version info loading haven't been done yet.");
+    MLogDebug("version info loading haven't been done yet.");
     return;
   }
 
@@ -123,9 +124,9 @@ void UpdateTab::slot_show_version_status() {
   auto is_current_version_released = GFModuleRetrieveRTValueOrDefaultBool(
       GFGetModuleID(), GFModuleStrDup("version.current_version_released"), 0);
 
-  QString const latest_version = GFModuleRetrieveRTValueOrDefault(
+  QString const latest_version = UDUP(GFModuleRetrieveRTValueOrDefault(
       GFGetModuleID(), GFModuleStrDup("version.latest_version"),
-      GFModuleStrDup(""));
+      GFModuleStrDup("")));
 
   latest_version_label_->setText("<center><b>" +
                                  tr("Latest Version From Github") + ": " +
