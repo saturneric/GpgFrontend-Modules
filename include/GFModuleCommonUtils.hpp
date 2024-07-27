@@ -97,11 +97,8 @@ inline auto QMapToGFModuleMetaDataList(const QMap<QString, QString>& map)
     QByteArray const key = it.key().toUtf8();
     QByteArray const value = it.value().toUtf8();
 
-    new_node->key = new char[key.size() + 1];
-    std::strcpy(const_cast<char*>(new_node->key), key.constData());
-
-    new_node->value = new char[value.size() + 1];
-    std::strcpy(const_cast<char*>(new_node->value), value.constData());
+    new_node->key = DUP(key);
+    new_node->value = DUP(value);
 
     new_node->next = nullptr;
 
@@ -139,8 +136,8 @@ auto SecureCreateSharedObject(Args&&... args) -> std::shared_ptr<T> {
   }
 }
 
-inline auto CharArrayToQStringList(char** pl_components, int size)
-    -> QStringList {
+inline auto CharArrayToQStringList(char** pl_components,
+                                   int size) -> QStringList {
   QStringList list;
   for (int i = 0; i < size; ++i) {
     list.append(QString::fromUtf8(pl_components[i]));
