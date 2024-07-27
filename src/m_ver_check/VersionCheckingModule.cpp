@@ -33,7 +33,6 @@
 #include <GFSDKExtra.h>
 #include <GFSDKLog.h>
 #include <GFSDKUI.h>
-#include <spdlog/spdlog.h>
 
 #include <QMetaType>
 #include <QtNetwork>

@@ -31,59 +31,23 @@
 #include <GFSDKBasic.h>
 #include <GFSDKExtra.h>
 #include <GFSDKLog.h>
-#include <spdlog/spdlog.h>
 
 #include <QString>
 
-template <>
-struct fmt::formatter<QString> {
-  // Parses format specifications.
-  constexpr auto parse(format_parse_context& ctx) -> decltype(ctx.begin()) {
-    return ctx.begin();
-  }
-
-  // Formats the QString qstr and writes it to the output.
-  template <typename FormatContext>
-  auto format(const QString& qstr, FormatContext& ctx) const
-      -> decltype(ctx.out()) {
-    // Convert QString to UTF-8 QString (to handle Unicode characters
-    // correctly)
-    QByteArray utf8_array = qstr.toUtf8();
-    return fmt::format_to(ctx.out(), "{}", utf8_array.constData());
-  }
-};
-
-template <>
-struct fmt::formatter<QByteArray> {
-  // Parses format specifications.
-  constexpr auto parse(format_parse_context& ctx) -> decltype(ctx.begin()) {
-    return ctx.begin();
-  }
-
-  // Formats the QString qstr and writes it to the output.
-  template <typename FormatContext>
-  auto format(const QByteArray& qarray, FormatContext& ctx) const
-      -> decltype(ctx.out()) {
-    // Convert QString to UTF-8 QString (to handle Unicode characters
-    // correctly)
-    return fmt::format_to(ctx.out(), "{}", qarray.constData());
-  }
-};
+#include "GFModuleCommonUtils.hpp"
 
 auto SoftwareVersion::NeedUpgrade() const -> bool {
-  GFModuleLogDebug(
-      fmt::format(
-          "compair version current {} latest {}, result {}", current_version,
-          latest_version,
-          GFCompareSoftwareVersion(GFModuleStrDup(current_version.toUtf8()),
-                                   GFModuleStrDup(latest_version.toUtf8())))
-          .c_str());
+  MLogDebug(QString("compare version current: %1 latest %2, result: %3")
+                .arg(current_version)
+                .arg(latest_version)
+                .arg(GFCompareSoftwareVersion(
+                    GFModuleStrDup(current_version.toUtf8()),
+                    GFModuleStrDup(latest_version.toUtf8()))));
 
-  GFModuleLogDebug(fmt::format("load done: {}, pre-release: {}, draft: {}",
-                               loading_done,
-                               latest_prerelease_version_from_remote,
-                               latest_draft_from_remote)
-                       .c_str());
+  MLogDebug(QString("load done: %1, pre-release: %2, draft: %3")
+                .arg(static_cast<int>(loading_done))
+                .arg(static_cast<int>(latest_prerelease_version_from_remote))
+                .arg(static_cast<int>(latest_draft_from_remote)));
   return loading_done && !latest_prerelease_version_from_remote &&
          !latest_draft_from_remote &&
          GFCompareSoftwareVersion(GFModuleStrDup(current_version.toUtf8()),

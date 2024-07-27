@@ -31,14 +31,12 @@
 #include <GFSDKBasic.h>
 #include <GFSDKExtra.h>
 #include <GFSDKLog.h>
+#include <qobject.h>
 
 #include <QMetaType>
 #include <QtNetwork>
 
-// spdlog
-#include <spdlog/spdlog.h>
-
-#include "LogFormatter.h"
+#include "GFModuleCommonUtils.hpp"
 #include "SoftwareVersion.h"
 #include "VersionCheckingModule.h"
 
@@ -50,8 +48,6 @@ VersionCheckTask::VersionCheckTask()
 }
 
 auto VersionCheckTask::Run() -> int {
-  GFModuleLogDebug(
-      fmt::format("current project version: {}", current_version_).c_str());
   QString latest_version_url =
       "https://api.github.com/repos/saturneric/gpgfrontend/releases/latest";
 
@@ -70,9 +66,8 @@ void VersionCheckTask::slot_parse_latest_version_info() {
     version_.latest_version = current_version_;
     version_.loading_done = false;
   } else if (latest_reply_->error() != QNetworkReply::NoError) {
-    GFModuleLogError(fmt::format("latest version request error: ",
-                                 latest_reply_->errorString())
-                         .c_str());
+    MLogError(QString("latest version request error: %1")
+                  .arg(latest_reply_->errorString()));
     version_.latest_version = current_version_;
   } else {
     latest_reply_bytes_ = latest_reply_->readAll();
@@ -85,15 +80,10 @@ void VersionCheckTask::slot_parse_latest_version_info() {
       auto version_match = re.match(latest_version);
       if (version_match.hasMatch()) {
         latest_version = version_match.captured(0);
-        GFModuleLogInfo(fmt::format("latest released version from github: {}",
-                                    latest_version)
-                            .c_str());
       } else {
         latest_version = current_version_;
-        GFModuleLogWarn(
-            fmt::format("latest version unknown, set to current version: {}",
-                        current_version_)
-                .c_str());
+        MLogWarn(QString("latest version unknown, set to current version: %1")
+                     .arg(current_version_));
       }
 
       bool prerelease = latest_reply_json["prerelease"].toBool();
@@ -106,9 +96,8 @@ void VersionCheckTask::slot_parse_latest_version_info() {
       version_.publish_date = publish_date;
       version_.release_note = release_note;
     } else {
-      GFModuleLogWarn(fmt::format("cannot parse data got from github: {}",
-                                  latest_reply_bytes_)
-                          .c_str());
+      MLogWarn(QString("cannot parse data got from github: %1")
+                   .arg(latest_reply_bytes_));
     }
   }
 
@@ -120,9 +109,6 @@ void VersionCheckTask::slot_parse_latest_version_info() {
     QString current_version_url =
         "https://api.github.com/repos/saturneric/gpgfrontend/releases/tags/" +
         current_version_;
-    GFModuleLogDebug(
-        fmt::format("current version info query url: {}", current_version_url)
-            .c_str());
 
     QNetworkRequest current_request(current_version_url);
     current_request.setHeader(QNetworkRequest::UserAgentHeader,
@@ -143,9 +129,8 @@ void VersionCheckTask::slot_parse_current_version_info() {
     version_.loading_done = false;
 
   } else if (current_reply_->error() != QNetworkReply::NoError) {
-    GFModuleLogError(fmt::format("current version request network error: {}",
-                                 current_reply_->errorString())
-                         .c_str());
+    MLogError(QString("current version request network error: {}")
+                  .arg(current_reply_->errorString()));
 
     // loading done
     version_.loading_done = true;
@@ -163,15 +148,10 @@ void VersionCheckTask::slot_parse_current_version_info() {
       // loading done
       version_.loading_done = true;
     } else {
-      GFModuleLogWarn(fmt::format("cannot parse data got from github: {}",
-                                  current_reply_bytes_)
-                          .c_str());
+      MLogWarn(QString("cannot parse data got from github: %1")
+                   .arg(current_reply_bytes_));
     }
   }
-
-  GFModuleLogDebug(fmt::format("current version parse done: {}",
-                               version_.current_version_publish_in_remote)
-                       .c_str());
 
   if (current_reply_ != nullptr) current_reply_->deleteLater();
 

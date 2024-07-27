@@ -30,9 +30,6 @@ aux_source_directory(. MODULE_SOURCE_FILES)
 # define libgpgfrontend_module
 add_library(mod_ver_check SHARED ${MODULE_SOURCE_FILES})
 
-target_include_directories(mod_ver_check PRIVATE 
-  ${CMAKE_SOURCE_DIR}/third_party/spdlog/include)
-
 # install dir
 install(TARGETS mod_ver_check 
   LIBRARY DESTINATION "${CMAKE_INSTALL_PREFIX}/modules")

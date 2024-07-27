@@ -22,5 +22,3 @@
 # Saturneric <eric@bktus.com> starting on May 12, 2021.
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
-
-add_subdirectory(spdlog EXCLUDE_FROM_ALL)
