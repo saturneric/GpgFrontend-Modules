@@ -23,40 +23,41 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-# com.bktus.gpgfrontend.module.integrated.gnupg_info_gathering
-
 aux_source_directory(. INTEGRATED_MODULE_SOURCE)
 
-# define libgpgfrontend_module
-add_library(mod_gpg_info SHARED ${INTEGRATED_MODULE_SOURCE})
+# capslock
+list(APPEND INTEGRATED_MODULE_SOURCE "capslock/capslock.cpp")
+if (MINGW)
+  list(APPEND INTEGRATED_MODULE_SOURCE "capslock/capslock_win.cpp")
+else()
+  list(APPEND INTEGRATED_MODULE_SOURCE "capslock/capslock_unix.cpp")
+endif()
+
+list(APPEND INTEGRATED_MODULE_SOURCE "pinentry.qrc")
+
+# define module
+add_library(mod_pinentry SHARED ${INTEGRATED_MODULE_SOURCE})
 
 # install dir
-install(TARGETS mod_gpg_info 
+install(TARGETS mod_pinentry 
   LIBRARY DESTINATION "${CMAKE_INSTALL_PREFIX}/modules")
 
+
+# link options
+
 # link sdk
-target_link_libraries(mod_gpg_info PRIVATE
+target_link_libraries(mod_pinentry PRIVATE
   gpgfrontend_module_sdk)
 
 if(GPGFRONTEND_QT5_BUILD)
   # link Qt core
-  target_link_libraries(mod_gpg_info PRIVATE Qt5::Core Qt5::Widgets)
+  target_link_libraries(mod_pinentry PUBLIC Qt5::Widgets)
 else()
   # link Qt core
-  target_link_libraries(mod_gpg_info PRIVATE Qt6::Core Qt6::Widgets)
+  target_link_libraries(mod_pinentry PUBLIC Qt6::Widgets)
 endif()
 
-# using std c++ 17
-target_compile_features(mod_gpg_info PRIVATE cxx_std_17)
 
-# i18n
-set(LOCALE_TS_PATH ${CMAKE_CURRENT_SOURCE_DIR}/ts)
-set(TS_FILES "${LOCALE_TS_PATH}/ModuleGnuPGInfoGathering.en_US.ts" 
-            "${LOCALE_TS_PATH}/ModuleGnuPGInfoGathering.de_DE.ts"
-            "${LOCALE_TS_PATH}/ModuleGnuPGInfoGathering.fr_FR.ts"
-            "${LOCALE_TS_PATH}/ModuleGnuPGInfoGathering.zh_CN.ts")
-qt_add_translations(mod_gpg_info
-    RESOURCE_PREFIX "/i18n"
-    TS_FILES ${TS_FILES}
-    SOURCES ${MODULE_SOURCE_FILES}
-    INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR})
+# using std c++ 17
+target_compile_features(mod_pinentry PUBLIC cxx_std_17)
+

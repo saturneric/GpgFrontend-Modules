@@ -109,11 +109,8 @@ auto GFExecuteModule(GFModuleEvent *event) -> int {
 
   StartGatheringGnuPGInfo();
 
-  char **event_argv =
-      static_cast<char **>(GFAllocateMemory(sizeof(char **) * 1));
-  event_argv[0] = DUP("0");
-
-  GFModuleTriggerModuleEventCallback(event, GFGetModuleID(), 1, event_argv);
+  GFModuleTriggerModuleEventCallback(event, GFGetModuleID(), 1,
+                                     ConvertMapToParams({{"ret", "0"}}));
 
   MLogDebug("gnupg external info gathering done");
   return 0;

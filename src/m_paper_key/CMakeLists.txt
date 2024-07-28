@@ -28,35 +28,23 @@
 aux_source_directory(. INTEGRATED_MODULE_SOURCE)
 
 # define libgpgfrontend_module
-add_library(mod_gpg_info SHARED ${INTEGRATED_MODULE_SOURCE})
+add_library(mod_paper_key SHARED ${INTEGRATED_MODULE_SOURCE})
 
 # install dir
-install(TARGETS mod_gpg_info 
+install(TARGETS mod_paper_key 
   LIBRARY DESTINATION "${CMAKE_INSTALL_PREFIX}/modules")
 
 # link sdk
-target_link_libraries(mod_gpg_info PRIVATE
+target_link_libraries(mod_paper_key PRIVATE
   gpgfrontend_module_sdk)
 
 if(GPGFRONTEND_QT5_BUILD)
   # link Qt core
-  target_link_libraries(mod_gpg_info PRIVATE Qt5::Core Qt5::Widgets)
+  target_link_libraries(mod_paper_key PRIVATE Qt5::Core)
 else()
   # link Qt core
-  target_link_libraries(mod_gpg_info PRIVATE Qt6::Core Qt6::Widgets)
+  target_link_libraries(mod_paper_key PRIVATE Qt6::Core)
 endif()
 
 # using std c++ 17
-target_compile_features(mod_gpg_info PRIVATE cxx_std_17)
-
-# i18n
-set(LOCALE_TS_PATH ${CMAKE_CURRENT_SOURCE_DIR}/ts)
-set(TS_FILES "${LOCALE_TS_PATH}/ModuleGnuPGInfoGathering.en_US.ts" 
-            "${LOCALE_TS_PATH}/ModuleGnuPGInfoGathering.de_DE.ts"
-            "${LOCALE_TS_PATH}/ModuleGnuPGInfoGathering.fr_FR.ts"
-            "${LOCALE_TS_PATH}/ModuleGnuPGInfoGathering.zh_CN.ts")
-qt_add_translations(mod_gpg_info
-    RESOURCE_PREFIX "/i18n"
-    TS_FILES ${TS_FILES}
-    SOURCES ${MODULE_SOURCE_FILES}
-    INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_features(mod_paper_key PRIVATE cxx_std_17)

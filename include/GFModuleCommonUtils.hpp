@@ -29,6 +29,7 @@
 #pragma once
 
 #include <GFSDKUI.h>
+#include <qsharedpointer.h>
 
 #include <QMap>
 #include <QString>
@@ -113,6 +114,71 @@ inline auto QMapToGFModuleMetaDataList(const QMap<QString, QString>& map)
   return head;
 }
 
+inline auto ConvertEventParamsToMap(GFModuleEventParam* params)
+    -> QMap<QString, QString> {
+  QMap<QString, QString> param_map;
+  GFModuleEventParam* current = params;
+  GFModuleEventParam* last;
+
+  while (current != nullptr) {
+    param_map[current->name] = UDUP(current->value);
+
+    last = current;
+    current = current->next;
+    GFFreeMemory(last);
+  }
+
+  return param_map;
+}
+
+inline auto ConvertMapToParams(const QMap<QString, QString>& param_map)
+    -> GFModuleEventParam* {
+  GFModuleEventParam* head = nullptr;
+  GFModuleEventParam* prev = nullptr;
+
+  for (const auto& [key, value] : param_map.asKeyValueRange()) {
+    auto* param = static_cast<GFModuleEventParam*>(
+        GFAllocateMemory(sizeof(GFModuleEventParam)));
+
+    param->name = DUP(key.toUtf8());
+    param->value = DUP(value.toUtf8());
+    param->next = nullptr;
+
+    if (prev == nullptr) {
+      head = param;
+    } else {
+      prev->next = param;
+    }
+    prev = param;
+  }
+
+  return head;
+}
+
+inline auto ConvertEventToMap(GFModuleEvent* event) -> QMap<QString, QString> {
+  QMap<QString, QString> event_map;
+
+  event_map["event_id"] = UDUP(event->id);
+  event_map["trigger_id"] = UDUP(event->trigger_id);
+  event_map.insert(ConvertEventParamsToMap(event->params));
+
+  GFFreeMemory(event);
+
+  return event_map;
+}
+
+inline auto ConvertMapToEvent(QMap<QString, QString> event_map)
+    -> GFModuleEvent* {
+  auto* event =
+      static_cast<GFModuleEvent*>(GFAllocateMemory(sizeof(GFModuleEvent)));
+
+  event->id = DUP(event_map["event_id"].toUtf8());
+  event->trigger_id = DUP(event_map["trigger_id"].toUtf8());
+  event->params = nullptr;
+
+  return event;
+}
+
 inline auto AllocBufferAndCopy(const QByteArray& b) -> char* {
   auto* p = static_cast<char*>(GFAllocateMemory(sizeof(char) * b.size()));
   memcpy(p, b.constData(), b.size());
@@ -127,6 +193,55 @@ auto SecureCreateSharedObject(Args&&... args) -> std::shared_ptr<T> {
   try {
     T* obj = new (mem) T(std::forward<Args>(args)...);
     return std::shared_ptr<T>(obj, [](T* ptr) {
+      ptr->~T();
+      GFFreeMemory(ptr);
+    });
+  } catch (...) {
+    GFFreeMemory(mem);
+    throw;
+  }
+}
+
+template <typename T>
+class PointerConverter {
+ public:
+  explicit PointerConverter(void* ptr) : ptr_(ptr) {}
+
+  auto AsType() const -> T* { return static_cast<T*>(ptr_); }
+
+ private:
+  void* ptr_;
+};
+
+/**
+ * @brief
+ *
+ * @tparam T
+ * @return T*
+ */
+template <typename T>
+auto SecureMallocAsType(std::size_t size) -> T* {
+  return PointerConverter<T>(GFAllocateMemory(size)).AsType();
+}
+
+/**
+ * @brief
+ *
+ * @return void*
+ */
+template <typename T>
+auto SecureReallocAsType(T* ptr, std::size_t size) -> T* {
+  return PointerConverter<T>(GFReallocateMemory(ptr, size)).AsType();
+}
+
+template <typename T, typename... Args>
+auto SecureCreateQSharedObject(Args&&... args) -> QSharedPointer<T> {
+  void* mem = GFAllocateMemory(sizeof(T));
+  if (!mem) throw std::bad_alloc();
+
+  try {
+    T* obj = new (mem) T(std::forward<Args>(args)...);
+    return QSharedPointer<T>(obj, [](T* ptr) {
       ptr->~T();
       GFFreeMemory(ptr);
     });

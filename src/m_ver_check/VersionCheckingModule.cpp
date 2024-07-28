@@ -100,12 +100,9 @@ auto GFExecuteModule(GFModuleEvent* event) -> int {
   auto* task = new VersionCheckTask();
   QObject::connect(task, &VersionCheckTask::SignalUpgradeVersion,
                    QThread::currentThread(), [event](const SoftwareVersion&) {
-                     char** event_argv = static_cast<char**>(
-                         GFAllocateMemory(sizeof(char**) * 1));
-                     event_argv[0] = DUP("0");
-
-                     GFModuleTriggerModuleEventCallback(event, GFGetModuleID(),
-                                                        1, event_argv);
+                     GFModuleTriggerModuleEventCallback(
+                         event, GFGetModuleID(), 1,
+                         ConvertMapToParams({{"ret", "0"}}));
                    });
   QObject::connect(task, &VersionCheckTask::SignalUpgradeVersion, task,
                    &QObject::deleteLater);

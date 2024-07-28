@@ -26,3 +26,5 @@
 # modules
 add_subdirectory(m_ver_check)
 add_subdirectory(m_gpg_info)
+add_subdirectory(m_pinentry)
+add_subdirectory(m_paper_key)
