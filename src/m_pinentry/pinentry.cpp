@@ -45,7 +45,6 @@
 #include <windows.h>
 #endif
 
-#include <assuan.h>
 #include <qhash.h>
 
 #include "pinentry.h"
@@ -227,50 +226,6 @@ int pinentry_inq_quality(const QString &passphrase) {
   }
 
   return std::max(-100, std::min(100, score));
-}
-
-/* Run a genpin inquiry */
-char *pinentry_inq_genpin(pinentry_t pin) {
-  assuan_context_t ctx = (assuan_context_t)pin->ctx_assuan;
-  const char prefix[] = "INQUIRE GENPIN";
-  char *line;
-  size_t linelen;
-  int gotvalue = 0;
-  char *value = NULL;
-  int rc;
-
-  if (!ctx) return 0; /* Can't run the callback.  */
-
-  rc = assuan_write_line(ctx, prefix);
-  if (rc) {
-    fprintf(stderr, "ASSUAN WRITE LINE failed: rc=%d\n", rc);
-    return 0;
-  }
-
-  for (;;) {
-    do {
-      rc = assuan_read_line(ctx, &line, &linelen);
-      if (rc) {
-        fprintf(stderr, "ASSUAN READ LINE failed: rc=%d\n", rc);
-        free(value);
-        return 0;
-      }
-    } while (*line == '#' || !linelen);
-    if (line[0] == 'E' && line[1] == 'N' && line[2] == 'D' &&
-        (!line[3] || line[3] == ' '))
-      break; /* END command received*/
-    if (line[0] == 'C' && line[1] == 'A' && line[2] == 'N' &&
-        (!line[3] || line[3] == ' '))
-      break; /* CAN command received*/
-    if (line[0] == 'E' && line[1] == 'R' && line[2] == 'R' &&
-        (!line[3] || line[3] == ' '))
-      break; /* ERR command received*/
-    if (line[0] != 'D' || line[1] != ' ' || linelen < 3 || gotvalue) continue;
-    gotvalue = 1;
-    value = strdup(line + 2);
-  }
-
-  return value;
 }
 
 /* Try to make room for at least LEN bytes in the pinentry.  Returns
