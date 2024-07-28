@@ -43,17 +43,41 @@
 #define UDUP(v) UnStrDup(v)
 #define QDUP(v) QStrDup(v)
 
+#define LISTEN(event) GFModuleListenEvent(GFGetModuleID(), DUP(event));
+
+#define EXECUTE_MODULE()                                \
+  auto GFExecuteModule(GFModuleEvent* p_event) -> int { \
+    auto event = ConvertEventToMap(p_event);
+
+#define END_EXECUTE_MODULE() }
+
+#define CB_SUCC(event)                        \
+  CB(event, GFGetModuleID(), {{"ret", "0"}}); \
+  return 0;
+
+#define CB_ERR(event, ret, err)                                  \
+  CB(event, GFGetModuleID(),                                     \
+     {{"ret", QString::number(ret)}, {"reason", QString(err)}}); \
+  return ret;
+
 inline void MLogDebug(const QString& s) { GFModuleLogDebug(s.toUtf8()); }
 inline void MLogInfo(const QString& s) { GFModuleLogInfo(s.toUtf8()); }
 inline void MLogWarn(const QString& s) { GFModuleLogWarn(s.toUtf8()); }
 inline void MLogError(const QString& s) { GFModuleLogError(s.toUtf8()); }
 
-#define MLogDebugS(format, ...) \
-  MLogDebug(QString::asprintf(format, __VA_ARGS__))
-#define MLogInfoS(format, ...) MLogInfo(QString::asprintf(format, __VA_ARGS__))
-#define MLogWarnS(format, ...) MLogWarn(QString::asprintf(format, __VA_ARGS__))
-#define MLogErrorS(format, ...) \
-  MLogError(QString::asprintf(format, __VA_ARGS__))
+#define LOG_DEBUG(format) MLogDebug(FormatString(QString(format)))
+#define LOG_INFO(format) MLogDebug(FormatString(QString(format)))
+#define LOG_WARN(format) MLogDebug(FormatString(QString(format)))
+#define LOG_ERROR(format) MLogDebug(FormatString(QString(format)))
+
+#define FLOG_DEBUG(format, ...) \
+  MLogDebug(FormatString(QString(format), __VA_ARGS__))
+#define FLOG_INFO(format, ...) \
+  MLogInfo(FormatString(QString(format), __VA_ARGS__))
+#define FLOG_WARN(format, ...) \
+  MLogWarn(FormatString(QString(format), __VA_ARGS__))
+#define FLOG_ERROR(format, ...) \
+  MLogError(FormatString(QString(format), __VA_ARGS__))
 
 inline auto QStrDup(QString str) -> char* { return DUP(str.toUtf8()); }
 
@@ -179,6 +203,12 @@ inline auto ConvertMapToEvent(QMap<QString, QString> event_map)
   return event;
 }
 
+inline void CB(const QMap<QString, QString>& event, const char* module,
+               const QMap<QString, QString>& params) {
+  GFModuleTriggerModuleEventCallback(ConvertMapToEvent(event), module,
+                                     ConvertMapToParams(params));
+}
+
 inline auto AllocBufferAndCopy(const QByteArray& b) -> char* {
   auto* p = static_cast<char*>(GFAllocateMemory(sizeof(char) * b.size()));
   memcpy(p, b.constData(), b.size());
@@ -260,4 +290,19 @@ inline auto CharArrayToQStringList(char** pl_components,
   }
   GFFreeMemory(pl_components);
   return list;
+}
+
+template <typename... Args>
+auto FormatString(const QString& format, Args... args) -> QString {
+  return FormatStringHelper(format, args...);
+}
+
+template <typename T>
+auto FormatStringHelper(const QString& format, T arg) -> QString {
+  return format.arg(arg);
+}
+
+template <typename T, typename... Args>
+auto FormatStringHelper(const QString& format, T arg, Args... args) -> QString {
+  return FormatStringHelper(format.arg(arg), args...);
 }

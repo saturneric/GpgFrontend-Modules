@@ -30,56 +30,30 @@
 
 #include <QtCore>
 
-#include "GFModuleCommonUtils.hpp"
-#include "GFSDKBuildInfo.h"
+#include "GFModuleDefine.h"
 #include "extract.h"
 
-auto GFGetModuleGFSDKVersion() -> const char * {
-  return DUP(GF_SDK_VERSION_STR);
-}
-
-auto GFGetModuleQtEnvVersion() -> const char * { return DUP(QT_VERSION_STR); }
-
-auto GFGetModuleID() -> const char * {
-  return DUP("com.bktus.gpgfrontend.module.paper_key");
-}
-
-auto GFGetModuleVersion() -> const char * { return DUP("1.0.0"); }
-
-auto GFGetModuleMetaData() -> GFModuleMetaData * {
-  return QMapToGFModuleMetaDataList(
-      {{"Name", "PaperKey"},
-       {"Description", "Integrated PaperKey Functions."},
-       {"Author", "Saturneric"}});
-}
+GF_MODULE_API_DEFINE("com.bktus.gpgfrontend.module.paper_key", "PaperKey",
+                     "1.0.0", "Integrated PaperKey Functions.", "Saturneric")
 
 auto GFRegisterModule() -> int {
-  MLogDebug("paper key module registering");
+  LOG_DEBUG("paper key module registering");
 
   return 0;
 }
 
 auto GFActiveModule() -> int {
-  MLogDebug("paper key module activating");
-  GFModuleListenEvent(GFGetModuleID(), DUP("REQUEST_TRANS_KEY_2_PAPER_KEY"));
-  GFModuleListenEvent(GFGetModuleID(), DUP("REQUEST_TRANS_PAPER_KEY_2_KEY"));
+  LISTEN("REQUEST_TRANS_KEY_2_PAPER_KEY");
+  LISTEN("REQUEST_TRANS_PAPER_KEY_2_KEY");
   return 0;
 }
 
-auto GFExecuteModule(GFModuleEvent *p_event) -> int {
-  MLogDebug(
-      QString("paper key module executing, event id: %1").arg(p_event->id));
-
-  auto event = ConvertEventToMap(p_event);
+EXECUTE_MODULE() {
+  FLOG_DEBUG("paper key module executing, event id: %1", event["event_id"]);
 
   if (event["event_id"] == "REQUEST_TRANS_KEY_2_PAPER_KEY") {
     if (event["secret_key"].isEmpty() || event["output_path"].isEmpty()) {
-      GFModuleTriggerModuleEventCallback(
-          ConvertMapToEvent(event), GFGetModuleID(), 1,
-          ConvertMapToParams(
-              {{"ret", "-1"},
-               {"reason", "secret key or output path is empty"}}));
-      return -1;
+      CB_ERR(event, -1, "secret key or output path is empty");
     }
 
     QByteArray secret_key_data =
@@ -87,9 +61,7 @@ auto GFExecuteModule(GFModuleEvent *p_event) -> int {
 
     QTemporaryFile secret_key_t_file;
     if (!secret_key_t_file.open()) {
-      qWarning() << "Unable to open temporary file";
-      MLogWarn("unable to open temporary file");
-      return -1;
+      CB_ERR(event, -1, "unable to open temporary file");
     }
 
     secret_key_t_file.write(secret_key_data);
@@ -98,8 +70,7 @@ auto GFExecuteModule(GFModuleEvent *p_event) -> int {
 
     FILE *file = fdopen(secret_key_t_file.handle(), "rb");
     if (file == nullptr) {
-      qDebug() << "Unable to convert QTemporaryFile to FILE*";
-      return -1;
+      CB_ERR(event, -1, "unable to convert QTemporaryFile to FILE*");
     }
 
     extract(file, event["output_path"].toUtf8(), AUTO);
@@ -107,12 +78,7 @@ auto GFExecuteModule(GFModuleEvent *p_event) -> int {
     fclose(file);
   } else if (event["event_id"] == "REQUEST_TRANS_PAPER_KEY_2_KEY") {
     if (event["public_key"].isEmpty() || event["paper_key_secrets"].isEmpty()) {
-      GFModuleTriggerModuleEventCallback(
-          ConvertMapToEvent(event), GFGetModuleID(), 1,
-          ConvertMapToParams(
-              {{"ret", "-1"},
-               {"reason", "public key or paper key secrets is empty"}}));
-      return -1;
+      CB_ERR(event, -1, "public key or paper key secrets is empty");
     }
 
     QByteArray public_key_data =
@@ -120,11 +86,7 @@ auto GFExecuteModule(GFModuleEvent *p_event) -> int {
 
     QTemporaryFile public_key_t_file;
     if (!public_key_t_file.open()) {
-      GFModuleTriggerModuleEventCallback(
-          ConvertMapToEvent(event), GFGetModuleID(), 1,
-          ConvertMapToParams(
-              {{"ret", "-1"}, {"reason", "unable to open temporary file"}}));
-      return -1;
+      CB_ERR(event, -1, "unable to open temporary file");
     }
 
     public_key_t_file.write(public_key_data);
@@ -133,12 +95,7 @@ auto GFExecuteModule(GFModuleEvent *p_event) -> int {
 
     FILE *pubring = fdopen(public_key_t_file.handle(), "rb");
     if (pubring == nullptr) {
-      GFModuleTriggerModuleEventCallback(
-          ConvertMapToEvent(event), GFGetModuleID(), 1,
-          ConvertMapToParams(
-              {{"ret", "-1"},
-               {"reason", "unable to convert QTemporaryFile to FILE*"}}));
-      return -1;
+      CB_ERR(event, -1, "unable to convert QTemporaryFile to FILE*");
     }
 
     QByteArray secrets_data =
@@ -146,11 +103,7 @@ auto GFExecuteModule(GFModuleEvent *p_event) -> int {
 
     QTemporaryFile secrets_data_file;
     if (!secrets_data_file.open()) {
-      GFModuleTriggerModuleEventCallback(
-          ConvertMapToEvent(event), GFGetModuleID(), 1,
-          ConvertMapToParams(
-              {{"ret", "-1"}, {"reason", "unable to open temporary file"}}));
-      return -1;
+      CB_ERR(event, -1, "unable to open temporary file");
     }
 
     secrets_data_file.write(public_key_data);
@@ -159,23 +112,17 @@ auto GFExecuteModule(GFModuleEvent *p_event) -> int {
 
     FILE *secrets = fdopen(secrets_data_file.handle(), "rb");
     if (secrets == nullptr) {
-      GFModuleTriggerModuleEventCallback(
-          ConvertMapToEvent(event), GFGetModuleID(), 1,
-          ConvertMapToParams(
-              {{"ret", "-1"},
-               {"reason", "unable to convert QTemporaryFile to FILE*"}}));
-      return -1;
+      CB_ERR(event, -1, "unable to convert QTemporaryFile to FILE*");
     }
 
     restore(pubring, secrets, AUTO, )
   }
 
-  GFModuleTriggerModuleEventCallback(ConvertMapToEvent(event), GFGetModuleID(),
-                                     1, ConvertMapToParams({{"ret", "0"}}));
-  return 0;
+  CB_SUCC(event);
 }
+END_EXECUTE_MODULE()
 
-auto GFDeactiveModule() -> int { return 0; }
+auto GFDeactivateModule() -> int { return 0; }
 
 auto GFUnregisterModule() -> int {
   MLogDebug("paper key module unregistering");

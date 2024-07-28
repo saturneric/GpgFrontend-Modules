@@ -38,32 +38,13 @@
 #include <QtNetwork>
 
 #include "GFModuleCommonUtils.hpp"
+#include "GFModuleDefine.h"
 #include "SoftwareVersion.h"
 #include "UpdateTab.h"
 #include "VersionCheckTask.h"
 
-class GTrC {
-  Q_DECLARE_TR_FUNCTIONS(GTrC)
-};
-
-auto GFGetModuleGFSDKVersion() -> const char* {
-  return DUP(GF_SDK_VERSION_STR);
-}
-
-auto GFGetModuleQtEnvVersion() -> const char* { return DUP(QT_VERSION_STR); }
-
-auto GFGetModuleID() -> const char* {
-  return DUP("com.bktus.gpgfrontend.module.version_checking");
-}
-
-auto GFGetModuleVersion() -> const char* { return DUP("1.0.0"); }
-
-auto GFGetModuleMetaData() -> GFModuleMetaData* {
-  return QMapToGFModuleMetaDataList(
-      {{"Name", "VersionChecking"},
-       {"Description", "Try checking GpgFrontend version."},
-       {"Author", "Saturneric"}});
-}
+GF_MODULE_API_DEFINE("com.bktus.gpgfrontend.module.VersionChecking", "Pinentry",
+                     "1.0.0", "Try checking GpgFrontend version.", "Saturneric")
 
 auto GFRegisterModule() -> int {
   MLogInfo("version checking module registering");
@@ -73,15 +54,15 @@ auto GFRegisterModule() -> int {
 auto GFActiveModule() -> int {
   MLogInfo("version checking module activating");
 
-  GFModuleListenEvent(GFGetModuleID(), DUP("APPLICATION_LOADED"));
-  GFModuleListenEvent(GFGetModuleID(), DUP("CHECK_APPLICATION_VERSION"));
+  LISTEN("APPLICATION_LOADED");
+  LISTEN("CHECK_APPLICATION_VERSION");
 
   // load translations
   QFile f(
       QString(":/i18n/ModuleVersionChecking.%1.qm").arg(GFAppActiveLocale()));
   if (f.exists() && f.open(QIODevice::ReadOnly)) {
     auto f_n = f.fileName().toUtf8();
-    MLogInfoS("version checking module loading, locale: %s, path: %s",
+    FLOG_INFO("version checking module loading, locale: %1, path: %2",
               GFAppActiveLocale(), f_n.data());
     auto b = f.readAll();
     GFAppRegisterTranslator(AllocBufferAndCopy(b), b.size());
@@ -94,23 +75,22 @@ auto GFActiveModule() -> int {
   return 0;
 }
 
-auto GFExecuteModule(GFModuleEvent* event) -> int {
-  MLogInfoS("version checking module executing, event id: %s", event->id);
+EXECUTE_MODULE() {
+  FLOG_INFO("version checking module executing, event id: %s",
+            event["event_id"]);
 
   auto* task = new VersionCheckTask();
   QObject::connect(task, &VersionCheckTask::SignalUpgradeVersion,
-                   QThread::currentThread(), [event](const SoftwareVersion&) {
-                     GFModuleTriggerModuleEventCallback(
-                         event, GFGetModuleID(), 1,
-                         ConvertMapToParams({{"ret", "0"}}));
-                   });
+                   QThread::currentThread(),
+                   [event](const SoftwareVersion&) { CB_SUCC(event); });
   QObject::connect(task, &VersionCheckTask::SignalUpgradeVersion, task,
                    &QObject::deleteLater);
   task->Run();
 
   return 0;
 }
+END_EXECUTE_MODULE()
 
-auto GFDeactiveModule() -> int { return 0; }
+auto GFDeactivateModule() -> int { return 0; }
 
 auto GFUnregisterModule() -> int { return 0; }

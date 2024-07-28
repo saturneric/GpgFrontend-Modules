@@ -33,27 +33,12 @@
 #include <qthread.h>
 
 #include "GFModuleCommonUtils.hpp"
-#include "GFSDKBuildInfo.h"
+#include "GFModuleDefine.h"
 #include "GpgPassphraseContext.h"
 #include "RaisePinentry.h"
 
-auto GFGetModuleGFSDKVersion() -> const char * {
-  return DUP(GF_SDK_VERSION_STR);
-}
-
-auto GFGetModuleQtEnvVersion() -> const char * { return DUP(QT_VERSION_STR); }
-
-auto GFGetModuleID() -> const char * {
-  return DUP("com.bktus.gpgfrontend.module.pinentry");
-}
-
-auto GFGetModuleVersion() -> const char * { return DUP("1.0.0"); }
-
-auto GFGetModuleMetaData() -> GFModuleMetaData * {
-  return QMapToGFModuleMetaDataList({{"Name", "Pinentry"},
-                                     {"Description", "A simple tiny pinentry."},
-                                     {"Author", "Saturneric"}});
-}
+GF_MODULE_API_DEFINE("com.bktus.gpgfrontend.module.pinentry", "Pinentry",
+                     "1.0.0", "A simple tiny pinentry.", "Saturneric")
 
 auto GFRegisterModule() -> int {
   MLogDebug("pinentry module registering");
@@ -62,9 +47,7 @@ auto GFRegisterModule() -> int {
 }
 
 auto GFActiveModule() -> int {
-  MLogDebug("pinentry module activating");
-
-  GFModuleListenEvent(GFGetModuleID(), DUP("REQUEST_PIN_ENTRY"));
+  LISTEN("REQUEST_PIN_ENTRY");
   return 0;
 }
 
@@ -73,6 +56,13 @@ auto GFExecuteModule(GFModuleEvent *p_event) -> int {
       QString("pinentry module executing, event id: %1").arg(p_event->id));
 
   auto event = ConvertEventToMap(p_event);
+
+  if (event["prev_was_bad"].isEmpty() || event["ask_for_new"].isEmpty()) {
+    GFModuleTriggerModuleEventCallback(
+        ConvertMapToEvent(event), GFGetModuleID(),
+        ConvertMapToParams({{"ret", "-1"}, {"passphrase", ""}}));
+    return -1;
+  }
 
   QMetaObject::invokeMethod(
       QApplication::instance()->thread(), [p_event, event]() -> int {
@@ -86,7 +76,7 @@ auto GFExecuteModule(GFModuleEvent *p_event) -> int {
             p, &RaisePinentry::SignalUserInputPassphraseCallback, p,
             [event](const QSharedPointer<GpgPassphraseContext> &c) {
               GFModuleTriggerModuleEventCallback(
-                  ConvertMapToEvent(event), GFGetModuleID(), 1,
+                  ConvertMapToEvent(event), GFGetModuleID(),
                   ConvertMapToParams({{"passphrase", c->GetPassphrase()}}));
             });
 
@@ -97,7 +87,7 @@ auto GFExecuteModule(GFModuleEvent *p_event) -> int {
   return 0;
 }
 
-auto GFDeactiveModule() -> int { return 0; }
+auto GFDeactivateModule() -> int { return 0; }
 
 auto GFUnregisterModule() -> int {
   MLogDebug("pinentry module unregistering");

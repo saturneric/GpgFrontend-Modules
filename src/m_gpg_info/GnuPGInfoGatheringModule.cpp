@@ -43,11 +43,12 @@
 #include <optional>
 
 #include "GFModuleCommonUtils.hpp"
+#include "GFModuleDefine.h"
 #include "GpgInfo.h"
 
-class GTrC {
-  Q_DECLARE_TR_FUNCTIONS(GTrC)
-};
+GF_MODULE_API_DEFINE("com.bktus.gpgfrontend.module.gnupg_info_gathering",
+                     "GatherGnupgInfo", "1.0.0",
+                     "Try gathering gnupg informations.", "Saturneric")
 
 extern auto CalculateBinaryChacksum(const QString &path)
     -> std::optional<QString>;
@@ -68,25 +69,6 @@ using Context = struct {
   GpgComponentInfo component_info;
 };
 
-auto GFGetModuleGFSDKVersion() -> const char * {
-  return DUP(GF_SDK_VERSION_STR);
-}
-
-auto GFGetModuleQtEnvVersion() -> const char * { return DUP(QT_VERSION_STR); }
-
-auto GFGetModuleID() -> const char * {
-  return DUP("com.bktus.gpgfrontend.module.gnupg_info_gathering");
-}
-
-auto GFGetModuleVersion() -> const char * { return DUP("1.0.0"); }
-
-auto GFGetModuleMetaData() -> GFModuleMetaData * {
-  return QMapToGFModuleMetaDataList(
-      {{"Name", "GatherGnupgInfo"},
-       {"Description", "Try gathering gnupg informations."},
-       {"Author", "Saturneric"}});
-}
-
 auto GFRegisterModule() -> int {
   MLogDebug("gnupg info gathering module registering");
 
@@ -98,25 +80,21 @@ auto GFRegisterModule() -> int {
 }
 
 auto GFActiveModule() -> int {
-  MLogDebug("gnupg info gathering module activating");
-  GFModuleListenEvent(GFGetModuleID(), DUP("REQUEST_GATHERING_GNUPG_INFO"));
+  LISTEN("REQUEST_GATHERING_GNUPG_INFO");
   return 0;
 }
 
-auto GFExecuteModule(GFModuleEvent *event) -> int {
-  MLogDebug(QString("gnupg info gathering module executing, event id: %1")
-                .arg(event->id));
+EXECUTE_MODULE() {
+  FLOG_DEBUG("gnupg info gathering module executing, event id: %1",
+             event["event_id"]);
 
   StartGatheringGnuPGInfo();
 
-  GFModuleTriggerModuleEventCallback(event, GFGetModuleID(), 1,
-                                     ConvertMapToParams({{"ret", "0"}}));
-
-  MLogDebug("gnupg external info gathering done");
-  return 0;
+  CB_SUCC(event);
 }
+END_EXECUTE_MODULE()
 
-auto GFDeactiveModule() -> int { return 0; }
+auto GFDeactivateModule() -> int { return 0; }
 
 auto GFUnregisterModule() -> int {
   MLogDebug("gnupg info gathering module unregistering");
