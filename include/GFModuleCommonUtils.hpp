@@ -43,7 +43,7 @@
 #define UDUP(v) UnStrDup(v)
 #define QDUP(v) QStrDup(v)
 
-#define LISTEN(event) GFModuleListenEvent(GFGetModuleID(), DUP(event));
+#define LISTEN(event) GFModuleListenEvent(GFGetModuleID(), DUP(event))
 
 #define EXECUTE_MODULE()                                \
   auto GFExecuteModule(GFModuleEvent* p_event) -> int { \
@@ -51,14 +51,18 @@
 
 #define END_EXECUTE_MODULE() }
 
-#define CB_SUCC(event)                        \
-  CB(event, GFGetModuleID(), {{"ret", "0"}}); \
-  return 0;
+#define CB_SUCC(event)                          \
+  {                                             \
+    CB(event, GFGetModuleID(), {{"ret", "0"}}); \
+    return 0;                                   \
+  }
 
-#define CB_ERR(event, ret, err)                                  \
-  CB(event, GFGetModuleID(),                                     \
-     {{"ret", QString::number(ret)}, {"reason", QString(err)}}); \
-  return ret;
+#define CB_ERR(event, ret, err)                                 \
+  {                                                             \
+    CB(event, GFGetModuleID(),                                  \
+       {{"ret", QString::number(ret)}, {"err", QString(err)}}); \
+    return ret;                                                 \
+  }
 
 inline void MLogDebug(const QString& s) { GFModuleLogDebug(s.toUtf8()); }
 inline void MLogInfo(const QString& s) { GFModuleLogInfo(s.toUtf8()); }
@@ -292,11 +296,6 @@ inline auto CharArrayToQStringList(char** pl_components,
   return list;
 }
 
-template <typename... Args>
-auto FormatString(const QString& format, Args... args) -> QString {
-  return FormatStringHelper(format, args...);
-}
-
 template <typename T>
 auto FormatStringHelper(const QString& format, T arg) -> QString {
   return format.arg(arg);
@@ -305,4 +304,13 @@ auto FormatStringHelper(const QString& format, T arg) -> QString {
 template <typename T, typename... Args>
 auto FormatStringHelper(const QString& format, T arg, Args... args) -> QString {
   return FormatStringHelper(format.arg(arg), args...);
+}
+
+inline auto FormatStringHelper(const QString& format) -> QString {
+  return format;
+}
+
+template <typename... Args>
+auto FormatString(const QString& format, Args... args) -> QString {
+  return FormatStringHelper(format, args...);
 }
