@@ -29,8 +29,8 @@ message(STATUS "Current Generator: ${CMAKE_GENERATOR}")
 set(CMAKE_USER_MAKE_RULES_OVERRIDE "${CMAKE_SOURCE_DIR}/cmake/FlagsOverrides.cmake")
 
 # define project
-project(GpgFrontendModules 
-    VERSION 2.1.3 
+project(GpgFrontendModules
+    VERSION 2.1.3
     DESCRIPTION "Modules of GpgFrontend"
     HOMEPAGE_URL "https://gpgfrontend.bktus.com"
     LANGUAGES CXX)
@@ -61,12 +61,12 @@ set(SDK_LIB_PATH "${SDK_PATH}/lib")
 message(STATUS "SDK Path: ${SDK_PATH}")
 
 include_directories(
-  ${CMAKE_SOURCE_DIR}/include
-  ${SDK_INCLUDE_PATH}
+    ${CMAKE_SOURCE_DIR}/include
+    ${SDK_INCLUDE_PATH}
 )
 
 link_directories(
-  ${SDK_LIB_PATH}   
+    ${SDK_LIB_PATH}
 )
 
 # Introduce Qt
@@ -88,11 +88,21 @@ set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTORCC_OPTIONS "--compress;9")
 
 # rpath config
-if (WIN32)
+if(WIN32)
     message(STATUS "Configuring for Windows without rpath")
-elseif (APPLE)
+elseif(APPLE)
     set(CMAKE_MACOSX_RPATH 1)
     set(CMAKE_INSTALL_RPATH "@loader_path/../lib")
+
+    include_directories(
+        /usr/local/include
+        /opt/homebrew/include
+    )
+
+    link_directories(
+        /usr/local/lib
+        /opt/homebrew/lib
+    )
 else()
     set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
     set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
