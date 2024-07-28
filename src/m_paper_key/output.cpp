@@ -147,6 +147,42 @@ void output_file_format(FILE *stream, const char *prefix) {
   fprintf(stream, "%smay simply be copied from the public key.\n", prefix);
 }
 
+int output_start(FILE *fp, enum data_type type, unsigned char fingerprint[20]) {
+  output = fp;
+  if (!output) return -1;
+
+  output_type = type;
+
+  switch (type) {
+    case RAW:
+      break;
+
+    case AUTO:
+    case BASE16: {
+      time_t now = time(NULL);
+
+      line_items = (output_width - 5 - 6) / 3;
+      fprintf(output, "# Secret portions of key ");
+      print_bytes(output, fingerprint, 20);
+      fprintf(output, "\n");
+      fprintf(output, "# Base16 data extracted %.24s\n", ctime(&now));
+      fprintf(output,
+              "# Created with "
+              "Paper Key Module of GpgFrontend"
+              " by Saturneric\n#\n");
+      output_file_format(output, "# ");
+      fprintf(output,
+              "#\n# Each base16 line ends with a CRC-24 of that line.\n");
+      fprintf(output,
+              "# The entire block of data ends with a CRC-24 of the entire "
+              "block of data.\n\n");
+      // if (comment != nullptr) fprintf(output, "# %s\n\n", comment);
+    } break;
+  }
+
+  return 0;
+}
+
 int output_start(const char *name, enum data_type type,
                  unsigned char fingerprint[20]) {
   if (name) {
@@ -286,9 +322,13 @@ ssize_t output_openpgp_header(unsigned char tag, size_t length) {
   return output_bytes(encoded, bytes);
 }
 
-void output_finish(void) {
-  output_bytes(nullptr, 0);
-  if (output != nullptr && output != stdout) fclose(output);
+void output_finish(void) { output_bytes(nullptr, 0); }
+
+void output_end() {
+  if (output != nullptr) {
+    fflush(output);
+    fclose(output);
+  }
 }
 
 void set_binary_mode(FILE *stream) {

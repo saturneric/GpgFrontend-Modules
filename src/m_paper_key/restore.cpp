@@ -98,7 +98,7 @@ static void free_keys(struct key *key) {
 }
 
 auto restore(FILE *pubring, FILE *secrets, enum data_type input_type,
-             const char *outname) -> int {
+             FILE *output) -> int {
   struct packet *secret;
 
   if (input_type == AUTO) {
@@ -128,7 +128,7 @@ auto restore(FILE *pubring, FILE *secrets, enum data_type input_type,
 
     keys = extract_keys(secret);
     if (keys) {
-      output_start(outname, RAW, NULL);
+      output_start(output, RAW, NULL);
 
       while ((pubkey = parse(pubring, 0, 0))) {
         unsigned char ptag;
@@ -168,6 +168,7 @@ auto restore(FILE *pubring, FILE *secrets, enum data_type input_type,
       }
 
       free_keys(keys);
+      output_end();
     } else {
       fprintf(stderr, "Unable to parse secret data\n");
       return 1;

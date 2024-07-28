@@ -22,6 +22,6 @@
 #include "output.h"
 
 auto restore(FILE *pubring, FILE *secrets, enum data_type input_type,
-             const char *outname) -> int;
+             FILE *output) -> int;
 
 #endif /* !_RESTORE_H_ */

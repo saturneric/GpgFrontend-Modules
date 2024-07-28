@@ -22,5 +22,4 @@
 
 #include "output.h"
 
-auto extract(FILE *input, const char *outname,
-             enum data_type output_type) -> int;
+auto extract(FILE *input, FILE *output, enum data_type output_type) -> int;

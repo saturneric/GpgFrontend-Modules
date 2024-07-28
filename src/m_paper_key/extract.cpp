@@ -26,7 +26,7 @@
 
 extern int verbose;
 
-int extract(FILE *input, const char *outname, enum data_type output_type) {
+int extract(FILE *input, FILE *output, enum data_type output_type) {
   struct packet *packet;
   int offset;
   unsigned char fingerprint[20];
@@ -51,7 +51,7 @@ int extract(FILE *input, const char *outname, enum data_type output_type) {
     fprintf(stderr, "\n");
   }
 
-  output_start(outname, output_type, fingerprint);
+  output_start(output, output_type, fingerprint);
   output_bytes(&version, 1);
   output_bytes(packet->buf, 1);
   output_bytes(fingerprint, 20);
@@ -83,6 +83,7 @@ int extract(FILE *input, const char *outname, enum data_type output_type) {
   }
 
   output_finish();
+  output_end();
 
   if (input == stdin) {
     /* Consume everything else on input */
