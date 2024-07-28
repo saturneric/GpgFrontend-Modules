@@ -16,17 +16,6 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
  */
 
-#include <errno.h>
-#include <getopt.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-
-#include "extract.h"
-#include "output.h"
-
 int verbose = 0, ignore_crc_error = 0;
 unsigned int output_width = 78;
 char *comment = nullptr;
@@ -46,42 +35,3 @@ enum options {
   OPT_FILE_FORMAT,
   OPT_COMMENT
 };
-
-static struct option long_options[] = {
-    {"help", no_argument, NULL, OPT_HELP},
-    {"version", no_argument, NULL, OPT_VERSION},
-    {"verbose", no_argument, NULL, OPT_VERBOSE},
-    {"output", required_argument, NULL, OPT_OUTPUT},
-    {"input-type", required_argument, NULL, OPT_INPUT_TYPE},
-    {"output-type", required_argument, NULL, OPT_OUTPUT_TYPE},
-    {"output-width", required_argument, NULL, OPT_OUTPUT_WIDTH},
-    {"secret-key", required_argument, NULL, OPT_SECRET_KEY},
-    {"pubring", required_argument, NULL, OPT_PUBRING},
-    {"secrets", required_argument, NULL, OPT_SECRETS},
-    {"ignore-crc-error", no_argument, NULL, OPT_IGNORE_CRC_ERROR},
-    {"file-format", no_argument, NULL, OPT_FILE_FORMAT},
-    {"comment", required_argument, NULL, OPT_COMMENT},
-    {NULL, 0, NULL, 0}};
-
-static void usage(void) {
-  printf("Usage: paperkey [OPTIONS]\n");
-  printf("  --help (-h)\n");
-  printf("  --version (-V)\n");
-  printf("  --verbose (-v)  be more verbose\n");
-  printf("  --output (-o)   write output to this file\n");
-  printf("  --input-type    auto, base16 or raw (binary)\n");
-  printf("  --output-type   base16 or raw (binary)\n");
-  printf("  --output-width  maximum width of base16 output\n");
-  printf(
-      "  --secret-key"
-      "    extract secret data from this secret key\n");
-  printf(
-      "  --pubring"
-      "       public keyring to find non-secret data\n");
-  printf(
-      "  --secrets       file containing secret"
-      " data to join with the public key\n");
-  printf("  --ignore-crc-error  don't reject corrupted input\n");
-  printf("  --file-format   show the paperkey file format\n");
-  printf("  --comment       add a comment to the base16 output\n");
-}

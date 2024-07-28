@@ -16,16 +16,14 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
  */
 
-#include <assert.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
-#ifdef _WIN32
-#include <fcntl.h>
-#include <io.h>
-#endif
 #include "output.h"
+
+#include <cassert>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <ctime>
+
 #include "packets.h"
 
 extern unsigned int output_width;
@@ -331,14 +329,4 @@ void output_end() {
   }
 }
 
-void set_binary_mode(FILE *stream) {
-#ifdef _WIN32
-  if (_setmode(_fileno(stream), _O_BINARY) == -1) {
-    fprintf(stderr, "Unable to set stream mode to binary: %s\n",
-            strerror(errno));
-    exit(1);
-  }
-#else
-  (void)stream;
-#endif
-}
+void set_binary_mode(FILE *stream) { (void)stream; }

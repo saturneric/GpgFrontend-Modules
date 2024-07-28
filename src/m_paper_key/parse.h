@@ -18,15 +18,10 @@
 
 #pragma once
 
-#include <qstring.h>
-
 #include "output.h"
 
 auto parse(FILE *input, unsigned char want,
            unsigned char stop) -> struct packet *;
-
-struct packet *parse2(QDataStream &stream, unsigned char want,
-                      unsigned char stop);
 
 auto calculate_fingerprint(struct packet *packet, size_t public_len,
                            unsigned char fingerprint[20]) -> int;
