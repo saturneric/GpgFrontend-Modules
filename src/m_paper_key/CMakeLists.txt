@@ -31,7 +31,7 @@ aux_source_directory(. INTEGRATED_MODULE_SOURCE)
 add_library(mod_paper_key SHARED ${INTEGRATED_MODULE_SOURCE})
 
 # install dir
-install(TARGETS mod_paper_key 
+install(TARGETS mod_paper_key
   LIBRARY DESTINATION "${CMAKE_INSTALL_PREFIX}/modules")
 
 # link sdk

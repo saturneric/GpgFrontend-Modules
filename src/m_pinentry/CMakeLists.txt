@@ -27,7 +27,8 @@ aux_source_directory(. INTEGRATED_MODULE_SOURCE)
 
 # capslock
 list(APPEND INTEGRATED_MODULE_SOURCE "capslock/capslock.cpp")
-if (MINGW)
+
+if(MINGW)
   list(APPEND INTEGRATED_MODULE_SOURCE "capslock/capslock_win.cpp")
 else()
   list(APPEND INTEGRATED_MODULE_SOURCE "capslock/capslock_unix.cpp")
@@ -39,9 +40,8 @@ list(APPEND INTEGRATED_MODULE_SOURCE "pinentry.qrc")
 add_library(mod_pinentry SHARED ${INTEGRATED_MODULE_SOURCE})
 
 # install dir
-install(TARGETS mod_pinentry 
+install(TARGETS mod_pinentry
   LIBRARY DESTINATION "${CMAKE_INSTALL_PREFIX}/modules")
-
 
 # link options
 
@@ -57,7 +57,5 @@ else()
   target_link_libraries(mod_pinentry PUBLIC Qt6::Widgets)
 endif()
 
-
 # using std c++ 17
 target_compile_features(mod_pinentry PUBLIC cxx_std_17)
-

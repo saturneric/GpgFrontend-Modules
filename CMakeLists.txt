@@ -30,13 +30,16 @@ set(CMAKE_USER_MAKE_RULES_OVERRIDE "${CMAKE_SOURCE_DIR}/cmake/FlagsOverrides.cma
 
 # define project
 project(GpgFrontendModules
-    VERSION 2.1.3
-    DESCRIPTION "Modules of GpgFrontend"
-    HOMEPAGE_URL "https://gpgfrontend.bktus.com"
-    LANGUAGES CXX)
+  VERSION 2.1.3
+  DESCRIPTION "Modules of GpgFrontend"
+  HOMEPAGE_URL "https://gpgfrontend.bktus.com"
+  LANGUAGES CXX)
 
 # includes
 include(GenerateExportHeader)
+
+# function or mode options
+option(GPGFRONTEND_QT5_BUILD "Swith to Qt5 building mode" OFF)
 
 # Using Standard C++-17 (Consider compatibility)
 set(CMAKE_CXX_STANDARD 17)
@@ -61,24 +64,24 @@ set(SDK_LIB_PATH "${SDK_PATH}/lib")
 message(STATUS "SDK Path: ${SDK_PATH}")
 
 include_directories(
-    ${CMAKE_SOURCE_DIR}/include
-    ${SDK_INCLUDE_PATH}
+  ${CMAKE_SOURCE_DIR}/include
+  ${SDK_INCLUDE_PATH}
 )
 
 link_directories(
-    ${SDK_LIB_PATH}
+  ${SDK_LIB_PATH}
 )
 
 # Introduce Qt
 # Support Qt version: 6.x
 if(GPGFRONTEND_QT5_BUILD)
-    # Introduce Qt
-    # Support Qt version: 5.15.x
-    find_package(Qt5 5.15 COMPONENTS Core Widgets Network LinguistTools REQUIRED)
+  # Introduce Qt
+  # Support Qt version: 5.15.x
+  find_package(Qt5 5.15 COMPONENTS Core Widgets Network LinguistTools REQUIRED)
 else()
-    # Introduce Qt
-    # Support Qt version: 6.x
-    find_package(Qt6 6 COMPONENTS Core Widgets Network LinguistTools REQUIRED)
+  # Introduce Qt
+  # Support Qt version: 6.x
+  find_package(Qt6 6 COMPONENTS Core Widgets Network LinguistTools REQUIRED)
 endif()
 
 # Qt configuration
@@ -89,24 +92,24 @@ set(CMAKE_AUTORCC_OPTIONS "--compress;9")
 
 # rpath config
 if(WIN32)
-    message(STATUS "Configuring for Windows without rpath")
+  message(STATUS "Configuring for Windows without rpath")
 elseif(APPLE)
-    set(CMAKE_MACOSX_RPATH 1)
-    set(CMAKE_INSTALL_RPATH "@loader_path/../lib")
+  set(CMAKE_MACOSX_RPATH 1)
+  set(CMAKE_INSTALL_RPATH "@loader_path/../lib")
 
-    include_directories(
-        /usr/local/include
-        /opt/homebrew/include
-    )
+  include_directories(
+    /usr/local/include
+    /opt/homebrew/include
+  )
 
-    link_directories(
-        /usr/local/lib
-        /opt/homebrew/lib
-    )
+  link_directories(
+    /usr/local/lib
+    /opt/homebrew/lib
+  )
 else()
-    set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
-    set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
-    set(CMAKE_INSTALL_RPATH "$ORIGIN:$ORIGIN/../lib")
+  set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+  set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
+  set(CMAKE_INSTALL_RPATH "$ORIGIN:$ORIGIN/../lib")
 endif()
 
 # third_party
