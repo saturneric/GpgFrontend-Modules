@@ -18,36 +18,13 @@
  * SPDX-License-Identifier: GPL-2.0+
  */
 
-#include "GFModuleCommonUtils.hpp"
-#include "GFSDKBasic.h"
-
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
-
-#ifndef WINDOWS
-#include <errno.h>
-#endif
-#include <assert.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <unistd.h>
-#ifndef WINDOWS
-#include <sys/utsname.h>
-#endif
-#ifndef WINDOWS
-#include <locale.h>
-#endif
-#include <limits.h>
-#ifdef WINDOWS
-#include <windows.h>
-#endif
+#include "pinentry.h"
 
 #include <qhash.h>
+#include <qstring.h>
 
-#include "pinentry.h"
+#include "GFModuleCommonUtils.hpp"
+#include "GFSDKBasic.h"
 
 #ifdef WINDOWS
 #define getpid() GetCurrentProcessId()
@@ -135,44 +112,6 @@ static char *get_pid_name_for_uid(unsigned long pid, int uid) {
 #endif /*!WINDOWS*/
 
 const char *pinentry_get_pgmname(void) { return this_pgmname; }
-
-/* Return a malloced string with the title.  The caller mus free the
- * string.  If no title is available or the title string has an error
- * NULL is returned.  */
-char *pinentry_get_title(pinentry_t pe) {
-  char *title;
-
-  if (pe->title) title = strdup(pe->title);
-#ifndef WINDOWS
-  else if (pe->owner_pid) {
-    char buf[200];
-    struct utsname utsbuf;
-    char *pidname = NULL;
-    char *cmdline = NULL;
-
-    if (pe->owner_host && !uname(&utsbuf) &&
-        !strcmp(utsbuf.nodename, pe->owner_host)) {
-      pidname = get_pid_name_for_uid(pe->owner_pid, pe->owner_uid);
-      if (pidname) cmdline = get_cmdline(pe->owner_pid);
-    }
-
-    if (pe->owner_host && (cmdline || pidname))
-      snprintf(buf, sizeof buf, "[%lu]@%s (%s)", pe->owner_pid, pe->owner_host,
-               cmdline ? cmdline : pidname);
-    else if (pe->owner_host)
-      snprintf(buf, sizeof buf, "[%lu]@%s", pe->owner_pid, pe->owner_host);
-    else
-      snprintf(buf, sizeof buf, "[%lu] <unknown host>", pe->owner_pid);
-    free(pidname);
-    free(cmdline);
-    title = strdup(buf);
-  }
-#endif /*!WINDOWS*/
-  else
-    title = strdup(this_pgmname);
-
-  return title;
-}
 
 /* Run a quality inquiry for PASSPHRASE of LENGTH.  (We need LENGTH
    because not all backends might be able to return a proper

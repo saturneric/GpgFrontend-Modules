@@ -21,6 +21,8 @@
 #ifndef PINENTRY_H
 #define PINENTRY_H
 
+#include <qstring.h>
+
 #include <cstdint>
 
 #ifdef __cplusplus
