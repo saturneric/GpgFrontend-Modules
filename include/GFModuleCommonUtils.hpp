@@ -45,6 +45,17 @@
 
 #define LISTEN(event) GFModuleListenEvent(GFGetModuleID(), DUP(event))
 
+#define LOAD_TRANS(name)                                                    \
+  {                                                                         \
+    QFile f(QString(":/i18n/%2.%1.qm").arg(GFAppActiveLocale()).arg(name)); \
+    if (f.exists() && f.open(QIODevice::ReadOnly)) {                        \
+      FLOG_INFO("%3 loading, locale: %1, path: %2", GFAppActiveLocale(),    \
+                f.fileName(), UDUP(GFGetModuleID()));                       \
+      auto b = f.readAll();                                                 \
+      GFAppRegisterTranslator(AllocBufferAndCopy(b), b.size());             \
+    }                                                                       \
+  }
+
 #define EXECUTE_MODULE()                                \
   auto GFExecuteModule(GFModuleEvent* p_event) -> int { \
     auto event = ConvertEventToMap(p_event);

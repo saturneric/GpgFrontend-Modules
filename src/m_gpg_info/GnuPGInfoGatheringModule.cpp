@@ -81,6 +81,8 @@ auto GFRegisterModule() -> int {
 
 auto GFActiveModule() -> int {
   LISTEN("REQUEST_GATHERING_GNUPG_INFO");
+
+  LOAD_TRANS("ModuleGnuPGInfoGathering");
   return 0;
 }
 

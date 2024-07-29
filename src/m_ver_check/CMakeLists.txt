@@ -31,7 +31,7 @@ aux_source_directory(. MODULE_SOURCE_FILES)
 add_library(mod_ver_check SHARED ${MODULE_SOURCE_FILES})
 
 # install dir
-install(TARGETS mod_ver_check 
+install(TARGETS mod_ver_check
   LIBRARY DESTINATION "${CMAKE_INSTALL_PREFIX}/modules")
 
 # link sdk
@@ -54,12 +54,15 @@ set(CMAKE_AUTOUIC_SEARCH_PATHS ${CMAKE_AUTOUIC_SEARCH_PATHS} ${CMAKE_CURRENT_SOU
 
 # i18n
 set(LOCALE_TS_PATH ${CMAKE_CURRENT_SOURCE_DIR}/ts)
-set(TS_FILES "${LOCALE_TS_PATH}/ModuleVersionChecking.en_US.ts" 
-            "${LOCALE_TS_PATH}/ModuleVersionChecking.de_DE.ts"
-            "${LOCALE_TS_PATH}/ModuleVersionChecking.fr_FR.ts"
-            "${LOCALE_TS_PATH}/ModuleVersionChecking.zh_CN.ts")
+set(TS_FILES
+  "${LOCALE_TS_PATH}/ModuleVersionChecking.en_US.ts"
+  "${LOCALE_TS_PATH}/ModuleVersionChecking.de_DE.ts"
+  "${LOCALE_TS_PATH}/ModuleVersionChecking.fr_FR.ts"
+  "${LOCALE_TS_PATH}/ModuleVersionChecking.it_IT.ts"
+  "${LOCALE_TS_PATH}/ModuleVersionChecking.zh_CN.ts"
+  "${LOCALE_TS_PATH}/ModuleVersionChecking.zh_TW.ts")
 qt_add_translations(mod_ver_check
-    RESOURCE_PREFIX "/i18n"
-    TS_FILES ${TS_FILES}
-    SOURCES ${MODULE_SOURCE_FILES}
-    INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR})
+  RESOURCE_PREFIX "/i18n"
+  TS_FILES ${TS_FILES}
+  SOURCES ${MODULE_SOURCE_FILES}
+  INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR})

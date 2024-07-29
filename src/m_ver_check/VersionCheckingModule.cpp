@@ -57,16 +57,7 @@ auto GFActiveModule() -> int {
   LISTEN("APPLICATION_LOADED");
   LISTEN("CHECK_APPLICATION_VERSION");
 
-  // load translations
-  QFile f(
-      QString(":/i18n/ModuleVersionChecking.%1.qm").arg(GFAppActiveLocale()));
-  if (f.exists() && f.open(QIODevice::ReadOnly)) {
-    auto f_n = f.fileName().toUtf8();
-    FLOG_INFO("version checking module loading, locale: %1, path: %2",
-              GFAppActiveLocale(), f_n.data());
-    auto b = f.readAll();
-    GFAppRegisterTranslator(AllocBufferAndCopy(b), b.size());
-  }
+  LOAD_TRANS("ModuleVersionChecking");
 
   GFUIMountEntry(DUP("AboutDialogTabs"),
                  QMapToMetaDataArray({{"TabTitle", GTrC::tr("Update")}}), 1,
