@@ -69,20 +69,16 @@ using Context = struct {
   GpgComponentInfo component_info;
 };
 
-auto GFRegisterModule() -> int {
-  MLogDebug("gnupg info gathering module registering");
-
-  GFUIMountEntry(DUP("AboutDialogTabs"),
-                 QMapToMetaDataArray({{"TabTitle", GTrC::tr("GnuPG")}}), 1,
-                 GnupgTabFactory);
-
-  return 0;
-}
+auto GFRegisterModule() -> int { return 0; }
 
 auto GFActiveModule() -> int {
   LISTEN("REQUEST_GATHERING_GNUPG_INFO");
 
   LOAD_TRANS("ModuleGnuPGInfoGathering");
+
+  GFUIMountEntry(DUP("AboutDialogTabs"),
+                 QMapToMetaDataArray({{"TabTitle", GTrC::tr("GnuPG")}}), 1,
+                 GnupgTabFactory);
   return 0;
 }
 
