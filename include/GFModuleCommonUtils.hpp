@@ -45,16 +45,34 @@
 
 #define LISTEN(event) GFModuleListenEvent(GFGetModuleID(), DUP(event))
 
-#define LOAD_TRANS(name)                                                    \
-  {                                                                         \
-    QFile f(QString(":/i18n/%2.%1.qm").arg(GFAppActiveLocale()).arg(name)); \
-    if (f.exists() && f.open(QIODevice::ReadOnly)) {                        \
-      FLOG_INFO("%3 loading, locale: %1, path: %2", GFAppActiveLocale(),    \
-                f.fileName(), UDUP(GFGetModuleID()));                       \
-      auto b = f.readAll();                                                 \
-      GFAppRegisterTranslator(AllocBufferAndCopy(b), b.size());             \
-    }                                                                       \
+#define DEFINE_TRANSLATIONS_STRUCTURE(name)                              \
+  class GTrC {                                                           \
+    Q_DECLARE_TR_FUNCTIONS(GTrC)                                         \
+  };                                                                     \
+  auto TranslatorDataReader(const char* p_l, char** p_d) -> int {        \
+    auto locale = UDUP(p_l);                                             \
+    QFile f(QString(":/i18n/%2.%1.qm").arg(locale).arg(#name));          \
+    if (f.exists() && f.open(QIODevice::ReadOnly)) {                     \
+      auto b = f.readAll();                                              \
+      *p_d = AllocBufferAndCopy(b);                                      \
+      return b.size();                                                   \
+    }                                                                    \
+    FLOG_WARN("%3 loading, locale: %1, not found", locale, f.fileName(), \
+              UDUP(GFGetModuleID()));                                    \
+    *p_d = nullptr;                                                      \
+    return 0;                                                            \
   }
+
+#define REGISTER_TRANS_READER() \
+  GFAppRegisterTranslatorReader(GFGetModuleID(), TranslatorDataReader)
+
+#define CONCATENATE_DETAIL(x, y) x##y
+#define CONCATENATE(x, y) CONCATENATE_DETAIL(x, y)
+#define GTRC_TR(name, src) CONCATENATE(GTrC_, name)::tr(src)
+
+#define STRINGIFY(x) #x
+#define TOSTRING(x) STRINGIFY(x)
+#define GTRC_AS_STRING(name) TOSTRING(GTrC_##name)
 
 #define EXECUTE_MODULE()                                \
   auto GFExecuteModule(GFModuleEvent* p_event) -> int { \
@@ -96,10 +114,29 @@ inline void MLogError(const QString& s) { GFModuleLogError(s.toUtf8()); }
 
 inline auto QStrDup(QString str) -> char* { return DUP(str.toUtf8()); }
 
-inline auto UnStrDup(const char* src) -> QString {
-  auto qt_str = QString::fromUtf8(src);
-  GFFreeMemory(static_cast<void*>(const_cast<char*>(src)));
-  return qt_str;
+inline auto UnStrDup(const char* s) -> QString {
+  auto q_s = QString::fromUtf8(s == nullptr ? "" : s);
+  if (s != nullptr) GFFreeMemory(static_cast<void*>(const_cast<char*>(s)));
+  return q_s;
+}
+
+template <typename T>
+auto FormatStringHelper(const QString& format, T arg) -> QString {
+  return format.arg(arg);
+}
+
+template <typename T, typename... Args>
+auto FormatStringHelper(const QString& format, T arg, Args... args) -> QString {
+  return FormatStringHelper(format.arg(arg), args...);
+}
+
+inline auto FormatStringHelper(const QString& format) -> QString {
+  return format;
+}
+
+template <typename... Args>
+auto FormatString(const QString& format, Args... args) -> QString {
+  return FormatStringHelper(format, args...);
 }
 
 inline auto QMapToMetaDataArray(const QMap<QString, QString>& map)
@@ -160,7 +197,10 @@ inline auto ConvertEventParamsToMap(GFModuleEventParam* params)
   GFModuleEventParam* last;
 
   while (current != nullptr) {
-    param_map[current->name] = UDUP(current->value);
+    const auto name = UDUP(current->name);
+    const auto value = UDUP(current->value);
+
+    if (!name.isEmpty()) param_map[name] = value;
 
     last = current;
     current = current->next;
@@ -305,23 +345,4 @@ inline auto CharArrayToQStringList(char** pl_components,
   }
   GFFreeMemory(pl_components);
   return list;
-}
-
-template <typename T>
-auto FormatStringHelper(const QString& format, T arg) -> QString {
-  return format.arg(arg);
-}
-
-template <typename T, typename... Args>
-auto FormatStringHelper(const QString& format, T arg, Args... args) -> QString {
-  return FormatStringHelper(format.arg(arg), args...);
-}
-
-inline auto FormatStringHelper(const QString& format) -> QString {
-  return format;
-}
-
-template <typename... Args>
-auto FormatString(const QString& format, Args... args) -> QString {
-  return FormatStringHelper(format, args...);
 }

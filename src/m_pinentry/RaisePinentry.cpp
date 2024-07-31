@@ -90,12 +90,14 @@ auto RaisePinentry::Exec() -> int {
             bool ret = result != 0;
 
             if (!ret) {
-              emit SignalUserInputPassphraseCallback({});
+              context_->SetSuccess(false);
+              emit SignalUserInputPassphraseCallback(context_);
               return -1;
             }
 
             auto pin = pinentry->pin().toUtf8();
 
+            context_->SetSuccess(true);
             context_->SetPassphrase(pin);
             emit SignalUserInputPassphraseCallback(context_);
             return 0;

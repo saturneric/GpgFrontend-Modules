@@ -32,9 +32,6 @@
 #include "GFSDKBuildInfo.h"
 
 #define GF_MODULE_API_DEFINE(id, name, ver, desc, author)                   \
-  class GTrC {                                                              \
-    Q_DECLARE_TR_FUNCTIONS(GTrC)                                            \
-  };                                                                        \
   auto GFGetModuleGFSDKVersion() -> const char* {                           \
     return DUP(GF_SDK_VERSION_STR);                                         \
   }                                                                         \

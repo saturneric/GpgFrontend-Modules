@@ -25,6 +25,7 @@
 
 # com.bktus.gpgfrontend.module.integrated.gnupg_info_gathering
 
+set(INTEGRATED_MODULE_SOURCE "")
 aux_source_directory(. INTEGRATED_MODULE_SOURCE)
 
 # define libgpgfrontend_module
@@ -38,13 +39,8 @@ install(TARGETS mod_paper_key
 target_link_libraries(mod_paper_key PRIVATE
   gpgfrontend_module_sdk)
 
-if(GPGFRONTEND_QT5_BUILD)
-  # link Qt core
-  target_link_libraries(mod_paper_key PRIVATE Qt5::Core)
-else()
-  # link Qt core
-  target_link_libraries(mod_paper_key PRIVATE Qt6::Core)
-endif()
+# link qt
+target_link_libraries(mod_paper_key PRIVATE Qt::Core)
 
 # using std c++ 17
 target_compile_features(mod_paper_key PRIVATE cxx_std_17)

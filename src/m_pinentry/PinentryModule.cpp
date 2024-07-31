@@ -58,27 +58,38 @@ auto GFExecuteModule(GFModuleEvent *p_event) -> int {
   auto event = ConvertEventToMap(p_event);
 
   if (event["prev_was_bad"].isEmpty() || event["ask_for_new"].isEmpty()) {
-    GFModuleTriggerModuleEventCallback(
-        ConvertMapToEvent(event), GFGetModuleID(),
-        ConvertMapToParams({{"ret", "-1"}, {"passphrase", ""}}));
+    CB(event, GFGetModuleID(),
+       {
+           {"ret", "-1"},
+           {"passphrase", ""},
+       });
     return -1;
   }
 
   QMetaObject::invokeMethod(
-      QApplication::instance()->thread(), [p_event, event]() -> int {
+      QApplication::instance()->thread(), [event]() -> int {
         auto *p = new RaisePinentry(
             nullptr,
             SecureCreateQSharedObject<GpgPassphraseContext>(
                 event["uid_hint"], event["passphrase_info"],
                 event["prev_was_bad"].toInt(), event["ask_for_new"].toInt()));
 
-        QObject::connect(
-            p, &RaisePinentry::SignalUserInputPassphraseCallback, p,
-            [event](const QSharedPointer<GpgPassphraseContext> &c) {
-              GFModuleTriggerModuleEventCallback(
-                  ConvertMapToEvent(event), GFGetModuleID(),
-                  ConvertMapToParams({{"passphrase", c->GetPassphrase()}}));
-            });
+        QObject::connect(p, &RaisePinentry::SignalUserInputPassphraseCallback,
+                         p, [event](QSharedPointer<GpgPassphraseContext> c) {
+                           if (c) {
+                             CB(event, GFGetModuleID(),
+                                {
+                                    {"ret", "0"},
+                                    {"passphrase", c->GetPassphrase()},
+                                });
+                           } else {
+                             CB(event, GFGetModuleID(),
+                                {
+                                    {"ret", "-1"},
+                                    {"passphrase", ""},
+                                });
+                           }
+                         });
 
         p->Exec();
         return 0;

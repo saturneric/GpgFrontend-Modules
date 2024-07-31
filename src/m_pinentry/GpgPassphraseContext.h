@@ -42,6 +42,8 @@ class GpgPassphraseContext : public QObject {
 
   void SetPassphrase(const QString& passphrase);
 
+  void SetSuccess(bool success);
+
   [[nodiscard]] auto GetPassphrase() const -> QString;
 
   [[nodiscard]] auto GetUidsInfo() const -> QString;
@@ -52,10 +54,13 @@ class GpgPassphraseContext : public QObject {
 
   [[nodiscard]] auto IsAskForNew() const -> bool;
 
+  [[nodiscard]] auto IsSuccess() const -> bool;
+
  private:
   QString passphrase_info_;
   QString uids_info_;
   QString passphrase_;
   bool prev_was_bad_;
   bool ask_for_new_;
+  bool success_;
 };

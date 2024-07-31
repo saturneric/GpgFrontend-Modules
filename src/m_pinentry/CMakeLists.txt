@@ -23,6 +23,7 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 
+set(INTEGRATED_MODULE_SOURCE "")
 aux_source_directory(. INTEGRATED_MODULE_SOURCE)
 
 # capslock
@@ -49,13 +50,8 @@ install(TARGETS mod_pinentry
 target_link_libraries(mod_pinentry PRIVATE
   gpgfrontend_module_sdk)
 
-if(GPGFRONTEND_QT5_BUILD)
-  # link Qt core
-  target_link_libraries(mod_pinentry PUBLIC Qt5::Widgets)
-else()
-  # link Qt core
-  target_link_libraries(mod_pinentry PUBLIC Qt6::Widgets)
-endif()
+# link qt
+target_link_libraries(mod_pinentry PUBLIC Qt::Widgets)
 
 # using std c++ 17
 target_compile_features(mod_pinentry PUBLIC cxx_std_17)

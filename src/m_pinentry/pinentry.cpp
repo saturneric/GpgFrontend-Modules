@@ -26,7 +26,7 @@
 #include "GFModuleCommonUtils.hpp"
 #include "GFSDKBasic.h"
 
-#ifdef WINDOWS
+#if defined(_WIN32) || defined(WIN32)
 #define getpid() GetCurrentProcessId()
 #endif
 
@@ -39,7 +39,7 @@ static const char *flavor_flag;
 
 /* Return a malloced copy of the commandline for PID.  If this is not
  * possible NULL is returned.  */
-#ifndef WINDOWS
+#if !(defined(_WIN32) || defined(WIN32))
 static char *get_cmdline(unsigned long pid) {
   char buffer[200];
   FILE *fp;
@@ -76,7 +76,7 @@ static char *get_cmdline(unsigned long pid) {
  * This is not as informative as get_cmdline, but it verifies that the
  * process does belong to the user in question.
  */
-#ifndef WINDOWS
+#if !(defined(_WIN32) || defined(WIN32))
 static char *get_pid_name_for_uid(unsigned long pid, int uid) {
   char buffer[400];
   FILE *fp;

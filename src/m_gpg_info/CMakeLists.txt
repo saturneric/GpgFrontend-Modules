@@ -25,6 +25,7 @@
 
 # com.bktus.gpgfrontend.module.integrated.gnupg_info_gathering
 
+set(INTEGRATED_MODULE_SOURCE "")
 aux_source_directory(. INTEGRATED_MODULE_SOURCE)
 
 # define libgpgfrontend_module
@@ -38,13 +39,8 @@ install(TARGETS mod_gpg_info
 target_link_libraries(mod_gpg_info PRIVATE
   gpgfrontend_module_sdk)
 
-if(GPGFRONTEND_QT5_BUILD)
-  # link Qt core
-  target_link_libraries(mod_gpg_info PRIVATE Qt5::Core Qt5::Widgets)
-else()
-  # link Qt core
-  target_link_libraries(mod_gpg_info PRIVATE Qt6::Core Qt6::Widgets)
-endif()
+# link qt
+target_link_libraries(mod_gpg_info PRIVATE Qt::Core Qt::Widgets)
 
 # using std c++ 17
 target_compile_features(mod_gpg_info PRIVATE cxx_std_17)
@@ -60,5 +56,5 @@ set(TS_FILES "${LOCALE_TS_PATH}/ModuleGnuPGInfoGathering.en_US.ts"
 qt_add_translations(mod_gpg_info
   RESOURCE_PREFIX "/i18n"
   TS_FILES ${TS_FILES}
-  SOURCES ${MODULE_SOURCE_FILES}
+  SOURCES ${INTEGRATED_MODULE_SOURCE}
   INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR})

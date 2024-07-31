@@ -55,3 +55,7 @@ auto GpgPassphraseContext::GetPassphraseInfo() const -> QString {
 auto GpgPassphraseContext::IsPreWasBad() const -> bool { return prev_was_bad_; }
 
 auto GpgPassphraseContext::IsAskForNew() const -> bool { return ask_for_new_; }
+
+auto GpgPassphraseContext::IsSuccess() const -> bool { return success_; }
+
+void GpgPassphraseContext::SetSuccess(bool success) { success_ = success; }

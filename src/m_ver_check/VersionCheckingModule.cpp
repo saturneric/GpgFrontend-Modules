@@ -43,11 +43,23 @@
 #include "UpdateTab.h"
 #include "VersionCheckTask.h"
 
-GF_MODULE_API_DEFINE("com.bktus.gpgfrontend.module.VersionChecking", "Pinentry",
-                     "1.0.0", "Try checking GpgFrontend version.", "Saturneric")
+GF_MODULE_API_DEFINE("com.bktus.gpgfrontend.module.version_checking",
+                     "VersionChecking", "1.0.0",
+                     "Try checking GpgFrontend version.", "Saturneric");
+
+DEFINE_TRANSLATIONS_STRUCTURE(ModuleVersionChecking);
 
 auto GFRegisterModule() -> int {
   MLogInfo("version checking module registering");
+
+  REGISTER_TRANS_READER();
+
+  GFUIMountEntry(DUP("AboutDialogTabs"),
+                 QMapToMetaDataArray({
+                     {"TabTitle", GTrC::tr("Update")},
+                 }),
+                 1, UpdateTabFactory);
+
   return 0;
 }
 
@@ -56,12 +68,6 @@ auto GFActiveModule() -> int {
 
   LISTEN("APPLICATION_LOADED");
   LISTEN("CHECK_APPLICATION_VERSION");
-
-  LOAD_TRANS("ModuleVersionChecking");
-
-  GFUIMountEntry(DUP("AboutDialogTabs"),
-                 QMapToMetaDataArray({{"TabTitle", GTrC::tr("Update")}}), 1,
-                 UpdateTabFactory);
 
   return 0;
 }

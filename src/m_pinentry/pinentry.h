@@ -325,7 +325,7 @@ void pinentry_parse_opts(int argc, char *argv[]);
 /* Set the optional flag used with getinfo. */
 void pinentry_set_flavor_flag(const char *string);
 
-#ifdef WINDOWS
+#if defined(_WIN32) || defined(WIN32)
 /* Windows declares sleep as obsolete, but provides a definition for
    _sleep but non for the still existing sleep.  */
 #define sleep(a) _sleep((a))

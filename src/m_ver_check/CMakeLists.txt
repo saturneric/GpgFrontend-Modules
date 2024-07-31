@@ -25,10 +25,11 @@
 
 # com.bktus.gpgfrontend.module.integrated.version_checking
 
-aux_source_directory(. MODULE_SOURCE_FILES)
+set(INTEGRATED_MODULE_SOURCE "")
+aux_source_directory(. INTEGRATED_MODULE_SOURCE)
 
 # define libgpgfrontend_module
-add_library(mod_ver_check SHARED ${MODULE_SOURCE_FILES})
+add_library(mod_ver_check SHARED ${INTEGRATED_MODULE_SOURCE})
 
 # install dir
 install(TARGETS mod_ver_check
@@ -38,13 +39,8 @@ install(TARGETS mod_ver_check
 target_link_libraries(mod_ver_check PRIVATE
   gpgfrontend_module_sdk)
 
-if(GPGFRONTEND_QT5_BUILD)
-  # link Qt
-  target_link_libraries(mod_ver_check PUBLIC Qt5::Core Qt5::Network Qt5::Widgets)
-else()
-  # link Qt
-  target_link_libraries(mod_ver_check PUBLIC Qt6::Core Qt6::Network Qt6::Widgets)
-endif()
+# link qt
+target_link_libraries(mod_ver_check PUBLIC Qt::Core Qt::Network Qt::Widgets)
 
 # using std c++ 17
 target_compile_features(mod_ver_check PRIVATE cxx_std_17)
@@ -64,5 +60,5 @@ set(TS_FILES
 qt_add_translations(mod_ver_check
   RESOURCE_PREFIX "/i18n"
   TS_FILES ${TS_FILES}
-  SOURCES ${MODULE_SOURCE_FILES}
+  SOURCES ${INTEGRATED_MODULE_SOURCE}
   INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR})

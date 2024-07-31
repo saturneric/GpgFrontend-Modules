@@ -4,7 +4,7 @@
 <context>
     <name>GTrC</name>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="72"/>
+        <location filename="../VersionCheckingModule.cpp" line="59"/>
         <source>Update</source>
         <translation type="unfinished">Aktualisieren</translation>
     </message>

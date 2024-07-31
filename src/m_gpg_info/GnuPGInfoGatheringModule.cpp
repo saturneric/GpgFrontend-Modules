@@ -50,6 +50,8 @@ GF_MODULE_API_DEFINE("com.bktus.gpgfrontend.module.gnupg_info_gathering",
                      "GatherGnupgInfo", "1.0.0",
                      "Try gathering gnupg informations.", "Saturneric")
 
+DEFINE_TRANSLATIONS_STRUCTURE(ModuleGnuPGInfoGathering);
+
 extern auto CalculateBinaryChacksum(const QString &path)
     -> std::optional<QString>;
 
@@ -69,16 +71,23 @@ using Context = struct {
   GpgComponentInfo component_info;
 };
 
-auto GFRegisterModule() -> int { return 0; }
+auto GFRegisterModule() -> int {
+  MLogDebug("gnupg info gathering module registering...");
+
+  REGISTER_TRANS_READER();
+
+  GFUIMountEntry(DUP("AboutDialogTabs"),
+                 QMapToMetaDataArray({
+                     {"TabTitle", GTrC::tr("GnuPG")},
+                 }),
+                 1, GnupgTabFactory);
+
+  return 0;
+}
 
 auto GFActiveModule() -> int {
   LISTEN("REQUEST_GATHERING_GNUPG_INFO");
 
-  LOAD_TRANS("ModuleGnuPGInfoGathering");
-
-  GFUIMountEntry(DUP("AboutDialogTabs"),
-                 QMapToMetaDataArray({{"TabTitle", GTrC::tr("GnuPG")}}), 1,
-                 GnupgTabFactory);
   return 0;
 }
 
@@ -95,7 +104,7 @@ END_EXECUTE_MODULE()
 auto GFDeactivateModule() -> int { return 0; }
 
 auto GFUnregisterModule() -> int {
-  MLogDebug("gnupg info gathering module unregistering");
+  MLogDebug("gnupg info gathering module unregistering...");
 
   return 0;
 }
@@ -118,10 +127,10 @@ auto StartGatheringGnuPGInfo() -> int {
   GFExecuteCommandSync(gpgconf_path, 1, argv, GetGpgComponentInfos, &context);
   MLogDebug("load gnupg component info done.");
 
-#ifdef QT5_BUILD
-  QVector<GFCommandExecuteContext> exec_contexts;
-#else
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 4)
   QList<GFCommandExecuteContext> exec_contexts;
+#else
+  QVector<GFCommandExecuteContext> exec_contexts;
 #endif
 
   const char **argv_0 =
@@ -277,7 +286,7 @@ void GetGpgComponentInfos(void *data, int exit_code, const char *out,
     auto component_desc = info_split_list[1].trimmed();
     auto component_path = info_split_list[2].trimmed();
 
-#ifdef WINDOWS
+#ifdef __MINGW32__
     // replace some special substrings on windows
     // platform
     component_path.replace("%3a", ":");
@@ -353,7 +362,7 @@ void GetGpgDirectoryInfos(void *, int exit_code, const char *out,
     auto configuration_name = info_split_list[0].trimmed();
     auto configuration_value = info_split_list[1].trimmed();
 
-#ifdef WINDOWS
+#ifdef __MINGW32__
     // replace some special substrings on windows
     // platform
     configuration_value.replace("%3a", ":");
