@@ -24,6 +24,7 @@
 #include <cstdlib>
 #include <cstring>
 
+#include "GFModuleCommonUtils.hpp"
 #include "GFSDKBasic.h"
 #include "output.h"
 #include "packets.h"
@@ -74,7 +75,7 @@ struct packet *parse(FILE *input, unsigned char want, unsigned char stop) {
         } else if (byte >= 224) {
           /* Partial body length, so fail (keys can't use
              partial body) */
-          fprintf(stderr, "Invalid partial packet encoding\n");
+          LOG_ERROR("Invalid partial packet encoding");
           goto fail;
         } else if (byte >= 192) {
           /* 2-byte length */
@@ -120,17 +121,16 @@ struct packet *parse(FILE *input, unsigned char want, unsigned char stop) {
             break;
 
           default:
-            fprintf(stderr, "Error: unable to parse old-style length\n");
+            LOG_ERROR("unable to parse old-style length");
             goto fail;
         }
       }
 
-      if (verbose > 1)
-        fprintf(stderr, "Found packet of type %d, length %d\n", type, length);
+      if (verbose > 1) {
+        FLOG_DEBUG("Found packet of type %d, length %d", type, length);
+      }
     } else {
-      fprintf(stderr,
-              "Error: unable to parse OpenPGP packets"
-              " (is this armored data?)\n");
+      LOG_ERROR("unable to parse OpenPGP packets (is this armored data?)");
       goto fail;
     }
 
@@ -142,7 +142,7 @@ struct packet *parse(FILE *input, unsigned char want, unsigned char stop) {
       packet->len = length;
       packet->size = length;
       if (fread(packet->buf, 1, packet->len, input) < packet->len) {
-        fprintf(stderr, "Short read on packet type %d\n", type);
+        FLOG_ERROR("Short read on packet type %d", type);
         goto fail;
       }
       break;
@@ -201,7 +201,7 @@ ssize_t extract_secrets(struct packet *packet) {
      public stuff. */
 
   if (packet->buf[0] == 3) {
-    fprintf(stderr, "Version 3 (PGP 2.x style) keys are not supported.\n");
+    LOG_ERROR("Version 3 (PGP 2.x style) keys are not supported.");
     return -1;
   } else if (packet->buf[0] == 4) {
     /* Jump 5 bytes in.  That gets us past 1 byte of version, and 4
@@ -268,8 +268,7 @@ ssize_t extract_secrets(struct packet *packet) {
 
     default:
       /* What algorithm? */
-      fprintf(stderr, "Unable to parse algorithm %u\n",
-              packet->buf[offset - 1]);
+      FLOG_ERROR("Unable to parse algorithm %u", packet->buf[offset - 1]);
       return -1;
   }
 
@@ -289,7 +288,7 @@ struct packet *read_secrets_file(FILE *secrets, enum data_type input_type) {
       packet = append_packet(packet, buffer, got);
 
     if (got == 0 && !feof(secrets)) {
-      fprintf(stderr, "Error: unable to read secrets file\n");
+      LOG_ERROR("unable to read secrets file");
       free_packet(packet);
       return NULL;
     }
@@ -315,8 +314,8 @@ struct packet *read_secrets_file(FILE *secrets, enum data_type input_type) {
 
       linenum = atoi(line);
       if (linenum != next_linenum) {
-        fprintf(stderr, "Error: missing line number %u (saw %u)\n",
-                next_linenum, linenum);
+        FLOG_ERROR("missing line number %u (saw %u)", next_linenum,
+                   linenum);
         free_packet(packet);
         return NULL;
       } else
@@ -340,10 +339,9 @@ struct packet *read_secrets_file(FILE *secrets, enum data_type input_type) {
             if (sscanf(tok, "%06lX", &new_crc)) {
               if (did_digit) {
                 if ((new_crc & 0xFFFFFFL) != (line_crc & 0xFFFFFFL)) {
-                  fprintf(stderr,
-                          "CRC on line %d does not"
-                          " match (%06lX!=%06lX)\n",
-                          linenum, new_crc & 0xFFFFFFL, line_crc & 0xFFFFFFL);
+                  FLOG_ERROR("CRC on line %d does not match (%06lX!=%06lX)",
+                             linenum, new_crc & 0xFFFFFFL,
+                             line_crc & 0xFFFFFFL);
                   if (!ignore_crc_error) {
                     free_packet(packet);
                     return NULL;
@@ -368,7 +366,7 @@ struct packet *read_secrets_file(FILE *secrets, enum data_type input_type) {
           tok = next;
         }
       } else {
-        fprintf(stderr, "No colon ':' found in line %u\n", linenum);
+        FLOG_ERROR("No colon ':' found in line %u", linenum);
         free_packet(packet);
         return NULL;
       }
@@ -381,15 +379,15 @@ struct packet *read_secrets_file(FILE *secrets, enum data_type input_type) {
     do_crc24(&all_crc, packet->buf, packet->len);
 
     if ((my_crc & 0xFFFFFFL) != (all_crc & 0xFFFFFFL)) {
-      fprintf(stderr, "CRC of secret does not match (%06lX!=%06lX)\n",
-              my_crc & 0xFFFFFFL, all_crc & 0xFFFFFFL);
+      FLOG_ERROR("CRC of secret does not match (%06lX!=%06lX)",
+                 my_crc & 0xFFFFFFL, all_crc & 0xFFFFFFL);
       if (!ignore_crc_error) {
         free_packet(packet);
         return NULL;
       }
     }
   } else {
-    fprintf(stderr, "CRC of secret is missing\n");
+    LOG_ERROR("CRC of secret is missing");
     if (!ignore_crc_error) {
       free_packet(packet);
       return NULL;

@@ -24,6 +24,7 @@
 #include <cstdlib>
 #include <cstring>
 
+#include "GFModuleCommonUtils.hpp"
 #include "GFSDKBasic.h"
 #include "output.h"
 #include "packets.h"
@@ -41,7 +42,7 @@ static auto extract_keys(struct packet *packet) -> struct key * {
 
   /* Check the version */
   if (packet->len && packet->buf[0] != 0) {
-    fprintf(stderr, "Cannot handle secrets file version %d\n", packet->buf[0]);
+    FLOG_ERROR("Cannot handle secrets file version %d", packet->buf[0]);
     return NULL;
   }
 
@@ -68,7 +69,7 @@ static auto extract_keys(struct packet *packet) -> struct key * {
           newkey->packet = append_packet(NULL, &packet->buf[idx], len);
           idx += len;
         } else {
-          fprintf(stderr, "Warning: Short data in secret image\n");
+          LOG_WARN("Short data in secret image");
           free(newkey);
           break;
         }
@@ -76,11 +77,11 @@ static auto extract_keys(struct packet *packet) -> struct key * {
         newkey->next = key;
         key = newkey;
       } else {
-        fprintf(stderr, "Warning: Corrupt data in secret image\n");
+        LOG_WARN("Corrupt data in secret image");
         break;
       }
     } else {
-      fprintf(stderr, "Warning: Short header in secret image\n");
+      LOG_WARN("Short header in secret image");
       break;
     }
   }
@@ -105,7 +106,7 @@ auto restore(FILE *pubring, FILE *secrets, enum data_type input_type,
     int test = fgetc(secrets);
 
     if (test == EOF) {
-      fprintf(stderr, "Unable to check type of secrets file\n");
+      LOG_ERROR("Unable to check type of secrets file");
       return 1;
     } else if (isascii(test) && isprint(test))
       input_type = BASE16;
@@ -170,11 +171,11 @@ auto restore(FILE *pubring, FILE *secrets, enum data_type input_type,
       free_keys(keys);
       output_end();
     } else {
-      fprintf(stderr, "Unable to parse secret data\n");
+      LOG_ERROR("Unable to parse secret data");
       return 1;
     }
   } else {
-    fprintf(stderr, "Unable to read secrets file\n");
+    LOG_ERROR("Unable to read secrets file");
     return 1;
   }
 

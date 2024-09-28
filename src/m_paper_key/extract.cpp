@@ -20,6 +20,7 @@
 
 #include <cstdio>
 
+#include "GFModuleCommonUtils.hpp"
 #include "output.h"
 #include "packets.h"
 #include "parse.h"
@@ -34,14 +35,14 @@ int extract(FILE *input, FILE *output, enum data_type output_type) {
 
   packet = parse(input, 5, 0);
   if (!packet) {
-    fprintf(stderr, "Unable to find secret key packet\n");
+    LOG_ERROR("Unable to find secret key packet");
     return 1;
   }
 
   offset = extract_secrets(packet);
   if (offset == -1) return 1;
 
-  if (verbose > 1) fprintf(stderr, "Secret offset is %d\n", offset);
+  if (verbose > 1) FLOG_DEBUG("Secret offset is %d", offset);
 
   calculate_fingerprint(packet, offset, fingerprint);
 
@@ -64,7 +65,7 @@ int extract(FILE *input, FILE *output, enum data_type output_type) {
     offset = extract_secrets(packet);
     if (offset == -1) return 1;
 
-    if (verbose > 1) fprintf(stderr, "Secret subkey offset is %d\n", offset);
+    if (verbose > 1) FLOG_DEBUG("Secret subkey offset is %d\n", offset);
 
     calculate_fingerprint(packet, offset, fingerprint);
 
