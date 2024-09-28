@@ -56,7 +56,7 @@ auto GFRegisterModule() -> int {
 
   GFUIMountEntry(DUP("AboutDialogTabs"),
                  QMapToMetaDataArray({
-                     {"TabTitle", GTrC::tr("Update")},
+                     {"TabTitle", GC_TR("Update")},
                  }),
                  1, UpdateTabFactory);
 

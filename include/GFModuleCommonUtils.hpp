@@ -66,6 +66,8 @@
 #define REGISTER_TRANS_READER() \
   GFAppRegisterTranslatorReader(GFGetModuleID(), TranslatorDataReader)
 
+#define GC_TR(text) QT_TRANSLATE_NOOP("GTrC", text)
+
 #define CONCATENATE_DETAIL(x, y) x##y
 #define CONCATENATE(x, y) CONCATENATE_DETAIL(x, y)
 #define GTRC_TR(name, src) CONCATENATE(GTrC_, name)::tr(src)

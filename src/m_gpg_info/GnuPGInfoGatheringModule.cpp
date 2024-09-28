@@ -78,7 +78,7 @@ auto GFRegisterModule() -> int {
 
   GFUIMountEntry(DUP("AboutDialogTabs"),
                  QMapToMetaDataArray({
-                     {"TabTitle", GTrC::tr("GnuPG")},
+                     {"TabTitle", GC_TR("GnuPG")},
                  }),
                  1, GnupgTabFactory);
 
