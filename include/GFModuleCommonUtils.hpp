@@ -216,7 +216,7 @@ inline auto ConvertMapToParams(const QMap<QString, QString>& param_map)
     -> GFModuleEventParam* {
   GFModuleEventParam* head = nullptr;
   GFModuleEventParam* prev = nullptr;
-
+#if QT_VERSION >= QT_VERSION_CHECK(6, 4, 0)
   for (const auto& [key, value] : param_map.asKeyValueRange()) {
     auto* param = static_cast<GFModuleEventParam*>(
         GFAllocateMemory(sizeof(GFModuleEventParam)));
@@ -232,6 +232,24 @@ inline auto ConvertMapToParams(const QMap<QString, QString>& param_map)
     }
     prev = param;
   }
+#else
+  for (auto it = param_map.keyValueBegin(); it != param_map.keyValueEnd();
+       ++it) {
+    auto* param = static_cast<GFModuleEventParam*>(
+        GFAllocateMemory(sizeof(GFModuleEventParam)));
+
+    param->name = DUP(it->first.toUtf8());
+    param->value = DUP(it->second.toUtf8());
+    param->next = nullptr;
+
+    if (prev == nullptr) {
+      head = param;
+    } else {
+      prev->next = param;
+    }
+    prev = param;
+  }
+#endif
 
   return head;
 }
