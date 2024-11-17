@@ -23,10 +23,24 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-# modules
+# com.bktus.gpgfrontend.module.integrated.gnupg_info_gathering
 
-add_subdirectory(m_ver_check)
-add_subdirectory(m_gpg_info)
-add_subdirectory(m_pinentry)
-add_subdirectory(m_paper_key)
-add_subdirectory(m_key_server_sync)
+set(INTEGRATED_MODULE_SOURCE "")
+aux_source_directory(. INTEGRATED_MODULE_SOURCE)
+
+# define libgpgfrontend_module
+add_library(mod_key_server_sync SHARED ${INTEGRATED_MODULE_SOURCE})
+
+# install dir
+install(TARGETS mod_key_server_sync
+  LIBRARY DESTINATION "${CMAKE_INSTALL_PREFIX}/modules")
+
+# link sdk
+target_link_libraries(mod_key_server_sync PRIVATE
+  gpgfrontend_module_sdk)
+
+# link qt
+target_link_libraries(mod_key_server_sync PRIVATE Qt::Core Qt::Network)
+
+# using std c++ 17
+target_compile_features(mod_key_server_sync PRIVATE cxx_std_17)
