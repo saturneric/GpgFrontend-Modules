@@ -127,7 +127,8 @@ void VKSInterface::on_reply_finished(QNetworkReply* reply) {
     if (json_response.isObject()) {
       QJsonObject response_object = json_response.object();
       emit SignalKeyUploaded(response_object["key_fpr"].toString(),
-                             response_object["status"].toObject());
+                             response_object["status"].toObject(),
+                             response_object["token"].toString());
     }
   } else if (url.path().contains("/vks/v1/request-verify")) {
     if (json_response.isObject()) {

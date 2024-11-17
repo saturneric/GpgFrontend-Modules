@@ -48,7 +48,7 @@ class VKSInterface : public QObject {
  signals:
   void SignalKeyRetrieved(const QString& key);
   void SignalKeyUploaded(const QString& key_fingerprint,
-                         const QJsonObject& status);
+                         const QJsonObject& status, const QString& token);
   void SignalVerificationRequested(const QString& key_fingerprint,
                                    const QJsonObject& status);
   void SignalErrorOccurred(const QString& error_string,

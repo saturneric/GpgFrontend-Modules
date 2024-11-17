@@ -46,6 +46,7 @@ auto GFRegisterModule() -> int {
 auto GFActiveModule() -> int {
   LISTEN("REQUEST_GET_PUBLIC_KEY_BY_FINGERPRINT");
   LISTEN("REQUEST_GET_PUBLIC_KEY_BY_KEY_ID");
+  LISTEN("REQUEST_UPLOAD_PUBLIC_KEY");
   return 0;
 }
 
@@ -105,6 +106,45 @@ EXECUTE_MODULE() {
                               {"key_data", key},
                           });
                      });
+    QObject::connect(vks, &VKSInterface::SignalKeyRetrieved, vks,
+                     &VKSInterface::deleteLater);
+
+    QObject::connect(vks, &VKSInterface::SignalErrorOccurred,
+                     QThread::currentThread(),
+                     [event](const QString& error, const QString& data) {
+                       CB(event, GFGetModuleID(),
+                          {
+                              {"ret", QString::number(-1)},
+                              {"error_msg", error},
+                              {"reply_data", data},
+                          });
+                     });
+    QObject::connect(vks, &VKSInterface::SignalKeyRetrieved, vks,
+                     &VKSInterface::deleteLater);
+
+    return 0;
+  }
+
+  if (event["event_id"] == "REQUEST_UPLOAD_PUBLIC_KEY") {
+    if (event["key_text"].isEmpty()) CB_ERR(event, -1, "key_text is empty");
+
+    QByteArray key_text = event["key_text"].toLatin1();
+    FLOG_DEBUG("try to get key info of key id: %1", key_text);
+
+    auto* vks = new VKSInterface();
+    vks->UploadKey(key_text);
+    QObject::connect(
+        vks, &VKSInterface::SignalKeyUploaded, QThread::currentThread(),
+        [event](const QString& fpr, const QJsonObject& status,
+                const QString& token) {
+          CB(event, GFGetModuleID(),
+             {
+                 {"ret", QString::number(0)},
+                 {"fingerprint", fpr},
+                 {"status", QString::fromUtf8(QJsonDocument(status).toJson())},
+                 {"token", token},
+             });
+        });
     QObject::connect(vks, &VKSInterface::SignalKeyRetrieved, vks,
                      &VKSInterface::deleteLater);
 
