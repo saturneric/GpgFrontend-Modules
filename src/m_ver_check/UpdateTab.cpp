@@ -162,7 +162,7 @@ void UpdateTab::slot_show_version_status() {
            "stability, please do not use this version.") +
         "</center><center>" + tr("Please click") +
         " <a "
-        "href=\"https://www.gpgfrontend.bktus.com/#/downloads\">" +
+        "href=\"https://www.gpgfrontend.bktus.com/overview/downloads/\">" +
         tr("Here") + "</a> " + tr("to download the latest stable version.") +
         "</center>");
     upgrade_label_->show();
