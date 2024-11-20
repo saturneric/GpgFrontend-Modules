@@ -30,6 +30,7 @@
 
 #include <QtCore>
 
+#include "GFModuleCommonUtils.hpp"
 #include "GFModuleDefine.h"
 #include "VKSInterface.h"
 
@@ -62,9 +63,9 @@ EXECUTE_MODULE() {
     FLOG_DEBUG("try to get key info of fingerprint: %1", fingerprint);
 
     auto* vks = new VKSInterface();
-    vks->GetByFingerprint(fingerprint);
     QObject::connect(vks, &VKSInterface::SignalKeyRetrieved,
                      QThread::currentThread(), [event](const QString& key) {
+                       // callback
                        CB(event, GFGetModuleID(),
                           {
                               {"ret", QString::number(0)},
@@ -86,6 +87,7 @@ EXECUTE_MODULE() {
                      });
     QObject::connect(vks, &VKSInterface::SignalKeyRetrieved, vks,
                      &VKSInterface::deleteLater);
+    vks->GetByFingerprint(fingerprint);
 
     return 0;
   }
@@ -97,9 +99,9 @@ EXECUTE_MODULE() {
     FLOG_DEBUG("try to get key info of key id: %1", key_id);
 
     auto* vks = new VKSInterface();
-    vks->GetByKeyId(key_id);
     QObject::connect(vks, &VKSInterface::SignalKeyRetrieved,
                      QThread::currentThread(), [event](const QString& key) {
+                       // callback
                        CB(event, GFGetModuleID(),
                           {
                               {"ret", QString::number(0)},
@@ -108,7 +110,6 @@ EXECUTE_MODULE() {
                      });
     QObject::connect(vks, &VKSInterface::SignalKeyRetrieved, vks,
                      &VKSInterface::deleteLater);
-
     QObject::connect(vks, &VKSInterface::SignalErrorOccurred,
                      QThread::currentThread(),
                      [event](const QString& error, const QString& data) {
@@ -121,6 +122,7 @@ EXECUTE_MODULE() {
                      });
     QObject::connect(vks, &VKSInterface::SignalKeyRetrieved, vks,
                      &VKSInterface::deleteLater);
+    vks->GetByKeyId(key_id);
 
     return 0;
   }
@@ -132,7 +134,6 @@ EXECUTE_MODULE() {
     FLOG_DEBUG("try to get key info of key id: %1", key_text);
 
     auto* vks = new VKSInterface();
-    vks->UploadKey(key_text);
     QObject::connect(
         vks, &VKSInterface::SignalKeyUploaded, QThread::currentThread(),
         [event](const QString& fpr, const QJsonObject& status,
@@ -147,7 +148,6 @@ EXECUTE_MODULE() {
         });
     QObject::connect(vks, &VKSInterface::SignalKeyRetrieved, vks,
                      &VKSInterface::deleteLater);
-
     QObject::connect(vks, &VKSInterface::SignalErrorOccurred,
                      QThread::currentThread(),
                      [event](const QString& error, const QString& data) {
@@ -160,11 +160,11 @@ EXECUTE_MODULE() {
                      });
     QObject::connect(vks, &VKSInterface::SignalKeyRetrieved, vks,
                      &VKSInterface::deleteLater);
-
+    vks->UploadKey(key_text);
     return 0;
   }
 
-  CB_SUCC(event);
+  CB_ERR(event, -1, "the type of this event is not supported");
 }
 END_EXECUTE_MODULE()
 

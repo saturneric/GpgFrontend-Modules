@@ -58,6 +58,7 @@ class VKSInterface : public QObject {
   void on_reply_finished(QNetworkReply* reply);
 
  private:
+  QString cache_key_;
   QString target_key_server_;
   QNetworkAccessManager* network_manager_;
 };

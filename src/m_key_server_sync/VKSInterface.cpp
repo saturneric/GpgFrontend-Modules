@@ -41,6 +41,9 @@
 #include <QUrlQuery>
 #include <utility>
 
+//
+#include <GFModuleCommonUtils.hpp>
+
 VKSInterface::VKSInterface(QString key_server, QObject* parent)
     : QObject(parent),
       target_key_server_(std::move(key_server)),
@@ -50,6 +53,15 @@ VKSInterface::VKSInterface(QString key_server, QObject* parent)
 }
 
 void VKSInterface::GetByFingerprint(const QString& fingerprint) {
+  // search cache by first
+  cache_key_ =
+      QString("module:key-server-sync:key-data:fpr:%1").arg(fingerprint);
+  auto value = UDUP(GFCacheGet(QDUP(cache_key_)));
+  if (!value.isEmpty()) {
+    emit SignalKeyRetrieved(value);
+    return;
+  }
+
   QUrl url(QString("%1/vks/v1/by-fingerprint/%2")
                .arg(target_key_server_)
                .arg(fingerprint));
@@ -57,8 +69,17 @@ void VKSInterface::GetByFingerprint(const QString& fingerprint) {
   network_manager_->get(request);
 }
 
-void VKSInterface::GetByKeyId(const QString& keyId) {
-  QUrl url(QString("%1/vks/v1/by-keyid/%2").arg(target_key_server_).arg(keyId));
+void VKSInterface::GetByKeyId(const QString& key_id) {
+  // search cache by first
+  cache_key_ = QString("module:key-server-sync:key-data:id:%1").arg(key_id);
+  auto value = UDUP(GFCacheGet(QDUP(cache_key_)));
+  if (!value.isEmpty()) {
+    emit SignalKeyRetrieved(value);
+    return;
+  }
+
+  QUrl url(
+      QString("%1/vks/v1/by-keyid/%2").arg(target_key_server_).arg(key_id));
   QNetworkRequest request(url);
   network_manager_->get(request);
 }
@@ -122,6 +143,7 @@ void VKSInterface::on_reply_finished(QNetworkReply* reply) {
   if (url.path().contains("/vks/v1/by-fingerprint") ||
       url.path().contains("/vks/v1/by-keyid") ||
       url.path().contains("/vks/v1/by-email")) {
+    GFCacheSaveWithTTL(QDUP(cache_key_), QDUP(QString(response_data)), 300);
     emit SignalKeyRetrieved(QString(response_data));
   } else if (url.path().contains("/vks/v1/upload")) {
     if (json_response.isObject()) {

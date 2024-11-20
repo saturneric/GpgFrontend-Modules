@@ -28,16 +28,15 @@
 
 #pragma once
 
+#include <GFSDKBasic.h>
+#include <GFSDKLog.h>
+#include <GFSDKModule.h>
 #include <GFSDKUI.h>
 #include <qsharedpointer.h>
 
 #include <QMap>
 #include <QString>
 #include <cstring>
-
-#include "GFSDKBasic.h"
-#include "GFSDKLog.h"
-#include "GFSDKModule.h"
 
 #define DUP(v) GFModuleStrDup(v)
 #define UDUP(v) UnStrDup(v)
