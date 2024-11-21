@@ -30,15 +30,47 @@
 
 #include "GFModuleCommonUtils.hpp"
 #include "GFSDKBasic.h"
-#include "GFSDKLog.h"
 #include "GFSDKModule.h"
 #include "VersionCheckTask.h"
 #include "VersionCheckingModule.h"
 
-UpdateTab::UpdateTab(QWidget* parent) : QWidget(parent) {
-  auto* layout = new QGridLayout();
+UpdateTab::UpdateTab(QWidget* parent)
+    : QWidget(parent), current_version_(GFProjectVersion()) {
+  auto* layout = new QVBoxLayout();
 
-  current_version_ = GFProjectVersion();
+  auto* current_version_box = new QGroupBox(tr("Current Version Information"));
+  auto* current_version_layout = new QVBoxLayout();
+  current_version_label_ = new QLabel();
+  current_version_label_->setText("<center>" + tr("Current Version") +
+                                  tr(": ") + "<b>" + current_version_ +
+                                  "</b></center>");
+  current_version_label_->setWordWrap(true);
+  latest_version_label_ = new QLabel();
+  current_version_layout->addWidget(current_version_label_);
+  current_version_layout->addWidget(latest_version_label_);
+  current_version_box->setLayout(current_version_layout);
+
+  auto* upgrade_info_box = new QGroupBox(tr("Upgrade Information"));
+  auto* upgrade_info_layout = new QVBoxLayout();
+  upgrade_label_ = new QLabel();
+  upgrade_label_->setWordWrap(true);
+  upgrade_label_->setOpenExternalLinks(true);
+  upgrade_label_->setHidden(true);
+  pb_ = new QProgressBar();
+  pb_->setRange(0, 0);
+  pb_->setTextVisible(false);
+  upgrade_info_layout->addWidget(upgrade_label_);
+  upgrade_info_layout->addWidget(pb_);
+  upgrade_info_box->setLayout(upgrade_info_layout);
+
+  auto* release_note_box = new QGroupBox(tr("Release Notes"));
+  auto* release_note_layout = new QVBoxLayout();
+  release_note_viewer_ = new QTextEdit();
+  release_note_viewer_->setReadOnly(true);
+  release_note_viewer_->setAcceptRichText(true);
+  release_note_viewer_->hide();
+  release_note_layout->addWidget(release_note_viewer_);
+  release_note_box->setLayout(release_note_layout);
 
   auto* tips_label = new QLabel();
   tips_label->setText(
@@ -51,39 +83,16 @@ UpdateTab::UpdateTab(QWidget* parent) : QWidget(parent) {
       "</center>");
   tips_label->setWordWrap(true);
 
-  current_version_label_ = new QLabel();
-  current_version_label_->setText("<center>" + tr("Current Version") +
-                                  tr(": ") + "<b>" + current_version_ +
-                                  "</b></center>");
-  current_version_label_->setWordWrap(true);
-
-  latest_version_label_ = new QLabel();
-  latest_version_label_->setWordWrap(true);
-
-  upgrade_label_ = new QLabel();
-  upgrade_label_->setWordWrap(true);
-  upgrade_label_->setOpenExternalLinks(true);
-  upgrade_label_->setHidden(true);
-
-  pb_ = new QProgressBar();
-  pb_->setRange(0, 0);
-  pb_->setTextVisible(false);
-
-  layout->addWidget(tips_label, 1, 0, 1, -1);
-  layout->addWidget(current_version_label_, 2, 0, 1, -1);
-  layout->addWidget(latest_version_label_, 3, 0, 1, -1);
-  layout->addWidget(upgrade_label_, 4, 0, 1, -1);
-  layout->addWidget(pb_, 5, 0, 1, -1);
-  layout->addItem(
-      new QSpacerItem(20, 10, QSizePolicy::Minimum, QSizePolicy::Fixed), 2, 1,
-      1, 1);
+  layout->addWidget(current_version_box);
+  layout->addWidget(upgrade_info_box);
+  layout->addWidget(release_note_box);
+  layout->addWidget(tips_label);
 
   setLayout(layout);
 }
 
 void UpdateTab::showEvent(QShowEvent* event) {
   QWidget::showEvent(event);
-  MLogDebug("loading version loading info from rt");
 
   auto is_loading_done = GFModuleRetrieveRTValueOrDefaultBool(
       GFGetModuleID(), GFModuleStrDup("version.loading_done"), 0);
@@ -103,7 +112,6 @@ void UpdateTab::showEvent(QShowEvent* event) {
 }
 
 void UpdateTab::slot_show_version_status() {
-  MLogDebug("loading version info from rt");
   this->pb_->setHidden(true);
 
   auto is_loading_done = GFModuleRetrieveRTValueOrDefaultBool(
@@ -128,44 +136,54 @@ void UpdateTab::slot_show_version_status() {
       GFGetModuleID(), GFModuleStrDup("version.latest_version"),
       GFModuleStrDup("")));
 
+  QString const release_note = UDUP(GFModuleRetrieveRTValueOrDefault(
+      GFGetModuleID(), GFModuleStrDup("version.release_note"),
+      GFModuleStrDup("")));
+
   latest_version_label_->setText("<center><b>" +
                                  tr("Latest Version From Github") + ": " +
                                  latest_version + "</b></center>");
 
   if (is_need_upgrade != 0) {
     upgrade_label_->setText(
-        "<center>" +
-        tr("The current version is less than the latest version on "
-           "github.") +
-        "</center><center>" + tr("Please click") +
-        " <a "
-        "href=\"https://www.gpgfrontend.bktus.com/#/downloads\">" +
-        tr("Here") + "</a> " + tr("to download the latest stable version.") +
+        "<center>" + tr("Your current version is outdated.") +
+        "</center><center>" + tr("Click") +
+        " <a href=\"https://www.gpgfrontend.bktus.com/overview/downloads/\">" +
+        tr("here") + "</a> " + tr("to download the latest stable version.") +
         "</center>");
     upgrade_label_->show();
   } else if (is_current_a_withdrawn_version != 0) {
     upgrade_label_->setText(
         "<center>" +
-        tr("This version has serious problems and has been withdrawn. "
-           "Please stop using it immediately.") +
-        "</center><center>" + tr("Please click") +
-        " <a "
-        "href=\"https://github.com/saturneric/GpgFrontend/releases\">" +
-        tr("Here") + "</a> " + tr("to download the latest stable version.") +
+        tr("This version has critical issues and has been withdrawn. Please "
+           "stop using it immediately.") +
+        "</center><center>" + tr("Click") +
+        " <a href=\"https://www.gpgfrontend.bktus.com/overview/downloads/\">" +
+        tr("here") + "</a> " + tr("to download the latest stable version.") +
         "</center>");
     upgrade_label_->show();
   } else if (is_current_version_released == 0) {
     upgrade_label_->setText(
         "<center>" +
-        tr("This version has not been released yet, it may be a beta "
-           "version. If you are not a tester and care about version "
-           "stability, please do not use this version.") +
-        "</center><center>" + tr("Please click") +
-        " <a "
-        "href=\"https://www.gpgfrontend.bktus.com/overview/downloads/\">" +
-        tr("Here") + "</a> " + tr("to download the latest stable version.") +
+        tr("This is an unreleased version, possibly a beta. If stability is "
+           "important to you, please avoid using this version.") +
+        "</center><center>" + tr("Click") +
+        " <a href=\"https://www.gpgfrontend.bktus.com/overview/downloads/\">" +
+        tr("here") + "</a> " + tr("to download the latest stable version.") +
         "</center>");
     upgrade_label_->show();
+  } else {
+    upgrade_label_->setText(
+        "<center>" +
+        tr("You are using the latest stable version. No action is required.") +
+        "</center>");
+    upgrade_label_->show();
+  }
+
+  if (!release_note.trimmed().isEmpty()) {
+    release_note_viewer_->clear();
+    release_note_viewer_->setMarkdown(release_note);
+    release_note_viewer_->show();
   }
 }
 

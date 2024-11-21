@@ -37,11 +37,12 @@
 class UpdateTab : public QWidget {
   Q_OBJECT
 
-  QLabel* current_version_label_;  ///<
-  QLabel* latest_version_label_;   ///<
-  QLabel* upgrade_label_;          ///<
-  QProgressBar* pb_;               ///<
-  QString current_version_;        ///<
+  QLabel* current_version_label_;   ///<
+  QLabel* latest_version_label_;    ///<
+  QLabel* upgrade_label_;           ///<
+  QProgressBar* pb_;                ///<
+  QTextEdit* release_note_viewer_;  ///<
+  QString current_version_;         ///<
 
  public:
   /**

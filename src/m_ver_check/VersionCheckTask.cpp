@@ -193,6 +193,9 @@ void VersionCheckTask::slot_fill_grt_with_version_info(
   GFModuleUpsertRTValueBool(
       GFGetModuleID(), GFModuleStrDup("version.current_a_withdrawn_version"),
       version.VersionWithdrawn() ? 1 : 0);
+
+  GFModuleUpsertRTValue(GFGetModuleID(), GFModuleStrDup("version.release_note"),
+                        GFModuleStrDup(version.release_note.toUtf8()));
   GFModuleUpsertRTValueBool(GFGetModuleID(),
                             GFModuleStrDup("version.loading_done"),
                             version.loading_done ? 1 : 0);
