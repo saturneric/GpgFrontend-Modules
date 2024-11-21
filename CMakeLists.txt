@@ -77,11 +77,11 @@ link_directories(
 if(GPGFRONTEND_QT5_BUILD)
   # Introduce Qt
   # Support Qt version: 5.15.x
-  find_package(Qt5 5.15 COMPONENTS Core Widgets Network LinguistTools REQUIRED)
+  find_package(Qt5 5.15 COMPONENTS Core Widgets Network LinguistTools Concurrent REQUIRED)
 else()
   # Introduce Qt
   # Support Qt version: 6.x
-  find_package(Qt6 6 COMPONENTS Core Widgets Network LinguistTools REQUIRED)
+  find_package(Qt6 6 COMPONENTS Core Widgets Network LinguistTools Concurrent REQUIRED)
 endif()
 
 # Qt configuration

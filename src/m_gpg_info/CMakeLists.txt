@@ -40,7 +40,7 @@ target_link_libraries(mod_gpg_info PRIVATE
   gpgfrontend_module_sdk)
 
 # link qt
-target_link_libraries(mod_gpg_info PRIVATE Qt::Core Qt::Widgets)
+target_link_libraries(mod_gpg_info PRIVATE Qt::Core Qt::Widgets Qt::Concurrent)
 
 # using std c++ 17
 target_compile_features(mod_gpg_info PRIVATE cxx_std_17)

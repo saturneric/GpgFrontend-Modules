@@ -32,6 +32,8 @@
 
 #include "GnupgTab.h"
 
+#include <QtConcurrent>
+
 #include "GFModuleCommonUtils.hpp"
 #include "GFSDKModule.h"
 #include "GnuPGInfoGatheringModule.h"
@@ -106,12 +108,14 @@ GnupgTab::GnupgTab(QWidget* parent)
   ui_->optionDetailsTable->setFocusPolicy(Qt::NoFocus);
   ui_->optionDetailsTable->setAlternatingRowColors(true);
 
-  if (GFModuleRetrieveRTValueOrDefaultBool(
-          DUP("ui"), DUP("env.state.gnupg_info_gathering"), 0) == 1) {
-    process_software_info();
-  } else {
-    gather_gnupg_info();
-  }
+  auto future = (QThreadPool::globalInstance(), [=]() {
+    if (GFModuleRetrieveRTValueOrDefaultBool(
+            DUP("ui"), DUP("env.state.gnupg_info_gathering"), 0) == 1) {
+      process_software_info();
+    } else {
+      gather_gnupg_info();
+    }
+  });
 }
 
 void GnupgTab::process_software_info() {
