@@ -38,8 +38,6 @@ project(GpgFrontendModules
 # includes
 include(GenerateExportHeader)
 
-set(CMAKE_POLICY_DEFAULT_CMP0126 NEW)
-
 # function or mode options
 option(GPGFRONTEND_QT5_BUILD "Swith to Qt5 building mode" OFF)
 

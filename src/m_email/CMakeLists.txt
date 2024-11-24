@@ -31,13 +31,13 @@ aux_source_directory(. INTEGRATED_MODULE_SOURCE)
 # define libgpgfrontend_module
 add_library(mod_email SHARED ${INTEGRATED_MODULE_SOURCE})
 
-set(VMIME_INSTALL OFF CACHE BOOL "Build vmime static library")
-set(VMIME_BUILD_TESTS OFF CACHE BOOL "Build vmime static library")
-set(VMIME_HAVE_TLS_SUPPORT OFF CACHE BOOL "Build vmime static library")
-set(VMIME_HAVE_SASL_SUPPORT OFF CACHE BOOL "Build vmime static library")
-set(VMIME_BUILD_DOCUMENTATION OFF CACHE BOOL "Build vmime static library")
-set(VMIME_BUILD_STATIC_LIBRARY ON CACHE BOOL "Build vmime static library")
-set(VMIME_BUILD_SHARED_LIBRARY OFF CACHE BOOL "Build vmime static library")
+set(VMIME_INSTALL OFF CACHE BOOL "Don't Install")
+set(VMIME_BUILD_TESTS OFF CACHE BOOL "No Unit Test")
+set(VMIME_HAVE_TLS_SUPPORT OFF CACHE BOOL "No TLS")
+set(VMIME_HAVE_SASL_SUPPORT OFF CACHE BOOL "No SASL")
+set(VMIME_BUILD_DOCUMENTATION OFF CACHE BOOL "Document IS Not Necessary HERE")
+set(VMIME_BUILD_STATIC_LIBRARY ON CACHE BOOL "Need Static Library")
+set(VMIME_BUILD_SHARED_LIBRARY OFF CACHE BOOL "No Shared Library")
 add_subdirectory(vmime "vmime" EXCLUDE_FROM_ALL)
 
 # install dir
