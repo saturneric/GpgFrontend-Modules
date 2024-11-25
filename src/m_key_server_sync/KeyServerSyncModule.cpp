@@ -30,13 +30,13 @@
 
 #include <QtCore>
 
-#include "GFModuleCommonUtils.hpp"
 #include "GFModuleDefine.h"
 #include "VKSInterface.h"
 
-GF_MODULE_API_DEFINE("com.bktus.gpgfrontend.module.key_server_sync",
-                     "KeyServerSync", "1.0.0",
-                     "Sync Information From Trusted Key Server.", "Saturneric")
+GF_MODULE_API_DEFINE_V2("com.bktus.gpgfrontend.module.key_server_sync",
+                        "KeyServerSync", "1.0.0",
+                        "Sync Information From Trusted Key Server.",
+                        "Saturneric")
 
 auto GFRegisterModule() -> int {
   LOG_DEBUG("key server sync module registering");
@@ -51,122 +51,117 @@ auto GFActiveModule() -> int {
   return 0;
 }
 
-EXECUTE_MODULE() {
-  FLOG_DEBUG("key server sync module executing, event id: %1",
-             event["event_id"]);
+REGISTER_EVENT_HANDLER(
+    REQUEST_GET_PUBLIC_KEY_BY_FINGERPRINT, [](const MEvent& event) -> int {
+      if (event["fingerprint"].isEmpty())
+        CB_ERR(event, -1, "fingerprint is empty");
 
-  if (event["event_id"] == "REQUEST_GET_PUBLIC_KEY_BY_FINGERPRINT") {
-    if (event["fingerprint"].isEmpty())
-      CB_ERR(event, -1, "fingerprint is empty");
+      QByteArray fingerprint = event["fingerprint"].toLatin1();
+      FLOG_DEBUG("try to get key info of fingerprint: %1", fingerprint);
 
-    QByteArray fingerprint = event["fingerprint"].toLatin1();
-    FLOG_DEBUG("try to get key info of fingerprint: %1", fingerprint);
+      auto* vks = new VKSInterface();
+      QObject::connect(vks, &VKSInterface::SignalKeyRetrieved,
+                       QThread::currentThread(), [event](const QString& key) {
+                         // callback
+                         CB(event, GFGetModuleID(),
+                            {
+                                {"ret", QString::number(0)},
+                                {"key_data", key},
+                            });
+                       });
+      QObject::connect(vks, &VKSInterface::SignalKeyRetrieved, vks,
+                       &VKSInterface::deleteLater);
 
-    auto* vks = new VKSInterface();
-    QObject::connect(vks, &VKSInterface::SignalKeyRetrieved,
-                     QThread::currentThread(), [event](const QString& key) {
-                       // callback
-                       CB(event, GFGetModuleID(),
-                          {
-                              {"ret", QString::number(0)},
-                              {"key_data", key},
-                          });
-                     });
-    QObject::connect(vks, &VKSInterface::SignalKeyRetrieved, vks,
-                     &VKSInterface::deleteLater);
+      QObject::connect(vks, &VKSInterface::SignalErrorOccurred,
+                       QThread::currentThread(),
+                       [event](const QString& error, const QString& data) {
+                         CB(event, GFGetModuleID(),
+                            {
+                                {"ret", QString::number(-1)},
+                                {"error_msg", error},
+                                {"reply_data", data},
+                            });
+                       });
+      QObject::connect(vks, &VKSInterface::SignalKeyRetrieved, vks,
+                       &VKSInterface::deleteLater);
+      vks->GetByFingerprint(fingerprint);
+      return 0;
+    });
 
-    QObject::connect(vks, &VKSInterface::SignalErrorOccurred,
-                     QThread::currentThread(),
-                     [event](const QString& error, const QString& data) {
-                       CB(event, GFGetModuleID(),
-                          {
-                              {"ret", QString::number(-1)},
-                              {"error_msg", error},
-                              {"reply_data", data},
-                          });
-                     });
-    QObject::connect(vks, &VKSInterface::SignalKeyRetrieved, vks,
-                     &VKSInterface::deleteLater);
-    vks->GetByFingerprint(fingerprint);
+REGISTER_EVENT_HANDLER(
+    REQUEST_GET_PUBLIC_KEY_BY_KEY_ID, [](const MEvent& event) -> int {
+      if (event["key_id"].isEmpty()) CB_ERR(event, -1, "key_id is empty");
 
-    return 0;
-  }
+      QByteArray key_id = event["key_id"].toLatin1();
+      FLOG_DEBUG("try to get key info of key id: %1", key_id);
 
-  if (event["event_id"] == "REQUEST_GET_PUBLIC_KEY_BY_KEY_ID") {
-    if (event["key_id"].isEmpty()) CB_ERR(event, -1, "key_id is empty");
+      auto* vks = new VKSInterface();
+      QObject::connect(vks, &VKSInterface::SignalKeyRetrieved,
+                       QThread::currentThread(), [event](const QString& key) {
+                         // callback
+                         CB(event, GFGetModuleID(),
+                            {
+                                {"ret", QString::number(0)},
+                                {"key_data", key},
+                            });
+                       });
+      QObject::connect(vks, &VKSInterface::SignalKeyRetrieved, vks,
+                       &VKSInterface::deleteLater);
+      QObject::connect(vks, &VKSInterface::SignalErrorOccurred,
+                       QThread::currentThread(),
+                       [event](const QString& error, const QString& data) {
+                         CB(event, GFGetModuleID(),
+                            {
+                                {"ret", QString::number(-1)},
+                                {"error_msg", error},
+                                {"reply_data", data},
+                            });
+                       });
+      QObject::connect(vks, &VKSInterface::SignalKeyRetrieved, vks,
+                       &VKSInterface::deleteLater);
+      vks->GetByKeyId(key_id);
 
-    QByteArray key_id = event["key_id"].toLatin1();
-    FLOG_DEBUG("try to get key info of key id: %1", key_id);
+      return 0;
+    });
 
-    auto* vks = new VKSInterface();
-    QObject::connect(vks, &VKSInterface::SignalKeyRetrieved,
-                     QThread::currentThread(), [event](const QString& key) {
-                       // callback
-                       CB(event, GFGetModuleID(),
-                          {
-                              {"ret", QString::number(0)},
-                              {"key_data", key},
-                          });
-                     });
-    QObject::connect(vks, &VKSInterface::SignalKeyRetrieved, vks,
-                     &VKSInterface::deleteLater);
-    QObject::connect(vks, &VKSInterface::SignalErrorOccurred,
-                     QThread::currentThread(),
-                     [event](const QString& error, const QString& data) {
-                       CB(event, GFGetModuleID(),
-                          {
-                              {"ret", QString::number(-1)},
-                              {"error_msg", error},
-                              {"reply_data", data},
-                          });
-                     });
-    QObject::connect(vks, &VKSInterface::SignalKeyRetrieved, vks,
-                     &VKSInterface::deleteLater);
-    vks->GetByKeyId(key_id);
+REGISTER_EVENT_HANDLER(
+    REQUEST_UPLOAD_PUBLIC_KEY, [](const MEvent& event) -> int {
+      if (event["key_text"].isEmpty()) CB_ERR(event, -1, "key_text is empty");
 
-    return 0;
-  }
+      QByteArray key_text = event["key_text"].toLatin1();
+      FLOG_DEBUG("try to get key info of key id: %1", key_text);
 
-  if (event["event_id"] == "REQUEST_UPLOAD_PUBLIC_KEY") {
-    if (event["key_text"].isEmpty()) CB_ERR(event, -1, "key_text is empty");
-
-    QByteArray key_text = event["key_text"].toLatin1();
-    FLOG_DEBUG("try to get key info of key id: %1", key_text);
-
-    auto* vks = new VKSInterface();
-    QObject::connect(
-        vks, &VKSInterface::SignalKeyUploaded, QThread::currentThread(),
-        [event](const QString& fpr, const QJsonObject& status,
-                const QString& token) {
-          CB(event, GFGetModuleID(),
-             {
-                 {"ret", QString::number(0)},
-                 {"fingerprint", fpr},
-                 {"status", QString::fromUtf8(QJsonDocument(status).toJson())},
-                 {"token", token},
-             });
-        });
-    QObject::connect(vks, &VKSInterface::SignalKeyRetrieved, vks,
-                     &VKSInterface::deleteLater);
-    QObject::connect(vks, &VKSInterface::SignalErrorOccurred,
-                     QThread::currentThread(),
-                     [event](const QString& error, const QString& data) {
-                       CB(event, GFGetModuleID(),
-                          {
-                              {"ret", QString::number(-1)},
-                              {"error_msg", error},
-                              {"reply_data", data},
-                          });
-                     });
-    QObject::connect(vks, &VKSInterface::SignalKeyRetrieved, vks,
-                     &VKSInterface::deleteLater);
-    vks->UploadKey(key_text);
-    return 0;
-  }
-
-  CB_ERR(event, -1, "the type of this event is not supported");
-}
-END_EXECUTE_MODULE()
+      auto* vks = new VKSInterface();
+      QObject::connect(
+          vks, &VKSInterface::SignalKeyUploaded, QThread::currentThread(),
+          [event](const QString& fpr, const QJsonObject& status,
+                  const QString& token) {
+            CB(event, GFGetModuleID(),
+               {
+                   {"ret", QString::number(0)},
+                   {"fingerprint", fpr},
+                   {"status",
+                    QString::fromUtf8(QJsonDocument(status).toJson())},
+                   {"token", token},
+               });
+          });
+      QObject::connect(vks, &VKSInterface::SignalKeyRetrieved, vks,
+                       &VKSInterface::deleteLater);
+      QObject::connect(vks, &VKSInterface::SignalErrorOccurred,
+                       QThread::currentThread(),
+                       [event](const QString& error, const QString& data) {
+                         CB(event, GFGetModuleID(),
+                            {
+                                {"ret", QString::number(-1)},
+                                {"error_msg", error},
+                                {"reply_data", data},
+                            });
+                       });
+      QObject::connect(vks, &VKSInterface::SignalKeyRetrieved, vks,
+                       &VKSInterface::deleteLater);
+      vks->UploadKey(key_text);
+      return 0;
+    });
 
 auto GFDeactivateModule() -> int { return 0; }
 

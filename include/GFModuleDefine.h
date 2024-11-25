@@ -44,3 +44,23 @@
     return QMapToGFModuleMetaDataList(                                      \
         {{"Name", (name)}, {"Description", (desc)}, {"Author", (author)}}); \
   }
+
+#define GF_MODULE_API_DEFINE_V2(id, name, ver, desc, author)                \
+  auto GFGetModuleGFSDKVersion() -> const char* {                           \
+    return DUP(GF_SDK_VERSION_STR);                                         \
+  }                                                                         \
+  auto GFGetModuleQtEnvVersion() -> const char* {                           \
+    return DUP(QT_VERSION_STR);                                             \
+  }                                                                         \
+  auto GFGetModuleID() -> const char* { return DUP((id)); }                 \
+  auto GFGetModuleVersion() -> const char* { return DUP((ver)); }           \
+  auto GFGetModuleMetaData() -> GFModuleMetaData* {                         \
+    return QMapToGFModuleMetaDataList(                                      \
+        {{"Name", (name)}, {"Description", (desc)}, {"Author", (author)}}); \
+  }                                                                         \
+  using MEvent = QMap<QString, QString>;                                    \
+  using EventHandler = std::function<int(const MEvent&)>;                   \
+  static QMap<QString, EventHandler> Module##nameEventHandlers;             \
+  static QMap<QString, EventHandler>& _gr_module_event_handlers =           \
+      Module##nameEventHandlers;                                            \
+  DEFINE_EXECUTE_API_USING_STANDARD_EVEN_HANDLE_MODEL

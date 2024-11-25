@@ -94,6 +94,23 @@
     return ret;                                                 \
   }
 
+#define DEFINE_EXECUTE_API_USING_STANDARD_EVEN_HANDLE_MODEL               \
+  EXECUTE_MODULE() {                                                      \
+    auto event_id = event["event_id"];                                    \
+    auto it = _gr_module_event_handlers.find(event_id);                   \
+    if (it != _gr_module_event_handlers.end()) {                          \
+      return it.value()(event);                                           \
+    }                                                                     \
+    CB_ERR(event, -1, QString("unsupported event id: %1").arg(event_id)); \
+  }                                                                       \
+  END_EXECUTE_MODULE()
+
+#define REGISTER_EVENT_HANDLER(event_id, handler)                      \
+  static const bool _gv_register_event_handler_by_id_##event_id = [] { \
+    _gr_module_event_handlers[#event_id] = handler;                    \
+    return true;                                                       \
+  }();
+
 inline void MLogDebug(const QString& s) { GFModuleLogDebug(s.toUtf8()); }
 inline void MLogInfo(const QString& s) { GFModuleLogInfo(s.toUtf8()); }
 inline void MLogWarn(const QString& s) { GFModuleLogWarn(s.toUtf8()); }
@@ -121,9 +138,20 @@ inline auto UnStrDup(const char* s) -> QString {
   return q_s;
 }
 
+inline auto FormatStringHelper(const QString& format,
+                               const std::string& arg) -> QString {
+  return format.arg(QString::fromStdString(arg));
+}
+
 template <typename T>
 auto FormatStringHelper(const QString& format, T arg) -> QString {
   return format.arg(arg);
+}
+
+template <typename... Args>
+auto FormatStringHelper(const QString& format, const std::string& arg,
+                        Args... args) -> QString {
+  return FormatStringHelper(format.arg(QString::fromStdString(arg)), args...);
 }
 
 template <typename T, typename... Args>
@@ -133,6 +161,13 @@ auto FormatStringHelper(const QString& format, T arg, Args... args) -> QString {
 
 inline auto FormatStringHelper(const QString& format) -> QString {
   return format;
+}
+
+template <typename T>
+inline auto FormatStringHelper(const T& format) ->
+    typename std::enable_if<std::is_same<T, std::string>::value,
+                            QString>::type {
+  return FormatStringHelper(QString::fromStdString(format));
 }
 
 template <typename... Args>
