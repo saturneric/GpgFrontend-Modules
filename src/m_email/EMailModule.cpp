@@ -43,36 +43,144 @@
 #define VMIME_STATIC
 #include <vmime/vmime.hpp>
 
+// vmime extend
+#include <vmime/contentTypeField.hpp>
+
 #include "GFModuleCommonUtils.hpp"
 #include "GFModuleDefine.h"
 
-GF_MODULE_API_DEFINE("com.bktus.gpgfrontend.module.email", "Email", "1.0.0",
-                     "Everything related to E-Mails.", "Saturneric")
+GF_MODULE_API_DEFINE_V2("com.bktus.gpgfrontend.module.email", "Email", "1.0.0",
+                        "Everything related to E-Mails.", "Saturneric")
 
 DEFINE_TRANSLATIONS_STRUCTURE(ModuleEMail);
 
-extern auto CalculateBinaryChacksum(const QString &path)
-    -> std::optional<QString>;
+auto inline Q_SC(const std::string& s) -> QString {
+  return QString::fromStdString(s);
+}
 
 auto GFRegisterModule() -> int {
   MLogDebug("email module registering...");
 
-  REGISTER_TRANS_READER();
-
-  vmime::datetime dl("Sat, 08 Oct 2005 14:07:52 +0200");
-  dl.getDay();
+  LISTEN("EMAIL_VERIFY_EML_DATA");
 
   return 0;
 }
 
 auto GFActiveModule() -> int { return 0; }
 
-EXECUTE_MODULE() {
-  FLOG_DEBUG("email executing, event id: %1", event["event_id"]);
+REGISTER_EVENT_HANDLER(EMAIL_VERIFY_EML_DATA, [](const MEvent& event) -> int {
+  if (event["eml_data"].isEmpty()) CB_ERR(event, -1, "eml_data is empty");
 
-  CB_SUCC(event);
-}
-END_EXECUTE_MODULE()
+  auto data = QByteArray::fromBase64(QString(event["eml_data"]).toLatin1());
+  auto hash = QCryptographicHash::hash(data, QCryptographicHash::Sha1);
+  FLOG_DEBUG("E-Mail Raw Data SHA-1 Hash: %1", hash.toHex());
+
+  vmime::string vmime_data(data.constData(), data.size());
+
+  auto message = vmime::make_shared<vmime::message>();
+  try {
+    message->parse(vmime_data);
+  } catch (const vmime::exception& e) {
+    FLOG_DEBUG("error when parsing vmime data: %1", e.what());
+    CB_ERR(event, -2, "error when parsing vmime data");
+  }
+
+  auto header = message->getHeader();
+
+  auto content_type_field =
+      header->getField<vmime::contentTypeField>(vmime::fields::CONTENT_TYPE);
+
+  auto content_type_value =
+      Q_SC(content_type_field->getValue()->generate()).trimmed();
+
+  /*
+   * OpenPGP signed messages are denoted by the "multipart/signed" content type.
+   */
+  if (content_type_value != "multipart/signed")
+    CB_ERR(event, -2, "Content-Type must be multipart/signed");
+
+  auto prm_protocol = content_type_field->getParameter("protocol");
+  auto prm_protocol_value = Q_SC(prm_protocol->getValue().generate());
+
+  /*
+   * with a "protocol" parameter which MUST have a value of
+   * "application/pgp-signature"
+   */
+  if (prm_protocol_value != "application/pgp-signature")
+    CB_ERR(event, -2,
+           "protocol of Content-Type MUST be application/pgp-signature");
+
+  auto body = message->getBody();
+  auto content_type = body->getContentType();
+  auto part_count = body->getPartCount();
+
+  FLOG_DEBUG("body content type: %1", content_type.generate());
+  FLOG_DEBUG("body page count: %1", part_count);
+
+  /*
+   * The multipart/signed body MUST consist of exactly two parts.
+   */
+  if (part_count != 2)
+    CB_ERR(event, -2, "body MUST consist of exactly two parts");
+
+  /*
+    The first part contains the signed data in MIME canonical format,
+    including a set of appropriate content headers describing the data.
+  */
+  auto part_mime = body->getPartAt(0);
+  auto part_mime_parse_offset = part_mime->getParsedOffset();
+  auto part_mime_parse_length = part_mime->getParsedLength();
+
+  auto part_mime_content_text = QByteArray::fromStdString(
+      vmime_data.substr(part_mime_parse_offset, part_mime_parse_length));
+
+  FLOG_DEBUG("body part of raw offset: %1, length: %2", part_mime_parse_offset,
+             part_mime_parse_length);
+  FLOG_DEBUG("body part of raw content left: %1",
+             part_mime_content_text.left(64));
+  FLOG_DEBUG("body part of raw content right: %1",
+             part_mime_content_text.right(64));
+
+  auto part_mime_content_hash = QCryptographicHash::hash(
+      part_mime_content_text, QCryptographicHash::Sha1);
+  FLOG_DEBUG("body part of raw content hash: %1",
+             part_mime_content_hash.toHex());
+
+  if (part_mime_content_text.isEmpty())
+    CB_ERR(event, -2, "mime raw data part is empty");
+
+  /*
+   * The second body MUST contain the OpenPGP digital signature.  It MUST
+   * be labeled with a content type of "application/pgp-signature"
+   */
+  auto part_sign = body->getPartAt(1);
+  auto part_sign_header = part_sign->getHeader();
+  auto part_sign_content_type = part_sign_header->ContentType();
+  auto part_sign_content_type_value =
+      Q_SC(part_sign_content_type->getValue()->generate());
+
+  if (part_sign_content_type_value != "application/pgp-signature")
+    CB_ERR(
+        event, -2,
+        "signature part must have a Content-Type of application/pgp-signature");
+
+  auto part_sign_body_content =
+      QByteArray::fromStdString(part_sign->getBody()->generate());
+  if (part_sign_body_content.trimmed().isEmpty())
+    CB_ERR(event, -2, "signature part is empty");
+
+  FLOG_DEBUG("body part of signature content: %1", part_sign_body_content);
+
+  // callback
+  CB(event, GFGetModuleID(),
+     {
+         {"ret", QString::number(0)},
+         {"mime", QString::fromLatin1(part_mime_content_text.toBase64())},
+         {"signature", QString::fromLatin1(part_sign_body_content.toBase64())},
+     });
+
+  return 0;
+});
 
 auto GFDeactivateModule() -> int { return 0; }
 
