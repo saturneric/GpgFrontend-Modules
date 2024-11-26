@@ -61,6 +61,7 @@ auto GFRegisterModule() -> int {
   MLogDebug("email module registering...");
 
   LISTEN("EMAIL_VERIFY_EML_DATA");
+  LISTEN("EMAIL_DECRYPT_EML_DATA");
 
   return 0;
 }
@@ -78,7 +79,7 @@ REGISTER_EVENT_HANDLER(EMAIL_VERIFY_EML_DATA, [](const MEvent& event) -> int {
     message->parse(vmime_data);
   } catch (const vmime::exception& e) {
     FLOG_DEBUG("error when parsing vmime data: %1", e.what());
-    CB_ERR(event, -2, "error when parsing vmime data");
+    CB_ERR(event, -2, "Error when parsing eml raw data");
   }
 
   auto header = message->getHeader();
@@ -86,7 +87,7 @@ REGISTER_EVENT_HANDLER(EMAIL_VERIFY_EML_DATA, [](const MEvent& event) -> int {
   auto content_type_field =
       header->getField<vmime::contentTypeField>(vmime::fields::CONTENT_TYPE);
   if (!content_type_field) {
-    CB_ERR(event, -2, "cannot get 'Content-Type' Field from header");
+    CB_ERR(event, -2, "Cannot get 'Content-Type' Field from header");
   }
 
   auto content_type_value =
@@ -94,7 +95,7 @@ REGISTER_EVENT_HANDLER(EMAIL_VERIFY_EML_DATA, [](const MEvent& event) -> int {
 
   auto prm_protocol = content_type_field->getParameter("protocol");
   if (!prm_protocol) {
-    CB_ERR(event, -2, "cannot get 'protocol' from 'Content-Type'");
+    CB_ERR(event, -2, "Cannot get 'protocol' from 'Content-Type'");
   }
 
   /*
@@ -113,7 +114,7 @@ REGISTER_EVENT_HANDLER(EMAIL_VERIFY_EML_DATA, [](const MEvent& event) -> int {
   auto prm_protocol_value = Q_SC(prm_protocol->getValue().generate());
   if (prm_protocol_value != "application/pgp-signature")
     CB_ERR(event, -2,
-           "'protocol' parameter which MUST have a value of "
+           "The 'protocol' parameter which MUST have a value of "
            "'application/pgp-signature' (MUST be quoted)");
 
   auto prm_micalg = content_type_field->getParameter("micalg");
@@ -131,8 +132,8 @@ REGISTER_EVENT_HANDLER(EMAIL_VERIFY_EML_DATA, [](const MEvent& event) -> int {
   FLOG_DEBUG("micalg value: %1", prm_micalg_value);
   if (!IsValidMicalgFormat(prm_micalg_value)) {
     CB_ERR(event, -2,
-           "'micalg' MUST contain exactly one hash-symbol of the format "
-           "'pgp-<hash-identifier>'");
+           "The 'micalg' parameter MUST contain exactly one hash-symbol of the "
+           "format 'pgp-<hash-identifier>'");
   }
 
   auto from_field_value_text =
@@ -176,20 +177,38 @@ REGISTER_EVENT_HANDLER(EMAIL_VERIFY_EML_DATA, [](const MEvent& event) -> int {
   auto part_mime_content_text = QByteArray::fromStdString(
       vmime_data.substr(part_mime_parse_offset, part_mime_parse_length));
 
-  FLOG_DEBUG("body part of raw offset: %1, length: %2", part_mime_parse_offset,
-             part_mime_parse_length);
-  FLOG_DEBUG("body part of raw content left: %1",
-             part_mime_content_text.left(64));
-  FLOG_DEBUG("body part of raw content right: %1",
-             part_mime_content_text.right(64));
+  FLOG_DEBUG("mime part info, raw offset: %1, length: %2",
+             part_mime_parse_offset, part_mime_parse_length);
 
   auto part_mime_content_hash = QCryptographicHash::hash(
       part_mime_content_text, QCryptographicHash::Sha1);
-  FLOG_DEBUG("body part of raw content hash: %1",
+  FLOG_DEBUG("mime part of raw content hash: %1",
              part_mime_content_hash.toHex());
 
   if (part_mime_content_text.isEmpty())
     CB_ERR(event, -2, "mime raw data part is empty");
+
+  auto attachments =
+      vmime::attachmentHelper::findAttachmentsInBodyPart(part_mime);
+  FLOG_DEBUG("mime part info, attachment count: %1", attachments.size());
+
+  QStringList public_keys_buffer;
+
+  for (const auto& att : attachments) {
+    auto att_type = Q_SC(att->getType().generate()).trimmed();
+    FLOG_DEBUG("mime part info, attachment type: %1", att_type);
+
+    if (att_type != "application/pgp-keys") continue;
+
+    std::ostringstream oss;
+    vmime::utility::outputStreamAdapter osa(oss);
+    att->getData()->extract(osa);
+
+    public_keys_buffer.append(Q_SC(oss.str()));
+  }
+
+  FLOG_DEBUG("mime part info, attached public keys: ",
+             public_keys_buffer.join("\n"));
 
   /*
    * The second body MUST contain the OpenPGP digital signature. It MUST
@@ -209,7 +228,7 @@ REGISTER_EVENT_HANDLER(EMAIL_VERIFY_EML_DATA, [](const MEvent& event) -> int {
   auto part_sign_body_content =
       QByteArray::fromStdString(part_sign->getBody()->generate());
   if (part_sign_body_content.trimmed().isEmpty())
-    CB_ERR(event, -2, "signature part is empty");
+    CB_ERR(event, -2, "The signature part is empty");
 
   FLOG_DEBUG("body part of signature content: %1", part_sign_body_content);
 
@@ -218,7 +237,7 @@ REGISTER_EVENT_HANDLER(EMAIL_VERIFY_EML_DATA, [](const MEvent& event) -> int {
      {
          {"ret", QString::number(0)},
          {"mime", QString::fromLatin1(part_mime_content_text.toBase64())},
-         {"mime_hash", part_mime_content_hash},
+         {"mime_hash", part_mime_content_hash.toHex()},
          {"signature", QString::fromLatin1(part_sign_body_content.toBase64())},
          {"from", from_field_value_text},
          {"to", to_field_value_text},
@@ -227,6 +246,154 @@ REGISTER_EVENT_HANDLER(EMAIL_VERIFY_EML_DATA, [](const MEvent& event) -> int {
          {"subject", subject_field_value_text},
          {"datetime", QString::number(date_field_value.toMSecsSinceEpoch())},
          {"micalg", prm_micalg_value},
+         {"public_keys", public_keys_buffer.join("\n")},
+     });
+
+  return 0;
+});
+
+REGISTER_EVENT_HANDLER(EMAIL_DECRYPT_EML_DATA, [](const MEvent& event) -> int {
+  if (event["eml_data"].isEmpty()) CB_ERR(event, -1, "eml_data is empty");
+
+  auto data = QByteArray::fromBase64(QString(event["eml_data"]).toLatin1());
+  vmime::string vmime_data(data.constData(), data.size());
+
+  auto message = vmime::make_shared<vmime::message>();
+  try {
+    message->parse(vmime_data);
+  } catch (const vmime::exception& e) {
+    FLOG_DEBUG("error when parsing vmime data: %1", e.what());
+    CB_ERR(event, -2, "error when parsing vmime data");
+  }
+
+  auto header = message->getHeader();
+
+  auto content_type_field =
+      header->getField<vmime::contentTypeField>(vmime::fields::CONTENT_TYPE);
+  if (!content_type_field) {
+    CB_ERR(event, -2, "cannot get 'Content-Type' Field from header");
+  }
+
+  auto content_type_value =
+      Q_SC(content_type_field->getValue()->generate()).trimmed();
+
+  auto prm_protocol = content_type_field->getParameter("protocol");
+  if (!prm_protocol) {
+    CB_ERR(event, -2, "cannot get 'protocol' from 'Content-Type'");
+  }
+
+  /*
+   * OpenPGP encrypted data is denoted by the "multipart/encrypted"
+   * content type
+   */
+  if (content_type_value != "multipart/encrypted")
+    CB_ERR(event, -2,
+           "OpenPGP encrypted data is denoted by the 'multipart/encrypted' "
+           "content type");
+
+  /*
+   * MUST have a "protocol" parameter value of "application/pgp-encrypted"
+   */
+  auto prm_protocol_value = Q_SC(prm_protocol->getValue().generate());
+  if (prm_protocol_value != "application/pgp-encrypted")
+    CB_ERR(event, -2,
+           "'protocol' parameter which MUST have a value of "
+           "'application/pgp-encrypted' (MUST be quoted)");
+
+  auto from_field_value_text =
+      ExtractFieldValueMailBox(header, vmime::fields::FROM);
+  auto to_field_value_text =
+      ExtractFieldValueAddressList(header, vmime::fields::TO);
+  auto cc_field_value_text =
+      ExtractFieldValueAddressList(header, vmime::fields::CC);
+  auto bcc_field_value_text =
+      ExtractFieldValueAddressList(header, vmime::fields::BCC);
+  auto date_field_value =
+      ExtractFieldValueDateTime(header, vmime::fields::DATE);
+  auto subject_field_value_text =
+      ExtractFieldValueText(header, vmime::fields::SUBJECT);
+  auto reply_to_field_value_text =
+      ExtractFieldValueMailBox(header, vmime::fields::REPLY_TO);
+  auto organization_text =
+      ExtractFieldValueText(header, vmime::fields::ORGANIZATION);
+
+  auto body = message->getBody();
+  auto content_type = body->getContentType();
+  auto part_count = body->getPartCount();
+
+  FLOG_DEBUG("body page count: %1", part_count);
+
+  /*
+   * The multipart/encrypted body MUST consist of exactly two parts.
+   */
+  if (part_count != 2)
+    CB_ERR(event, -2,
+           "The multipart/signed body MUST consist of exactly two parts");
+
+  /*
+   * The multipart/encrypted MIME body MUST consist of exactly two body
+   * parts, the first with content type "application/pgp-encrypted".  This
+   * body contains the control information.
+   */
+  auto part_mime = body->getPartAt(0);
+
+  std::ostringstream oss;
+  vmime::utility::outputStreamAdapter osa(oss);
+
+  auto part_mime_body = part_mime->getBody();
+  auto part_mime_body_content = part_mime_body->getContents();
+  if (!part_mime_body_content) {
+    CB_ERR(event, -2, "Cannot get the content of the first part's body");
+  }
+
+  part_mime_body_content->extractRaw(osa);
+  osa.flush();
+
+  auto part_mime_body_content_text = Q_SC(oss.str());
+  FLOG_DEBUG("body part of raw content text: %1", part_mime_body_content_text);
+
+  /*
+   * A message complying with this
+   * standard MUST contain a "Version: 1" field in this body.
+   */
+  if (!part_mime_body_content_text.contains("Version: 1")) {
+    CB_ERR(event, -2,
+           "The first part MUST contain a 'Version: 1' field in this body.");
+  }
+
+  /*
+   * The second MIME body part MUST contain the actual encrypted data.  It
+   * MUST be labeled with a content type of "application/octet-stream".
+   */
+  auto part_sign = body->getPartAt(1);
+  auto part_sign_header = part_sign->getHeader();
+  auto part_sign_content_type = part_sign_header->ContentType();
+  auto part_sign_content_type_value =
+      Q_SC(part_sign_content_type->getValue()->generate());
+
+  if (part_sign_content_type_value != "application/octet-stream")
+    CB_ERR(event, -2,
+           "The second part MUST be labeled with a content type of "
+           "'application/octet-stream'");
+
+  auto part_encr_body_content =
+      QByteArray::fromStdString(part_sign->getBody()->generate());
+  if (part_encr_body_content.trimmed().isEmpty())
+    CB_ERR(event, -2, "The second part is empty");
+
+  FLOG_DEBUG("body part of encrypt content: %1", part_encr_body_content);
+
+  // callback
+  CB(event, GFGetModuleID(),
+     {
+         {"ret", QString::number(0)},
+         {"encrypted", QString::fromLatin1(part_encr_body_content.toBase64())},
+         {"from", from_field_value_text},
+         {"to", to_field_value_text},
+         {"cc", cc_field_value_text},
+         {"bcc", bcc_field_value_text},
+         {"subject", subject_field_value_text},
+         {"datetime", QString::number(date_field_value.toMSecsSinceEpoch())},
      });
 
   return 0;
