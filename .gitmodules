@@ -1,0 +1,3 @@
+[submodule "src/m_email/vmime"]
+	path = src/m_email/vmime
+	url = https://github.com/kisli/vmime.git
