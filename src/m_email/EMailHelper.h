@@ -34,6 +34,9 @@
 // vmime
 #define VMIME_STATIC
 #include <vmime/vmime.hpp>
+// vmime extra
+#include <vmime/contentDispositionField.hpp>
+#include <vmime/contentTypeField.hpp>
 
 auto inline Q_SC(const std::string& s) -> QString {
   return QString::fromStdString(s);

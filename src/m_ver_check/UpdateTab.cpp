@@ -187,4 +187,4 @@ void UpdateTab::slot_show_version_status() {
   }
 }
 
-auto UpdateTabFactory(const char* id) -> void* { return new UpdateTab(); }
+auto UpdateTabFactory(void*) -> void* { return new UpdateTab(); }

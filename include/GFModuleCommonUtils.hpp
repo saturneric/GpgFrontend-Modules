@@ -32,10 +32,11 @@
 #include <GFSDKLog.h>
 #include <GFSDKModule.h>
 #include <GFSDKUI.h>
-#include <qsharedpointer.h>
 
 #include <QMap>
+#include <QSharedPointer>
 #include <QString>
+#include <QVariant>
 #include <cstring>
 
 #define DUP(v) GFModuleStrDup(v)
@@ -394,9 +395,51 @@ inline auto CharArrayToQStringList(char** pl_components,
                                    int size) -> QStringList {
   QStringList list;
   for (int i = 0; i < size; ++i) {
-    list.append(QString::fromUtf8(pl_components[i]));
-    GFFreeMemory(pl_components[i]);
+    list.append(UDUP(pl_components[i]));
   }
   GFFreeMemory(pl_components);
   return list;
 }
+
+inline auto QListToCharArray(const QStringList& list) -> char** {
+  char** char_array =
+      static_cast<char**>(GFAllocateMemory(list.size() * sizeof(char*)));
+
+  int index = 0;
+  for (const QString& item : list) {
+    QByteArray value = item.toUtf8();
+    char_array[index] = static_cast<char*>(GFAllocateMemory(value.size() + 1));
+    std::strcpy(char_array[index], value.constData());
+    index++;
+  }
+
+  return char_array;
+}
+
+inline auto ConvertQVariantToVoidPtr(const QVariant& variant) -> void* {
+  void* mem = GFAllocateMemory(sizeof(QVariant));
+  auto* variant_ptr = new (mem) QVariant(variant);
+  return static_cast<void*>(variant_ptr);
+}
+
+inline auto ConvertVoidPtrToQVariant(void* ptr) -> QVariant {
+  if (ptr == nullptr) return {};
+
+  auto* variant_ptr = static_cast<QVariant*>(ptr);
+  QVariant variant = *variant_ptr;
+
+  GFFreeMemory(variant_ptr);
+  return variant;
+}
+
+#define Q_VARIANT_Q_OBJECT_FACTORY_DECLARE(name) \
+  auto name(void* data_raw_ptr) -> void*;
+
+#define Q_VARIANT_Q_OBJECT_FACTORY_DEFINE(name, func)   \
+  auto name(void* data_raw_ptr) -> void* {              \
+    auto data = ConvertVoidPtrToQVariant(data_raw_ptr); \
+    return func(data);                                  \
+  }
+
+#define GUI_OBJECT(factory, data) \
+  GFUICreateGUIObject(factory, ConvertQVariantToVoidPtr(data))

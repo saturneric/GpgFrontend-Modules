@@ -28,48 +28,52 @@
 
 #pragma once
 
-#include <QtWidgets/QtWidgets>
+#include <QDialog>
+#include <QSharedPointer>
 
-/**
- * @brief Class containing the main tab of about dialog
- *
- */
-class UpdateTab : public QWidget {
+#include "GFModuleCommonUtils.hpp"
+
+class QWidget;
+class Ui_EMailMetaDataDialog;
+
+class EMailMetaDataDialog : public QDialog {
   Q_OBJECT
-
-  QLabel* current_version_label_;   ///<
-  QLabel* latest_version_label_;    ///<
-  QLabel* upgrade_label_;           ///<
-  QProgressBar* pb_;                ///<
-  QTextEdit* release_note_viewer_;  ///<
-  QString current_version_;         ///<
-
  public:
-  /**
-   * @brief Construct a new Update Tab object
-   *
-   * @param parent
-   */
-  explicit UpdateTab(QWidget* parent = nullptr);
+  explicit EMailMetaDataDialog(QByteArray body_data, QWidget *parent);
 
- protected:
-  void showEvent(QShowEvent* event) override;
-
- private slots:
   /**
-   * @brief
+   * @brief Set the Channel object
    *
-   * @param version
    */
-  void slot_show_version_status();
+  void SetChannel(int c);
+
+  /**
+   * @brief Set the Sign Keys object
+   *
+   */
+  void SetSignKey(QString k);
 
  signals:
-  /**
-   * @brief
-   *
-   * @param data
-   */
-  void SignalReplyFromUpdateServer(QByteArray data);
+
+  void SignalEMLDataGenerateSuccess(QString);
+
+  void SignalEMLDataGenerateFailed(QString);
+
+ private slots:
+
+  void slot_export_eml_data();
+
+  void slot_export_encrypted_data();
+
+  void slot_set_from_field_by_sign_key();
+
+ private:
+  QSharedPointer<Ui_EMailMetaDataDialog> ui_;
+  QByteArray body_data_;
+  int channel_;
+  QString sign_key_;
+  QString from_name_;
+  QString from_email_;
 };
 
-auto UpdateTabFactory(void* id) -> void*;
+Q_VARIANT_Q_OBJECT_FACTORY_DECLARE(CreateEMailMetaDataDialog);

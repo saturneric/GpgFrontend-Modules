@@ -331,4 +331,4 @@ void GnupgTab::gather_gnupg_info() {
   }
 }
 
-auto GnupgTabFactory(const char* id) -> void* { return new GnupgTab(); }
+auto GnupgTabFactory(void*) -> void* { return new GnupgTab(); }

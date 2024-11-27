@@ -63,7 +63,7 @@ extern void GetGpgOptionInfos(void *, int, const char *, const char *);
 
 extern auto StartGatheringGnuPGInfo() -> int;
 
-extern auto GnupgTabFactory(const char *id) -> void *;
+extern auto GnupgTabFactory(void *id) -> void *;
 
 using Context = struct {
   QString gpgme_version;
