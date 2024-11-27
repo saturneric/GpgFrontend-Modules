@@ -45,6 +45,10 @@ set(VMIME_HAVE_MESSAGING_PROTO_MAILDIR OFF CACHE BOOL "No Maildir protocol")
 set(VMIME_HAVE_MESSAGING_PROTO_SENDMAIL OFF CACHE BOOL "No Sendmail protocol")
 add_subdirectory(vmime "vmime" EXCLUDE_FROM_ALL)
 
+if(MINGW)
+  target_link_libraries(vmime-static PRIVATE ws2_32)
+endif()
+
 # install dir
 install(TARGETS mod_email
   LIBRARY DESTINATION "${CMAKE_INSTALL_PREFIX}/modules")
