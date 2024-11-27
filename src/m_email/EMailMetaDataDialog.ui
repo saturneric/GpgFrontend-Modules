@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>599</width>
-    <height>522</height>
+    <width>525</width>
+    <height>346</height>
    </rect>
   </property>
   <property name="cursor">
@@ -26,255 +26,111 @@
    <bool>false</bool>
   </property>
   <layout class="QGridLayout" name="gridLayout">
-   <item row="0" column="0">
+   <property name="leftMargin">
+    <number>5</number>
+   </property>
+   <property name="topMargin">
+    <number>5</number>
+   </property>
+   <property name="rightMargin">
+    <number>5</number>
+   </property>
+   <property name="bottomMargin">
+    <number>5</number>
+   </property>
+   <item row="1" column="0">
     <layout class="QVBoxLayout" name="verticalLayout">
      <item>
-      <widget class="QWidget" name="horizontalWidget" native="true">
-       <layout class="QHBoxLayout" name="horizontalLayout">
-        <property name="spacing">
-         <number>6</number>
-        </property>
-        <property name="leftMargin">
-         <number>0</number>
-        </property>
-        <property name="topMargin">
-         <number>0</number>
-        </property>
-        <property name="rightMargin">
-         <number>0</number>
-        </property>
-        <property name="bottomMargin">
-         <number>0</number>
-        </property>
-        <item>
-         <widget class="QLabel" name="senderLabel">
-          <property name="text">
-           <string>From</string>
-          </property>
-          <property name="margin">
-           <number>5</number>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QLineEdit" name="fromEdit"/>
-        </item>
-        <item>
-         <widget class="Line" name="line">
-          <property name="toolTipDuration">
-           <number>0</number>
-          </property>
-          <property name="autoFillBackground">
-           <bool>false</bool>
-          </property>
-          <property name="lineWidth">
-           <number>2</number>
-          </property>
-          <property name="orientation">
-           <enum>Qt::Orientation::Vertical</enum>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QPushButton" name="ccButton">
-          <property name="text">
-           <string>CC</string>
-          </property>
-          <property name="checkable">
-           <bool>true</bool>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QPushButton" name="bccButton">
-          <property name="text">
-           <string>BCC</string>
-          </property>
-          <property name="checkable">
-           <bool>true</bool>
-          </property>
-         </widget>
-        </item>
-       </layout>
-      </widget>
+      <layout class="QHBoxLayout" name="horizontalLayout_8">
+       <item>
+        <widget class="QLabel" name="senderLabel">
+         <property name="minimumSize">
+          <size>
+           <width>50</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="text">
+          <string>From</string>
+         </property>
+         <property name="margin">
+          <number>5</number>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLineEdit" name="fromEdit"/>
+       </item>
+      </layout>
      </item>
      <item>
-      <widget class="QWidget" name="horizontalWidget_4" native="true">
-       <layout class="QHBoxLayout" name="horizontalLayout_4">
-        <property name="spacing">
-         <number>6</number>
-        </property>
-        <property name="leftMargin">
-         <number>0</number>
-        </property>
-        <property name="topMargin">
-         <number>0</number>
-        </property>
-        <property name="rightMargin">
-         <number>0</number>
-        </property>
-        <property name="bottomMargin">
-         <number>0</number>
-        </property>
-        <item>
-         <widget class="QLabel" name="recipientLabel">
-          <property name="text">
-           <string>To</string>
-          </property>
-          <property name="margin">
-           <number>5</number>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QLineEdit" name="toEdit"/>
-        </item>
-        <item>
-         <widget class="QPushButton" name="recipientsEditButton">
-          <property name="text">
-           <string>Edit Recipients(s)</string>
-          </property>
-         </widget>
-        </item>
-       </layout>
-      </widget>
+      <layout class="QHBoxLayout" name="horizontalLayout_2">
+       <item>
+        <widget class="QLabel" name="recipientLabel">
+         <property name="minimumSize">
+          <size>
+           <width>50</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="text">
+          <string>To</string>
+         </property>
+         <property name="margin">
+          <number>5</number>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLineEdit" name="toEdit"/>
+       </item>
+      </layout>
      </item>
      <item>
-      <widget class="Line" name="line_2">
-       <property name="orientation">
-        <enum>Qt::Orientation::Horizontal</enum>
-       </property>
-      </widget>
+      <layout class="QHBoxLayout" name="horizontalLayout_3">
+       <item>
+        <widget class="QLabel" name="ccLabel">
+         <property name="minimumSize">
+          <size>
+           <width>50</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="text">
+          <string>CC</string>
+         </property>
+         <property name="margin">
+          <number>5</number>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLineEdit" name="ccEdit"/>
+       </item>
+      </layout>
      </item>
      <item>
-      <widget class="QWidget" name="horizontalWidget_5" native="true">
-       <layout class="QHBoxLayout" name="horizontalLayout_6">
-        <property name="spacing">
-         <number>0</number>
-        </property>
-        <property name="leftMargin">
-         <number>0</number>
-        </property>
-        <property name="topMargin">
-         <number>0</number>
-        </property>
-        <property name="rightMargin">
-         <number>0</number>
-        </property>
-        <property name="bottomMargin">
-         <number>0</number>
-        </property>
-        <item>
-         <widget class="QLabel" name="subjectLabel">
-          <property name="text">
-           <string>Subject</string>
-          </property>
-          <property name="margin">
-           <number>5</number>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QLineEdit" name="subjectEdit"/>
-        </item>
-       </layout>
-      </widget>
-     </item>
-     <item>
-      <widget class="Line" name="line_4">
-       <property name="orientation">
-        <enum>Qt::Orientation::Horizontal</enum>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QWidget" name="ccInputWidget" native="true">
-       <layout class="QHBoxLayout" name="horizontalLayout_2">
-        <property name="spacing">
-         <number>6</number>
-        </property>
-        <property name="leftMargin">
-         <number>0</number>
-        </property>
-        <property name="topMargin">
-         <number>0</number>
-        </property>
-        <property name="rightMargin">
-         <number>0</number>
-        </property>
-        <property name="bottomMargin">
-         <number>0</number>
-        </property>
-        <item>
-         <widget class="QLabel" name="ccLabel">
-          <property name="text">
-           <string>CC</string>
-          </property>
-          <property name="margin">
-           <number>5</number>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QLineEdit" name="ccEdit"/>
-        </item>
-        <item>
-         <widget class="QPushButton" name="ccEditButton">
-          <property name="text">
-           <string>Edit CC(s)</string>
-          </property>
-         </widget>
-        </item>
-       </layout>
-      </widget>
-     </item>
-     <item>
-      <widget class="QWidget" name="bccInputWidget" native="true">
-       <layout class="QHBoxLayout" name="horizontalLayout_3">
-        <property name="spacing">
-         <number>6</number>
-        </property>
-        <property name="leftMargin">
-         <number>0</number>
-        </property>
-        <property name="topMargin">
-         <number>0</number>
-        </property>
-        <property name="rightMargin">
-         <number>0</number>
-        </property>
-        <property name="bottomMargin">
-         <number>0</number>
-        </property>
-        <item>
-         <widget class="QLabel" name="bccLabel">
-          <property name="text">
-           <string>BCC</string>
-          </property>
-          <property name="margin">
-           <number>5</number>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QLineEdit" name="bccEdit"/>
-        </item>
-        <item>
-         <widget class="QPushButton" name="bccEditButton">
-          <property name="text">
-           <string>Edit BCC(s)</string>
-          </property>
-         </widget>
-        </item>
-       </layout>
-      </widget>
-     </item>
-     <item>
-      <widget class="QLabel" name="tipsLabel">
-       <property name="text">
-        <string>Tips: You can fill in multiple email addresses, please separate them with &quot;;&quot;.</string>
-       </property>
-      </widget>
+      <layout class="QHBoxLayout" name="horizontalLayout_5">
+       <item>
+        <widget class="QLabel" name="bccLabel">
+         <property name="minimumSize">
+          <size>
+           <width>50</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="text">
+          <string>BCC</string>
+         </property>
+         <property name="margin">
+          <number>5</number>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLineEdit" name="bccEdit"/>
+       </item>
+      </layout>
      </item>
      <item>
       <widget class="Line" name="line_3">
@@ -284,37 +140,57 @@
       </widget>
      </item>
      <item>
-      <layout class="QHBoxLayout" name="horizontalLayout_5"/>
-     </item>
-     <item>
-      <layout class="QHBoxLayout" name="horizontalLayout_10">
-       <item alignment="Qt::AlignmentFlag::AlignLeft|Qt::AlignmentFlag::AlignVCenter">
-        <widget class="QLabel" name="keysLabel">
+      <layout class="QHBoxLayout" name="horizontalLayout">
+       <item>
+        <widget class="QLabel" name="subjectLabel">
+         <property name="minimumSize">
+          <size>
+           <width>50</width>
+           <height>0</height>
+          </size>
+         </property>
          <property name="text">
-          <string>GPG Keys:</string>
+          <string>Subject</string>
+         </property>
+         <property name="margin">
+          <number>5</number>
          </property>
         </widget>
        </item>
        <item>
-        <widget class="QLabel" name="recipientsKeyValueLabel">
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
-           <horstretch>0</horstretch>
-           <verstretch>0</verstretch>
-          </sizepolicy>
-         </property>
-         <property name="text">
-          <string/>
-         </property>
-         <property name="wordWrap">
-          <bool>true</bool>
+        <widget class="QLineEdit" name="subjectEdit">
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>0</height>
+          </size>
          </property>
         </widget>
        </item>
       </layout>
      </item>
      <item>
-      <widget class="QListWidget" name="keyListWidget"/>
+      <widget class="QLabel" name="tipsLabel">
+       <property name="text">
+        <string>Tips: You can fill in multiple email addresses, please separate them with &quot;;&quot;, except for the 'From' field.</string>
+       </property>
+       <property name="wordWrap">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <spacer name="verticalSpacer">
+       <property name="orientation">
+        <enum>Qt::Orientation::Vertical</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>20</width>
+         <height>40</height>
+        </size>
+       </property>
+      </spacer>
      </item>
      <item>
       <widget class="QLabel" name="errorLabel">
@@ -324,21 +200,18 @@
       </widget>
      </item>
      <item>
-      <widget class="Line" name="line_5">
-       <property name="orientation">
-        <enum>Qt::Orientation::Horizontal</enum>
-       </property>
-      </widget>
-     </item>
-     <item>
       <layout class="QHBoxLayout" name="horizontalLayout_7">
        <item>
-        <widget class="QCheckBox" name="encryptCheckBox">
+        <widget class="QPushButton" name="ccButton">
          <property name="text">
-          <string>Encrypt</string>
+          <string>CC</string>
          </property>
-         <property name="checked">
-          <bool>true</bool>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="bccButton">
+         <property name="text">
+          <string>BCC</string>
          </property>
         </widget>
        </item>
@@ -355,10 +228,17 @@
          </property>
         </spacer>
        </item>
-       <item alignment="Qt::AlignmentFlag::AlignRight">
-        <widget class="QPushButton" name="exportMailButton">
+       <item>
+        <widget class="QPushButton" name="cancelButton">
          <property name="text">
-          <string>Export</string>
+          <string>Cancel</string>
+         </property>
+        </widget>
+       </item>
+       <item alignment="Qt::AlignmentFlag::AlignRight">
+        <widget class="QPushButton" name="okButton">
+         <property name="text">
+          <string>OK</string>
          </property>
         </widget>
        </item>

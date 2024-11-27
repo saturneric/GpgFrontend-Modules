@@ -65,7 +65,8 @@ auto GFRegisterModule() -> int {
 
   LISTEN("EMAIL_VERIFY_EML_DATA");
   LISTEN("EMAIL_DECRYPT_EML_DATA");
-  LISTEN("EMAIL_EXPORT_EML_DATA");
+  LISTEN("EMAIL_SIGN_EML_DATA");
+  LISTEN("EMAIL_ENCRYPT_EML_DATA");
   return 0;
 }
 
@@ -405,7 +406,7 @@ REGISTER_EVENT_HANDLER(EMAIL_DECRYPT_EML_DATA, [](const MEvent& event) -> int {
   return 0;
 });
 
-REGISTER_EVENT_HANDLER(EMAIL_EXPORT_EML_DATA, [](const MEvent& event) -> int {
+REGISTER_EVENT_HANDLER(EMAIL_SIGN_EML_DATA, [](const MEvent& event) -> int {
   if (event["body_data"].isEmpty()) CB_ERR(event, -1, "body_data is empty");
   if (event["channel"].isEmpty()) CB_ERR(event, -1, "channel is empty");
   if (event["sign_key"].isEmpty()) CB_ERR(event, -1, "sign_key is empty");
@@ -417,13 +418,15 @@ REGISTER_EVENT_HANDLER(EMAIL_EXPORT_EML_DATA, [](const MEvent& event) -> int {
 
   auto data = QByteArray::fromBase64(QString(event["body_data"]).toLatin1());
 
-  auto* dialog = GUI_OBJECT(CreateEMailMetaDataDialog, {data});
+  auto* dialog = GUI_OBJECT(CreateEMailMetaDataDialog, 0);
   auto* r_dialog =
       qobject_cast<EMailMetaDataDialog*>(static_cast<QObject*>(dialog));
   if (r_dialog == nullptr)
     CB_ERR(event, -1, "convert dialog to r_dialog failed");
+
   r_dialog->SetChannel(channel);
-  r_dialog->SetSignKey(sign_key);
+  r_dialog->SetKeys({sign_key});
+  r_dialog->SetBodyData({data});
 
   GFUIShowDialog(dialog, nullptr);
 
@@ -445,6 +448,51 @@ REGISTER_EVENT_HANDLER(EMAIL_EXPORT_EML_DATA, [](const MEvent& event) -> int {
 
   return 0;
 });
+
+REGISTER_EVENT_HANDLER(EMAIL_ENCRYPT_EML_DATA, [](const MEvent& event) -> int {
+  if (event["body_data"].isEmpty()) CB_ERR(event, -1, "body_data is empty");
+  if (event["channel"].isEmpty()) CB_ERR(event, -1, "channel is empty");
+  if (event["encrypt_keys"].isEmpty())
+    CB_ERR(event, -1, "encrypt_keys is empty");
+
+  auto channel = event.value("channel", "0").toInt();
+  auto encrypt_keys = event.value("encrypt_keys", "").split(';');
+
+  FLOG_DEBUG("eml encrypt keys: %1", encrypt_keys.join(';'));
+
+  auto data = QByteArray::fromBase64(QString(event["body_data"]).toLatin1());
+
+  auto* dialog = GUI_OBJECT(CreateEMailMetaDataDialog, 1);
+  auto* r_dialog =
+      qobject_cast<EMailMetaDataDialog*>(static_cast<QObject*>(dialog));
+  if (r_dialog == nullptr)
+    CB_ERR(event, -1, "convert dialog to r_dialog failed");
+
+  r_dialog->SetChannel(channel);
+  r_dialog->SetKeys(encrypt_keys);
+  r_dialog->SetBodyData({data});
+
+  GFUIShowDialog(dialog, nullptr);
+
+  QObject::connect(r_dialog, &EMailMetaDataDialog::SignalEMLDataGenerateSuccess,
+                   r_dialog, [=](QString eml_data) {
+                     // callback
+                     CB(event, GFGetModuleID(),
+                        {
+                            {"ret", QString::number(0)},
+                            {"eml_data", eml_data},
+                        });
+                   });
+
+  QObject::connect(r_dialog, &EMailMetaDataDialog::SignalEMLDataGenerateFailed,
+                   r_dialog, [=](QString error) {
+                     // callback
+                     CB_ERR(event, -1, "Generate EML Data Failed: " + error);
+                   });
+
+  return 0;
+});
+
 auto GFDeactivateModule() -> int { return 0; }
 
 auto GFUnregisterModule() -> int {

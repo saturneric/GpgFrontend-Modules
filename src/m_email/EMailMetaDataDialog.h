@@ -39,7 +39,7 @@ class Ui_EMailMetaDataDialog;
 class EMailMetaDataDialog : public QDialog {
   Q_OBJECT
  public:
-  explicit EMailMetaDataDialog(QByteArray body_data, QWidget *parent);
+  explicit EMailMetaDataDialog(int mode, QWidget* parent);
 
   /**
    * @brief Set the Channel object
@@ -51,7 +51,14 @@ class EMailMetaDataDialog : public QDialog {
    * @brief Set the Sign Keys object
    *
    */
-  void SetSignKey(QString k);
+  void SetKeys(QStringList ks);
+
+  /**
+   * @brief Set the Body Data object
+   *
+   * @param b
+   */
+  void SetBodyData(QByteArray b);
 
  signals:
 
@@ -61,17 +68,42 @@ class EMailMetaDataDialog : public QDialog {
 
  private slots:
 
-  void slot_export_eml_data();
+  void slot_sign_eml_data();
+
+  void slot_encrypt_eml_data();
 
   void slot_export_encrypted_data();
 
   void slot_set_from_field_by_sign_key();
 
+  void slot_set_to_field_by_encrypt_keys();
+
+  void slot_validate_inputs_and_show_errors();
+
  private:
+  /**
+   * @brief
+   *
+   * @param email
+   * @return true
+   * @return false
+   */
+  static auto is_valid_email(const QString& email) -> bool;
+
+  /**
+   * @brief
+   *
+   * @param emails
+   * @return true
+   * @return false
+   */
+  static auto are_valid_emails(const QString& emails) -> bool;
+
   QSharedPointer<Ui_EMailMetaDataDialog> ui_;
+  int mode_;
   QByteArray body_data_;
   int channel_;
-  QString sign_key_;
+  QStringList keys_;
   QString from_name_;
   QString from_email_;
 };
