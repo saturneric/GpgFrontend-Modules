@@ -118,9 +118,11 @@ void EMailMetaDataDialog::slot_parse_eml_meta_data() {
   auto subject = ui_->subjectEdit->text();
 
   auto to = raw_to.split(';', Qt::SkipEmptyParts);
-  auto cc = raw_cc.split(';', Qt::SkipEmptyParts);
-  auto bcc = raw_bcc.split(';', Qt::SkipEmptyParts);
-
+  auto cc = raw_cc.trimmed().isEmpty() ? QStringList()
+                                       : raw_cc.split(';', Qt::SkipEmptyParts);
+  auto bcc = raw_bcc.trimmed().isEmpty()
+                 ? QStringList()
+                 : raw_bcc.split(';', Qt::SkipEmptyParts);
   QString name;
   QString email;
 

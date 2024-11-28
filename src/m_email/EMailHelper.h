@@ -31,12 +31,7 @@
 #include <QDateTime>
 #include <QString>
 
-// vmime
-#define VMIME_STATIC
-#include <vmime/vmime.hpp>
-// vmime extra
-#include <vmime/contentDispositionField.hpp>
-#include <vmime/contentTypeField.hpp>
+#include "EMailModel.h"
 
 auto inline Q_SC(const std::string& s) -> QString {
   return QString::fromStdString(s);
@@ -113,3 +108,43 @@ auto ExtractFieldValueDateTime(const vmime::shared_ptr<vmime::header>& header,
  */
 auto ParseEmailString(const QString& input, QString& name,
                       QString& email) -> bool;
+
+/**
+ * @brief
+ *
+ * @param data
+ * @param lineLength
+ * @return QString
+ */
+auto EncodeBase64WithLineBreaks(const QByteArray& data,
+                                int lineLength = 76) -> QString;
+
+/**
+ * @brief
+ *
+ * @param data
+ * @return true
+ * @return false
+ */
+auto CheckIfEMLMessage(const QByteArray& data,
+                       vmime::shared_ptr<vmime::message>& message) -> bool;
+
+/**
+ * @brief
+ *
+ * @param meta_data
+ * @param eml_data
+ * @return int
+ */
+auto BuildPlainTextEML(const EMailMetaData& meta_data,
+                       const QByteArray& body_data, QString& eml_data) -> int;
+
+/**
+ * @brief
+ *
+ * @param body_data
+ * @param meta_data
+ * @return int
+ */
+auto GetEMLMetaData(vmime::shared_ptr<vmime::message>& message,
+                    EMailMetaData& meta_data) -> int;

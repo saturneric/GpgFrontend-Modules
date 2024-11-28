@@ -31,6 +31,13 @@
 #include <QString>
 #include <QStringList>
 
+// vmime
+#define VMIME_STATIC
+#include <vmime/vmime.hpp>
+// vmime extra
+#include <vmime/contentDispositionField.hpp>
+#include <vmime/contentTypeField.hpp>
+
 struct EMailMetaData {
   QString from;
   QStringList to;

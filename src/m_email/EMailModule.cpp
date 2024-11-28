@@ -430,6 +430,29 @@ REGISTER_EVENT_HANDLER(EMAIL_SIGN_EML_DATA, [](const MEvent& event) -> int {
   r_dialog->SetKeys({sign_key});
   r_dialog->SetBodyData({body_data});
 
+  vmime::shared_ptr<vmime::message> message;
+  if (CheckIfEMLMessage(body_data, message)) {
+    EMailMetaData meta_data;
+    auto ret = GetEMLMetaData(message, meta_data);
+
+    if (ret != 0) {
+      CB_ERR(event, -1, "Get MetaData From EML Data Failed");
+    }
+
+    QString eml_data;
+    ret = AppendSignToEMLData(channel, sign_key, message, eml_data);
+    if (ret != 0) {
+      CB_ERR(event, -2, eml_data);
+    }
+
+    CB(event, GFGetModuleID(),
+       {
+           {"ret", QString::number(0)},
+           {"eml_data", eml_data},
+       });
+    return 0;
+  }
+
   GFUIShowDialog(dialog, nullptr);
   QObject::connect(r_dialog, &EMailMetaDataDialog::SignalEMLMetaData, r_dialog,
                    [=](const EMailMetaData& meta_data) {
@@ -469,6 +492,29 @@ REGISTER_EVENT_HANDLER(EMAIL_ENCRYPT_EML_DATA, [](const MEvent& event) -> int {
   auto body_data =
       QByteArray::fromBase64(QString(event["body_data"]).toLatin1());
 
+  vmime::shared_ptr<vmime::message> message;
+  if (CheckIfEMLMessage(body_data, message)) {
+    EMailMetaData meta_data;
+    auto ret = GetEMLMetaData(message, meta_data);
+
+    if (ret != 0) {
+      CB_ERR(event, -1, "Get MetaData From EML Data Failed");
+    }
+
+    QString eml_data;
+    ret = EncryptEMLData(channel, encrypt_keys, meta_data, body_data, eml_data);
+    if (ret != 0) {
+      CB_ERR(event, -2, eml_data);
+    }
+
+    CB(event, GFGetModuleID(),
+       {
+           {"ret", QString::number(0)},
+           {"eml_data", eml_data},
+       });
+    return 0;
+  }
+
   auto* dialog = GUI_OBJECT(CreateEMailMetaDataDialog, 1);
   auto* r_dialog =
       qobject_cast<EMailMetaDataDialog*>(static_cast<QObject*>(dialog));
@@ -481,22 +527,31 @@ REGISTER_EVENT_HANDLER(EMAIL_ENCRYPT_EML_DATA, [](const MEvent& event) -> int {
 
   GFUIShowDialog(dialog, nullptr);
 
-  QObject::connect(r_dialog, &EMailMetaDataDialog::SignalEMLMetaData, r_dialog,
-                   [=](const EMailMetaData& meta_data) {
-                     QString eml_data;
-                     auto ret = EncryptEMLData(channel, encrypt_keys, meta_data,
-                                               body_data, eml_data);
-                     if (ret != 0) {
-                       CB_ERR(event, -2, eml_data);
-                     }
+  QObject::connect(
+      r_dialog, &EMailMetaDataDialog::SignalEMLMetaData, r_dialog,
+      [=](const EMailMetaData& meta_data) {
+        QString eml_data;
+        QString plain_text_eml_data;
 
-                     CB(event, GFGetModuleID(),
-                        {
-                            {"ret", QString::number(0)},
-                            {"eml_data", eml_data},
-                        });
-                     return 0;
-                   });
+        auto ret = BuildPlainTextEML(meta_data, body_data, plain_text_eml_data);
+
+        if (ret != 0) {
+          CB_ERR(event, -1, "Build PlainText EML Data Failed");
+        }
+
+        ret = EncryptEMLData(channel, encrypt_keys, meta_data,
+                             plain_text_eml_data.toLatin1(), eml_data);
+        if (ret != 0) {
+          CB_ERR(event, -2, eml_data);
+        }
+
+        CB(event, GFGetModuleID(),
+           {
+               {"ret", QString::number(0)},
+               {"eml_data", eml_data},
+           });
+        return 0;
+      });
 
   QObject::connect(
       r_dialog, &EMailMetaDataDialog::SignalNoEMLMetaData, r_dialog,
@@ -504,6 +559,67 @@ REGISTER_EVENT_HANDLER(EMAIL_ENCRYPT_EML_DATA, [](const MEvent& event) -> int {
 
   return 0;
 });
+
+REGISTER_EVENT_HANDLER(
+    EMAIL_ENCRYPT_SIGN_EML_DATA, [](const MEvent& event) -> int {
+      if (event["body_data"].isEmpty()) CB_ERR(event, -1, "body_data is empty");
+      if (event["channel"].isEmpty()) CB_ERR(event, -1, "channel is empty");
+      if (event["encrypt_keys"].isEmpty())
+        CB_ERR(event, -1, "encrypt_keys is empty");
+      if (event["sign_key"].isEmpty()) CB_ERR(event, -1, "sign_key is empty");
+
+      auto channel = event.value("channel", "0").toInt();
+      auto sign_key = event.value("sign_key", "");
+      auto encrypt_keys = event.value("encrypt_keys", "").split(';');
+
+      FLOG_DEBUG("eml encrypt keys: %1", encrypt_keys.join(';'));
+      FLOG_DEBUG("eml sign key: %1", sign_key);
+
+      auto body_data =
+          QByteArray::fromBase64(QString(event["body_data"]).toLatin1());
+
+      auto* dialog = GUI_OBJECT(CreateEMailMetaDataDialog, 1);
+      auto* r_dialog =
+          qobject_cast<EMailMetaDataDialog*>(static_cast<QObject*>(dialog));
+      if (r_dialog == nullptr)
+        CB_ERR(event, -1, "convert dialog to r_dialog failed");
+
+      r_dialog->SetChannel(channel);
+      r_dialog->SetKeys(encrypt_keys);
+      r_dialog->SetBodyData({body_data});
+
+      GFUIShowDialog(dialog, nullptr);
+
+      QObject::connect(r_dialog, &EMailMetaDataDialog::SignalEMLMetaData,
+                       r_dialog, [=](const EMailMetaData& meta_data) {
+                         QString eml_data;
+                         auto ret = SignEMLData(channel, sign_key, meta_data,
+                                                body_data, eml_data);
+                         if (ret != 0) {
+                           CB_ERR(event, -2, eml_data);
+                         }
+
+                         ret = EncryptEMLData(channel, encrypt_keys, meta_data,
+                                              body_data, eml_data);
+                         if (ret != 0) {
+                           CB_ERR(event, -2, eml_data);
+                         }
+
+                         CB(event, GFGetModuleID(),
+                            {
+                                {"ret", QString::number(0)},
+                                {"eml_data", eml_data},
+                            });
+                         return 0;
+                       });
+
+      QObject::connect(r_dialog, &EMailMetaDataDialog::SignalNoEMLMetaData,
+                       r_dialog, [=](const QString& error_string) {
+                         CB_ERR(event, -1, error_string);
+                       });
+
+      return 0;
+    });
 
 auto GFDeactivateModule() -> int { return 0; }
 

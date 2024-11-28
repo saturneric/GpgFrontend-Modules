@@ -57,3 +57,16 @@ auto EncryptEMLData(int channel, const QStringList& keys,
 auto SignEMLData(int channel, const QString& key,
                  const EMailMetaData& meta_data, const QByteArray& body_data,
                  QString& eml_data) -> int;
+
+/**
+ * @brief
+ *
+ * @param channel
+ * @param key
+ * @param message
+ * @param eml_data
+ * @return int
+ */
+auto AppendSignToEMLData(int channel, const QString& key,
+                         const vmime::shared_ptr<vmime::message>& message,
+                         QString& eml_data) -> int;
