@@ -54,17 +54,16 @@ auto EncryptPlainText(int channel, const QStringList& keys,
     auto ret = GFGpgEncryptData(channel, QListToCharArray(keys), keys.size(),
                                 QDUP(body_data), 1, &s);
 
-    if (ret != 0) {
-      eml_data = "Encryption Failed";
-      return -1;
-    }
-
     auto encrypted_data = UDUP(s->encrypted_data);
-
+    auto gpg_error_string = UDUP(s->error_string);
     capsule_id = UDUP(s->capsule_id);
-    FLOG_DEBUG("got capsule id: %1", capsule_id);
 
     GFFreeMemory(s);
+
+    if (ret != 0) {
+      eml_data = "Encryption Failed: " + gpg_error_string;
+      return -1;
+    }
 
     vmime::messageBuilder msg_builder;
 
@@ -191,7 +190,7 @@ auto EncryptPlainText(int channel, const QStringList& keys,
 
   } catch (const vmime::exception& e) {
     eml_data = QString("VMIME Error: %1").arg(e.what());
-    return -1;
+    return -2;
   }
 
   eml_data = QString("Unknown Error: %1");
@@ -234,8 +233,10 @@ auto EncryptEMLData(int channel, const QStringList& keys,
         std::static_pointer_cast<vmime::headerField>(backup_to_field_component);
 
     auto backup_message_id_field_component =
-        header->getField<vmime::headerField>(vmime::fields::MESSAGE_ID)
-            ->clone();
+        header->hasField(vmime::fields::MESSAGE_ID)
+            ? header->getField<vmime::headerField>(vmime::fields::MESSAGE_ID)
+                  ->clone()
+            : nullptr;
 
     std::shared_ptr<vmime::headerField> backup_message_id_field =
         std::static_pointer_cast<vmime::headerField>(
@@ -254,7 +255,9 @@ auto EncryptEMLData(int channel, const QStringList& keys,
     plain_part_header->appendField(backup_subject_field);
     plain_part_header->appendField(backup_from_field);
     plain_part_header->appendField(backup_to_field);
-    plain_part_header->appendField(backup_message_id_field);
+    if (backup_message_id_field != nullptr) {
+      plain_part_header->appendField(backup_message_id_field);
+    }
 
     auto plain_header_raw_data =
         Q_SC(plain_part_header->generate(vmime::lineLengthLimits::convenient));
@@ -265,21 +268,20 @@ auto EncryptEMLData(int channel, const QStringList& keys,
     plain_raw_data.replace("\r\n", "\n");
     plain_raw_data.replace("\n", "\r\n");
 
-    GFGpgEncryptionResult* enc_result = nullptr;
+    GFGpgEncryptionResult* s = nullptr;
     auto ret = GFGpgEncryptData(channel, QListToCharArray(keys), keys.size(),
-                                QDUP(plain_raw_data), 1, &enc_result);
+                                QDUP(plain_raw_data), 1, &s);
+
+    auto encrypted_data = UDUP(s->encrypted_data);
+    capsule_id = UDUP(s->capsule_id);
+    auto gpg_error_string = UDUP(s->error_string);
+
+    GFFreeMemory(s);
 
     if (ret != 0) {
-      eml_data = "Encryption Failed";
+      eml_data = "Encryption Failed: " + gpg_error_string;
       return -1;
     }
-
-    auto encrypted_data = UDUP(enc_result->encrypted_data);
-
-    capsule_id = UDUP(enc_result->capsule_id);
-    FLOG_DEBUG("got capsule id: %1", capsule_id);
-
-    GFFreeMemory(enc_result);
 
     // no Content-Transfer-Encoding
     header->removeField(
@@ -359,7 +361,7 @@ auto EncryptEMLData(int channel, const QStringList& keys,
 
   } catch (const vmime::exception& e) {
     eml_data = QString("VMIME Error: %1").arg(e.what());
-    return -1;
+    return -2;
   }
 
   eml_data = QString("Unknown Error: %1");
@@ -555,7 +557,7 @@ auto SignPlainText(int channel, const QString& key,
     auto mime_part_part_body = mime_part->getBody();
     auto mime_part_body_content =
         vmime::make_shared<vmime::stringContentHandler>();
-    mime_part_body_content->setData(body_data.toBase64().toStdString());
+    mime_part_body_content->setData(body_data.toStdString());
     mime_part_part_body->setContents(mime_part_body_content);
 
     auto container_raw_data =
@@ -573,18 +575,17 @@ auto SignPlainText(int channel, const QString& key,
     auto ret = GFGpgSignData(channel, QListToCharArray({key}), 1,
                              QDUP(container_raw_data), 1, 1, &s);
 
-    if (ret != 0) {
-      eml_data = "Sign Failed";
-      return -1;
-    }
-
     auto signature = UDUP(s->signature);
     auto hash_algo = UDUP(s->hash_algo);
-
     capsule_id = UDUP(s->capsule_id);
-    FLOG_DEBUG("got capsule id: %1", capsule_id);
+    auto gpg_error_string = UDUP(s->error_string);
 
     GFFreeMemory(s);
+
+    if (ret != 0) {
+      eml_data = "Sign Failed: " + gpg_error_string;
+      return -1;
+    }
 
     FLOG_DEBUG("Hash Algo: %1 Signature Data: %2", hash_algo, signature);
     content_type_header_field->appendParameter(
@@ -606,7 +607,7 @@ auto SignPlainText(int channel, const QString& key,
 
   } catch (const vmime::exception& e) {
     eml_data = QString("VMIME Error: %1").arg(e.what());
-    return -1;
+    return -2;
   }
 
   eml_data = QString("Unknown Error: %1");
@@ -791,18 +792,17 @@ auto SignEMLData(int channel, const QString& key,
     auto ret = GFGpgSignData(channel, QListToCharArray({key}), 1,
                              QDUP(container_raw_data), 1, 1, &s);
 
-    if (ret != 0) {
-      eml_data = "Sign Failed";
-      return -1;
-    }
-
+    capsule_id = UDUP(s->capsule_id);
     auto signature = UDUP(s->signature);
     auto hash_algo = UDUP(s->hash_algo);
-
-    capsule_id = UDUP(s->capsule_id);
-    FLOG_DEBUG("got capsule id: %1", capsule_id);
+    auto gpg_error_string = UDUP(s->error_string);
 
     GFFreeMemory(s);
+
+    if (ret != 0) {
+      eml_data = "Sign Failed: " + gpg_error_string;
+      return -1;
+    }
 
     FLOG_DEBUG("Hash Algo: %1 Signature Data: %2", hash_algo, signature);
     content_type_header_field->appendParameter(
@@ -824,7 +824,7 @@ auto SignEMLData(int channel, const QString& key,
 
   } catch (const vmime::exception& e) {
     eml_data = QString("VMIME Error: %1").arg(e.what());
-    return -1;
+    return -2;
   }
 
   eml_data = QString("Unknown Error: %1");
@@ -1018,15 +1018,15 @@ auto VerifyEMLData(int channel, const QByteArray& data,
   auto ret = GFGpgVerifyData(channel, QDUP(part_mime_content_text),
                              QDUP(part_sign_body_content), &s);
 
-  if (ret != 0) {
-    error_string = "Verify Failed";
-    return -1;
-  }
-
   capsule_id = UDUP(s->capsule_id);
-  FLOG_DEBUG("got capsule id: %1", capsule_id);
+  auto gpg_error_string = UDUP(s->error_string);
 
   GFFreeMemory(s);
+
+  if (ret != 0) {
+    error_string = "Verify Failed: " + gpg_error_string;
+    return -1;
+  }
 
   meta_data.from = from_field_value_text;
   meta_data.to = to_field_value_text.split(',');
@@ -1189,17 +1189,16 @@ auto DecryptEMLData(int channel, const QByteArray& data,
   GFGpgDecryptResult* s;
   auto ret = GFGpgDecryptData(channel, QDUP(part_encr_body_content), &s);
 
-  if (ret != 0) {
-    eml_data = "Ddecrypt Failed";
-    return -1;
-  }
-
   eml_data = UDUP(s->decrypted_data);
-
   capsule_id = UDUP(s->capsule_id);
-  FLOG_DEBUG("got capsule id: %1", capsule_id);
+  auto gpg_error_string = UDUP(s->error_string);
 
   GFFreeMemory(s);
+
+  if (ret != 0) {
+    eml_data = "Decrypt Failed: " + gpg_error_string;
+    return -1;
+  }
 
   // callback
   meta_data.from = from_field_value_text;
