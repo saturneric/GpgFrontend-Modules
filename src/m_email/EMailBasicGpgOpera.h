@@ -40,9 +40,24 @@
  * @param eml_data
  * @return int
  */
+auto EncryptPlainText(int channel, const QStringList& keys,
+                      const EMailMetaData& meta_data,
+                      const QByteArray& body_data, QString& eml_data,
+                      QString& capsule_id) -> int;
+
+/**
+ * @brief
+ *
+ * @param channel
+ * @param keys
+ * @param message
+ * @param eml_data
+ * @return int
+ */
 auto EncryptEMLData(int channel, const QStringList& keys,
-                    const EMailMetaData& meta_data, const QByteArray& body_data,
-                    QString& eml_data) -> int;
+                    const vmime::shared_ptr<vmime::message>& message,
+                    const QByteArray& body_data, QString& eml_data,
+                    QString& capsule_id) -> int;
 
 /**
  * @brief
@@ -54,9 +69,9 @@ auto EncryptEMLData(int channel, const QStringList& keys,
  * @param eml_data
  * @return int
  */
-auto SignEMLData(int channel, const QString& key,
-                 const EMailMetaData& meta_data, const QByteArray& body_data,
-                 QString& eml_data) -> int;
+auto SignPlainText(int channel, const QString& key,
+                   const EMailMetaData& meta_data, const QByteArray& body_data,
+                   QString& eml_data, QString& capsule_id) -> int;
 
 /**
  * @brief
@@ -67,6 +82,28 @@ auto SignEMLData(int channel, const QString& key,
  * @param eml_data
  * @return int
  */
-auto AppendSignToEMLData(int channel, const QString& key,
-                         const vmime::shared_ptr<vmime::message>& message,
-                         QString& eml_data) -> int;
+auto SignEMLData(int channel, const QString& key,
+                 const vmime::shared_ptr<vmime::message>& message,
+                 QString& eml_data, QString& capsule_id) -> int;
+
+/**
+ * @brief
+ *
+ * @param data
+ * @param error_string
+ * @return int
+ */
+auto VerifyEMLData(int channel, const QByteArray& data,
+                   EMailMetaData& meta_data, QString& error_string,
+                   QString& capsule_id) -> int;
+
+/**
+ * @brief
+ *
+ * @param data
+ * @param error_string
+ * @return int
+ */
+auto DecryptEMLData(int channel, const QByteArray& data,
+                    EMailMetaData& meta_data, QString& eml_data,
+                    QString& capsule_id) -> int;

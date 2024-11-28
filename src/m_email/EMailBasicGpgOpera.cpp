@@ -36,9 +36,10 @@
 #include "EMailHelper.h"
 #include "GFModuleCommonUtils.hpp"
 
-auto EncryptEMLData(int channel, const QStringList& keys,
-                    const EMailMetaData& meta_data, const QByteArray& body_data,
-                    QString& eml_data) -> int {
+auto EncryptPlainText(int channel, const QStringList& keys,
+                      const EMailMetaData& meta_data,
+                      const QByteArray& body_data, QString& eml_data,
+                      QString& capsule_id) -> int {
   auto from = meta_data.from;
   auto recipient_list = meta_data.to;
   auto cc_list = meta_data.cc;
@@ -49,17 +50,21 @@ auto EncryptEMLData(int channel, const QStringList& keys,
   QString email;
 
   try {
-    GFGpgEncryptionResult* enc_result = nullptr;
+    GFGpgEncryptionResult* s = nullptr;
     auto ret = GFGpgEncryptData(channel, QListToCharArray(keys), keys.size(),
-                                QDUP(body_data), 1, &enc_result);
+                                QDUP(body_data), 1, &s);
 
     if (ret != 0) {
       eml_data = "Encryption Failed";
       return -1;
     }
 
-    auto encrypted_data = UDUP(enc_result->encrypted_data);
-    GFFreeMemory(enc_result);
+    auto encrypted_data = UDUP(s->encrypted_data);
+
+    capsule_id = UDUP(s->capsule_id);
+    FLOG_DEBUG("got capsule id: %1", capsule_id);
+
+    GFFreeMemory(s);
 
     vmime::messageBuilder msg_builder;
 
@@ -193,9 +198,177 @@ auto EncryptEMLData(int channel, const QStringList& keys,
   return -1;
 }
 
-auto SignEMLData(int channel, const QString& key,
-                 const EMailMetaData& meta_data, const QByteArray& body_data,
-                 QString& eml_data) -> int {
+auto EncryptEMLData(int channel, const QStringList& keys,
+                    const vmime::shared_ptr<vmime::message>& message,
+                    const QByteArray& body_data, QString& eml_data,
+                    QString& capsule_id) -> int {
+  try {
+    auto header = message->getHeader();
+    auto body = message->getBody();
+
+    auto body_offset = body->getParsedOffset();
+    auto body_len = body->getParsedLength();
+
+    auto plain_body_signed_raw_data = body_data.mid(
+        static_cast<qsizetype>(body_offset), static_cast<qsizetype>(body_len));
+
+    auto backup_content_type_header_field_component =
+        header->getField<vmime::headerField>(vmime::fields::CONTENT_TYPE)
+            ->clone();
+
+    std::shared_ptr<vmime::headerField> backup_content_type_header_field =
+        std::static_pointer_cast<vmime::headerField>(
+            backup_content_type_header_field_component);
+
+    auto backup_from_field_component =
+        header->getField<vmime::headerField>(vmime::fields::FROM)->clone();
+
+    std::shared_ptr<vmime::headerField> backup_from_field =
+        std::static_pointer_cast<vmime::headerField>(
+            backup_from_field_component);
+
+    auto backup_to_field_component =
+        header->getField<vmime::headerField>(vmime::fields::TO)->clone();
+
+    std::shared_ptr<vmime::headerField> backup_to_field =
+        std::static_pointer_cast<vmime::headerField>(backup_to_field_component);
+
+    auto backup_message_id_field_component =
+        header->getField<vmime::headerField>(vmime::fields::MESSAGE_ID)
+            ->clone();
+
+    std::shared_ptr<vmime::headerField> backup_message_id_field =
+        std::static_pointer_cast<vmime::headerField>(
+            backup_message_id_field_component);
+
+    auto backup_subject_field_component =
+        header->getField<vmime::headerField>(vmime::fields::SUBJECT)->clone();
+
+    std::shared_ptr<vmime::headerField> backup_subject_field =
+        std::static_pointer_cast<vmime::headerField>(
+            backup_subject_field_component);
+
+    auto plain_part = vmime::make_shared<vmime::bodyPart>();
+    auto plain_part_header = plain_part->getHeader();
+    plain_part_header->appendField(backup_content_type_header_field);
+    plain_part_header->appendField(backup_subject_field);
+    plain_part_header->appendField(backup_from_field);
+    plain_part_header->appendField(backup_to_field);
+    plain_part_header->appendField(backup_message_id_field);
+
+    auto plain_header_raw_data =
+        Q_SC(plain_part_header->generate(vmime::lineLengthLimits::convenient));
+
+    auto plain_raw_data =
+        plain_header_raw_data + "\r\n" + plain_body_signed_raw_data;
+
+    plain_raw_data.replace("\r\n", "\n");
+    plain_raw_data.replace("\n", "\r\n");
+
+    GFGpgEncryptionResult* enc_result = nullptr;
+    auto ret = GFGpgEncryptData(channel, QListToCharArray(keys), keys.size(),
+                                QDUP(plain_raw_data), 1, &enc_result);
+
+    if (ret != 0) {
+      eml_data = "Encryption Failed";
+      return -1;
+    }
+
+    auto encrypted_data = UDUP(enc_result->encrypted_data);
+
+    capsule_id = UDUP(enc_result->capsule_id);
+    FLOG_DEBUG("got capsule id: %1", capsule_id);
+
+    GFFreeMemory(enc_result);
+
+    // no Content-Transfer-Encoding
+    header->removeField(
+        header->getField(vmime::fields::CONTENT_TRANSFER_ENCODING));
+
+    auto content_type_header_field =
+        header->getField<vmime::contentTypeField>(vmime::fields::CONTENT_TYPE);
+    content_type_header_field->setValue("multipart/encrypted");
+    content_type_header_field->appendParameter(
+        vmime::make_shared<vmime::parameter>("protocol",
+                                             "application/pgp-encrypted"));
+
+    // hide subject
+    header->Subject()->setValue("...");
+
+    auto root_part_boundary = vmime::body::generateRandomBoundaryString();
+    content_type_header_field->setBoundary(root_part_boundary);
+
+    auto root_body_part = vmime::make_shared<vmime::body>();
+    auto control_info_part = vmime::make_shared<vmime::bodyPart>();
+    auto encrypted_data_part = vmime::make_shared<vmime::bodyPart>();
+
+    root_body_part->appendPart(control_info_part);
+    root_body_part->appendPart(encrypted_data_part);
+    message->setBody(root_body_part);
+
+    root_body_part->setPrologText(
+        "This is an OpenPGP/MIME encrypted message (RFC 4880 and 3156)");
+
+    auto control_info_part_header = control_info_part->getHeader();
+    auto control_info_content_type_field =
+        control_info_part_header->getField<vmime::contentTypeField>(
+            vmime::fields::CONTENT_TYPE);
+    control_info_content_type_field->setValue("application/pgp-encrypted");
+
+    auto control_info_part_content_desc_header_field =
+        control_info_part_header->getField(vmime::fields::CONTENT_DESCRIPTION);
+    control_info_part_content_desc_header_field->setValue(
+        "PGP/MIME version identification");
+
+    auto control_info_body = control_info_part->getBody();
+    auto control_info_content =
+        vmime::make_shared<vmime::stringContentHandler>("Version: 1");
+    control_info_body->setContents(control_info_content);
+
+    auto encrypted_data_part_header = encrypted_data_part->getHeader();
+    auto encrypted_data_content_type_field =
+        encrypted_data_part_header->getField<vmime::contentTypeField>(
+            vmime::fields::CONTENT_TYPE);
+    encrypted_data_content_type_field->setValue("application/octet-stream");
+    encrypted_data_content_type_field->appendParameter(
+        vmime::make_shared<vmime::parameter>("name", "encrypted.asc"));
+
+    auto encrypted_data_content_desc_header_field =
+        encrypted_data_part_header->getField(
+            vmime::fields::CONTENT_DESCRIPTION);
+    encrypted_data_content_desc_header_field->setValue(
+        "OpenPGP encrypted message");
+
+    auto encrypted_data_content_disp_header_field =
+        encrypted_data_part_header->getField<vmime::contentDispositionField>(
+            vmime::fields::CONTENT_DISPOSITION);
+    encrypted_data_content_disp_header_field->setValue("inline");
+    encrypted_data_content_disp_header_field->setFilename(
+        vmime::word({"encrypted.asc"}));
+
+    auto encrypted_data_body = encrypted_data_part->getBody();
+    auto encrypted_data_content =
+        vmime::make_shared<vmime::stringContentHandler>(
+            encrypted_data.toStdString());
+    encrypted_data_body->setContents(encrypted_data_content);
+
+    eml_data = Q_SC(message->generate(vmime::lineLengthLimits::convenient));
+    FLOG_DEBUG("EML Data: %1", eml_data);
+
+    return 0;
+
+  } catch (const vmime::exception& e) {
+    eml_data = QString("VMIME Error: %1").arg(e.what());
+    return -1;
+  }
+
+  eml_data = QString("Unknown Error: %1");
+  return -1;
+}
+
+auto SignPlainText(int channel, const QString& key,
+                   const EMailMetaData& meta_data, const QByteArray& body_data,
+                   QString& eml_data, QString& capsule_id) -> int {
   auto from = meta_data.from;
   auto recipient_list = meta_data.to;
   auto cc_list = meta_data.cc;
@@ -408,6 +581,9 @@ auto SignEMLData(int channel, const QString& key,
     auto signature = UDUP(s->signature);
     auto hash_algo = UDUP(s->hash_algo);
 
+    capsule_id = UDUP(s->capsule_id);
+    FLOG_DEBUG("got capsule id: %1", capsule_id);
+
     GFFreeMemory(s);
 
     FLOG_DEBUG("Hash Algo: %1 Signature Data: %2", hash_algo, signature);
@@ -437,9 +613,9 @@ auto SignEMLData(int channel, const QString& key,
   return -1;
 }
 
-auto AppendSignToEMLData(int channel, const QString& key,
-                         const vmime::shared_ptr<vmime::message>& message,
-                         QString& eml_data) -> int {
+auto SignEMLData(int channel, const QString& key,
+                 const vmime::shared_ptr<vmime::message>& message,
+                 QString& eml_data, QString& capsule_id) -> int {
   try {
     auto header = message->getHeader();
 
@@ -619,6 +795,9 @@ auto AppendSignToEMLData(int channel, const QString& key,
     auto signature = UDUP(s->signature);
     auto hash_algo = UDUP(s->hash_algo);
 
+    capsule_id = UDUP(s->capsule_id);
+    FLOG_DEBUG("got capsule id: %1", capsule_id);
+
     GFFreeMemory(s);
 
     FLOG_DEBUG("Hash Algo: %1 Signature Data: %2", hash_algo, signature);
@@ -646,4 +825,385 @@ auto AppendSignToEMLData(int channel, const QString& key,
 
   eml_data = QString("Unknown Error: %1");
   return -1;
+}
+
+auto VerifyEMLData(int channel, const QByteArray& data,
+                   EMailMetaData& meta_data, QString& error_string,
+                   QString& capsule_id) -> int {
+  vmime::string vmime_data(data.constData(), data.size());
+
+  auto message = vmime::make_shared<vmime::message>();
+  try {
+    message->parse(vmime_data);
+  } catch (const vmime::exception& e) {
+    FLOG_DEBUG("error when parsing vmime data: %1", e.what());
+    error_string = "Error when parsing eml raw data";
+    return -2;
+  }
+
+  auto header = message->getHeader();
+
+  auto content_type_field =
+      header->getField<vmime::contentTypeField>(vmime::fields::CONTENT_TYPE);
+  if (!content_type_field) {
+    error_string = "Cannot get 'Content-Type' Field from header";
+    return -2;
+  }
+
+  auto content_type_value =
+      Q_SC(content_type_field->getValue()->generate()).trimmed();
+
+  auto prm_protocol = content_type_field->getParameter("protocol");
+  if (!prm_protocol) {
+    error_string = "Cannot get 'protocol' from 'Content-Type'";
+    return -2;
+  }
+
+  /*
+   * OpenPGP signed messages are denoted by the "multipart/signed" content
+   * type.
+   */
+  if (content_type_value != "multipart/signed") {
+    error_string =
+        "OpenPGP signed messages are denoted by the 'multipart/signed' "
+        "content type";
+    return -2;
+  }
+
+  /*
+   * with a "protocol" parameter which MUST have a value of
+   * "application/pgp-signature"
+   */
+  auto prm_protocol_value = Q_SC(prm_protocol->getValue().generate());
+  if (prm_protocol_value != "application/pgp-signature") {
+    error_string =
+        "The 'protocol' parameter which MUST have a value of "
+        "'application/pgp-signature' (MUST be quoted)";
+    return -2;
+  }
+
+  auto prm_micalg = content_type_field->getParameter("micalg");
+  if (!prm_micalg) {
+    error_string = "cannot get 'micalg' from 'Content-Type'";
+    return -2;
+  }
+
+  /*
+   * The "micalg" parameter for the "application/pgp-signature" protocol
+   * MUST contain exactly one hash-symbol of the format "pgp-<hash-
+   * identifier>", where <hash-identifier> identifies the Message
+   * Integrity Check (MIC) algorithm used to generate the signature.
+   */
+  auto prm_micalg_value = Q_SC(prm_micalg->getValue().generate());
+  FLOG_DEBUG("micalg value: %1", prm_micalg_value);
+  if (!IsValidMicalgFormat(prm_micalg_value)) {
+    error_string =
+        "The 'micalg' parameter MUST contain exactly one hash-symbol of the "
+        "format 'pgp-<hash-identifier>'";
+    return -2;
+  }
+
+  auto from_field_value_text =
+      ExtractFieldValueMailBox(header, vmime::fields::FROM);
+  auto to_field_value_text =
+      ExtractFieldValueAddressList(header, vmime::fields::TO);
+  auto cc_field_value_text =
+      ExtractFieldValueAddressList(header, vmime::fields::CC);
+  auto bcc_field_value_text =
+      ExtractFieldValueAddressList(header, vmime::fields::BCC);
+  auto date_field_value =
+      ExtractFieldValueDateTime(header, vmime::fields::DATE);
+  auto subject_field_value_text =
+      ExtractFieldValueText(header, vmime::fields::SUBJECT);
+  auto reply_to_field_value_text =
+      ExtractFieldValueMailBox(header, vmime::fields::REPLY_TO);
+  auto organization_text =
+      ExtractFieldValueText(header, vmime::fields::ORGANIZATION);
+
+  auto body = message->getBody();
+  auto content_type = body->getContentType();
+  auto part_count = body->getPartCount();
+
+  FLOG_DEBUG("body page count: %1", part_count);
+
+  /*
+   * The multipart/signed body MUST consist of exactly two parts.
+   */
+  if (part_count != 2) {
+    error_string =
+        "The multipart/signed body MUST consist of exactly two parts";
+    return -2;
+  }
+
+  /*
+    The first part contains the signed data in MIME canonical format,
+    including a set of appropriate content headers describing the data.
+  */
+  auto part_mime = body->getPartAt(0);
+  auto part_mime_parse_offset = part_mime->getParsedOffset();
+  auto part_mime_parse_length = part_mime->getParsedLength();
+
+  auto part_mime_content_text = QByteArray::fromStdString(
+      vmime_data.substr(part_mime_parse_offset, part_mime_parse_length));
+
+  FLOG_DEBUG("mime part info, raw offset: %1, length: %2",
+             part_mime_parse_offset, part_mime_parse_length);
+
+  auto part_mime_content_hash = QCryptographicHash::hash(
+      part_mime_content_text, QCryptographicHash::Sha1);
+  FLOG_DEBUG("mime part of raw content hash: %1",
+             part_mime_content_hash.toHex());
+
+  FLOG_DEBUG("mime part of raw content: %1", part_mime_content_text);
+  qDebug().noquote() << "\n" << part_mime_content_text;
+
+  if (part_mime_content_text.isEmpty()) {
+    error_string = "Mime raw data part is empty";
+    return -2;
+  }
+
+  auto attachments =
+      vmime::attachmentHelper::findAttachmentsInBodyPart(part_mime);
+  FLOG_DEBUG("mime part info, attachment count: %1", attachments.size());
+
+  QStringList public_keys_buffer;
+
+  for (const auto& att : attachments) {
+    auto att_type = Q_SC(att->getType().generate()).trimmed();
+    FLOG_DEBUG("mime part info, attachment type: %1", att_type);
+
+    if (att_type != "application/pgp-keys") continue;
+
+    std::ostringstream oss;
+    vmime::utility::outputStreamAdapter osa(oss);
+    att->getData()->extract(osa);
+
+    public_keys_buffer.append(Q_SC(oss.str()));
+  }
+
+  FLOG_DEBUG("mime part info, attached public keys: ",
+             public_keys_buffer.join("\n"));
+
+  /*
+   * The second body MUST contain the OpenPGP digital signature. It MUST
+   * be labeled with a content type of "application/pgp-signature"
+   */
+  auto part_sign = body->getPartAt(1);
+  auto part_sign_header = part_sign->getHeader();
+  auto part_sign_content_type = part_sign_header->ContentType();
+  auto part_sign_content_type_value =
+      Q_SC(part_sign_content_type->getValue()->generate());
+
+  if (part_sign_content_type_value != "application/pgp-signature") {
+    error_string =
+        "The second body MUST be labeled with a content type of "
+        "'application/pgp-signature'";
+    return -2;
+  }
+
+  auto part_sign_body_content =
+      QByteArray::fromStdString(part_sign->getBody()->generate());
+  if (part_sign_body_content.trimmed().isEmpty()) {
+    error_string = "The signature part is empty";
+    return -2;
+  }
+
+  FLOG_DEBUG("body part of signature content: %1", part_sign_body_content);
+
+  GFGpgVerifyResult* s;
+  auto ret = GFGpgVerifyData(channel, QDUP(part_mime_content_text),
+                             QDUP(part_sign_body_content), &s);
+
+  if (ret != 0) {
+    error_string = "Verify Failed";
+    return -1;
+  }
+
+  capsule_id = UDUP(s->capsule_id);
+  FLOG_DEBUG("got capsule id: %1", capsule_id);
+
+  GFFreeMemory(s);
+
+  meta_data.from = from_field_value_text;
+  meta_data.to = to_field_value_text.split(',');
+  meta_data.cc = cc_field_value_text.split(',');
+  meta_data.bcc = bcc_field_value_text.split(',');
+  meta_data.subject = subject_field_value_text;
+  meta_data.datetime = date_field_value;
+  meta_data.micalg = prm_micalg_value;
+  meta_data.public_keys = public_keys_buffer.join("\n");
+  meta_data.mime = {};
+  meta_data.mime_hash = part_mime_content_hash.toHex();
+  meta_data.signature = {};
+  return 0;
+}
+
+auto DecryptEMLData(int channel, const QByteArray& data,
+                    EMailMetaData& meta_data, QString& eml_data,
+                    QString& capsule_id) -> int {
+  vmime::string vmime_data(data.constData(), data.size());
+  auto message = vmime::make_shared<vmime::message>();
+  try {
+    message->parse(vmime_data);
+  } catch (const vmime::exception& e) {
+    FLOG_DEBUG("error when parsing vmime data: %1", e.what());
+    eml_data = "Error when parsing EML Data";
+    return -2;
+  }
+
+  auto header = message->getHeader();
+
+  auto content_type_field =
+      header->getField<vmime::contentTypeField>(vmime::fields::CONTENT_TYPE);
+  if (!content_type_field) {
+    eml_data = "cannot get 'Content-Type' Field from header";
+    return -2;
+  }
+
+  auto content_type_value =
+      Q_SC(content_type_field->getValue()->generate()).trimmed();
+
+  auto prm_protocol = content_type_field->getParameter("protocol");
+  if (!prm_protocol) {
+    eml_data = "cannot get 'protocol' from 'Content-Type'";
+    return -2;
+  }
+
+  /*
+   * OpenPGP encrypted data is denoted by the "multipart/encrypted"
+   * content type
+   */
+  if (content_type_value != "multipart/encrypted") {
+    eml_data =
+        "OpenPGP encrypted data is denoted by the 'multipart/encrypted' "
+        "content type";
+    return -2;
+  }
+
+  /*
+   * MUST have a "protocol" parameter value of "application/pgp-encrypted"
+   */
+  auto prm_protocol_value = Q_SC(prm_protocol->getValue().generate());
+  if (prm_protocol_value != "application/pgp-encrypted") {
+    eml_data =
+        "'protocol' parameter which MUST have a value of "
+        "'application/pgp-encrypted' (MUST be quoted)";
+    return -2;
+  }
+
+  auto from_field_value_text =
+      ExtractFieldValueMailBox(header, vmime::fields::FROM);
+  auto to_field_value_text =
+      ExtractFieldValueAddressList(header, vmime::fields::TO);
+  auto cc_field_value_text =
+      ExtractFieldValueAddressList(header, vmime::fields::CC);
+  auto bcc_field_value_text =
+      ExtractFieldValueAddressList(header, vmime::fields::BCC);
+  auto date_field_value =
+      ExtractFieldValueDateTime(header, vmime::fields::DATE);
+  auto subject_field_value_text =
+      ExtractFieldValueText(header, vmime::fields::SUBJECT);
+  auto reply_to_field_value_text =
+      ExtractFieldValueMailBox(header, vmime::fields::REPLY_TO);
+  auto organization_text =
+      ExtractFieldValueText(header, vmime::fields::ORGANIZATION);
+
+  auto body = message->getBody();
+  auto content_type = body->getContentType();
+  auto part_count = body->getPartCount();
+
+  FLOG_DEBUG("body page count: %1", part_count);
+
+  /*
+   * The multipart/encrypted body MUST consist of exactly two parts.
+   */
+  if (part_count != 2) {
+    eml_data = "The multipart/signed body MUST consist of exactly two parts";
+    return -2;
+  }
+
+  /*
+   * The multipart/encrypted MIME body MUST consist of exactly two body
+   * parts, the first with content type "application/pgp-encrypted".  This
+   * body contains the control information.
+   */
+  auto part_mime = body->getPartAt(0);
+
+  std::ostringstream oss;
+  vmime::utility::outputStreamAdapter osa(oss);
+
+  auto part_mime_body = part_mime->getBody();
+  auto part_mime_body_content = part_mime_body->getContents();
+  if (!part_mime_body_content) {
+    eml_data = "Cannot get the content of the first part's body";
+    return -2;
+  }
+
+  part_mime_body_content->extractRaw(osa);
+  osa.flush();
+
+  auto part_mime_body_content_text = Q_SC(oss.str());
+  FLOG_DEBUG("body part of raw content text: %1", part_mime_body_content_text);
+
+  /*
+   * A message complying with this
+   * standard MUST contain a "Version: 1" field in this body.
+   */
+  if (!part_mime_body_content_text.contains("Version: 1")) {
+    eml_data =
+        "The first part MUST contain a 'Version: 1' field in this "
+        "body.";
+    return -2;
+  }
+
+  /*
+   * The second MIME body part MUST contain the actual encrypted data.  It
+   * MUST be labeled with a content type of "application/octet-stream".
+   */
+  auto part_sign = body->getPartAt(1);
+  auto part_sign_header = part_sign->getHeader();
+  auto part_sign_content_type = part_sign_header->ContentType();
+  auto part_sign_content_type_value =
+      Q_SC(part_sign_content_type->getValue()->generate());
+
+  if (part_sign_content_type_value != "application/octet-stream") {
+    eml_data =
+        "The second part MUST be labeled with a content type of "
+        "'application/octet-stream'";
+    return -2;
+  }
+
+  auto part_encr_body_content =
+      QByteArray::fromStdString(part_sign->getBody()->generate());
+  if (part_encr_body_content.trimmed().isEmpty()) {
+    eml_data = "The second part is empty";
+    return -2;
+  }
+
+  FLOG_DEBUG("body part of encrypt content: %1", part_encr_body_content);
+
+  GFGpgDecryptResult* s;
+  auto ret = GFGpgDecryptData(channel, QDUP(part_encr_body_content), &s);
+
+  if (ret != 0) {
+    eml_data = "Ddecrypt Failed";
+    return -1;
+  }
+
+  eml_data = UDUP(s->decrypted_data);
+
+  capsule_id = UDUP(s->capsule_id);
+  FLOG_DEBUG("got capsule id: %1", capsule_id);
+
+  GFFreeMemory(s);
+
+  // callback
+  meta_data.from = from_field_value_text;
+  meta_data.to = to_field_value_text.split(',');
+  meta_data.cc = cc_field_value_text.split(',');
+  meta_data.bcc = bcc_field_value_text.split(',');
+  meta_data.subject = subject_field_value_text;
+  meta_data.datetime = date_field_value;
+  meta_data.encrypted_data = part_encr_body_content;
+  return 0;
 }

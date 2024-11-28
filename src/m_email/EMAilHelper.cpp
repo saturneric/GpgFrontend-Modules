@@ -323,8 +323,12 @@ auto GetEMLMetaData(vmime::shared_ptr<vmime::message>& message,
 
   meta_data.from = from_field_value_text;
   meta_data.to = to_field_value_text.split(',');
-  meta_data.cc = cc_field_value_text.split(',');
-  meta_data.bcc = bcc_field_value_text.split(',');
+  meta_data.cc = cc_field_value_text.trimmed().isEmpty()
+                     ? QStringList()
+                     : cc_field_value_text.split(',');
+  meta_data.bcc = bcc_field_value_text.trimmed().isEmpty()
+                      ? QStringList()
+                      : bcc_field_value_text.split(',');
   meta_data.subject = subject_field_value_text;
   return 0;
 }

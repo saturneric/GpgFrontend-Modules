@@ -28,6 +28,7 @@
 
 #pragma once
 
+#include <QDateTime>
 #include <QString>
 #include <QStringList>
 
@@ -39,9 +40,19 @@
 #include <vmime/contentTypeField.hpp>
 
 struct EMailMetaData {
+  // Basic MetaData
   QString from;
   QStringList to;
   QStringList cc;
   QStringList bcc;
   QString subject;
+  QDateTime datetime;
+  QString micalg;
+
+  // OpenPGP MetaData
+  QString public_keys;
+  QByteArray mime;
+  QString mime_hash;
+  QByteArray signature;
+  QByteArray encrypted_data;
 };
