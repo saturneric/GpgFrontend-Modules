@@ -175,7 +175,7 @@ auto EncryptPlainText(int channel, const QStringList& keys,
             vmime::fields::CONTENT_DISPOSITION);
     encrypted_data_content_disp_header_field->setValue("inline");
     encrypted_data_content_disp_header_field->setFilename(
-        vmime::word({"encrypted.asc"}));
+        vmime::word(std::string{"encrypted.asc"}));
 
     auto encrypted_data_body = encrypted_data_part->getBody();
     auto encrypted_data_content =
@@ -346,7 +346,7 @@ auto EncryptEMLData(int channel, const QStringList& keys,
             vmime::fields::CONTENT_DISPOSITION);
     encrypted_data_content_disp_header_field->setValue("inline");
     encrypted_data_content_disp_header_field->setFilename(
-        vmime::word({"encrypted.asc"}));
+        vmime::word(std::string{"encrypted.asc"}));
 
     auto encrypted_data_body = encrypted_data_part->getBody();
     auto encrypted_data_content =
