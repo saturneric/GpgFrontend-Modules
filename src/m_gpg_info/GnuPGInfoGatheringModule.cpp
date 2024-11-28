@@ -52,7 +52,7 @@ GF_MODULE_API_DEFINE("com.bktus.gpgfrontend.module.gnupg_info_gathering",
 
 DEFINE_TRANSLATIONS_STRUCTURE(ModuleGnuPGInfoGathering);
 
-extern auto CalculateBinaryChacksum(const QString &path)
+extern auto CalculateBinaryChecksum(const QString &path)
     -> std::optional<QString>;
 
 extern void GetGpgComponentInfos(void *, int, const char *, const char *);
@@ -186,7 +186,7 @@ auto StartGatheringGnuPGInfo() -> int {
   return 0;
 }
 
-auto CalculateBinaryChacksum(const QString &path) -> std::optional<QString> {
+auto CalculateBinaryChecksum(const QString &path) -> std::optional<QString> {
   // check file info and access rights
   QFileInfo const info(path);
   if (!info.exists() || !info.isFile() || !info.isReadable()) {
@@ -258,7 +258,7 @@ void GetGpgComponentInfos(void *data, int exit_code, const char *out,
   c_i_gpgconf.desc = "GPG Configure";
   c_i_gpgconf.version = "/";
   c_i_gpgconf.path = context->gpgconf_path;
-  auto gpgconf_binary_checksum = CalculateBinaryChacksum(context->gpgconf_path);
+  auto gpgconf_binary_checksum = CalculateBinaryChecksum(context->gpgconf_path);
   c_i_gpgconf.binary_checksum =
       (gpgconf_binary_checksum.has_value() ? gpgconf_binary_checksum.value()
                                            : QString("/"));
@@ -292,7 +292,7 @@ void GetGpgComponentInfos(void *data, int exit_code, const char *out,
     component_path.replace("%3a", ":");
 #endif
 
-    auto binary_checksum = CalculateBinaryChacksum(component_path);
+    auto binary_checksum = CalculateBinaryChecksum(component_path);
 
     MLogDebug(
         QString("gnupg component name: %1 desc: %2 checksum: %3 path: %4")

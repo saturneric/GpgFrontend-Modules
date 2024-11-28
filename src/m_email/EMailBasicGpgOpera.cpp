@@ -664,6 +664,10 @@ auto SignEMLData(int channel, const QString& key,
                                              "application/pgp-signature"));
     content_type_header_field->setBoundary(body_boundary);
 
+    // update date field
+    auto datetime_header_field = header->Date();
+    datetime_header_field->setValue(vmime::datetime::now());
+
     auto root_body_part = vmime::make_shared<vmime::body>();
     auto container_part = vmime::make_shared<vmime::bodyPart>();
     auto mime_part = vmime::make_shared<vmime::bodyPart>();
