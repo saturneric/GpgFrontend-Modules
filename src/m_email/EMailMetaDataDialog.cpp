@@ -70,16 +70,21 @@ EMailMetaDataDialog::EMailMetaDataDialog(int mode, QWidget* parent)
   connect(ui_->okButton, &QPushButton::clicked, this,
           &EMailMetaDataDialog::slot_parse_eml_meta_data);
 
-  connect(ui_->cancelButton, &QPushButton::clicked, this, &QDialog::close);
+  connect(ui_->cancelButton, &QPushButton::clicked, this, [=]() {
+    emit SignalNoEMLMetaData("User canceled");
+    close();
+  });
 
   connect(ui_->ccButton, &QPushButton::clicked, this, [this]() {
     ui_->ccEdit->setHidden(!ui_->ccEdit->isHidden());
     ui_->ccLabel->setHidden(!ui_->ccLabel->isHidden());
+    ui_->ccEdit->clear();
   });
 
   connect(ui_->bccButton, &QPushButton::clicked, this, [this]() {
     ui_->bccEdit->setHidden(!ui_->bccEdit->isHidden());
     ui_->bccLabel->setHidden(!ui_->bccLabel->isHidden());
+    ui_->bccEdit->clear();
   });
 
   connect(this, &EMailMetaDataDialog::SignalEMLMetaData, this, &QDialog::close);
@@ -88,7 +93,7 @@ EMailMetaDataDialog::EMailMetaDataDialog(int mode, QWidget* parent)
 
   setModal(true);
   setAttribute(Qt::WA_DeleteOnClose);
-  setWindowFlags(Qt::Dialog | Qt::Window);
+  setWindowFlags(Qt::Window | Qt::WindowTitleHint | Qt::CustomizeWindowHint);
 }
 
 Q_VARIANT_Q_OBJECT_FACTORY_DEFINE(CreateEMailMetaDataDialog,
