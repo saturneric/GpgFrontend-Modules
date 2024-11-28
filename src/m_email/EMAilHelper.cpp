@@ -32,6 +32,9 @@
 
 #include "GFModuleCommonUtils.hpp"
 
+static const QRegularExpression kNameEmailStringRegex{
+    R"(^\s*(.*)\s*<\s*([^<>@\s]+@[^<>@\s]+)\s*>\s*$)"};
+
 auto IsValidMicalgFormat(const QString& prm_micalg_value) -> bool {
   QRegularExpression regex("^pgp-(\\w+)$");
   QRegularExpressionMatch match = regex.match(prm_micalg_value);
@@ -151,4 +154,17 @@ auto ExtractFieldValueDateTime(const vmime::shared_ptr<vmime::header>& header,
   datetime.setOffsetFromUtc(zone * 60);
 
   return datetime;
+}
+
+auto ParseEmailString(const QString& input, QString& name,
+                      QString& email) -> bool {
+  QRegularExpressionMatch match = kNameEmailStringRegex.match(input);
+
+  if (match.hasMatch()) {
+    name = match.captured(1).trimmed();
+    email = match.captured(2).trimmed();
+    return true;
+  }
+
+  return false;
 }

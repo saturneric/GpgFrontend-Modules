@@ -101,3 +101,15 @@ auto ExtractFieldValueAddressList(
  */
 auto ExtractFieldValueDateTime(const vmime::shared_ptr<vmime::header>& header,
                                const QString& field_name) -> QDateTime;
+
+/**
+ * @brief
+ *
+ * @param input
+ * @param name
+ * @param email
+ * @return true
+ * @return false
+ */
+auto ParseEmailString(const QString& input, QString& name,
+                      QString& email) -> bool;

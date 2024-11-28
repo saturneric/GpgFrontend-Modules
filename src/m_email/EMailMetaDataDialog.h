@@ -31,6 +31,7 @@
 #include <QDialog>
 #include <QSharedPointer>
 
+#include "EMailModel.h"
 #include "GFModuleCommonUtils.hpp"
 
 class QWidget;
@@ -62,15 +63,13 @@ class EMailMetaDataDialog : public QDialog {
 
  signals:
 
-  void SignalEMLDataGenerateSuccess(QString);
+  void SignalEMLMetaData(EMailMetaData meta_data);
 
-  void SignalEMLDataGenerateFailed(QString);
+  void SignalNoEMLMetaData(QString error_string);
 
  private slots:
 
-  void slot_sign_eml_data();
-
-  void slot_encrypt_eml_data();
+  void slot_parse_eml_meta_data();
 
   void slot_export_encrypted_data();
 
