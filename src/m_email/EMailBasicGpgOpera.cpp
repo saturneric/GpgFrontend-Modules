@@ -524,7 +524,7 @@ auto SignPlainText(int channel, const QString& key,
             vmime::fields::CONTENT_DISPOSITION);
     signature_part_content_disp_header_field->setValue("attachment");
     signature_part_content_disp_header_field->setFilename(
-        vmime::word({"OpenPGP_signature.asc"}));
+        vmime::word(std::string{"OpenPGP_signature.asc"}));
 
     auto public_key = UDUP(GFGpgPublicKey(channel, QDUP(key), 1));
     if (public_key.isEmpty()) {
@@ -742,7 +742,7 @@ auto SignEMLData(int channel, const QString& key,
             vmime::fields::CONTENT_DISPOSITION);
     signature_part_content_disp_header_field->setValue("attachment");
     signature_part_content_disp_header_field->setFilename(
-        vmime::word({"OpenPGP_signature.asc"}));
+        vmime::word(std::string{"OpenPGP_signature.asc"}));
 
     auto public_key = UDUP(GFGpgPublicKey(channel, QDUP(key), 1));
     if (public_key.isEmpty()) {
