@@ -23,7 +23,7 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-# com.bktus.gpgfrontend.module.integrated.gnupg_info_gathering
+# com.bktus.gpgfrontend.module.integrated.email
 
 set(INTEGRATED_MODULE_SOURCE "")
 aux_source_directory(. INTEGRATED_MODULE_SOURCE)

@@ -108,14 +108,14 @@ GnupgTab::GnupgTab(QWidget* parent)
   ui_->optionDetailsTable->setFocusPolicy(Qt::NoFocus);
   ui_->optionDetailsTable->setAlternatingRowColors(true);
 
-  auto future = (QThreadPool::globalInstance(), [=]() {
-    if (GFModuleRetrieveRTValueOrDefaultBool(
-            DUP("ui"), DUP("env.state.gnupg_info_gathering"), 0) == 1) {
-      process_software_info();
-    } else {
-      gather_gnupg_info();
-    }
-  });
+  if (GFModuleRetrieveRTValueOrDefaultBool(
+          DUP("ui"), DUP("env.state.gnupg_info_gathering"), 0) == 1) {
+    process_software_info();
+
+  } else {
+    auto future = QtConcurrent::run(QThreadPool::globalInstance(),
+                                    [=]() { gather_gnupg_info(); });
+  }
 }
 
 void GnupgTab::process_software_info() {

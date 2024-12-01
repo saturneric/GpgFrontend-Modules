@@ -47,7 +47,7 @@
 #include "GpgInfo.h"
 
 GF_MODULE_API_DEFINE("com.bktus.gpgfrontend.module.gnupg_info_gathering",
-                     "GatherGnupgInfo", "1.0.1",
+                     "GatherGnupgInfo", "1.1.0",
                      "Try gathering gnupg information.", "Saturneric")
 
 DEFINE_TRANSLATIONS_STRUCTURE(ModuleGnuPGInfoGathering);
