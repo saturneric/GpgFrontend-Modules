@@ -72,21 +72,9 @@ UpdateTab::UpdateTab(QWidget* parent)
   release_note_layout->addWidget(release_note_viewer_);
   release_note_box->setLayout(release_note_layout);
 
-  auto* tips_label = new QLabel();
-  tips_label->setText(
-      "<center>" +
-      tr("It is recommended that you always check the version "
-         "of GpgFrontend and upgrade to the latest version.") +
-      "</center><center>" +
-      tr("New versions not only represent new features, but "
-         "also often represent functional and security fixes.") +
-      "</center>");
-  tips_label->setWordWrap(true);
-
   layout->addWidget(current_version_box);
   layout->addWidget(upgrade_info_box);
   layout->addWidget(release_note_box);
-  layout->addWidget(tips_label);
 
   setLayout(layout);
 }
