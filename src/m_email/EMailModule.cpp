@@ -64,6 +64,8 @@ DEFINE_TRANSLATIONS_STRUCTURE(ModuleEMail);
 auto GFRegisterModule() -> int {
   MLogDebug("email module registering...");
 
+  REGISTER_TRANS_READER();
+
   LISTEN("EMAIL_VERIFY_EML_DATA");
   LISTEN("EMAIL_DECRYPT_EML_DATA");
   LISTEN("EMAIL_SIGN_EML_DATA");

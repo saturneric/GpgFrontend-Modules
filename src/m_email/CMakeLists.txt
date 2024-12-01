@@ -77,15 +77,15 @@ target_link_libraries(mod_email PRIVATE vmime-static)
 target_compile_features(mod_email PRIVATE cxx_std_17)
 
 # i18n
-# set(LOCALE_TS_PATH ${CMAKE_CURRENT_SOURCE_DIR}/ts)
-# set(TS_FILES "${LOCALE_TS_PATH}/ModuleEMail.en_US.ts"
-# "${LOCALE_TS_PATH}/ModuleEMail.de_DE.ts"
-# "${LOCALE_TS_PATH}/ModuleEMail.fr_FR.ts"
-# "${LOCALE_TS_PATH}/ModuleEMail.it_iT.ts"
-# "${LOCALE_TS_PATH}/ModuleEMail.zh_CN.ts"
-# "${LOCALE_TS_PATH}/ModuleEMail.zh_TW.ts")
-# qt_add_translations(mod_email
-# RESOURCE_PREFIX "/i18n"
-# TS_FILES ${TS_FILES}
-# SOURCES ${INTEGRATED_MODULE_SOURCE}
-# INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR})
+set(LOCALE_TS_PATH ${CMAKE_CURRENT_SOURCE_DIR}/ts)
+set(TS_FILES "${LOCALE_TS_PATH}/ModuleEMail.en_US.ts"
+  "${LOCALE_TS_PATH}/ModuleEMail.de_DE.ts"
+  "${LOCALE_TS_PATH}/ModuleEMail.fr_FR.ts"
+  "${LOCALE_TS_PATH}/ModuleEMail.it_iT.ts"
+  "${LOCALE_TS_PATH}/ModuleEMail.zh_CN.ts"
+  "${LOCALE_TS_PATH}/ModuleEMail.zh_TW.ts")
+qt_add_translations(mod_email
+  RESOURCE_PREFIX "/i18n"
+  TS_FILES ${TS_FILES}
+  SOURCES ${INTEGRATED_MODULE_SOURCE}
+  INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR})
