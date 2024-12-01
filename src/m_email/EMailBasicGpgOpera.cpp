@@ -129,16 +129,15 @@ auto EncryptPlainText(int channel, const QStringList& keys,
     auto root_part_boundary = vmime::body::generateRandomBoundaryString();
     content_type_header_field->setBoundary(root_part_boundary);
 
-    auto root_body_part = vmime::make_shared<vmime::body>();
+    auto root_body_part = vmime::make_shared<vmime::bodyPart>();
     auto control_info_part = vmime::make_shared<vmime::bodyPart>();
     auto encrypted_data_part = vmime::make_shared<vmime::bodyPart>();
 
-    root_body_part->appendPart(control_info_part);
-    root_body_part->appendPart(encrypted_data_part);
-    msg->setBody(root_body_part);
-
-    root_body_part->setPrologText(
+    root_body_part->getBody()->appendPart(control_info_part);
+    root_body_part->getBody()->appendPart(encrypted_data_part);
+    root_body_part->getBody()->setPrologText(
         "This is an OpenPGP/MIME encrypted message (RFC 4880 and 3156)");
+    msg->setBody(root_body_part->getBody());
 
     auto control_info_part_header = control_info_part->getHeader();
     auto control_info_content_type_field =
@@ -300,16 +299,15 @@ auto EncryptEMLData(int channel, const QStringList& keys,
     auto root_part_boundary = vmime::body::generateRandomBoundaryString();
     content_type_header_field->setBoundary(root_part_boundary);
 
-    auto root_body_part = vmime::make_shared<vmime::body>();
+    auto root_body_part = vmime::make_shared<vmime::bodyPart>();
     auto control_info_part = vmime::make_shared<vmime::bodyPart>();
     auto encrypted_data_part = vmime::make_shared<vmime::bodyPart>();
 
-    root_body_part->appendPart(control_info_part);
-    root_body_part->appendPart(encrypted_data_part);
-    message->setBody(root_body_part);
-
-    root_body_part->setPrologText(
+    root_body_part->getBody()->appendPart(control_info_part);
+    root_body_part->getBody()->appendPart(encrypted_data_part);
+    root_body_part->getBody()->setPrologText(
         "This is an OpenPGP/MIME encrypted message (RFC 4880 and 3156)");
+    message->setBody(root_body_part->getBody());
 
     auto control_info_part_header = control_info_part->getHeader();
     auto control_info_content_type_field =
@@ -672,18 +670,17 @@ auto SignEMLData(int channel, const QString& key,
     auto datetime_header_field = header->Date();
     datetime_header_field->setValue(vmime::datetime::now());
 
-    auto root_body_part = vmime::make_shared<vmime::body>();
+    auto root_body_part = vmime::make_shared<vmime::bodyPart>();
     auto container_part = vmime::make_shared<vmime::bodyPart>();
     auto mime_part = vmime::make_shared<vmime::bodyPart>();
     auto public_key_part = vmime::make_shared<vmime::bodyPart>();
     auto signature_part = vmime::make_shared<vmime::bodyPart>();
 
-    root_body_part->appendPart(container_part);
-    root_body_part->appendPart(signature_part);
-    message->setBody(root_body_part);
-
-    root_body_part->setPrologText(
+    root_body_part->getBody()->appendPart(container_part);
+    root_body_part->getBody()->appendPart(signature_part);
+    root_body_part->getBody()->setPrologText(
         "This is an OpenPGP/MIME signed message (RFC 4880 and 3156)");
+    message->setBody(root_body_part->getBody());
 
     auto container_boundary = vmime::body::generateRandomBoundaryString();
     auto container_part_header = container_part->getHeader();
