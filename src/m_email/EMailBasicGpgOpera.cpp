@@ -451,18 +451,18 @@ auto SignPlainText(int channel, const QString& key,
                                              "application/pgp-signature"));
     content_type_header_field->setBoundary(body_boundary);
 
-    auto root_body_part = vmime::make_shared<vmime::body>();
+    auto root_body_part = vmime::make_shared<vmime::bodyPart>();
     auto container_part = vmime::make_shared<vmime::bodyPart>();
     auto mime_part = vmime::make_shared<vmime::bodyPart>();
     auto public_key_part = vmime::make_shared<vmime::bodyPart>();
     auto signature_part = vmime::make_shared<vmime::bodyPart>();
 
-    root_body_part->appendPart(container_part);
-    root_body_part->appendPart(signature_part);
-    msg->setBody(root_body_part);
-
-    root_body_part->setPrologText(
+    root_body_part->getBody()->appendPart(container_part);
+    root_body_part->getBody()->appendPart(signature_part);
+    root_body_part->getBody()->setPrologText(
         "This is an OpenPGP/MIME signed message (RFC 4880 and 3156)");
+
+    msg->setBody(root_body_part->getBody());
 
     auto container_boundary = vmime::body::generateRandomBoundaryString();
     auto container_part_header = container_part->getHeader();
