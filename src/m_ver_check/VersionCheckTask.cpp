@@ -44,123 +44,146 @@ VersionCheckTask::VersionCheckTask()
     : network_manager_(new QNetworkAccessManager(this)),
       current_version_(GFProjectVersion()) {
   qRegisterMetaType<SoftwareVersion>("SoftwareVersion");
-  version_.current_version = current_version_;
+  version_meta_data_.current_version = current_version_;
+  version_meta_data_.local_commit_hash = GFProjectGitCommitHash();
 }
 
 auto VersionCheckTask::Run() -> int {
-  QString latest_version_url =
-      "https://api.github.com/repos/saturneric/gpgfrontend/releases/latest";
+  QString base_url = "https://api.github.com/repos/saturneric/gpgfrontend";
+  QList<QUrl> urls = {
+      {base_url + "/releases/latest"},
+      {base_url + "/releases/tags/" + current_version_},
+      {base_url + "/git/ref/tags/" + current_version_},
+  };
 
-  QNetworkRequest latest_request(latest_version_url);
-  latest_request.setHeader(QNetworkRequest::UserAgentHeader,
-                           GFHttpRequestUserAgent());
+  connect(network_manager_, &QNetworkAccessManager::finished, this,
+          &VersionCheckTask::slot_parse_reply);
 
-  latest_reply_ = network_manager_->get(latest_request);
-  connect(latest_reply_, &QNetworkReply::finished, this,
-          &VersionCheckTask::slot_parse_latest_version_info);
+  for (const QUrl& url : urls) {
+    QNetworkRequest request(url);
+    request.setHeader(QNetworkRequest::UserAgentHeader,
+                      GFHttpRequestUserAgent());
+    QNetworkReply* reply = network_manager_->get(request);
+    replies_.append(reply);
+  }
+
   return 0;
 }
 
-void VersionCheckTask::slot_parse_latest_version_info() {
-  if (latest_reply_ == nullptr) {
-    version_.latest_version = current_version_;
-    version_.loading_done = false;
-  } else if (latest_reply_->error() != QNetworkReply::NoError) {
-    MLogError(QString("latest version request error: %1")
-                  .arg(latest_reply_->errorString()));
-    version_.latest_version = current_version_;
+void VersionCheckTask::slot_parse_reply(QNetworkReply* reply) {
+  if (reply->error() == QNetworkReply::NoError) {
+    FLOG_DEBUG("get reply from url: %1", reply->url().toString());
   } else {
-    latest_reply_bytes_ = latest_reply_->readAll();
-    auto latest_reply_json = QJsonDocument::fromJson(latest_reply_bytes_);
-
-    if (latest_reply_json.isObject()) {
-      QString latest_version = latest_reply_json["tag_name"].toString();
-
-      QRegularExpression re(R"(^[vV](\d+\.)?(\d+\.)?(\*|\d+))");
-      auto version_match = re.match(latest_version);
-      if (version_match.hasMatch()) {
-        latest_version = version_match.captured(0);
-      } else {
-        latest_version = current_version_;
-        MLogWarn(QString("latest version unknown, set to current version: %1")
-                     .arg(current_version_));
-      }
-
-      bool prerelease = latest_reply_json["prerelease"].toBool();
-      bool draft = latest_reply_json["draft"].toBool();
-      auto publish_date = latest_reply_json["published_at"].toString();
-      auto release_note = latest_reply_json["body"].toString();
-      version_.latest_version = latest_version;
-      version_.latest_prerelease_version_from_remote = prerelease;
-      version_.latest_draft_from_remote = draft;
-      version_.publish_date = publish_date;
-      version_.release_note = release_note;
-    } else {
-      MLogWarn(QString("cannot parse data got from github: %1")
-                   .arg(latest_reply_bytes_));
-    }
+    FLOG_DEBUG("get reply from url: %1, error: %2", reply->url().toString(),
+               reply->errorString());
   }
 
-  if (latest_reply_ != nullptr) {
-    latest_reply_->deleteLater();
+  switch (replies_.indexOf(reply)) {
+    case 0:
+      slot_parse_latest_version_info(reply);
+      break;
+    case 1:
+      slot_parse_current_version_info(reply);
+      break;
+    case 2:
+      slot_parse_current_tag_info(reply);
+      break;
   }
 
-  try {
-    QString current_version_url =
-        "https://api.github.com/repos/saturneric/gpgfrontend/releases/tags/" +
-        current_version_;
+  replies_.removeAll(reply);
+  reply->deleteLater();
 
-    QNetworkRequest current_request(current_version_url);
-    current_request.setHeader(QNetworkRequest::UserAgentHeader,
-                              GFHttpRequestUserAgent());
-
-    current_reply_ = network_manager_->get(current_request);
-
-    connect(current_reply_, &QNetworkReply::finished, this,
-            &VersionCheckTask::slot_parse_current_version_info);
-  } catch (...) {
-    GFModuleLogError("current version request create error");
+  if (replies_.isEmpty()) {
+    slot_fill_grt_with_version_info(version_meta_data_);
+    emit SignalUpgradeVersion(version_meta_data_);
   }
 }
 
-void VersionCheckTask::slot_parse_current_version_info() {
-  if (current_reply_ == nullptr) {
-    // loading done
-    version_.loading_done = false;
-
-  } else if (current_reply_->error() != QNetworkReply::NoError) {
-    MLogError(QString("current version request network error: {}")
-                  .arg(current_reply_->errorString()));
-
-    // loading done
-    version_.loading_done = true;
-    version_.current_version_publish_in_remote = false;
-  } else {
-    version_.current_version_publish_in_remote = true;
-    current_reply_bytes_ = current_reply_->readAll();
-    auto current_reply_json = QJsonDocument::fromJson(current_reply_bytes_);
-
-    if (current_reply_json.isObject()) {
-      bool current_prerelease = current_reply_json["prerelease"].toBool();
-      bool current_draft = current_reply_json["draft"].toBool();
-      version_.latest_prerelease_version_from_remote = current_prerelease;
-      version_.latest_draft_from_remote = current_draft;
-      // loading done
-      version_.loading_done = true;
-    } else {
-      MLogWarn(QString("cannot parse data got from github: %1")
-                   .arg(current_reply_bytes_));
-    }
+void VersionCheckTask::slot_parse_latest_version_info(QNetworkReply* reply) {
+  if (reply == nullptr || reply->error() != QNetworkReply::NoError) {
+    return;
   }
 
-  if (current_reply_ != nullptr) current_reply_->deleteLater();
+  auto reply_bytes = reply->readAll();
+  auto latest_reply_json = QJsonDocument::fromJson(reply_bytes);
 
-  slot_fill_grt_with_version_info(version_);
-  emit SignalUpgradeVersion(version_);
+  if (!latest_reply_json.isObject()) {
+    FLOG_WARN("cannot parse data from github: %1", reply_bytes);
+    return;
+  }
+
+  QString latest_version = latest_reply_json["tag_name"].toString();
+
+  QRegularExpression re(R"(^[vV](\d+\.)?(\d+\.)?(\*|\d+))");
+  auto version_match = re.match(latest_version);
+  if (version_match.hasMatch()) {
+    latest_version = version_match.captured(0);
+  } else {
+    latest_version = current_version_;
+    MLogWarn(QString("latest version unknown, set to current version: %1")
+                 .arg(current_version_));
+  }
+
+  bool prerelease = latest_reply_json["prerelease"].toBool();
+  bool draft = latest_reply_json["draft"].toBool();
+  auto publish_date = latest_reply_json["published_at"].toString();
+  auto release_note = latest_reply_json["body"].toString();
+  version_meta_data_.latest_version = latest_version;
+  version_meta_data_.latest_prerelease_version_from_remote = prerelease;
+  version_meta_data_.latest_draft_from_remote = draft;
+  version_meta_data_.publish_date = publish_date;
+  version_meta_data_.release_note = release_note;
+}
+
+void VersionCheckTask::slot_parse_current_version_info(QNetworkReply* reply) {
+  if (reply == nullptr || reply->error() != QNetworkReply::NoError) {
+    version_meta_data_.current_version_publish_in_remote = false;
+    return;
+  }
+
+  version_meta_data_.current_version_publish_in_remote = true;
+  auto reply_bytes = reply->readAll();
+  auto current_reply_json = QJsonDocument::fromJson(reply_bytes);
+
+  if (!current_reply_json.isObject()) {
+    FLOG_WARN("cannot parse data from github: %1", reply_bytes);
+    return;
+  }
+
+  bool current_prerelease = current_reply_json["prerelease"].toBool();
+  bool current_draft = current_reply_json["draft"].toBool();
+  version_meta_data_.latest_prerelease_version_from_remote = current_prerelease;
+  version_meta_data_.latest_draft_from_remote = current_draft;
+}
+
+void VersionCheckTask::slot_parse_current_tag_info(QNetworkReply* reply) {
+  if (reply == nullptr || reply->error() != QNetworkReply::NoError) {
+    version_meta_data_.current_version_publish_in_remote = false;
+    return;
+  }
+
+  version_meta_data_.current_version_publish_in_remote = true;
+  auto reply_bytes = reply->readAll();
+  auto current_reply_json = QJsonDocument::fromJson(reply_bytes);
+
+  if (!current_reply_json.isObject()) {
+    FLOG_WARN("cannot parse data from github: %1", reply_bytes);
+    return;
+  }
+
+  auto object = current_reply_json["object"].toObject();
+  if (object["type"].toString() != "commit") {
+    FLOG_WARN("remote tag: %1 is not a ref: %2",
+              version_meta_data_.current_version, object["type"].toString());
+    return;
+  }
+
+  auto sha = object["sha"].toString();
+  version_meta_data_.remote_commit_hash_by_tag = sha;
 }
 
 void VersionCheckTask::slot_fill_grt_with_version_info(
-    const SoftwareVersion &version) {
+    const SoftwareVersion& version) {
   GFModuleLogDebug("filling software information info in rt...");
 
   GFModuleUpsertRTValue(GFGetModuleID(),
@@ -169,6 +192,13 @@ void VersionCheckTask::slot_fill_grt_with_version_info(
   GFModuleUpsertRTValue(GFGetModuleID(),
                         GFModuleStrDup("version.latest_version"),
                         GFModuleStrDup(version.latest_version.toUtf8()));
+  GFModuleUpsertRTValue(
+      GFGetModuleID(), GFModuleStrDup("version.remote_commit_hash_by_tag"),
+      GFModuleStrDup(version.remote_commit_hash_by_tag.toUtf8()));
+  GFModuleUpsertRTValue(GFGetModuleID(),
+                        GFModuleStrDup("version.local_commit_hash"),
+                        GFModuleStrDup(version.local_commit_hash.toUtf8()));
+
   GFModuleUpsertRTValueBool(
       GFGetModuleID(), GFModuleStrDup("version.current_version_is_drafted"),
       version.current_version_is_drafted ? 1 : 0);
@@ -193,12 +223,15 @@ void VersionCheckTask::slot_fill_grt_with_version_info(
   GFModuleUpsertRTValueBool(
       GFGetModuleID(), GFModuleStrDup("version.current_a_withdrawn_version"),
       version.VersionWithdrawn() ? 1 : 0);
+  GFModuleUpsertRTValueBool(GFGetModuleID(),
+                            GFModuleStrDup("version.git_commit_hash_mismatch"),
+                            version.GitCommitHashMismatch() ? 1 : 0);
 
   GFModuleUpsertRTValue(GFGetModuleID(), GFModuleStrDup("version.release_note"),
                         GFModuleStrDup(version.release_note.toUtf8()));
   GFModuleUpsertRTValueBool(GFGetModuleID(),
                             GFModuleStrDup("version.loading_done"),
-                            version.loading_done ? 1 : 0);
+                            version.IsInfoValid() ? 1 : 0);
 
   GFModuleLogDebug("software information filled in rt");
 }

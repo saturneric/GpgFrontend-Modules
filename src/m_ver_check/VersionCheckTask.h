@@ -70,14 +70,28 @@ class VersionCheckTask : public QObject {
    * @brief
    *
    */
-  void slot_parse_latest_version_info();
+  void slot_parse_reply(QNetworkReply* reply);
 
   /**
    * @brief
    *
+   * @param reply
    */
-  void slot_parse_current_version_info();
+  void slot_parse_latest_version_info(QNetworkReply* reply);
 
+  /**
+   * @brief
+   *
+   * @param reply
+   */
+  void slot_parse_current_version_info(QNetworkReply* reply);
+
+  /**
+   * @brief
+   *
+   * @param reply
+   */
+  void slot_parse_current_tag_info(QNetworkReply* reply);
   /**
    * @brief
    *
@@ -85,11 +99,8 @@ class VersionCheckTask : public QObject {
   void slot_fill_grt_with_version_info(const SoftwareVersion&);
 
  private:
-  QByteArray latest_reply_bytes_;           ///<
-  QByteArray current_reply_bytes_;          ///<
-  QNetworkReply* latest_reply_ = nullptr;   ///< latest version info reply
-  QNetworkReply* current_reply_ = nullptr;  ///< current version info reply
+  QList<QNetworkReply*> replies_;           ///<
   QNetworkAccessManager* network_manager_;  ///<
-  QString current_version_;
-  SoftwareVersion version_;
+  QString current_version_;                 ///<
+  SoftwareVersion version_meta_data_;
 };

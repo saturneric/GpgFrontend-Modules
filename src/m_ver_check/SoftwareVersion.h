@@ -41,10 +41,11 @@ struct SoftwareVersion {
   bool latest_draft_from_remote = false;               ///<
   bool current_version_is_a_prerelease = false;        ///<
   bool current_version_is_drafted = false;             ///<
-  bool loading_done = false;                           ///<
   bool current_version_publish_in_remote = false;      ///<
   QString publish_date;                                ///<
   QString release_note;                                ///<
+  QString remote_commit_hash_by_tag;
+  QString local_commit_hash;
 
   /**
    * @brief
@@ -52,7 +53,9 @@ struct SoftwareVersion {
    * @return true
    * @return false
    */
-  [[nodiscard]] auto InfoValid() const -> bool { return loading_done; }
+  [[nodiscard]] auto IsInfoValid() const -> bool {
+    return !latest_version.isEmpty();
+  }
 
   /**
    * @brief
@@ -69,6 +72,14 @@ struct SoftwareVersion {
    * @return false
    */
   [[nodiscard]] auto VersionWithdrawn() const -> bool;
+
+  /**
+   * @brief
+   *
+   * @return true
+   * @return false
+   */
+  [[nodiscard]] auto GitCommitHashMismatch() const -> bool;
 
   /**
    * @brief

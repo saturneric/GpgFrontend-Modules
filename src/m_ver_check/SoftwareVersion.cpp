@@ -44,21 +44,24 @@ auto SoftwareVersion::NeedUpgrade() const -> bool {
                     GFModuleStrDup(current_version.toUtf8()),
                     GFModuleStrDup(latest_version.toUtf8()))));
 
-  MLogDebug(QString("load done: %1, pre-release: %2, draft: %3")
-                .arg(static_cast<int>(loading_done))
-                .arg(static_cast<int>(latest_prerelease_version_from_remote))
-                .arg(static_cast<int>(latest_draft_from_remote)));
-  return loading_done && !latest_prerelease_version_from_remote &&
+  FLOG_DEBUG("load done: %1, pre-release: %2, draft: %3", latest_version,
+             latest_prerelease_version_from_remote, latest_draft_from_remote);
+  return !latest_version.isEmpty() && !latest_prerelease_version_from_remote &&
          !latest_draft_from_remote &&
          GFCompareSoftwareVersion(GFModuleStrDup(current_version.toUtf8()),
                                   GFModuleStrDup(latest_version.toUtf8())) < 0;
 }
 
 auto SoftwareVersion::VersionWithdrawn() const -> bool {
-  return loading_done && !current_version_publish_in_remote &&
+  return !latest_version.isEmpty() && !current_version_publish_in_remote &&
          current_version_is_a_prerelease && !current_version_is_drafted;
 }
 
 auto SoftwareVersion::CurrentVersionReleased() const -> bool {
-  return loading_done && current_version_publish_in_remote;
+  return !latest_version.isEmpty() && current_version_publish_in_remote;
+}
+
+auto SoftwareVersion::GitCommitHashMismatch() const -> bool {
+  if (remote_commit_hash_by_tag.isEmpty()) return false;
+  return remote_commit_hash_by_tag.trimmed() != local_commit_hash.trimmed();
 }
