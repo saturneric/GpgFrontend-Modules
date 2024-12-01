@@ -532,11 +532,14 @@ auto SignPlainText(int channel, const QString& key,
       return -1;
     }
 
+    public_key.replace("\r\n", "\n");
+    public_key.replace("\n", "\r\n");
+
     auto public_key_part_part_body = public_key_part->getBody();
     auto public_key_part_body_content =
         vmime::make_shared<vmime::stringContentHandler>();
     public_key_part_body_content->setData(
-        public_key.toLatin1().replace('\n', "\r\n").toStdString(),
+        public_key.toLatin1().toStdString(),
         vmime::encoding(vmime::encodingTypes::QUOTED_PRINTABLE));
     public_key_part_part_body->setContents(public_key_part_body_content);
 
@@ -750,11 +753,14 @@ auto SignEMLData(int channel, const QString& key,
       return -1;
     }
 
+    public_key.replace("\r\n", "\n");
+    public_key.replace("\n", "\r\n");
+
     auto public_key_part_part_body = public_key_part->getBody();
     auto public_key_part_body_content =
         vmime::make_shared<vmime::stringContentHandler>();
     public_key_part_body_content->setData(
-        public_key.toLatin1().replace('\n', "\r\n").toStdString(),
+        public_key.toLatin1().toStdString(),
         vmime::encoding(vmime::encodingTypes::QUOTED_PRINTABLE));
     public_key_part_part_body->setContents(public_key_part_body_content);
 
