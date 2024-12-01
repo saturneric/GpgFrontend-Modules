@@ -43,6 +43,9 @@ class UpdateTab : public QWidget {
   QProgressBar* pb_;                ///<
   QTextEdit* release_note_viewer_;  ///<
   QString current_version_;         ///<
+  QGroupBox* release_note_box_;
+  QGroupBox* upgrade_info_box_;
+  QGroupBox* current_version_box_;
 
  public:
   /**

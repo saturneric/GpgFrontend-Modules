@@ -73,21 +73,20 @@ auto VersionCheckTask::Run() -> int {
 void VersionCheckTask::slot_parse_reply(QNetworkReply* reply) {
   if (reply->error() == QNetworkReply::NoError) {
     FLOG_DEBUG("get reply from url: %1", reply->url().toString());
+    switch (replies_.indexOf(reply)) {
+      case 0:
+        slot_parse_latest_version_info(reply);
+        break;
+      case 1:
+        slot_parse_current_version_info(reply);
+        break;
+      case 2:
+        slot_parse_current_tag_info(reply);
+        break;
+    }
   } else {
-    FLOG_DEBUG("get reply from url: %1, error: %2", reply->url().toString(),
-               reply->errorString());
-  }
-
-  switch (replies_.indexOf(reply)) {
-    case 0:
-      slot_parse_latest_version_info(reply);
-      break;
-    case 1:
-      slot_parse_current_version_info(reply);
-      break;
-    case 2:
-      slot_parse_current_tag_info(reply);
-      break;
+    FLOG_DEBUG("get reply from url: %1, error: %2 %3", reply->url().toString(),
+               reply->errorString(), reply->readAll());
   }
 
   replies_.removeAll(reply);
@@ -113,15 +112,16 @@ void VersionCheckTask::slot_parse_latest_version_info(QNetworkReply* reply) {
   }
 
   QString latest_version = latest_reply_json["tag_name"].toString();
+  FLOG_DEBUG("raw tag name from github: %1", latest_version);
 
   QRegularExpression re(R"(^[vV](\d+\.)?(\d+\.)?(\*|\d+))");
   auto version_match = re.match(latest_version);
   if (version_match.hasMatch()) {
     latest_version = version_match.captured(0);
   } else {
-    latest_version = current_version_;
-    MLogWarn(QString("latest version unknown, set to current version: %1")
-                 .arg(current_version_));
+    latest_version = "";
+    FLOG_WARN("the raw tag name from github: %1 cannot match regex rules",
+              latest_version);
   }
 
   bool prerelease = latest_reply_json["prerelease"].toBool();
