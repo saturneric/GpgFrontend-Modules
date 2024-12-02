@@ -51,8 +51,8 @@ auto EncryptPlainText(int channel, const QStringList& keys,
 
   try {
     GFGpgEncryptionResult* s = nullptr;
-    auto ret = GFGpgEncryptData(channel, QListToCharArray(keys), keys.size(),
-                                QDUP(body_data), 1, &s);
+    auto ret = GFGpgEncryptData(channel, QStringListToCharArray(keys),
+                                keys.size(), QDUP(body_data), 1, &s);
 
     auto encrypted_data = UDUP(s->encrypted_data);
     auto gpg_error_string = UDUP(s->error_string);
@@ -268,8 +268,8 @@ auto EncryptEMLData(int channel, const QStringList& keys,
     plain_raw_data.replace("\n", "\r\n");
 
     GFGpgEncryptionResult* s = nullptr;
-    auto ret = GFGpgEncryptData(channel, QListToCharArray(keys), keys.size(),
-                                QDUP(plain_raw_data), 1, &s);
+    auto ret = GFGpgEncryptData(channel, QStringListToCharArray(keys),
+                                keys.size(), QDUP(plain_raw_data), 1, &s);
 
     auto encrypted_data = UDUP(s->encrypted_data);
     capsule_id = UDUP(s->capsule_id);
@@ -573,7 +573,7 @@ auto SignPlainText(int channel, const QString& key,
     FLOG_DEBUG("Signature Channel: %1, Sign Key: %2", channel, key);
 
     GFGpgSignResult* s;
-    auto ret = GFGpgSignData(channel, QListToCharArray({key}), 1,
+    auto ret = GFGpgSignData(channel, QStringListToCharArray({key}), 1,
                              QDUP(container_raw_data), 1, 1, &s);
 
     auto signature = UDUP(s->signature);
@@ -792,7 +792,7 @@ auto SignEMLData(int channel, const QString& key,
     FLOG_DEBUG("Signature Channel: %1, Sign Key: %2", channel, key);
 
     GFGpgSignResult* s;
-    auto ret = GFGpgSignData(channel, QListToCharArray({key}), 1,
+    auto ret = GFGpgSignData(channel, QStringListToCharArray({key}), 1,
                              QDUP(container_raw_data), 1, 1, &s);
 
     capsule_id = UDUP(s->capsule_id);

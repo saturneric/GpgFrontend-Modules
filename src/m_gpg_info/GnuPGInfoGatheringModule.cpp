@@ -46,9 +46,9 @@
 #include "GFModuleDefine.h"
 #include "GpgInfo.h"
 
-GF_MODULE_API_DEFINE("com.bktus.gpgfrontend.module.gnupg_info_gathering",
-                     "GatherGnupgInfo", "1.1.0",
-                     "Try gathering gnupg information.", "Saturneric")
+GF_MODULE_API_DEFINE_V2("com.bktus.gpgfrontend.module.gnupg_info_gathering",
+                        "GatherGnupgInfo", "1.2.0",
+                        "Try gathering gnupg information.", "Saturneric")
 
 DEFINE_TRANSLATIONS_STRUCTURE(ModuleGnuPGInfoGathering);
 
@@ -61,7 +61,10 @@ extern void GetGpgDirectoryInfos(void *, int, const char *, const char *);
 
 extern void GetGpgOptionInfos(void *, int, const char *, const char *);
 
-extern auto StartGatheringGnuPGInfo() -> int;
+extern auto StartGatheringAllGnuPGInfo() -> int;
+
+extern auto StartStartGatheringGnuPGComponentsInfo(
+    const QString &gpgme_version, const QString &gpgconf_path) -> int;
 
 extern auto GnupgTabFactory(void *id) -> void *;
 
@@ -86,20 +89,30 @@ auto GFRegisterModule() -> int {
 }
 
 auto GFActiveModule() -> int {
-  LISTEN("REQUEST_GATHERING_GNUPG_INFO");
-
+  LISTEN("APPLICATION_LOADED");
+  LISTEN("REQUEST_GATHERING_ALL_GNUPG_INFO");
   return 0;
 }
 
-EXECUTE_MODULE() {
-  FLOG_DEBUG("gnupg info gathering module executing, event id: %1",
-             event["event_id"]);
+REGISTER_EVENT_HANDLER(APPLICATION_LOADED, [](const MEvent &event) -> int {
+  const auto gpgme_version = UDUP(GFModuleRetrieveRTValueOrDefault(
+      DUP("core"), DUP("gpgme.version"), DUP("0.0.0")));
+  MLogDebug(QString("got gpgme version from rt: %1").arg(gpgme_version));
 
-  StartGatheringGnuPGInfo();
+  const auto gpgconf_path = UDUP(GFModuleRetrieveRTValueOrDefault(
+      DUP("core"), DUP("gpgme.ctx.gpgconf_path"), DUP("")));
+  MLogDebug(QString("got gpgconf path from rt: %1").arg(gpgconf_path));
 
+  StartStartGatheringGnuPGComponentsInfo(gpgme_version, gpgconf_path);
   CB_SUCC(event);
-}
-END_EXECUTE_MODULE()
+});
+
+REGISTER_EVENT_HANDLER(REQUEST_GATHERING_ALL_GNUPG_INFO,
+                       [](const MEvent &event) -> int {
+                         StartGatheringAllGnuPGInfo();
+
+                         CB_SUCC(event);
+                       });
 
 auto GFDeactivateModule() -> int { return 0; }
 
@@ -109,36 +122,36 @@ auto GFUnregisterModule() -> int {
   return 0;
 }
 
-auto StartGatheringGnuPGInfo() -> int {
-  MLogDebug("start to load extra info at module gnupginfogathering...");
-
-  const auto *const gpgme_version = GFModuleRetrieveRTValueOrDefault(
-      DUP("core"), DUP("gpgme.version"), DUP("0.0.0"));
-  MLogDebug(QString("got gpgme version from rt: %1").arg(gpgme_version));
-
-  const auto *const gpgconf_path = GFModuleRetrieveRTValueOrDefault(
-      DUP("core"), DUP("gpgme.ctx.gpgconf_path"), DUP(""));
-  MLogDebug(QString("got gpgconf path from rt: %1").arg(gpgconf_path));
-
+auto StartStartGatheringGnuPGComponentsInfo(
+    const QString &gpgme_version, const QString &gpgconf_path) -> int {
   auto context = Context{gpgme_version, gpgconf_path};
 
   // get all components
-  const char *argv[] = {DUP("--list-components")};
-  GFExecuteCommandSync(gpgconf_path, 1, argv, GetGpgComponentInfos, &context);
-  MLogDebug("load gnupg component info done.");
+  GFExecuteCommandSync(QDUP(gpgconf_path), 1,
+                       QStringListToCharArray({"--list-components"}),
+                       GetGpgComponentInfos, &context);
+  MLogDebug("loading gnupg component info done.");
+  return 0;
+}
 
-#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 4)
+auto StartGatheringAllGnuPGInfo() -> int {
+  const auto gpgme_version = UDUP(GFModuleRetrieveRTValueOrDefault(
+      DUP("core"), DUP("gpgme.version"), DUP("0.0.0")));
+  MLogDebug(QString("got gpgme version from rt: %1").arg(gpgme_version));
+
+  const auto gpgconf_path = UDUP(GFModuleRetrieveRTValueOrDefault(
+      DUP("core"), DUP("gpgme.ctx.gpgconf_path"), DUP("")));
+  MLogDebug(QString("got gpgconf path from rt: %1").arg(gpgconf_path));
+
+  // get components infos
+  StartStartGatheringGnuPGComponentsInfo(gpgme_version, gpgconf_path);
+
   QList<GFCommandExecuteContext> exec_contexts;
-#else
-  QVector<GFCommandExecuteContext> exec_contexts;
-#endif
 
-  const char **argv_0 =
-      static_cast<const char **>(GFAllocateMemory(sizeof(const char *)));
-  argv_0[0] = DUP("--list-dirs");
-
-  exec_contexts.push_back(
-      {gpgconf_path, 1, argv_0, GetGpgDirectoryInfos, nullptr});
+  auto exec_context = GFCommandExecuteContext{
+      QDUP(gpgconf_path), 1, QStringListToCharArray({"--list-dirs"}),
+      GetGpgDirectoryInfos, nullptr};
+  exec_contexts.push_back(exec_context);
 
   char **components_c_array;
   int ret = GFModuleListRTChildKeys(GFGetModuleID(), DUP("gnupg.components"),
@@ -171,16 +184,15 @@ auto StartGatheringGnuPGInfo() -> int {
     auto *context = new (GFAllocateMemory(sizeof(Context)))
         Context{gpgme_version, gpgconf_path, component_info};
 
-    const char **argv_0 =
-        static_cast<const char **>(GFAllocateMemory(sizeof(const char *) * 2));
-    argv_0[0] = DUP("--list-options"),
-    argv_0[1] = DUP(component_info.name.toUtf8());
-    exec_contexts.push_back(
-        {gpgconf_path, 2, argv_0, GetGpgOptionInfos, context});
+    auto exec_context = GFCommandExecuteContext{
+        QDUP(gpgconf_path), 2,
+        QStringListToCharArray({"--list-options", component_info.name}),
+        GetGpgOptionInfos, context};
+    exec_contexts.push_back(exec_context);
   }
 
-  GFExecuteCommandBatchSync(static_cast<int32_t>(exec_contexts.size()),
-                            exec_contexts.constData());
+  GFExecuteCommandBatchSync(QListToArray(exec_contexts),
+                            static_cast<int>(exec_contexts.size()));
   GFModuleUpsertRTValueBool(GFGetModuleID(), DUP("gnupg.gathering_done"), 1);
 
   return 0;

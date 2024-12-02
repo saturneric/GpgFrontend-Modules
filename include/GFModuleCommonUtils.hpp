@@ -401,7 +401,7 @@ inline auto CharArrayToQStringList(char** pl_components,
   return list;
 }
 
-inline auto QListToCharArray(const QStringList& list) -> char** {
+inline auto QStringListToCharArray(const QStringList& list) -> char** {
   char** char_array =
       static_cast<char**>(GFAllocateMemory(list.size() * sizeof(char*)));
 
@@ -414,6 +414,34 @@ inline auto QListToCharArray(const QStringList& list) -> char** {
   }
 
   return char_array;
+}
+
+template <typename T>
+inline auto ArrayToQList(T** pl_components, int size) -> QList<T> {
+  if (pl_components == nullptr || size <= 0) {
+    return QList<T>();
+  }
+
+  QList<T> list;
+  for (int i = 0; i < size; ++i) {
+    list.append(*pl_components[i]);
+    GFFreeMemory(pl_components[i]);
+  }
+  GFFreeMemory(pl_components);
+  return list;
+}
+
+template <typename T>
+inline auto QListToArray(const QList<T>& list) -> T** {
+  T** array = static_cast<T**>(GFAllocateMemory(list.size() * sizeof(T*)));
+  int index = 0;
+  for (const T& item : list) {
+    auto mem = static_cast<T*>(GFAllocateMemory(sizeof(T)));
+    array[index] = new (mem) T(item);
+    index++;
+  }
+
+  return array;
 }
 
 inline auto ConvertQVariantToVoidPtr(const QVariant& variant) -> void* {

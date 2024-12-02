@@ -39,7 +39,7 @@
 #include "GnuPGInfoGatheringModule.h"
 #include "ui_GnuPGInfo.h"
 
-extern auto StartGatheringGnuPGInfo() -> int;
+extern auto StartGatheringAllGnuPGInfo() -> int;
 
 GnupgTab::GnupgTab(QWidget* parent)
     : QWidget(parent), ui_(SecureCreateSharedObject<Ui_GnuPGInfo>()) {
@@ -326,7 +326,7 @@ void GnupgTab::gather_gnupg_info() {
   ui_->loadProgressBar->show();
   ui_->tabWidget->setDisabled(true);
 
-  if (StartGatheringGnuPGInfo() >= 0) {
+  if (StartGatheringAllGnuPGInfo() >= 0) {
     GFModuleUpsertRTValueBool(DUP("ui"), DUP("env.state.gnupg_info_gathering"),
                               1);
     process_software_info();
