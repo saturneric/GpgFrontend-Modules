@@ -66,9 +66,7 @@ auto GFRegisterModule() -> int {
 auto GFActiveModule() -> int {
   MLogInfo("version checking module activating");
 
-  LISTEN("APPLICATION_LOADED");
   LISTEN("CHECK_APPLICATION_VERSION");
-
   return 0;
 }
 
