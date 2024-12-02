@@ -2,34 +2,6 @@
 <!DOCTYPE TS>
 <TS version="2.1" language="zh_CN">
 <context>
-    <name>AddressListEditorDialog</name>
-    <message>
-        <location filename="../AddressListEditorDialog.ui" line="14"/>
-        <source>Address List Editor</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../AddressListEditorDialog.ui" line="22"/>
-        <source>Address List</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../AddressListEditorDialog.ui" line="45"/>
-        <source>Add Address</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../AddressListEditorDialog.ui" line="52"/>
-        <source>Tips: You can double-click the email address in the edit list, or click the email to pop up the option menu.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../AddressListEditorDialog.ui" line="64"/>
-        <source>Delete Selected Email Address</source>
-        <translation type="unfinished"></translation>
-    </message>
-</context>
-<context>
     <name>EMailMetaDataDialog</name>
     <message>
         <location filename="../EMailMetaDataDialog.ui" line="20"/>
@@ -81,37 +53,37 @@
     <message>
         <location filename="../EMailMetaDataDialog.cpp" line="183"/>
         <source>The &apos;From&apos; field cannot be empty.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">&apos;发件人&apos;字段不能为空。</translation>
     </message>
     <message>
         <location filename="../EMailMetaDataDialog.cpp" line="185"/>
         <source>The &apos;From&apos; field must contain a valid email address.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">&apos;发件人&apos;字段必须包含有效的电子邮件地址。</translation>
     </message>
     <message>
         <location filename="../EMailMetaDataDialog.cpp" line="189"/>
         <source>The &apos;To&apos; field cannot be empty.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">收件人&apos;字段不能为空。</translation>
     </message>
     <message>
         <location filename="../EMailMetaDataDialog.cpp" line="193"/>
         <source>One or more &apos;To&apos; addresses are invalid. Please separate multiple addresses with &quot;;&quot;.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">一个或多个&apos;收件人&apos;地址无效。请用&quot;;&quot;分隔多个地址。</translation>
     </message>
     <message>
         <location filename="../EMailMetaDataDialog.cpp" line="200"/>
         <source>One or more &apos;CC&apos; addresses are invalid. Please separate multiple addresses with &quot;;&quot;.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">一个或多个 &apos;抄送&apos; 地址无效。请用&quot;;&quot;分隔多个地址。</translation>
     </message>
     <message>
         <location filename="../EMailMetaDataDialog.cpp" line="208"/>
         <source>One or more &apos;BCC&apos; addresses are invalid. Please separate multiple addresses with &quot;;&quot;.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">一个或多个 &apos;密送&apos; 地址无效。请用&quot;;&quot;分隔多个地址。</translation>
     </message>
     <message>
         <location filename="../EMailMetaDataDialog.cpp" line="214"/>
         <source>The &apos;Subject&apos; field cannot be empty.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">主题&apos;字段不能为空。</translation>
     </message>
 </context>
 </TS>

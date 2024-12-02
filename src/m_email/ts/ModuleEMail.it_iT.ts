@@ -2,34 +2,6 @@
 <!DOCTYPE TS>
 <TS version="2.1" language="it_IT">
 <context>
-    <name>AddressListEditorDialog</name>
-    <message>
-        <location filename="../AddressListEditorDialog.ui" line="14"/>
-        <source>Address List Editor</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../AddressListEditorDialog.ui" line="22"/>
-        <source>Address List</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../AddressListEditorDialog.ui" line="45"/>
-        <source>Add Address</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../AddressListEditorDialog.ui" line="52"/>
-        <source>Tips: You can double-click the email address in the edit list, or click the email to pop up the option menu.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../AddressListEditorDialog.ui" line="64"/>
-        <source>Delete Selected Email Address</source>
-        <translation type="unfinished"></translation>
-    </message>
-</context>
-<context>
     <name>EMailMetaDataDialog</name>
     <message>
         <location filename="../EMailMetaDataDialog.ui" line="20"/>
