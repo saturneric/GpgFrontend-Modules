@@ -2,6 +2,14 @@
 <!DOCTYPE TS>
 <TS version="2.1" language="it_IT">
 <context>
+    <name>GTrC</name>
+    <message>
+        <location filename="../VersionCheckingModule.cpp" line="60"/>
+        <source>Update</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>UpdateTab</name>
     <message>
         <location filename="../UpdateTab.cpp" line="41"/>

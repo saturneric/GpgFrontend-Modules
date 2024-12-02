@@ -53,7 +53,8 @@ GnupgTab::GnupgTab(QWidget* parent)
   ui_->tabWidget->setTabText(1, tr("Directories"));
   ui_->tabWidget->setTabText(2, tr("Options"));
 
-  ui_->componentDetailsTable->setColumnCount(components_column_titles.length());
+  ui_->componentDetailsTable->setColumnCount(
+      static_cast<int>(components_column_titles.length()));
   ui_->componentDetailsTable->setHorizontalHeaderLabels(
       components_column_titles);
   ui_->componentDetailsTable->horizontalHeader()->setStretchLastSection(false);
@@ -95,7 +96,8 @@ GnupgTab::GnupgTab(QWidget* parent)
                         << tr("Description") << tr("Default Value")
                         << tr("Value");
 
-  ui_->optionDetailsTable->setColumnCount(options_column_titles.length());
+  ui_->optionDetailsTable->setColumnCount(
+      static_cast<int>(options_column_titles.length()));
   ui_->optionDetailsTable->setHorizontalHeaderLabels(options_column_titles);
   ui_->optionDetailsTable->horizontalHeader()->setStretchLastSection(false);
   ui_->optionDetailsTable->setSelectionBehavior(QAbstractItemView::SelectRows);
@@ -132,7 +134,7 @@ void GnupgTab::process_software_info() {
   MLogDebug(
       QString("got gnupg components from rt, size: %1").arg(components.size()));
 
-  ui_->componentDetailsTable->setRowCount(components.size());
+  ui_->componentDetailsTable->setRowCount(static_cast<int>(components.size()));
 
   int row = 0;
   for (auto& component : components) {
