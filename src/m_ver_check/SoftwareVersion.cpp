@@ -44,8 +44,9 @@ auto SoftwareVersion::NeedUpgrade() const -> bool {
                     GFModuleStrDup(current_version.toUtf8()),
                     GFModuleStrDup(latest_version.toUtf8()))));
 
-  FLOG_DEBUG("load done: %1, pre-release: %2, draft: %3", latest_version,
-             latest_prerelease_version_from_remote, latest_draft_from_remote);
+  FLOG_DEBUG("remote latest version: %1, pre-release: %2, draft: %3",
+             latest_version, latest_prerelease_version_from_remote,
+             latest_draft_from_remote);
   return !latest_version.isEmpty() && !latest_prerelease_version_from_remote &&
          !latest_draft_from_remote &&
          GFCompareSoftwareVersion(GFModuleStrDup(current_version.toUtf8()),
@@ -63,5 +64,8 @@ auto SoftwareVersion::CurrentVersionReleased() const -> bool {
 
 auto SoftwareVersion::GitCommitHashMismatch() const -> bool {
   if (remote_commit_hash_by_tag.isEmpty()) return false;
+
+  FLOG_DEBUG("remote commit hash: %1, local commit hash: %2",
+             remote_commit_hash_by_tag, local_commit_hash);
   return remote_commit_hash_by_tag.trimmed() != local_commit_hash.trimmed();
 }

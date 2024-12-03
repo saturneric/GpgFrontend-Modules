@@ -179,7 +179,9 @@ void VersionCheckTask::slot_parse_current_tag_info(QNetworkReply* reply) {
   }
 
   auto sha = object["sha"].toString();
-  version_meta_data_.remote_commit_hash_by_tag = sha;
+  version_meta_data_.remote_commit_hash_by_tag = sha.trimmed();
+  FLOG_DEBUG("got remote commit hash: %1",
+             version_meta_data_.remote_commit_hash_by_tag);
 }
 
 void VersionCheckTask::slot_fill_grt_with_version_info(
