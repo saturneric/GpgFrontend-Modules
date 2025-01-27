@@ -277,7 +277,7 @@ void GnupgTab::process_software_info() {
 
       auto option_info = option_info_json.object();
       if (!option_info.contains("name")) {
-        MLogWarn(QString("illegal gnupg configuation info. it doesn't have a "
+        MLogWarn(QString("illegal gnupg configuration info. it doesn't have a "
                          "name, json: %1")
                      .arg(option_info_json_bytes));
         continue;

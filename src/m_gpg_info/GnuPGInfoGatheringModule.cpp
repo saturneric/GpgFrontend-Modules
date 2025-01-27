@@ -35,6 +35,7 @@
 // qt
 #include <QCoreApplication>
 #include <QCryptographicHash>
+#include <QDir>
 #include <QFileInfo>
 #include <QJsonDocument>
 #include <QString>
@@ -47,7 +48,7 @@
 #include "GpgInfo.h"
 
 GF_MODULE_API_DEFINE_V2("com.bktus.gpgfrontend.module.gnupg_info_gathering",
-                        "GatherGnupgInfo", "1.2.0",
+                        "GatherGnupgInfo", "1.2.1",
                         "Try gathering gnupg information.", "Saturneric")
 
 DEFINE_TRANSLATIONS_STRUCTURE(ModuleGnuPGInfoGathering);
@@ -64,7 +65,8 @@ extern void GetGpgOptionInfos(void *, int, const char *, const char *);
 extern auto StartGatheringAllGnuPGInfo() -> int;
 
 extern auto StartStartGatheringGnuPGComponentsInfo(
-    const QString &gpgme_version, const QString &gpgconf_path) -> int;
+    const QString &gpgme_version, const QString &gpgconf_path,
+    const QString &default_home_path) -> int;
 
 extern auto GnupgTabFactory(void *id) -> void *;
 
@@ -95,15 +97,7 @@ auto GFActiveModule() -> int {
 }
 
 REGISTER_EVENT_HANDLER(APPLICATION_LOADED, [](const MEvent &event) -> int {
-  const auto gpgme_version = UDUP(GFModuleRetrieveRTValueOrDefault(
-      DUP("core"), DUP("gpgme.version"), DUP("0.0.0")));
-  MLogDebug(QString("got gpgme version from rt: %1").arg(gpgme_version));
-
-  const auto gpgconf_path = UDUP(GFModuleRetrieveRTValueOrDefault(
-      DUP("core"), DUP("gpgme.ctx.gpgconf_path"), DUP("")));
-  MLogDebug(QString("got gpgconf path from rt: %1").arg(gpgconf_path));
-
-  StartStartGatheringGnuPGComponentsInfo(gpgme_version, gpgconf_path);
+  // Do Nothing
   CB_SUCC(event);
 });
 
@@ -123,12 +117,14 @@ auto GFUnregisterModule() -> int {
 }
 
 auto StartStartGatheringGnuPGComponentsInfo(
-    const QString &gpgme_version, const QString &gpgconf_path) -> int {
+    const QString &gpgme_version, const QString &gpgconf_path,
+    const QString &default_home_path) -> int {
   auto context = Context{gpgme_version, gpgconf_path};
 
   // get all components
-  GFExecuteCommandSync(QDUP(gpgconf_path), 1,
-                       QStringListToCharArray({"--list-components"}),
+  GFExecuteCommandSync(QDUP(gpgconf_path), 3,
+                       QStringListToCharArray({"--homedir", default_home_path,
+                                               "--list-components"}),
                        GetGpgComponentInfos, &context);
   MLogDebug("loading gnupg component info done.");
   return 0;
@@ -143,13 +139,24 @@ auto StartGatheringAllGnuPGInfo() -> int {
       DUP("core"), DUP("gpgme.ctx.gpgconf_path"), DUP("")));
   MLogDebug(QString("got gpgconf path from rt: %1").arg(gpgconf_path));
 
+  auto default_home_path = UDUP(GFModuleRetrieveRTValueOrDefault(
+      DUP("core"), DUP("gpgme.ctx.default_database_path"), DUP("")));
+  MLogDebug(
+      QString("got default home path from rt: %1").arg(default_home_path));
+
+  default_home_path = QDir::toNativeSeparators(
+      QFileInfo(default_home_path).canonicalFilePath());
+  MLogDebug(QString("final default home path: %1").arg(default_home_path));
+
   // get components infos
-  StartStartGatheringGnuPGComponentsInfo(gpgme_version, gpgconf_path);
+  StartStartGatheringGnuPGComponentsInfo(gpgme_version, gpgconf_path,
+                                         default_home_path);
 
   QList<GFCommandExecuteContext> exec_contexts;
 
   auto exec_context = GFCommandExecuteContext{
-      QDUP(gpgconf_path), 1, QStringListToCharArray({"--list-dirs"}),
+      QDUP(gpgconf_path), 3,
+      QStringListToCharArray({"--homedir", default_home_path, "--list-dirs"}),
       GetGpgDirectoryInfos, nullptr};
   exec_contexts.push_back(exec_context);
 
@@ -185,8 +192,9 @@ auto StartGatheringAllGnuPGInfo() -> int {
         Context{gpgme_version, gpgconf_path, component_info};
 
     auto exec_context = GFCommandExecuteContext{
-        QDUP(gpgconf_path), 2,
-        QStringListToCharArray({"--list-options", component_info.name}),
+        QDUP(gpgconf_path), 4,
+        QStringListToCharArray({"--homedir", default_home_path,
+                                "--list-options", component_info.name}),
         GetGpgOptionInfos, context};
     exec_contexts.push_back(exec_context);
   }
