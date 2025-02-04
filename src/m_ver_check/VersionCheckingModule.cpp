@@ -71,7 +71,7 @@ auto GFActiveModule() -> int {
 }
 
 EXECUTE_MODULE() {
-  FLOG_INFO("version checking module executing, event id: %s",
+  FLOG_INFO("version checking module executing, event id: %1",
             event["event_id"]);
 
   auto* task = new VersionCheckTask();

@@ -30,7 +30,7 @@ set(CMAKE_USER_MAKE_RULES_OVERRIDE "${CMAKE_SOURCE_DIR}/cmake/FlagsOverrides.cma
 
 # define project
 project(GpgFrontendModules
-  VERSION 2.1.6
+  VERSION 2.1.7
   DESCRIPTION "Modules of GpgFrontend"
   HOMEPAGE_URL "https://gpgfrontend.bktus.com"
   LANGUAGES CXX)
