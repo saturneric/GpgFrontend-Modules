@@ -192,7 +192,7 @@ void UpdateTab::slot_show_version_status() {
         "</center>");
     upgrade_label_->show();
     upgrade_info_box_->show();
-  } else if (is_git_commit_hash_mismatch != 0) {
+  } else if (is_git_commit_hash_mismatch != 0 && !GFIsFlatpakENV()) {
     upgrade_label_->setText(
         "<center>" +
         tr("The current version's commit hash does not match the official "
