@@ -110,17 +110,18 @@ GnupgTab::GnupgTab(QWidget* parent)
   ui_->optionDetailsTable->setFocusPolicy(Qt::NoFocus);
   ui_->optionDetailsTable->setAlternatingRowColors(true);
 
+  connect(this, &GnupgTab::SignalGnuPGInfoGathered, this,
+          &GnupgTab::slot_process_software_info);
+
   if (GFModuleRetrieveRTValueOrDefaultBool(
           DUP("ui"), DUP("env.state.gnupg_info_gathering"), 0) == 1) {
-    process_software_info();
-
+    slot_process_software_info();
   } else {
-    auto future = QtConcurrent::run(QThreadPool::globalInstance(),
-                                    [=]() { gather_gnupg_info(); });
+    slot_gather_gnupg_info();
   }
 }
 
-void GnupgTab::process_software_info() {
+void GnupgTab::slot_process_software_info() {
   const auto gnupg_version = UDUP(GFModuleRetrieveRTValueOrDefault(
       DUP("core"), DUP("gpgme.ctx.gnupg_version"), DUP("2.0.0")));
 
@@ -322,15 +323,25 @@ void GnupgTab::process_software_info() {
   ui_->tabWidget->setDisabled(false);
 }
 
-void GnupgTab::gather_gnupg_info() {
+void GnupgTab::slot_gather_gnupg_info() {
   ui_->loadProgressBar->show();
   ui_->tabWidget->setDisabled(true);
 
-  if (StartGatheringAllGnuPGInfo() >= 0) {
-    GFModuleUpsertRTValueBool(DUP("ui"), DUP("env.state.gnupg_info_gathering"),
-                              1);
-    process_software_info();
-  }
+  new GnupgTabWatcher(this);
+}
+
+GnupgTabWatcher::GnupgTabWatcher(GnupgTab* tab) {
+  connect(this, &GnupgTabWatcher::SignalGnuPGInfoGathered, tab,
+          &GnupgTab::SignalGnuPGInfoGathered);
+
+  auto future = QtConcurrent::run(QThreadPool::globalInstance(), [=]() {
+    if (StartGatheringAllGnuPGInfo() >= 0) {
+      GFModuleUpsertRTValueBool(DUP("ui"),
+                                DUP("env.state.gnupg_info_gathering"), 1);
+      emit SignalGnuPGInfoGathered();
+    }
+    this->deleteLater();
+  });
 }
 
 auto GnupgTabFactory(void*) -> void* { return new GnupgTab(); }

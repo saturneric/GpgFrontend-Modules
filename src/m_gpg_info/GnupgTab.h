@@ -46,18 +46,41 @@ class GnupgTab : public QWidget {
    */
   explicit GnupgTab(QWidget* parent = nullptr);
 
+ signals:
+
+  /**
+   * @brief
+   *
+   */
+  void SignalGnuPGInfoGathered();
+
+ private slots:
+  /**
+   * @brief
+   *
+   */
+  void slot_process_software_info();
+
+  /**
+   * @brief
+   *
+   */
+  void slot_gather_gnupg_info();
+
  private:
   std::shared_ptr<Ui_GnuPGInfo> ui_;  ///<
+};
 
+class GnupgTabWatcher : public QObject {
+  Q_OBJECT
+ public:
   /**
-   * @brief
+   * @brief Construct a new Gnupg Tab Watcher object
    *
+   * @param tab
    */
-  void process_software_info();
+  explicit GnupgTabWatcher(GnupgTab* tab);
 
-  /**
-   * @brief
-   *
-   */
-  void gather_gnupg_info();
+ signals:
+  void SignalGnuPGInfoGathered();
 };
