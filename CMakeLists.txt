@@ -30,7 +30,7 @@ set(CMAKE_USER_MAKE_RULES_OVERRIDE "${CMAKE_SOURCE_DIR}/cmake/FlagsOverrides.cma
 
 # define project
 project(GpgFrontendModules
-  VERSION 2.1.7
+  VERSION 2.1.8
   DESCRIPTION "Modules of GpgFrontend"
   HOMEPAGE_URL "https://gpgfrontend.bktus.com"
   LANGUAGES CXX)
@@ -39,7 +39,7 @@ project(GpgFrontendModules
 include(GenerateExportHeader)
 
 # function or mode options
-option(GPGFRONTEND_QT5_BUILD "Swith to Qt5 building mode" OFF)
+option(GPGFRONTEND_QT5_BUILD "Switch to Qt5 building mode" OFF)
 
 # Using Standard C++-17 (Consider compatibility)
 set(CMAKE_CXX_STANDARD 17)

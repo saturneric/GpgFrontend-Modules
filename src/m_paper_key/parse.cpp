@@ -314,8 +314,7 @@ struct packet *read_secrets_file(FILE *secrets, enum data_type input_type) {
 
       linenum = atoi(line);
       if (linenum != next_linenum) {
-        FLOG_ERROR("missing line number %u (saw %u)", next_linenum,
-                   linenum);
+        FLOG_ERROR("missing line number %u (saw %u)", next_linenum, linenum);
         free_packet(packet);
         return NULL;
       } else

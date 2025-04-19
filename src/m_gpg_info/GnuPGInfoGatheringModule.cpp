@@ -306,7 +306,7 @@ void GetGpgComponentInfos(void *data, int exit_code, const char *out,
     auto component_desc = info_split_list[1].trimmed();
     auto component_path = info_split_list[2].trimmed();
 
-#ifdef __MINGW32__
+#if defined(_WIN32) || defined(WIN32)
     // replace some special substrings on windows
     // platform
     component_path.replace("%3a", ":");
@@ -382,7 +382,7 @@ void GetGpgDirectoryInfos(void *, int exit_code, const char *out,
     auto configuration_name = info_split_list[0].trimmed();
     auto configuration_value = info_split_list[1].trimmed();
 
-#ifdef __MINGW32__
+#if defined(_WIN32) || defined(WIN32)
     // replace some special substrings on windows
     // platform
     configuration_value.replace("%3a", ":");

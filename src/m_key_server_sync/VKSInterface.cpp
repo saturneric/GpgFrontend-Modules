@@ -39,7 +39,6 @@
 #include <QString>
 #include <QUrl>
 #include <QUrlQuery>
-#include <utility>
 
 //
 #include <GFModuleCommonUtils.hpp>
