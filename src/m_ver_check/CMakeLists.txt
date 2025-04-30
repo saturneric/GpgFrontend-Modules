@@ -31,10 +31,6 @@ aux_source_directory(. INTEGRATED_MODULE_SOURCE)
 # define libgpgfrontend_module
 add_library(mod_ver_check SHARED ${INTEGRATED_MODULE_SOURCE})
 
-# install dir
-install(TARGETS mod_ver_check
-  LIBRARY DESTINATION "${CMAKE_INSTALL_PREFIX}/modules")
-
 # link sdk
 target_link_libraries(mod_ver_check PRIVATE
   gpgfrontend_module_sdk)
@@ -62,3 +58,10 @@ qt_add_translations(mod_ver_check
   TS_FILES ${TS_FILES}
   SOURCES ${INTEGRATED_MODULE_SOURCE}
   INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR})
+
+# install paths
+install(TARGETS mod_ver_check
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+)

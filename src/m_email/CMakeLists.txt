@@ -49,10 +49,6 @@ if(MINGW)
   target_link_libraries(vmime-static ws2_32 mlang)
 endif()
 
-# install dir
-install(TARGETS mod_email
-  LIBRARY DESTINATION "${CMAKE_INSTALL_PREFIX}/modules")
-
 # vmime headers
 target_include_directories(mod_email PRIVATE
   "${CMAKE_CURRENT_SOURCE_DIR}/vmime/src"
@@ -89,3 +85,10 @@ qt_add_translations(mod_email
   TS_FILES ${TS_FILES}
   SOURCES ${INTEGRATED_MODULE_SOURCE}
   INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR})
+
+# install paths
+install(TARGETS mod_email
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+)

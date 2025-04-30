@@ -25,7 +25,6 @@
 
 cmake_minimum_required(VERSION 3.16)
 
-message(STATUS "Current Generator: ${CMAKE_GENERATOR}")
 set(CMAKE_USER_MAKE_RULES_OVERRIDE "${CMAKE_SOURCE_DIR}/cmake/FlagsOverrides.cmake")
 
 # define project
@@ -53,24 +52,32 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 option(GPGFRONTEND_MODULES_QT5_BUILD "Swith to Qt5 building mode" OFF)
 
-# show cmake version
-message(STATUS "GpgFrontend Moudles Build Configuration Started CMAKE Version ${CMAKE_VERSION}")
+# show build arguments
+message(STATUS "GpgFrontend Modules Source Path: ${CMAKE_SOURCE_DIR}")
+message(STATUS "GpgFrontend Modules Runtime Path: ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
 
-set(SDK_VERSION "${CMAKE_PROJECT_VERSION}")
-set(SDK_PATH "${CMAKE_SOURCE_DIR}/sdk/${SDK_VERSION}")
-set(SDK_INCLUDE_PATH "${SDK_PATH}/include")
-set(SDK_LIB_PATH "${SDK_PATH}/lib")
+set(SDK_INCLUDE_PATH "${CMAKE_SOURCE_DIR}/src/sdk")
+set(SDK_LIB_PATH "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
 
-message(STATUS "SDK Path: ${SDK_PATH}")
+message(STATUS "GpgFrontend Modules SDK Headers Path: ${SDK_INCLUDE_PATH} ")
+message(STATUS "GpgFrontend Modules SDK Library Path: ${SDK_LIB_PATH} ")
 
 include_directories(
-  ${CMAKE_SOURCE_DIR}/include
+  ${CMAKE_CURRENT_SOURCE_DIR}/include
   ${SDK_INCLUDE_PATH}
 )
 
 link_directories(
   ${SDK_LIB_PATH}
 )
+
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/modules)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/modules)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}/modules)
+
+message(STATUS "GpgFrontend Modules Runtime Output Path: ${CMAKE_RUNTIME_OUTPUT_DIRECTORY} ")
+message(STATUS "GpgFrontend Modules Library Output Path: ${CMAKE_LIBRARY_OUTPUT_DIRECTORY} ")
+message(STATUS "GpgFrontend Modules ARCHIVE Output Path: ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY} ")
 
 # Introduce Qt
 # Support Qt version: 6.x
@@ -88,29 +95,11 @@ endif()
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
-set(CMAKE_AUTORCC_OPTIONS "--compress;9")
 
-# rpath config
-if(WIN32)
-  message(STATUS "Configuring for Windows without rpath")
-elseif(APPLE)
-  set(CMAKE_MACOSX_RPATH 1)
-  set(CMAKE_INSTALL_RPATH "@loader_path/../lib")
-
-  include_directories(
-    /usr/local/include
-    /opt/homebrew/include
-  )
-
-  link_directories(
-    /usr/local/lib
-    /opt/homebrew/lib
-  )
-else()
-  set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
-  set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
-  set(CMAKE_INSTALL_RPATH "$ORIGIN:$ORIGIN/../lib")
-endif()
+include(GNUInstallDirs)
+set(CMAKE_INSTALL_BINDIR "${CMAKE_INSTALL_LIBDIR}/${PROJECT_NAME}/modules")
+set(CMAKE_INSTALL_LIBDIR "${CMAKE_INSTALL_LIBDIR}/${PROJECT_NAME}/modules")
+set(CMAKE_INSTALL_DATAROOTDIR "${CMAKE_INSTALL_LIBDIR}/${PROJECT_NAME}/modules")
 
 # third_party
 add_subdirectory(third_party)

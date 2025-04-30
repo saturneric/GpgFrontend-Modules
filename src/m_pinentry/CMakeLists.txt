@@ -40,10 +40,6 @@ list(APPEND INTEGRATED_MODULE_SOURCE "pinentry.qrc")
 # define module
 add_library(mod_pinentry SHARED ${INTEGRATED_MODULE_SOURCE})
 
-# install dir
-install(TARGETS mod_pinentry
-  LIBRARY DESTINATION "${CMAKE_INSTALL_PREFIX}/modules")
-
 # link options
 
 # link sdk
@@ -55,3 +51,10 @@ target_link_libraries(mod_pinentry PUBLIC Qt::Widgets)
 
 # using std c++ 17
 target_compile_features(mod_pinentry PUBLIC cxx_std_17)
+
+# install paths
+install(TARGETS mod_pinentry
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+)

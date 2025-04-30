@@ -31,10 +31,6 @@ aux_source_directory(. INTEGRATED_MODULE_SOURCE)
 # define libgpgfrontend_module
 add_library(mod_paper_key SHARED ${INTEGRATED_MODULE_SOURCE})
 
-# install dir
-install(TARGETS mod_paper_key
-  LIBRARY DESTINATION "${CMAKE_INSTALL_PREFIX}/modules")
-
 # link sdk
 target_link_libraries(mod_paper_key PRIVATE
   gpgfrontend_module_sdk)
@@ -44,3 +40,10 @@ target_link_libraries(mod_paper_key PRIVATE Qt::Core)
 
 # using std c++ 17
 target_compile_features(mod_paper_key PRIVATE cxx_std_17)
+
+# install paths
+install(TARGETS mod_paper_key
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+)
