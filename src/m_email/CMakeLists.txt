@@ -28,8 +28,8 @@
 set(INTEGRATED_MODULE_SOURCE "")
 aux_source_directory(. INTEGRATED_MODULE_SOURCE)
 
-# define libgpgfrontend_module
-add_library(mod_email SHARED ${INTEGRATED_MODULE_SOURCE})
+# register module
+register_module(mod_email MODULE_TARGET ${INTEGRATED_MODULE_SOURCE})
 
 set(VMIME_INSTALL OFF CACHE BOOL "Don't Install")
 set(VMIME_BUILD_TESTS OFF CACHE BOOL "No Unit Test")
@@ -50,27 +50,18 @@ if(MINGW)
 endif()
 
 # vmime headers
-target_include_directories(mod_email PRIVATE
+target_include_directories(${MODULE_TARGET} PRIVATE
   "${CMAKE_CURRENT_SOURCE_DIR}/vmime/src"
   "${CMAKE_BINARY_DIR}/src/vmime"
   "${CMAKE_BINARY_DIR}/src")
 
-# /Users/erich/Documents/Entwicklung/GpgFrontend/modules/build/src/vmime/config.hpp
-# /Users/erich/Documents/Entwicklung/GpgFrontend/modules/build
 message(STATUS "CMAKE_BINARY_DIR of module email: ${CMAKE_BINARY_DIR}")
 
-# link sdk
-target_link_libraries(mod_email PRIVATE
-  gpgfrontend_module_sdk)
-
 # link qt
-target_link_libraries(mod_email PRIVATE Qt::Core Qt::Widgets Qt::Concurrent)
+target_link_libraries(${MODULE_TARGET} PRIVATE Qt::Core Qt::Widgets Qt::Concurrent)
 
 # link vmime
-target_link_libraries(mod_email PRIVATE vmime-static)
-
-# using std c++ 17
-target_compile_features(mod_email PRIVATE cxx_std_17)
+target_link_libraries(${MODULE_TARGET} PRIVATE vmime-static)
 
 # i18n
 set(LOCALE_TS_PATH ${CMAKE_CURRENT_SOURCE_DIR}/ts)
@@ -80,15 +71,20 @@ set(TS_FILES "${LOCALE_TS_PATH}/ModuleEMail.en_US.ts"
   "${LOCALE_TS_PATH}/ModuleEMail.it_iT.ts"
   "${LOCALE_TS_PATH}/ModuleEMail.zh_CN.ts"
   "${LOCALE_TS_PATH}/ModuleEMail.zh_TW.ts")
-qt_add_translations(mod_email
-  RESOURCE_PREFIX "/i18n"
-  TS_FILES ${TS_FILES}
-  SOURCES ${INTEGRATED_MODULE_SOURCE}
-  INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR})
 
-# install paths
-install(TARGETS mod_email
-  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-  PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-)
+if(NOT XCODE_BUILD)
+  qt_add_translations(${MODULE_TARGET}
+    RESOURCE_PREFIX "/i18n"
+    TS_FILES ${TS_FILES}
+    SOURCES ${INTEGRATED_MODULE_SOURCE}
+    INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR})
+else()
+  add_custom_target("${MODULE_TARGET}_i18n" ALL)
+  qt_add_lrelease("${MODULE_TARGET}_i18n"
+    TS_FILES ${TS_FILES}
+    QM_FILES_OUTPUT_VARIABLE TRANSLATIONS_QM)
+  qt_add_resources(${MODULE_TARGET} "${MODULE_TARGET}_i18n"
+    PREFIX "/i18n"
+    BASE ${CMAKE_CURRENT_BINARY_DIR}
+    FILES ${TRANSLATIONS_QM})
+endif()

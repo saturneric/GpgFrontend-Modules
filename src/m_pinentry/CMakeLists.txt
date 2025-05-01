@@ -37,24 +37,8 @@ endif()
 
 list(APPEND INTEGRATED_MODULE_SOURCE "pinentry.qrc")
 
-# define module
-add_library(mod_pinentry SHARED ${INTEGRATED_MODULE_SOURCE})
-
-# link options
-
-# link sdk
-target_link_libraries(mod_pinentry PRIVATE
-  gpgfrontend_module_sdk)
+# register module
+register_module(pinentry MODULE_TARGET ${INTEGRATED_MODULE_SOURCE})
 
 # link qt
-target_link_libraries(mod_pinentry PUBLIC Qt::Widgets)
-
-# using std c++ 17
-target_compile_features(mod_pinentry PUBLIC cxx_std_17)
-
-# install paths
-install(TARGETS mod_pinentry
-  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-  PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-)
+target_link_libraries(${MODULE_TARGET} PUBLIC Qt::Widgets)

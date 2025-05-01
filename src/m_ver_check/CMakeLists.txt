@@ -28,18 +28,11 @@
 set(INTEGRATED_MODULE_SOURCE "")
 aux_source_directory(. INTEGRATED_MODULE_SOURCE)
 
-# define libgpgfrontend_module
-add_library(mod_ver_check SHARED ${INTEGRATED_MODULE_SOURCE})
-
-# link sdk
-target_link_libraries(mod_ver_check PRIVATE
-  gpgfrontend_module_sdk)
+# register module
+register_module(ver_check MODULE_TARGET ${INTEGRATED_MODULE_SOURCE})
 
 # link qt
-target_link_libraries(mod_ver_check PUBLIC Qt::Core Qt::Network Qt::Widgets)
-
-# using std c++ 17
-target_compile_features(mod_ver_check PRIVATE cxx_std_17)
+target_link_libraries(${MODULE_TARGET} PUBLIC Qt::Core Qt::Network Qt::Widgets)
 
 # ui
 set(CMAKE_AUTOUIC_SEARCH_PATHS ${CMAKE_AUTOUIC_SEARCH_PATHS} ${CMAKE_CURRENT_SOURCE_DIR}/ui)
@@ -53,15 +46,20 @@ set(TS_FILES
   "${LOCALE_TS_PATH}/ModuleVersionChecking.it_IT.ts"
   "${LOCALE_TS_PATH}/ModuleVersionChecking.zh_CN.ts"
   "${LOCALE_TS_PATH}/ModuleVersionChecking.zh_TW.ts")
-qt_add_translations(mod_ver_check
-  RESOURCE_PREFIX "/i18n"
-  TS_FILES ${TS_FILES}
-  SOURCES ${INTEGRATED_MODULE_SOURCE}
-  INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR})
 
-# install paths
-install(TARGETS mod_ver_check
-  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-  PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-)
+if(NOT XCODE_BUILD)
+  qt_add_translations(${MODULE_TARGET}
+    RESOURCE_PREFIX "/i18n"
+    TS_FILES ${TS_FILES}
+    SOURCES ${INTEGRATED_MODULE_SOURCE}
+    INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR})
+else()
+  add_custom_target("${MODULE_TARGET}_i18n" ALL)
+  qt_add_lrelease("${MODULE_TARGET}_i18n"
+    TS_FILES ${TS_FILES}
+    QM_FILES_OUTPUT_VARIABLE TRANSLATIONS_QM)
+  qt_add_resources(${MODULE_TARGET} "${MODULE_TARGET}_i18n"
+    PREFIX " /i18n "
+    BASE ${CMAKE_CURRENT_BINARY_DIR}
+    FILES ${TRANSLATIONS_QM})
+endif()
