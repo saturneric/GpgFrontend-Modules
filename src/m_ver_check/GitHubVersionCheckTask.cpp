@@ -26,7 +26,7 @@
  *
  */
 
-#include "VersionCheckTask.h"
+#include "GitHubVersionCheckTask.h"
 
 #include <GFSDKBasic.h>
 #include <GFSDKExtra.h>
@@ -38,9 +38,10 @@
 
 #include "GFModuleCommonUtils.hpp"
 #include "SoftwareVersion.h"
+#include "Utils.h"
 #include "VersionCheckingModule.h"
 
-VersionCheckTask::VersionCheckTask()
+GitHubVersionCheckTask::GitHubVersionCheckTask()
     : network_manager_(new QNetworkAccessManager(this)),
       current_version_(GFProjectVersion()) {
   qRegisterMetaType<SoftwareVersion>("SoftwareVersion");
@@ -48,7 +49,7 @@ VersionCheckTask::VersionCheckTask()
   version_meta_data_.local_commit_hash = GFProjectGitCommitHash();
 }
 
-auto VersionCheckTask::Run() -> int {
+auto GitHubVersionCheckTask::Run() -> int {
   QString base_url = "https://api.github.com/repos/saturneric/gpgfrontend";
   QList<QUrl> urls = {
       {base_url + "/releases/latest"},
@@ -57,7 +58,7 @@ auto VersionCheckTask::Run() -> int {
   };
 
   connect(network_manager_, &QNetworkAccessManager::finished, this,
-          &VersionCheckTask::slot_parse_reply);
+          &GitHubVersionCheckTask::slot_parse_reply);
 
   for (const QUrl& url : urls) {
     QNetworkRequest request(url);
@@ -70,7 +71,7 @@ auto VersionCheckTask::Run() -> int {
   return 0;
 }
 
-void VersionCheckTask::slot_parse_reply(QNetworkReply* reply) {
+void GitHubVersionCheckTask::slot_parse_reply(QNetworkReply* reply) {
   if (reply->error() == QNetworkReply::NoError) {
     FLOG_DEBUG("get reply from url: %1", reply->url().toString());
     switch (replies_.indexOf(reply)) {
@@ -83,6 +84,8 @@ void VersionCheckTask::slot_parse_reply(QNetworkReply* reply) {
       case 2:
         slot_parse_current_tag_info(reply);
         break;
+      default:
+        break;
     }
   } else {
     FLOG_DEBUG("get reply from url: %1, error: %2 %3", reply->url().toString(),
@@ -93,12 +96,13 @@ void VersionCheckTask::slot_parse_reply(QNetworkReply* reply) {
   reply->deleteLater();
 
   if (replies_.isEmpty()) {
-    slot_fill_grt_with_version_info(version_meta_data_);
+    FillGrtWithVersionInfo(version_meta_data_);
     emit SignalUpgradeVersion(version_meta_data_);
   }
 }
 
-void VersionCheckTask::slot_parse_latest_version_info(QNetworkReply* reply) {
+void GitHubVersionCheckTask::slot_parse_latest_version_info(
+    QNetworkReply* reply) {
   if (reply == nullptr || reply->error() != QNetworkReply::NoError) {
     return;
   }
@@ -124,24 +128,18 @@ void VersionCheckTask::slot_parse_latest_version_info(QNetworkReply* reply) {
               latest_version);
   }
 
-  bool prerelease = latest_reply_json["prerelease"].toBool();
-  bool draft = latest_reply_json["draft"].toBool();
   auto publish_date = latest_reply_json["published_at"].toString();
   auto release_note = latest_reply_json["body"].toString();
+
   version_meta_data_.latest_version = latest_version;
-  version_meta_data_.latest_prerelease_version_from_remote = prerelease;
-  version_meta_data_.latest_draft_from_remote = draft;
   version_meta_data_.publish_date = publish_date;
   version_meta_data_.release_note = release_note;
 }
 
-void VersionCheckTask::slot_parse_current_version_info(QNetworkReply* reply) {
-  if (reply == nullptr || reply->error() != QNetworkReply::NoError) {
-    version_meta_data_.current_version_publish_in_remote = false;
-    return;
-  }
+void GitHubVersionCheckTask::slot_parse_current_version_info(
+    QNetworkReply* reply) {
+  if (reply == nullptr || reply->error() != QNetworkReply::NoError) return;
 
-  version_meta_data_.current_version_publish_in_remote = true;
   auto reply_bytes = reply->readAll();
   auto current_reply_json = QJsonDocument::fromJson(reply_bytes);
 
@@ -150,13 +148,10 @@ void VersionCheckTask::slot_parse_current_version_info(QNetworkReply* reply) {
     return;
   }
 
-  bool current_prerelease = current_reply_json["prerelease"].toBool();
-  bool current_draft = current_reply_json["draft"].toBool();
-  version_meta_data_.latest_prerelease_version_from_remote = current_prerelease;
-  version_meta_data_.latest_draft_from_remote = current_draft;
+  version_meta_data_.current_version_publish_in_remote = true;
 }
 
-void VersionCheckTask::slot_parse_current_tag_info(QNetworkReply* reply) {
+void GitHubVersionCheckTask::slot_parse_current_tag_info(QNetworkReply* reply) {
   if (reply == nullptr || reply->error() != QNetworkReply::NoError) {
     version_meta_data_.current_version_publish_in_remote = false;
     return;
@@ -182,58 +177,4 @@ void VersionCheckTask::slot_parse_current_tag_info(QNetworkReply* reply) {
   version_meta_data_.remote_commit_hash_by_tag = sha.trimmed();
   FLOG_DEBUG("got remote commit hash: %1",
              version_meta_data_.remote_commit_hash_by_tag);
-}
-
-void VersionCheckTask::slot_fill_grt_with_version_info(
-    const SoftwareVersion& version) {
-  GFModuleLogDebug("filling software information info in rt...");
-
-  GFModuleUpsertRTValue(GFGetModuleID(),
-                        GFModuleStrDup("version.current_version"),
-                        GFModuleStrDup(version.current_version.toUtf8()));
-  GFModuleUpsertRTValue(GFGetModuleID(),
-                        GFModuleStrDup("version.latest_version"),
-                        GFModuleStrDup(version.latest_version.toUtf8()));
-  GFModuleUpsertRTValue(
-      GFGetModuleID(), GFModuleStrDup("version.remote_commit_hash_by_tag"),
-      GFModuleStrDup(version.remote_commit_hash_by_tag.toUtf8()));
-  GFModuleUpsertRTValue(GFGetModuleID(),
-                        GFModuleStrDup("version.local_commit_hash"),
-                        GFModuleStrDup(version.local_commit_hash.toUtf8()));
-
-  GFModuleUpsertRTValueBool(
-      GFGetModuleID(), GFModuleStrDup("version.current_version_is_drafted"),
-      version.current_version_is_drafted ? 1 : 0);
-  GFModuleUpsertRTValueBool(
-      GFGetModuleID(),
-      GFModuleStrDup("version.current_version_is_a_prerelease"),
-      version.current_version_is_a_prerelease ? 1 : 0);
-  GFModuleUpsertRTValueBool(
-      GFGetModuleID(),
-      GFModuleStrDup("version.current_version_publish_in_remote"),
-      version.current_version_publish_in_remote ? 1 : 0);
-  GFModuleUpsertRTValueBool(
-      GFGetModuleID(),
-      GFModuleStrDup("version.latest_prerelease_version_from_remote"),
-      version.latest_prerelease_version_from_remote ? 1 : 0);
-  GFModuleUpsertRTValueBool(GFGetModuleID(),
-                            GFModuleStrDup("version.need_upgrade"),
-                            version.NeedUpgrade() ? 1 : 0);
-  GFModuleUpsertRTValueBool(GFGetModuleID(),
-                            GFModuleStrDup("version.current_version_released"),
-                            version.CurrentVersionReleased() ? 1 : 0);
-  GFModuleUpsertRTValueBool(
-      GFGetModuleID(), GFModuleStrDup("version.current_a_withdrawn_version"),
-      version.VersionWithdrawn() ? 1 : 0);
-  GFModuleUpsertRTValueBool(GFGetModuleID(),
-                            GFModuleStrDup("version.git_commit_hash_mismatch"),
-                            version.GitCommitHashMismatch() ? 1 : 0);
-
-  GFModuleUpsertRTValue(GFGetModuleID(), GFModuleStrDup("version.release_note"),
-                        GFModuleStrDup(version.release_note.toUtf8()));
-  GFModuleUpsertRTValueBool(GFGetModuleID(),
-                            GFModuleStrDup("version.loading_done"),
-                            version.IsInfoValid() ? 1 : 0);
-
-  GFModuleLogDebug("software information filled in rt");
 }

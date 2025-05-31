@@ -44,18 +44,13 @@ auto SoftwareVersion::NeedUpgrade() const -> bool {
                     GFModuleStrDup(current_version.toUtf8()),
                     GFModuleStrDup(latest_version.toUtf8()))));
 
-  FLOG_DEBUG("remote latest version: %1, pre-release: %2, draft: %3",
-             latest_version, latest_prerelease_version_from_remote,
-             latest_draft_from_remote);
-  return !latest_version.isEmpty() && !latest_prerelease_version_from_remote &&
-         !latest_draft_from_remote &&
+  return !latest_version.isEmpty() &&
          GFCompareSoftwareVersion(GFModuleStrDup(current_version.toUtf8()),
                                   GFModuleStrDup(latest_version.toUtf8())) < 0;
 }
 
 auto SoftwareVersion::VersionWithdrawn() const -> bool {
-  return !latest_version.isEmpty() && !current_version_publish_in_remote &&
-         current_version_is_a_prerelease && !current_version_is_drafted;
+  return !latest_version.isEmpty() && !current_version_publish_in_remote;
 }
 
 auto SoftwareVersion::CurrentVersionReleased() const -> bool {

@@ -39,14 +39,14 @@ class QNetworkAccessManager;
  * @brief
  *
  */
-class VersionCheckTask : public QObject {
+class GitHubVersionCheckTask : public QObject {
   Q_OBJECT
  public:
   /**
    * @brief Construct a new Version Check Thread object
    *
    */
-  VersionCheckTask();
+  GitHubVersionCheckTask();
 
   /**
    * @brief
@@ -92,11 +92,6 @@ class VersionCheckTask : public QObject {
    * @param reply
    */
   void slot_parse_current_tag_info(QNetworkReply* reply);
-  /**
-   * @brief
-   *
-   */
-  void slot_fill_grt_with_version_info(const SoftwareVersion&);
 
  private:
   QList<QNetworkReply*> replies_;           ///<

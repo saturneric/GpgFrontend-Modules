@@ -28,66 +28,74 @@
 
 #pragma once
 
-#include <QString>
+#include <QObject>
+
+#include "SoftwareVersion.h"
+
+class QNetworkReply;
+class QNetworkAccessManager;
 
 /**
  * @brief
  *
  */
-struct SoftwareVersion {
-  QString latest_version;   ///<
-  QString current_version;  ///<
-
-  bool current_version_publish_in_remote = false;      ///<
-  bool current_commit_hash_publish_in_remote = false;  ///<
-
-  QString publish_date;  ///<
-  QString release_note;  ///<
-  QString remote_commit_hash_by_tag;
-  QString local_commit_hash;
+class BKTUSVersionCheckTask : public QObject {
+  Q_OBJECT
+ public:
+  /**
+   * @brief Construct a new Version Check Thread object
+   *
+   */
+  BKTUSVersionCheckTask();
 
   /**
    * @brief
    *
-   * @return true
-   * @return false
+   * @return int
    */
-  [[nodiscard]] auto IsInfoValid() const -> bool {
-    return !latest_version.isEmpty();
-  }
+  auto Run() -> int;
+
+ signals:
 
   /**
    * @brief
    *
-   * @return true
-   * @return false
+   * @param version
    */
-  [[nodiscard]] auto NeedUpgrade() const -> bool;
+  void SignalUpgradeVersion(SoftwareVersion version);
+
+ private slots:
 
   /**
    * @brief
    *
-   * @return true
-   * @return false
    */
-  [[nodiscard]] auto VersionWithdrawn() const -> bool;
+  void slot_parse_reply(QNetworkReply* reply);
 
   /**
    * @brief
    *
-   * @return true
-   * @return false
+   * @param reply
    */
-  [[nodiscard]] auto GitCommitHashMismatch() const -> bool;
+  void slot_parse_latest_version_info(QNetworkReply* reply);
 
   /**
    * @brief
    *
-   * @return true
-   * @return false
+   * @param reply
    */
-  [[nodiscard]] auto CurrentVersionReleased() const -> bool;
+  void slot_parse_current_tag_info(QNetworkReply* reply);
+
+  /**
+   * @brief
+   *
+   * @param reply
+   */
+  void slot_parse_current_commit_hash_info(QNetworkReply* reply);
 
  private:
-  static auto version_compare(const QString& a, const QString& b) -> int;
+  QList<QNetworkReply*> replies_;           ///<
+  QNetworkAccessManager* network_manager_;  ///<
+  QString current_version_;                 ///<
+  SoftwareVersion version_meta_data_;
 };

@@ -31,7 +31,7 @@
 #include "GFModuleCommonUtils.hpp"
 #include "GFSDKBasic.h"
 #include "GFSDKModule.h"
-#include "VersionCheckTask.h"
+#include "GitHubVersionCheckTask.h"
 #include "VersionCheckingModule.h"
 
 UpdateTab::UpdateTab(QWidget* parent)
@@ -90,11 +90,12 @@ void UpdateTab::showEvent(QShowEvent* event) {
       GFGetModuleID(), GFModuleStrDup("version.loading_done"), 0);
 
   if (is_loading_done == 0) {
-    auto* task = new VersionCheckTask();
-    QObject::connect(
-        task, &VersionCheckTask::SignalUpgradeVersion, QThread::currentThread(),
-        [this](const SoftwareVersion&) { slot_show_version_status(); });
-    QObject::connect(task, &VersionCheckTask::SignalUpgradeVersion, task,
+    auto* task = new GitHubVersionCheckTask();
+    QObject::connect(task, &GitHubVersionCheckTask::SignalUpgradeVersion,
+                     QThread::currentThread(), [this](const SoftwareVersion&) {
+                       slot_show_version_status();
+                     });
+    QObject::connect(task, &GitHubVersionCheckTask::SignalUpgradeVersion, task,
                      &QObject::deleteLater);
     task->Run();
 
@@ -132,15 +133,18 @@ void UpdateTab::slot_show_version_status() {
   auto is_need_upgrade = GFModuleRetrieveRTValueOrDefaultBool(
       GFGetModuleID(), GFModuleStrDup("version.need_upgrade"), 0);
 
-  auto is_current_a_withdrawn_version = GFModuleRetrieveRTValueOrDefaultBool(
-      GFGetModuleID(), GFModuleStrDup("version.current_a_withdrawn_version"),
-      0);
-
-  auto is_current_version_released = GFModuleRetrieveRTValueOrDefaultBool(
-      GFGetModuleID(), GFModuleStrDup("version.current_version_released"), 0);
+  auto is_current_version_publish_in_remote =
+      GFModuleRetrieveRTValueOrDefaultBool(
+          GFGetModuleID(),
+          GFModuleStrDup("version.current_version_publish_in_remote"), 0);
 
   auto is_git_commit_hash_mismatch = GFModuleRetrieveRTValueOrDefaultBool(
       GFGetModuleID(), GFModuleStrDup("version.git_commit_hash_mismatch"), 0);
+
+  auto is_current_commit_hash_publish_in_remote =
+      GFModuleRetrieveRTValueOrDefaultBool(
+          GFGetModuleID(),
+          GFModuleStrDup("version.current_commit_hash_publish_in_remote"), 0);
 
   QString const latest_version = UDUP(GFModuleRetrieveRTValueOrDefault(
       GFGetModuleID(), GFModuleStrDup("version.latest_version"),
@@ -167,32 +171,20 @@ void UpdateTab::slot_show_version_status() {
         "</center>");
     upgrade_label_->show();
     upgrade_info_box_->show();
-  } else if (is_current_a_withdrawn_version != 0) {
+  } else if ((!latest_version.trimmed().isEmpty() &&
+              is_current_version_publish_in_remote == 0)) {
     upgrade_label_->setText(
         "<center>" +
-        tr("This version has critical issues and has been withdrawn. Please "
-           "stop using it immediately.") +
+        tr("This version is either withdrawn due to critical issues or is an "
+           "unreleased build. "
+           "Please stop using it and download the latest stable version.") +
         "</center><center>" + tr("Click") +
-        " <a "
-        "href=\"https://www.gpgfrontend.bktus.com/overview/downloads/\">" +
+        " <a href=\"https://www.gpgfrontend.bktus.com/overview/downloads/\">" +
         tr("here") + "</a> " + tr("to download the latest stable version.") +
         "</center>");
     upgrade_label_->show();
     upgrade_info_box_->show();
-  } else if (!latest_version.trimmed().isEmpty() &&
-             is_current_version_released == 0) {
-    upgrade_label_->setText(
-        "<center>" +
-        tr("This is an unreleased version, possibly a beta. If stability is "
-           "important to you, please avoid using this version.") +
-        "</center><center>" + tr("Click") +
-        " <a "
-        "href=\"https://www.gpgfrontend.bktus.com/overview/downloads/\">" +
-        tr("here") + "</a> " + tr("to download the latest stable version.") +
-        "</center>");
-    upgrade_label_->show();
-    upgrade_info_box_->show();
-  } else if (is_git_commit_hash_mismatch != 0 && !GFIsFlatpakENV()) {
+  } else if (is_git_commit_hash_mismatch != 0 && GFIsCheckReleaseCommitHash()) {
     upgrade_label_->setText(
         "<center>" +
         tr("The current version's commit hash does not match the official "
@@ -202,6 +194,19 @@ void UpdateTab::slot_show_version_status() {
         "href=\"https://www.gpgfrontend.bktus.com/overview/downloads/\">" +
         tr("here") + "</a> " +
         tr("to verify your installation or download the official version.") +
+        "</center>");
+    upgrade_label_->show();
+    upgrade_info_box_->show();
+  } else if (is_current_commit_hash_publish_in_remote != 0) {
+    upgrade_label_->setText(
+        "<center>" +
+        tr("The commit hash for this build was not found in the official "
+           "repository. This may indicate a modified or unofficial version.") +
+        "</center><center>" + tr("Click") +
+        " <a "
+        "href=\"https://www.gpgfrontend.bktus.com/overview/downloads/\">" +
+        tr("here") + "</a> " +
+        tr("to verify your installation or download the official build.") +
         "</center>");
     upgrade_label_->show();
     upgrade_info_box_->show();

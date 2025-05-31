@@ -32,7 +32,7 @@ aux_source_directory(. INTEGRATED_MODULE_SOURCE)
 register_module(ver_check MODULE_TARGET ${INTEGRATED_MODULE_SOURCE})
 
 # link qt
-target_link_libraries(${MODULE_TARGET} PUBLIC Qt::Core Qt::Network Qt::Widgets)
+target_link_libraries(${MODULE_TARGET} PUBLIC Qt::Core Qt::Network Qt::Widgets Qt::Xml)
 
 # ui
 set(CMAKE_AUTOUIC_SEARCH_PATHS ${CMAKE_AUTOUIC_SEARCH_PATHS} ${CMAKE_CURRENT_SOURCE_DIR}/ui)

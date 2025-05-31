@@ -37,14 +37,15 @@
 #include <QMetaType>
 #include <QtNetwork>
 
+#include "BKTUSVersionCheckTask.h"
 #include "GFModuleCommonUtils.hpp"
 #include "GFModuleDefine.h"
+#include "GitHubVersionCheckTask.h"
 #include "SoftwareVersion.h"
 #include "UpdateTab.h"
-#include "VersionCheckTask.h"
 
 GF_MODULE_API_DEFINE("com.bktus.gpgfrontend.module.version_checking",
-                     "VersionChecking", "1.2.1",
+                     "VersionChecking", "1.3.1",
                      "Try checking GpgFrontend version.", "Saturneric");
 
 DEFINE_TRANSLATIONS_STRUCTURE(ModuleVersionChecking);
@@ -74,13 +75,23 @@ EXECUTE_MODULE() {
   FLOG_INFO("version checking module executing, event id: %1",
             event["event_id"]);
 
-  auto* task = new VersionCheckTask();
-  QObject::connect(task, &VersionCheckTask::SignalUpgradeVersion,
-                   QThread::currentThread(),
-                   [event](const SoftwareVersion&) { CB_SUCC(event); });
-  QObject::connect(task, &VersionCheckTask::SignalUpgradeVersion, task,
-                   &QObject::deleteLater);
-  task->Run();
+  if (event["source"] == "bktus") {
+    auto* task = new BKTUSVersionCheckTask();
+    QObject::connect(task, &BKTUSVersionCheckTask::SignalUpgradeVersion,
+                     QThread::currentThread(),
+                     [event](const SoftwareVersion&) { CB_SUCC(event); });
+    QObject::connect(task, &BKTUSVersionCheckTask::SignalUpgradeVersion, task,
+                     &QObject::deleteLater);
+    task->Run();
+  } else {
+    auto* task = new GitHubVersionCheckTask();
+    QObject::connect(task, &GitHubVersionCheckTask::SignalUpgradeVersion,
+                     QThread::currentThread(),
+                     [event](const SoftwareVersion&) { CB_SUCC(event); });
+    QObject::connect(task, &GitHubVersionCheckTask::SignalUpgradeVersion, task,
+                     &QObject::deleteLater);
+    task->Run();
+  }
 
   return 0;
 }
