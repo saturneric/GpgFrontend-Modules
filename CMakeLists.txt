@@ -84,11 +84,11 @@ message(STATUS "GpgFrontend Modules ARCHIVE Output Path: ${CMAKE_ARCHIVE_OUTPUT_
 if(GPGFRONTEND_QT5_BUILD)
   # Introduce Qt
   # Support Qt version: 5.15.x
-  find_package(Qt5 5.15 COMPONENTS Core Widgets Network LinguistTools Concurrent REQUIRED)
+  find_package(Qt5 5.15 COMPONENTS Core Widgets Network LinguistTools Concurrent Xml REQUIRED)
 else()
   # Introduce Qt
   # Support Qt version: 6.x
-  find_package(Qt6 6 COMPONENTS Core Widgets Network LinguistTools Concurrent REQUIRED)
+  find_package(Qt6 6 COMPONENTS Core Widgets Network LinguistTools Concurrent Xml REQUIRED)
 endif()
 
 # Qt configuration
