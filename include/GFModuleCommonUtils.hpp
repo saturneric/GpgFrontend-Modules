@@ -40,8 +40,11 @@
 #include <cstring>
 
 #define DUP(v) GFModuleStrDup(v)
+#define SECDUP(v) GFModuleSecStrDup(v)
 #define UDUP(v) UnStrDup(v)
+#define USECDUP(v) UnSecStrDup(v)
 #define QDUP(v) QStrDup(v)
+#define QSECDUP(v) QSecStrDup(v)
 
 #define LISTEN(event) GFModuleListenEvent(GFGetModuleID(), DUP(event))
 
@@ -131,7 +134,11 @@ inline void MLogError(const QString& s) { GFModuleLogError(s.toUtf8()); }
 #define FLOG_ERROR(format, ...) \
   MLogError(FormatString(QString(format), __VA_ARGS__))
 
-inline auto QStrDup(QString str) -> char* { return DUP(str.toUtf8()); }
+inline auto QStrDup(const QString& str) -> char* { return DUP(str.toUtf8()); }
+
+inline auto QSecStrDup(const QString& str) -> char* {
+  return SECDUP(str.toUtf8());
+}
 
 inline auto UnStrDup(const char* s) -> QString {
   auto q_s = QString::fromUtf8(s == nullptr ? "" : s);
@@ -139,8 +146,14 @@ inline auto UnStrDup(const char* s) -> QString {
   return q_s;
 }
 
-inline auto FormatStringHelper(const QString& format,
-                               const std::string& arg) -> QString {
+inline auto UnSecStrDup(const char* s) -> QString {
+  auto q_s = QString::fromUtf8(s == nullptr ? "" : s);
+  if (s != nullptr) GFSecFreeMemory(static_cast<void*>(const_cast<char*>(s)));
+  return q_s;
+}
+
+inline auto FormatStringHelper(const QString& format, const std::string& arg)
+    -> QString {
   return format.arg(QString::fromStdString(arg));
 }
 
@@ -212,7 +225,7 @@ inline auto QMapToGFModuleMetaDataList(const QMap<QString, QString>& map)
     QByteArray const value = it.value().toUtf8();
 
     new_node->key = DUP(key);
-    new_node->value = DUP(value);
+    new_node->value = SECDUP(value);
 
     new_node->next = nullptr;
 
@@ -235,7 +248,7 @@ inline auto ConvertEventParamsToMap(GFModuleEventParam* params)
 
   while (current != nullptr) {
     const auto name = UDUP(current->name);
-    const auto value = UDUP(current->value);
+    const auto value = USECDUP(current->value);
 
     if (!name.isEmpty()) param_map[name] = value;
 
@@ -257,7 +270,7 @@ inline auto ConvertMapToParams(const QMap<QString, QString>& param_map)
         GFAllocateMemory(sizeof(GFModuleEventParam)));
 
     param->name = DUP(key.toUtf8());
-    param->value = DUP(value.toUtf8());
+    param->value = SECDUP(value.toUtf8());
     param->next = nullptr;
 
     if (prev == nullptr) {
@@ -274,7 +287,7 @@ inline auto ConvertMapToParams(const QMap<QString, QString>& param_map)
         GFAllocateMemory(sizeof(GFModuleEventParam)));
 
     param->name = DUP(it->first.toUtf8());
-    param->value = DUP(it->second.toUtf8());
+    param->value = SECDUP(it->second.toUtf8());
     param->next = nullptr;
 
     if (prev == nullptr) {
@@ -391,13 +404,13 @@ auto SecureCreateQSharedObject(Args&&... args) -> QSharedPointer<T> {
   }
 }
 
-inline auto CharArrayToQStringList(char** pl_components,
-                                   int size) -> QStringList {
+inline auto CharArrayToQStringList(char** pl_components, int size)
+    -> QStringList {
   QStringList list;
   for (int i = 0; i < size; ++i) {
     list.append(UDUP(pl_components[i]));
   }
-  GFFreeMemory(pl_components);
+  GFFreeMemory(static_cast<void*>(pl_components));
   return list;
 }
 
