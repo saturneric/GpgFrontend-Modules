@@ -85,12 +85,14 @@
 
 #define END_EXECUTE_MODULE() }
 
+#undef CB_SUCC
 #define CB_SUCC(event)                          \
   {                                             \
     CB(event, GFGetModuleID(), {{"ret", "0"}}); \
     return 0;                                   \
   }
 
+#undef CB_ERR
 #define CB_ERR(event, ret, err)                                 \
   {                                                             \
     CB(event, GFGetModuleID(),                                  \
