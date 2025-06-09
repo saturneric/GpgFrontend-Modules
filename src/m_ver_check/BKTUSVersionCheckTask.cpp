@@ -176,7 +176,6 @@ void BKTUSVersionCheckTask::slot_parse_current_tag_info(QNetworkReply* reply) {
   if (entry_elem.isNull()) {
     FLOG_WARN("first xml entry of current version: %1 is null",
               current_version_);
-    version_meta_data_.current_commit_hash_publish_in_remote = false;
     return;
   }
 
@@ -187,7 +186,6 @@ void BKTUSVersionCheckTask::slot_parse_current_tag_info(QNetworkReply* reply) {
   if (title_elem.isNull() || id_elem.isNull() || published_elem.isNull()) {
     FLOG_WARN("illegal xml entry of structure of version: %1",
               current_version_);
-    version_meta_data_.current_commit_hash_publish_in_remote = false;
     return;
   }
 
