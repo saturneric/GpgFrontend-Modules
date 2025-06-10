@@ -39,14 +39,14 @@
 #include "GFModuleCommonUtils.hpp"
 #include "SoftwareVersion.h"
 #include "Utils.h"
-#include "VersionCheckingModule.h"
 
 GitHubVersionCheckTask::GitHubVersionCheckTask()
     : network_manager_(new QNetworkAccessManager(this)),
       current_version_(GFProjectVersion()) {
   qRegisterMetaType<SoftwareVersion>("SoftwareVersion");
-  version_meta_data_.current_version = current_version_;
-  version_meta_data_.local_commit_hash = GFProjectGitCommitHash();
+  meta_.api = "GitHub";
+  meta_.current_version = current_version_;
+  meta_.local_commit_hash = GFProjectGitCommitHash();
 }
 
 auto GitHubVersionCheckTask::Run() -> int {
@@ -55,16 +55,19 @@ auto GitHubVersionCheckTask::Run() -> int {
       {base_url + "/releases/latest"},
       {base_url + "/releases/tags/" + current_version_},
       {base_url + "/git/ref/tags/" + current_version_},
+      {base_url + "/commits/" + meta_.local_commit_hash},
   };
 
   connect(network_manager_, &QNetworkAccessManager::finished, this,
           &GitHubVersionCheckTask::slot_parse_reply);
 
+  int index = 0;
   for (const QUrl& url : urls) {
     QNetworkRequest request(url);
     request.setHeader(QNetworkRequest::UserAgentHeader,
                       GFHttpRequestUserAgent());
     QNetworkReply* reply = network_manager_->get(request);
+    reply->setProperty("GFCheckIndex", index++);
     replies_.append(reply);
   }
 
@@ -73,8 +76,10 @@ auto GitHubVersionCheckTask::Run() -> int {
 
 void GitHubVersionCheckTask::slot_parse_reply(QNetworkReply* reply) {
   if (reply->error() == QNetworkReply::NoError) {
-    FLOG_DEBUG("get reply from url: %1", reply->url().toString());
-    switch (replies_.indexOf(reply)) {
+    auto index = reply->property("GFCheckIndex").toInt();
+    FLOG_DEBUG("get reply from url: %1, index: %2", reply->url().toString(),
+               index);
+    switch (index) {
       case 0:
         slot_parse_latest_version_info(reply);
         break;
@@ -83,6 +88,9 @@ void GitHubVersionCheckTask::slot_parse_reply(QNetworkReply* reply) {
         break;
       case 2:
         slot_parse_current_tag_info(reply);
+        break;
+      case 3:
+        slot_parse_current_commit_info(reply);
         break;
       default:
         break;
@@ -96,8 +104,8 @@ void GitHubVersionCheckTask::slot_parse_reply(QNetworkReply* reply) {
   reply->deleteLater();
 
   if (replies_.isEmpty()) {
-    FillGrtWithVersionInfo(version_meta_data_);
-    emit SignalUpgradeVersion(version_meta_data_);
+    FillGrtWithVersionInfo(meta_);
+    emit SignalUpgradeVersion(meta_);
   }
 }
 
@@ -131,9 +139,9 @@ void GitHubVersionCheckTask::slot_parse_latest_version_info(
   auto publish_date = latest_reply_json["published_at"].toString();
   auto release_note = latest_reply_json["body"].toString();
 
-  version_meta_data_.latest_version = latest_version;
-  version_meta_data_.publish_date = publish_date;
-  version_meta_data_.release_note = release_note;
+  meta_.latest_version = latest_version;
+  meta_.publish_date = publish_date;
+  meta_.release_note = release_note;
 }
 
 void GitHubVersionCheckTask::slot_parse_current_version_info(
@@ -148,16 +156,16 @@ void GitHubVersionCheckTask::slot_parse_current_version_info(
     return;
   }
 
-  version_meta_data_.current_version_publish_in_remote = true;
+  meta_.current_version_publish_in_remote = true;
 }
 
 void GitHubVersionCheckTask::slot_parse_current_tag_info(QNetworkReply* reply) {
   if (reply == nullptr || reply->error() != QNetworkReply::NoError) {
-    version_meta_data_.current_version_publish_in_remote = false;
+    meta_.current_version_publish_in_remote = false;
     return;
   }
 
-  version_meta_data_.current_version_publish_in_remote = true;
+  meta_.current_version_publish_in_remote = true;
   auto reply_bytes = reply->readAll();
   auto current_reply_json = QJsonDocument::fromJson(reply_bytes);
 
@@ -168,13 +176,42 @@ void GitHubVersionCheckTask::slot_parse_current_tag_info(QNetworkReply* reply) {
 
   auto object = current_reply_json["object"].toObject();
   if (object["type"].toString() != "commit") {
-    FLOG_WARN("remote tag: %1 is not a ref: %2",
-              version_meta_data_.current_version, object["type"].toString());
+    FLOG_WARN("remote tag: %1 is not a ref: %2", meta_.current_version,
+              object["type"].toString());
     return;
   }
 
   auto sha = object["sha"].toString();
-  version_meta_data_.remote_commit_hash_by_tag = sha.trimmed();
-  FLOG_DEBUG("got remote commit hash: %1",
-             version_meta_data_.remote_commit_hash_by_tag);
+  meta_.remote_commit_hash_by_tag = sha.trimmed();
+  FLOG_DEBUG("got remote commit hash: %1", meta_.remote_commit_hash_by_tag);
+}
+
+void GitHubVersionCheckTask::slot_parse_current_commit_info(
+    QNetworkReply* reply) {
+  if (reply == nullptr || reply->error() != QNetworkReply::NoError) {
+    meta_.current_version_publish_in_remote = false;
+    return;
+  }
+
+  meta_.current_version_publish_in_remote = true;
+  auto reply_bytes = reply->readAll();
+  auto current_reply_json = QJsonDocument::fromJson(reply_bytes);
+
+  if (!current_reply_json.isObject()) {
+    FLOG_WARN("cannot parse data from github: %1", reply_bytes);
+    return;
+  }
+
+  auto object = current_reply_json["object"].toObject();
+  if (object["type"].toString() != "commit") {
+    FLOG_WARN("remote tag: %1 is not a ref: %2", meta_.current_version,
+              object["type"].toString());
+    return;
+  }
+
+  auto sha = object["sha"].toString();
+  FLOG_DEBUG("got remote commit hash from github: %1",
+             meta_.remote_commit_hash_by_tag);
+
+  meta_.current_commit_hash_publish_in_remote = sha == meta_.local_commit_hash;
 }

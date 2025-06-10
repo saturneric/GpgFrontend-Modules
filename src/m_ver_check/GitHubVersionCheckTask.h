@@ -93,9 +93,16 @@ class GitHubVersionCheckTask : public QObject {
    */
   void slot_parse_current_tag_info(QNetworkReply* reply);
 
+  /**
+   * @brief
+   *
+   * @param reply
+   */
+  void slot_parse_current_commit_info(QNetworkReply* reply);
+
  private:
   QList<QNetworkReply*> replies_;           ///<
   QNetworkAccessManager* network_manager_;  ///<
   QString current_version_;                 ///<
-  SoftwareVersion version_meta_data_;
+  SoftwareVersion meta_;
 };
