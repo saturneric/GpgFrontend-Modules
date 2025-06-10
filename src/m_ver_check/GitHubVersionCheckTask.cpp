@@ -104,6 +104,7 @@ void GitHubVersionCheckTask::slot_parse_reply(QNetworkReply* reply) {
   reply->deleteLater();
 
   if (replies_.isEmpty()) {
+    meta_.timestamp = QDateTime::currentDateTime();
     FillGrtWithVersionInfo(meta_);
     emit SignalUpgradeVersion(meta_);
   }

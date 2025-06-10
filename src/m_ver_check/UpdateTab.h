@@ -46,6 +46,7 @@ class UpdateTab : public QWidget {
   QGroupBox* release_note_box_;
   QGroupBox* upgrade_info_box_;
   QGroupBox* current_version_box_;
+  QPushButton* check_update_btn_;
 
  public:
   /**
@@ -56,6 +57,11 @@ class UpdateTab : public QWidget {
   explicit UpdateTab(QWidget* parent = nullptr);
 
  protected:
+  /**
+   * @brief
+   *
+   * @param event
+   */
   void showEvent(QShowEvent* event) override;
 
  private slots:
@@ -65,6 +71,12 @@ class UpdateTab : public QWidget {
    * @param version
    */
   void slot_show_version_status();
+
+  /**
+   * @brief
+   *
+   */
+  void slot_check_version_update();
 
  signals:
   /**

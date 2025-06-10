@@ -31,8 +31,11 @@
 #include "GFModuleCommonUtils.hpp"
 #include "GFSDKBasic.h"
 #include "GFSDKModule.h"
-#include "GitHubVersionCheckTask.h"
 #include "VersionCheckingModule.h"
+
+//
+#include "BKTUSVersionCheckTask.h"
+#include "GitHubVersionCheckTask.h"
 
 UpdateTab::UpdateTab(QWidget* parent)
     : QWidget(parent), current_version_(GFProjectVersion()) {
@@ -56,12 +59,17 @@ UpdateTab::UpdateTab(QWidget* parent)
   upgrade_label_->setWordWrap(true);
   upgrade_label_->setOpenExternalLinks(true);
   upgrade_label_->setHidden(true);
+
   pb_ = new QProgressBar();
   pb_->setRange(0, 0);
   pb_->setTextVisible(false);
+
   upgrade_info_layout->addWidget(upgrade_label_);
-  upgrade_info_layout->addWidget(pb_);
   upgrade_info_box_->setLayout(upgrade_info_layout);
+
+  check_update_btn_ = new QPushButton(tr("Check for Updates"));
+  check_update_btn_->setIcon(QIcon::fromTheme("view-refresh"));
+  check_update_btn_->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 
   release_note_box_ = new QGroupBox(tr("Release Notes"));
   auto* release_note_layout = new QVBoxLayout();
@@ -80,35 +88,25 @@ UpdateTab::UpdateTab(QWidget* parent)
   layout->addWidget(upgrade_info_box_);
   layout->addWidget(release_note_box_);
 
+  auto* hbox = new QHBoxLayout();
+  hbox->addWidget(pb_, 1);
+  hbox->addWidget(check_update_btn_, 0, Qt::AlignRight);
+  layout->addLayout(hbox);
+
+  connect(check_update_btn_, &QPushButton::clicked, this,
+          &UpdateTab::slot_check_version_update);
+
   setLayout(layout);
-}
 
-void UpdateTab::showEvent(QShowEvent* event) {
-  QWidget::showEvent(event);
-
-  auto is_loading_done = GFModuleRetrieveRTValueOrDefaultBool(
-      GFGetModuleID(), GFModuleStrDup("version.loading_done"), 0);
-
-  if (is_loading_done == 0) {
-    auto* task = new GitHubVersionCheckTask();
-    QObject::connect(task, &GitHubVersionCheckTask::SignalUpgradeVersion,
-                     QThread::currentThread(), [this](const SoftwareVersion&) {
-                       slot_show_version_status();
-                     });
-    QObject::connect(task, &GitHubVersionCheckTask::SignalUpgradeVersion, task,
-                     &QObject::deleteLater);
-    task->Run();
-
-  } else {
-    slot_show_version_status();
-  }
+  slot_show_version_status();
 }
 
 void UpdateTab::slot_show_version_status() {
+  check_update_btn_->setEnabled(true);
   this->pb_->setHidden(true);
 
   auto is_loading_done = GFModuleRetrieveRTValueOrDefaultBool(
-      GFGetModuleID(), GFModuleStrDup("version.loading_done"), 0);
+      GFGetModuleID(), DUP("version.loading_done"), 0);
 
   if (is_loading_done == 0) {
     MLogDebug("version info loading haven't been done yet.");
@@ -116,8 +114,7 @@ void UpdateTab::slot_show_version_status() {
     upgrade_label_->setText(
         "<center>" +
         tr("Unable to retrieve the latest version information. This may be "
-           "due "
-           "to a network issue or the server being unavailable.") +
+           "due to a network issue or the server being unavailable.") +
         "</center><center>" +
         tr("Please check your internet connection or try again later.") +
         "</center><center>" + tr("Alternatively, you can visit the") +
@@ -131,33 +128,33 @@ void UpdateTab::slot_show_version_status() {
   }
 
   auto is_need_upgrade = GFModuleRetrieveRTValueOrDefaultBool(
-      GFGetModuleID(), GFModuleStrDup("version.need_upgrade"), 0);
+      GFGetModuleID(), DUP("version.need_upgrade"), 0);
 
   auto is_current_version_publish_in_remote =
       GFModuleRetrieveRTValueOrDefaultBool(
-          GFGetModuleID(),
-          GFModuleStrDup("version.current_version_publish_in_remote"), 0);
+          GFGetModuleID(), DUP("version.current_version_publish_in_remote"), 0);
 
   auto is_git_commit_hash_mismatch = GFModuleRetrieveRTValueOrDefaultBool(
-      GFGetModuleID(), GFModuleStrDup("version.git_commit_hash_mismatch"), 0);
+      GFGetModuleID(), DUP("version.git_commit_hash_mismatch"), 0);
 
   auto is_current_commit_hash_publish_in_remote =
       GFModuleRetrieveRTValueOrDefaultBool(
-          GFGetModuleID(),
-          GFModuleStrDup("version.current_commit_hash_publish_in_remote"), 0);
+          GFGetModuleID(), DUP("version.current_commit_hash_publish_in_remote"),
+          0);
 
   QString const latest_version = UDUP(GFModuleRetrieveRTValueOrDefault(
-      GFGetModuleID(), GFModuleStrDup("version.latest_version"),
-      GFModuleStrDup("")));
+      GFGetModuleID(), DUP("version.latest_version"), DUP("")));
 
   QString const release_note = UDUP(GFModuleRetrieveRTValueOrDefault(
-      GFGetModuleID(), GFModuleStrDup("version.release_note"),
-      GFModuleStrDup("")));
+      GFGetModuleID(), DUP("version.release_note"), DUP("")));
 
-  FLOG_INFO("latest version from GitHub: %1", latest_version);
+  QString const api = UDUP(GFModuleRetrieveRTValueOrDefault(
+      GFGetModuleID(), DUP("version.api"), DUP("Unknown")));
+
+  FLOG_INFO("latest version from remote: %1", latest_version);
 
   latest_version_label_->setText("<center><b>" +
-                                 tr("Latest Version From Github") + ": " +
+                                 tr("Latest Version From %1").arg(api) + ": " +
                                  latest_version + "</b></center>");
   current_version_box_->show();
 
@@ -228,3 +225,45 @@ void UpdateTab::slot_show_version_status() {
 }
 
 auto UpdateTabFactory(void*) -> void* { return new UpdateTab(); }
+
+void UpdateTab::slot_check_version_update() {
+  check_update_btn_->setEnabled(false);
+  pb_->show();
+
+  auto api = UDUP(GFModuleRetrieveRTValueOrDefault(
+      DUP("ui"), DUP("settings.network.update_checking_api"), DUP("github")));
+
+  if (api == "bktus") {
+    auto* task = new BKTUSVersionCheckTask();
+    connect(task, &BKTUSVersionCheckTask::SignalUpgradeVersion,
+            QThread::currentThread(),
+            [this](const SoftwareVersion&) { slot_show_version_status(); });
+    connect(task, &BKTUSVersionCheckTask::SignalUpgradeVersion, task,
+            &QObject::deleteLater);
+    task->Run();
+  } else {
+    auto* task = new GitHubVersionCheckTask();
+    connect(task, &GitHubVersionCheckTask::SignalUpgradeVersion,
+            QThread::currentThread(),
+            [this](const SoftwareVersion&) { slot_show_version_status(); });
+    connect(task, &GitHubVersionCheckTask::SignalUpgradeVersion, task,
+            &QObject::deleteLater);
+    task->Run();
+  }
+}
+
+void UpdateTab::showEvent(QShowEvent* event) {
+  QWidget::showEvent(event);
+
+  auto is_loading_done = GFModuleRetrieveRTValueOrDefaultBool(
+      GFGetModuleID(), DUP("version.loading_done"), 0);
+
+  auto prohibit = GFModuleRetrieveRTValueOrDefaultBool(
+      DUP("ui"), DUP("settings.network.prohibit_update_checking"), 0);
+
+  if ((prohibit == 0) && is_loading_done == 0) {
+    slot_check_version_update();
+  } else {
+    slot_show_version_status();
+  }
+}

@@ -69,6 +69,9 @@ void FillGrtWithVersionInfo(const SoftwareVersion& version) {
   GFModuleUpsertRTValue(GFGetModuleID(), GFModuleStrDup("version.release_note"),
                         GFModuleStrDup(version.release_note.toUtf8()));
 
+  GFModuleUpsertRTValue(GFGetModuleID(), GFModuleStrDup("version.api"),
+                        GFModuleStrDup(version.api.toUtf8()));
+
   GFModuleUpsertRTValueBool(GFGetModuleID(),
                             GFModuleStrDup("version.loading_done"),
                             version.IsInfoValid() ? 1 : 0);

@@ -28,6 +28,7 @@
 
 #pragma once
 
+#include <QJsonDocument>
 #include <QString>
 
 /**
@@ -46,6 +47,8 @@ struct SoftwareVersion {
   QString release_note;  ///<
   QString remote_commit_hash_by_tag;
   QString local_commit_hash;
+
+  QDateTime timestamp;
 
   /**
    * @brief
@@ -88,6 +91,21 @@ struct SoftwareVersion {
    * @return false
    */
   [[nodiscard]] auto CurrentVersionReleased() const -> bool;
+
+  /**
+   * @brief
+   *
+   * @return QJsonDocument
+   */
+  [[nodiscard]] auto ToJson() const -> QJsonObject;
+
+  /**
+   * @brief
+   *
+   * @param obj
+   * @return auto
+   */
+  void FromJson(const QJsonObject& obj);
 
  private:
   static auto version_compare(const QString& a, const QString& b) -> int;

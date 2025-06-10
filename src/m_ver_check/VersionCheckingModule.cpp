@@ -43,9 +43,10 @@
 #include "GitHubVersionCheckTask.h"
 #include "SoftwareVersion.h"
 #include "UpdateTab.h"
+#include "Utils.h"
 
 GF_MODULE_API_DEFINE("com.bktus.gpgfrontend.module.version_checking",
-                     "VersionChecking", "1.3.1",
+                     "VersionChecking", "1.4.1",
                      "Try checking GpgFrontend version.", "Saturneric");
 
 DEFINE_TRANSLATIONS_STRUCTURE(ModuleVersionChecking);
@@ -71,29 +72,63 @@ auto GFActiveModule() -> int {
   return 0;
 }
 
-EXECUTE_MODULE() {
-  FLOG_INFO("version checking module executing, event id: %1",
-            event["event_id"]);
+namespace {
 
-  if (event["source"] == "bktus") {
+auto CheckUpdate(const QMap<QString, QString>& event) -> int {
+  if (event["api"] == "bktus") {
+    MLogInfo("checking updating using api of bktus.com");
     auto* task = new BKTUSVersionCheckTask();
-    QObject::connect(task, &BKTUSVersionCheckTask::SignalUpgradeVersion,
-                     QThread::currentThread(),
-                     [event](const SoftwareVersion&) { CB_SUCC(event); });
+    QObject::connect(
+        task, &BKTUSVersionCheckTask::SignalUpgradeVersion,
+        QThread::currentThread(), [event](const SoftwareVersion& sv) {
+          GFDurableCacheSave(DUP("update_checking_cache"),
+                             DUP(QJsonDocument(sv.ToJson()).toJson()));
+          CB_SUCC(event);
+        });
     QObject::connect(task, &BKTUSVersionCheckTask::SignalUpgradeVersion, task,
                      &QObject::deleteLater);
     task->Run();
   } else {
+    MLogInfo("checking updating using api of github.com");
     auto* task = new GitHubVersionCheckTask();
-    QObject::connect(task, &GitHubVersionCheckTask::SignalUpgradeVersion,
-                     QThread::currentThread(),
-                     [event](const SoftwareVersion&) { CB_SUCC(event); });
+    QObject::connect(
+        task, &GitHubVersionCheckTask::SignalUpgradeVersion,
+        QThread::currentThread(), [event](const SoftwareVersion& sv) {
+          GFDurableCacheSave(DUP("update_checking_cache"),
+                             DUP(QJsonDocument(sv.ToJson()).toJson()));
+          CB_SUCC(event);
+        });
     QObject::connect(task, &GitHubVersionCheckTask::SignalUpgradeVersion, task,
                      &QObject::deleteLater);
     task->Run();
   }
-
   return 0;
+}
+
+}  // namespace
+
+EXECUTE_MODULE() {
+  FLOG_INFO("version checking module executing, event id: %1",
+            event["event_id"]);
+
+  auto cache = UDUP(GFDurableCacheGet(DUP("update_checking_cache")));
+  auto json = QJsonDocument::fromJson(cache.toUtf8());
+
+  if (!json.isEmpty() && json.isObject()) {
+    SoftwareVersion sv;
+    sv.FromJson(json.object());
+
+    FLOG_DEBUG("got software version meta data: %1", json.toJson());
+    if (sv.timestamp.addDays(1) < QDateTime::currentDateTime()) {
+      return CheckUpdate(event);
+    }
+
+    FillGrtWithVersionInfo(sv);
+    CB_SUCC(event);
+    return 0;
+  }
+
+  return CheckUpdate(event);
 }
 END_EXECUTE_MODULE()
 
