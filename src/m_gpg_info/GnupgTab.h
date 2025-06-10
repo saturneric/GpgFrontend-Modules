@@ -54,6 +54,14 @@ class GnupgTab : public QWidget {
    */
   void SignalGnuPGInfoGathered();
 
+ protected:
+  /**
+   * @brief
+   *
+   * @param event
+   */
+  void showEvent(QShowEvent* event) override;
+
  private slots:
   /**
    * @brief
