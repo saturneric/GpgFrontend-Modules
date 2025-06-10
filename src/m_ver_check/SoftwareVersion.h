@@ -35,6 +35,7 @@
  *
  */
 struct SoftwareVersion {
+  QString api;
   QString latest_version;   ///<
   QString current_version;  ///<
 

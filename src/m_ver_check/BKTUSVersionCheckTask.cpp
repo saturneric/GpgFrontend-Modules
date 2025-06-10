@@ -40,34 +40,37 @@
 #include "GFModuleCommonUtils.hpp"
 #include "SoftwareVersion.h"
 #include "Utils.h"
-#include "VersionCheckingModule.h"
 
 BKTUSVersionCheckTask::BKTUSVersionCheckTask()
     : network_manager_(new QNetworkAccessManager(this)),
       current_version_(GFProjectVersion()) {
   qRegisterMetaType<SoftwareVersion>("SoftwareVersion");
-  version_meta_data_.current_version = current_version_;
-  version_meta_data_.local_commit_hash = GFProjectGitCommitHash();
+  meta_.api = "BKTUS.com";
+  meta_.current_version = current_version_;
+  meta_.local_commit_hash = GFProjectGitCommitHash();
 }
 
 auto BKTUSVersionCheckTask::Run() -> int {
   QString base_url = "";
+
   QList<QUrl> urls = {
-      {"https://ftp.bktus.com/GpgFrontend/LATEST"},
+      {"https://ftp.bktus.com/GpgFrontend/appcast.xml"},
       {"https://git.bktus.com/GpgFrontend/GpgFrontend/atom/?h=" +
        current_version_},
       {"https://git.bktus.com/GpgFrontend/GpgFrontend/atom/?id=" +
-       version_meta_data_.local_commit_hash},
+       meta_.local_commit_hash},
   };
 
   connect(network_manager_, &QNetworkAccessManager::finished, this,
           &BKTUSVersionCheckTask::slot_parse_reply);
 
+  int index = 0;
   for (const QUrl& url : urls) {
     QNetworkRequest request(url);
     request.setHeader(QNetworkRequest::UserAgentHeader,
                       GFHttpRequestUserAgent());
-    QNetworkReply* reply = network_manager_->get(request);
+    auto* reply = network_manager_->get(request);
+    reply->setProperty("GFCheckIndex", index++);
     replies_.append(reply);
   }
 
@@ -76,8 +79,10 @@ auto BKTUSVersionCheckTask::Run() -> int {
 
 void BKTUSVersionCheckTask::slot_parse_reply(QNetworkReply* reply) {
   if (reply->error() == QNetworkReply::NoError) {
-    FLOG_DEBUG("get reply from url: %1", reply->url().toString());
-    switch (replies_.indexOf(reply)) {
+    auto index = reply->property("GFCheckIndex").toInt();
+    FLOG_DEBUG("get reply from url: %1, index: %2", reply->url().toString(),
+               index);
+    switch (index) {
       case 0:
         slot_parse_latest_version_info(reply);
         break;
@@ -99,8 +104,8 @@ void BKTUSVersionCheckTask::slot_parse_reply(QNetworkReply* reply) {
   reply->deleteLater();
 
   if (replies_.isEmpty()) {
-    FillGrtWithVersionInfo(version_meta_data_);
-    emit SignalUpgradeVersion(version_meta_data_);
+    FillGrtWithVersionInfo(meta_);
+    emit SignalUpgradeVersion(meta_);
   }
 }
 
@@ -111,14 +116,35 @@ void BKTUSVersionCheckTask::slot_parse_latest_version_info(
   }
 
   auto reply_bytes = reply->readAll();
-  auto latest_reply_json = QJsonDocument::fromJson(reply_bytes);
 
-  if (!latest_reply_json.isObject()) {
-    FLOG_WARN("cannot parse data from bktus: %1", reply_bytes);
+  QDomDocument doc;
+  QString err_msg;
+  int err_line = 0;
+  int err_column = 0;
+  auto xml_text = QString::fromUtf8(reply_bytes);
+  bool ok = doc.setContent(xml_text, &err_msg, &err_line, &err_column);
+  if (!ok) {
+    FLOG_WARN("xml parse failed: %1, line: %2, column: %3", err_msg, err_line,
+              err_column);
     return;
   }
 
-  QString latest_version = latest_reply_json["version"].toString();
+  auto root = doc.documentElement();
+  auto channel = root.firstChildElement("channel");
+  auto items = channel.elementsByTagName("item");
+
+  FLOG_DEBUG("appcast.xml items: %1", items.size());
+  if (items.size() == 0) {
+    MLogWarn("no xml entry of latest version");
+    return;
+  }
+
+  auto item = items.at(0).toElement();
+  auto title = item.firstChildElement("title").text();
+  auto pub_date = item.firstChildElement("pubDate").text();
+  auto desc = item.firstChildElement("description").text();
+
+  auto latest_version = title;
   FLOG_DEBUG("raw tag name from bktus: %1", latest_version);
 
   QRegularExpression re(R"(^[vV](\d+\.)?(\d+\.)?(\*|\d+))");
@@ -127,16 +153,16 @@ void BKTUSVersionCheckTask::slot_parse_latest_version_info(
     latest_version = version_match.captured(0);
   } else {
     latest_version = "";
-    FLOG_WARN("the raw release name from bktus: %1 cannot match regex rules",
+    FLOG_WARN("fail to match regex rules for release name from bktus: %1",
               latest_version);
   }
 
-  auto publish_date = latest_reply_json["release_date"].toString();
-  auto release_note = latest_reply_json["release_notes"].toString();
+  const auto& publish_date = pub_date;
+  const auto& release_note = desc;
 
-  version_meta_data_.latest_version = latest_version;
-  version_meta_data_.publish_date = publish_date;
-  version_meta_data_.release_note = release_note;
+  meta_.latest_version = latest_version;
+  meta_.publish_date = publish_date;
+  meta_.release_note = release_note;
 }
 
 void BKTUSVersionCheckTask::slot_parse_current_tag_info(QNetworkReply* reply) {
@@ -197,8 +223,8 @@ void BKTUSVersionCheckTask::slot_parse_current_tag_info(QNetworkReply* reply) {
              published_text);
 
   const auto& sha = id_text;
-  version_meta_data_.remote_commit_hash_by_tag = sha.trimmed();
-  version_meta_data_.current_version_publish_in_remote = true;
+  meta_.remote_commit_hash_by_tag = sha.trimmed();
+  meta_.current_version_publish_in_remote = true;
 }
 
 void BKTUSVersionCheckTask::slot_parse_current_commit_hash_info(
@@ -261,6 +287,6 @@ void BKTUSVersionCheckTask::slot_parse_current_commit_hash_info(
   FLOG_DEBUG("got commit info from bktus: %1, %2, %3", title_text, id_text,
              published_text);
 
-  version_meta_data_.current_commit_hash_publish_in_remote =
-      id_text.trimmed() == version_meta_data_.local_commit_hash.trimmed();
+  meta_.current_commit_hash_publish_in_remote =
+      id_text.trimmed() == meta_.local_commit_hash.trimmed();
 }

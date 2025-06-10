@@ -97,5 +97,5 @@ class BKTUSVersionCheckTask : public QObject {
   QList<QNetworkReply*> replies_;           ///<
   QNetworkAccessManager* network_manager_;  ///<
   QString current_version_;                 ///<
-  SoftwareVersion version_meta_data_;
+  SoftwareVersion meta_;
 };
