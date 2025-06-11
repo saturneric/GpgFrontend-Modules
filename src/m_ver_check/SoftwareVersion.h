@@ -28,6 +28,7 @@
 
 #pragma once
 
+#include <QDateTime>
 #include <QJsonDocument>
 #include <QString>
 
