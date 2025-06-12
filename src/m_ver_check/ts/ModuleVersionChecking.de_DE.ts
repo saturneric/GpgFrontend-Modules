@@ -6,7 +6,7 @@
     <message>
         <location filename="../VersionCheckingModule.cpp" line="62"/>
         <source>Update</source>
-        <translation type="unfinished">Aktualisieren</translation>
+        <translation>Aktualisieren</translation>
     </message>
 </context>
 <context>
@@ -14,57 +14,57 @@
     <message>
         <location filename="../UpdateTab.cpp" line="44"/>
         <source>Current Version Information</source>
-        <translation type="unfinished">Informationen zur aktuellen Version</translation>
+        <translation>Informationen zur aktuellen Version</translation>
     </message>
     <message>
         <location filename="../UpdateTab.cpp" line="47"/>
         <source>Current Version</source>
-        <translation type="unfinished">Aktuelle Version</translation>
+        <translation>Aktuelle Version</translation>
     </message>
     <message>
         <location filename="../UpdateTab.cpp" line="48"/>
         <source>: </source>
-        <translation type="unfinished">: </translation>
+        <translation>: </translation>
     </message>
     <message>
         <location filename="../UpdateTab.cpp" line="56"/>
         <source>Upgrade Information</source>
-        <translation type="unfinished">Upgrade-Informationen</translation>
+        <translation>Upgrade-Informationen</translation>
     </message>
     <message>
         <location filename="../UpdateTab.cpp" line="70"/>
         <source>Check for Updates</source>
-        <translation type="unfinished">Nach Updates suchen</translation>
+        <translation>Nach Updates suchen</translation>
     </message>
     <message>
         <location filename="../UpdateTab.cpp" line="74"/>
         <source>Release Notes</source>
-        <translation type="unfinished">Anmerkungen zum Release</translation>
+        <translation>Anmerkungen zum Release</translation>
     </message>
     <message>
         <location filename="../UpdateTab.cpp" line="116"/>
         <source>Unable to retrieve the latest version information. This may be due to a network issue or the server being unavailable.</source>
-        <translation type="unfinished">Die neuesten Versionsinformationen können nicht abgerufen werden. Dies kann auf ein Netzwerkproblem oder die Nichterreichbarkeit des Servers zurückzuführen sein.</translation>
+        <translation>Die neuesten Versionsinformationen können nicht abgerufen werden. Dies kann auf ein Netzwerkproblem oder die Nichterreichbarkeit des Servers zurückzuführen sein.</translation>
     </message>
     <message>
         <location filename="../UpdateTab.cpp" line="119"/>
         <source>Please check your internet connection or try again later.</source>
-        <translation type="unfinished">Bitte überprüfen Sie Ihre Internetverbindung oder versuchen Sie es später noch einmal.</translation>
+        <translation>Bitte überprüfen Sie Ihre Internetverbindung oder versuchen Sie es später noch einmal.</translation>
     </message>
     <message>
         <location filename="../UpdateTab.cpp" line="120"/>
         <source>Alternatively, you can visit the</source>
-        <translation type="unfinished">Alternativ können Sie auch </translation>
+        <translation>Alternativ können Sie auch </translation>
     </message>
     <message>
         <location filename="../UpdateTab.cpp" line="123"/>
         <source>official download page</source>
-        <translation type="unfinished">die offizielle Download-Seite besuchen, </translation>
+        <translation>die offizielle Download-Seite besuchen, </translation>
     </message>
     <message>
         <location filename="../UpdateTab.cpp" line="124"/>
         <source>to check for the latest stable version.</source>
-        <translation type="unfinished">um nach der neuesten stabilen Version zu suchen.</translation>
+        <translation>um nach der neuesten stabilen Version zu suchen.</translation>
     </message>
     <message>
         <location filename="../UpdateTab.cpp" line="157"/>
@@ -79,7 +79,7 @@
     <message>
         <location filename="../UpdateTab.cpp" line="163"/>
         <source>Your current version is outdated.</source>
-        <translation type="unfinished">Ihre aktuelle Version ist veraltet.</translation>
+        <translation>Ihre aktuelle Version ist veraltet.</translation>
     </message>
     <message>
         <location filename="../UpdateTab.cpp" line="164"/>
@@ -87,7 +87,7 @@
         <location filename="../UpdateTab.cpp" line="189"/>
         <location filename="../UpdateTab.cpp" line="202"/>
         <source>Click</source>
-        <translation type="unfinished">Klicken Sie</translation>
+        <translation>Klicken Sie</translation>
     </message>
     <message>
         <location filename="../UpdateTab.cpp" line="167"/>
@@ -95,17 +95,17 @@
         <location filename="../UpdateTab.cpp" line="192"/>
         <location filename="../UpdateTab.cpp" line="205"/>
         <source>here</source>
-        <translation type="unfinished">hier</translation>
+        <translation>hier</translation>
     </message>
     <message>
         <location filename="../UpdateTab.cpp" line="187"/>
         <source>The current version&apos;s commit hash does not match the official release. This may indicate a modified or unofficial build.</source>
-        <translation type="unfinished">Der Commit-Hash der aktuellen Version stimmt nicht mit dem der offiziellen Version überein. Dies kann auf einen modifizierten oder inoffiziellen Build hinweisen.</translation>
+        <translation>Der Commit-Hash der aktuellen Version stimmt nicht mit dem der offiziellen Version überein. Dies kann auf einen modifizierten oder inoffiziellen Build hinweisen.</translation>
     </message>
     <message>
         <location filename="../UpdateTab.cpp" line="193"/>
         <source>to verify your installation or download the official version.</source>
-        <translation type="unfinished">um Ihre Installation zu überprüfen oder die offizielle Version herunterzuladen.</translation>
+        <translation>um Ihre Installation zu überprüfen oder die offizielle Version herunterzuladen.</translation>
     </message>
     <message>
         <location filename="../UpdateTab.cpp" line="200"/>
@@ -120,13 +120,13 @@
     <message>
         <location filename="../UpdateTab.cpp" line="212"/>
         <source>You are using the latest stable version. No action is required.</source>
-        <translation type="unfinished">Sie verwenden die neueste stabile Version. Es sind keine Maßnahmen erforderlich.</translation>
+        <translation>Sie verwenden die neueste stabile Version. Es sind keine Maßnahmen erforderlich.</translation>
     </message>
     <message>
         <location filename="../UpdateTab.cpp" line="167"/>
         <location filename="../UpdateTab.cpp" line="180"/>
         <source>to download the latest stable version.</source>
-        <translation type="unfinished">um die neueste stabile Version herunterzuladen.</translation>
+        <translation>um die neueste stabile Version herunterzuladen.</translation>
     </message>
 </context>
 </TS>
