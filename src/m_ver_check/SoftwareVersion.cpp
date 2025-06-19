@@ -39,13 +39,6 @@
 #include "GFModuleCommonUtils.hpp"
 
 auto SoftwareVersion::NeedUpgrade() const -> bool {
-  MLogDebug(QString("compare version current: %1 latest %2, result: %3")
-                .arg(current_version)
-                .arg(latest_version)
-                .arg(GFCompareSoftwareVersion(
-                    GFModuleStrDup(current_version.toUtf8()),
-                    GFModuleStrDup(latest_version.toUtf8()))));
-
   return !latest_version.isEmpty() &&
          GFCompareSoftwareVersion(GFModuleStrDup(current_version.toUtf8()),
                                   GFModuleStrDup(latest_version.toUtf8())) < 0;

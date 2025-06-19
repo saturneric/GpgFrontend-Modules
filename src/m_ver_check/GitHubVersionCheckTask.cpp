@@ -47,6 +47,12 @@ GitHubVersionCheckTask::GitHubVersionCheckTask()
   meta_.api = "GitHub";
   meta_.current_version = current_version_;
   meta_.local_commit_hash = GFProjectGitCommitHash();
+
+  connect(this, &GitHubVersionCheckTask::SignalUpgradeVersion, this,
+          [](const SoftwareVersion& sv) {
+            GFDurableCacheSave(DUP("update_checking_cache"),
+                               DUP(QJsonDocument(sv.ToJson()).toJson()));
+          });
 }
 
 auto GitHubVersionCheckTask::Run() -> int {
@@ -176,7 +182,8 @@ void GitHubVersionCheckTask::slot_parse_current_tag_info(QNetworkReply* reply) {
   }
 
   auto object = current_reply_json["object"].toObject();
-  if (object["type"].toString() != "commit") {
+  if (object["type"].toString() != "tag" &&
+      object["type"].toString() != "commit") {
     FLOG_WARN("remote tag: %1 is not a ref: %2", meta_.current_version,
               object["type"].toString());
     return;
@@ -203,14 +210,7 @@ void GitHubVersionCheckTask::slot_parse_current_commit_info(
     return;
   }
 
-  auto object = current_reply_json["object"].toObject();
-  if (object["type"].toString() != "commit") {
-    FLOG_WARN("remote tag: %1 is not a ref: %2", meta_.current_version,
-              object["type"].toString());
-    return;
-  }
-
-  auto sha = object["sha"].toString();
+  auto sha = current_reply_json["sha"].toString();
   FLOG_DEBUG("got remote commit hash from github: %1",
              meta_.remote_commit_hash_by_tag);
 

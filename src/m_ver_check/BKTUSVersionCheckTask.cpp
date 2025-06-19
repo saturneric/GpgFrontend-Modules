@@ -48,6 +48,12 @@ BKTUSVersionCheckTask::BKTUSVersionCheckTask()
   meta_.api = "BKTUS.com";
   meta_.current_version = current_version_;
   meta_.local_commit_hash = GFProjectGitCommitHash();
+
+  connect(this, &BKTUSVersionCheckTask::SignalUpgradeVersion, this,
+          [](const SoftwareVersion& sv) {
+            GFDurableCacheSave(DUP("update_checking_cache"),
+                               DUP(QJsonDocument(sv.ToJson()).toJson()));
+          });
 }
 
 auto BKTUSVersionCheckTask::Run() -> int {
@@ -57,7 +63,7 @@ auto BKTUSVersionCheckTask::Run() -> int {
       {"https://ftp.bktus.com/GpgFrontend/appcast.xml"},
       {"https://git.bktus.com/GpgFrontend/GpgFrontend/atom/?h=" +
        current_version_},
-      {"https://git.bktus.com/GpgFrontend/GpgFrontend/atom/?id=" +
+      {"https://git.bktus.com/GpgFrontend/GpgFrontend/atom/?h=" +
        meta_.local_commit_hash},
   };
 
