@@ -194,7 +194,7 @@ void UpdateTab::slot_show_version_status() {
         "</center>");
     upgrade_label_->show();
     upgrade_info_box_->show();
-  } else if (is_current_commit_hash_publish_in_remote != 0) {
+  } else if (is_current_commit_hash_publish_in_remote == 0) {
     upgrade_label_->setText(
         "<center>" +
         tr("The commit hash for this build was not found in the official "
