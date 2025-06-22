@@ -60,7 +60,6 @@ auto GitHubVersionCheckTask::Run() -> int {
   QList<QUrl> urls = {
       {base_url + "/releases/latest"},
       {base_url + "/releases/tags/" + current_version_},
-      {base_url + "/git/ref/tags/" + current_version_},
       {base_url + "/commits/" + meta_.local_commit_hash},
   };
 
@@ -93,9 +92,6 @@ void GitHubVersionCheckTask::slot_parse_reply(QNetworkReply* reply) {
         slot_parse_current_version_info(reply);
         break;
       case 2:
-        slot_parse_current_tag_info(reply);
-        break;
-      case 3:
         slot_parse_current_commit_info(reply);
         break;
       default:
@@ -166,42 +162,12 @@ void GitHubVersionCheckTask::slot_parse_current_version_info(
   meta_.current_version_publish_in_remote = true;
 }
 
-void GitHubVersionCheckTask::slot_parse_current_tag_info(QNetworkReply* reply) {
-  if (reply == nullptr || reply->error() != QNetworkReply::NoError) {
-    meta_.current_version_publish_in_remote = false;
-    return;
-  }
-
-  meta_.current_version_publish_in_remote = true;
-  auto reply_bytes = reply->readAll();
-  auto current_reply_json = QJsonDocument::fromJson(reply_bytes);
-
-  if (!current_reply_json.isObject()) {
-    FLOG_WARN("cannot parse data from github: %1", reply_bytes);
-    return;
-  }
-
-  auto object = current_reply_json["object"].toObject();
-  if (object["type"].toString() != "tag" &&
-      object["type"].toString() != "commit") {
-    FLOG_WARN("remote tag: %1 is not a ref: %2", meta_.current_version,
-              object["type"].toString());
-    return;
-  }
-
-  auto sha = object["sha"].toString();
-  meta_.remote_commit_hash_by_tag = sha.trimmed();
-  FLOG_DEBUG("got remote commit hash: %1", meta_.remote_commit_hash_by_tag);
-}
-
 void GitHubVersionCheckTask::slot_parse_current_commit_info(
     QNetworkReply* reply) {
   if (reply == nullptr || reply->error() != QNetworkReply::NoError) {
-    meta_.current_version_publish_in_remote = false;
     return;
   }
 
-  meta_.current_version_publish_in_remote = true;
   auto reply_bytes = reply->readAll();
   auto current_reply_json = QJsonDocument::fromJson(reply_bytes);
 
@@ -211,8 +177,5 @@ void GitHubVersionCheckTask::slot_parse_current_commit_info(
   }
 
   auto sha = current_reply_json["sha"].toString();
-  FLOG_DEBUG("got remote commit hash from github: %1",
-             meta_.remote_commit_hash_by_tag);
-
   meta_.current_commit_hash_publish_in_remote = sha == meta_.local_commit_hash;
 }

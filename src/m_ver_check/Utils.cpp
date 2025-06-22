@@ -41,9 +41,6 @@ void FillGrtWithVersionInfo(const SoftwareVersion& version) {
   GFModuleUpsertRTValue(GFGetModuleID(),
                         GFModuleStrDup("version.latest_version"),
                         GFModuleStrDup(version.latest_version.toUtf8()));
-  GFModuleUpsertRTValue(
-      GFGetModuleID(), GFModuleStrDup("version.remote_commit_hash_by_tag"),
-      GFModuleStrDup(version.remote_commit_hash_by_tag.toUtf8()));
   GFModuleUpsertRTValue(GFGetModuleID(),
                         GFModuleStrDup("version.local_commit_hash"),
                         GFModuleStrDup(version.local_commit_hash.toUtf8()));
@@ -62,9 +59,6 @@ void FillGrtWithVersionInfo(const SoftwareVersion& version) {
   GFModuleUpsertRTValueBool(GFGetModuleID(),
                             GFModuleStrDup("version.current_version_released"),
                             version.CurrentVersionReleased() ? 1 : 0);
-  GFModuleUpsertRTValueBool(GFGetModuleID(),
-                            GFModuleStrDup("version.git_commit_hash_mismatch"),
-                            version.GitCommitHashMismatch() ? 1 : 0);
 
   GFModuleUpsertRTValue(GFGetModuleID(), GFModuleStrDup("version.release_note"),
                         GFModuleStrDup(version.release_note.toUtf8()));

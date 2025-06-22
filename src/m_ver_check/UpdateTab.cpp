@@ -134,9 +134,6 @@ void UpdateTab::slot_show_version_status() {
       GFModuleRetrieveRTValueOrDefaultBool(
           GFGetModuleID(), DUP("version.current_version_publish_in_remote"), 0);
 
-  auto is_git_commit_hash_mismatch = GFModuleRetrieveRTValueOrDefaultBool(
-      GFGetModuleID(), DUP("version.git_commit_hash_mismatch"), 0);
-
   auto is_current_commit_hash_publish_in_remote =
       GFModuleRetrieveRTValueOrDefaultBool(
           GFGetModuleID(), DUP("version.current_commit_hash_publish_in_remote"),
@@ -178,19 +175,6 @@ void UpdateTab::slot_show_version_status() {
         "</center><center>" + tr("Click") +
         " <a href=\"https://www.gpgfrontend.bktus.com/overview/downloads/\">" +
         tr("here") + "</a> " + tr("to download the latest stable version.") +
-        "</center>");
-    upgrade_label_->show();
-    upgrade_info_box_->show();
-  } else if (is_git_commit_hash_mismatch != 0 && GFIsCheckReleaseCommitHash()) {
-    upgrade_label_->setText(
-        "<center>" +
-        tr("The current version's commit hash does not match the official "
-           "release. This may indicate a modified or unofficial build.") +
-        "</center><center>" + tr("Click") +
-        " <a "
-        "href=\"https://www.gpgfrontend.bktus.com/overview/downloads/\">" +
-        tr("here") + "</a> " +
-        tr("to verify your installation or download the official version.") +
         "</center>");
     upgrade_label_->show();
     upgrade_info_box_->show();

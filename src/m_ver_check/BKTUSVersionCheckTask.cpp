@@ -228,9 +228,6 @@ void BKTUSVersionCheckTask::slot_parse_current_tag_info(QNetworkReply* reply) {
 
   FLOG_DEBUG("got tag info from bktus: %1, %2, %3", title_text, id_text,
              published_text);
-
-  const auto& sha = id_text;
-  meta_.remote_commit_hash_by_tag = sha.trimmed();
   meta_.current_version_publish_in_remote = true;
 }
 

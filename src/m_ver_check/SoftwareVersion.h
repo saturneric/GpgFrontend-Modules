@@ -46,7 +46,6 @@ struct SoftwareVersion {
 
   QString publish_date;  ///<
   QString release_note;  ///<
-  QString remote_commit_hash_by_tag;
   QString local_commit_hash;
 
   QDateTime timestamp;
@@ -76,14 +75,6 @@ struct SoftwareVersion {
    * @return false
    */
   [[nodiscard]] auto VersionWithdrawn() const -> bool;
-
-  /**
-   * @brief
-   *
-   * @return true
-   * @return false
-   */
-  [[nodiscard]] auto GitCommitHashMismatch() const -> bool;
 
   /**
    * @brief

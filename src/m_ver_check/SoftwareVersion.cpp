@@ -36,8 +36,6 @@
 #include <QJsonObject>
 #include <QString>
 
-#include "GFModuleCommonUtils.hpp"
-
 auto SoftwareVersion::NeedUpgrade() const -> bool {
   return !latest_version.isEmpty() &&
          GFCompareSoftwareVersion(GFModuleStrDup(current_version.toUtf8()),
@@ -52,14 +50,6 @@ auto SoftwareVersion::CurrentVersionReleased() const -> bool {
   return !latest_version.isEmpty() && current_version_publish_in_remote;
 }
 
-auto SoftwareVersion::GitCommitHashMismatch() const -> bool {
-  if (remote_commit_hash_by_tag.isEmpty()) return false;
-
-  FLOG_DEBUG("remote commit hash: %1, local commit hash: %2",
-             remote_commit_hash_by_tag, local_commit_hash);
-  return remote_commit_hash_by_tag.trimmed() != local_commit_hash.trimmed();
-}
-
 auto SoftwareVersion::ToJson() const -> QJsonObject {
   QJsonObject obj;
   obj["api"] = api;
@@ -70,7 +60,6 @@ auto SoftwareVersion::ToJson() const -> QJsonObject {
       current_commit_hash_publish_in_remote;
   obj["publish_date"] = publish_date;
   obj["release_note"] = release_note;
-  obj["remote_commit_hash_by_tag"] = remote_commit_hash_by_tag;
   obj["local_commit_hash"] = local_commit_hash;
   obj["timestamp"] = timestamp.toSecsSinceEpoch();
   return obj;
@@ -86,7 +75,6 @@ void SoftwareVersion::FromJson(const QJsonObject& obj) {
       obj.value("current_commit_hash_publish_in_remote").toBool();
   publish_date = obj.value("publish_date").toString();
   release_note = obj.value("release_note").toString();
-  remote_commit_hash_by_tag = obj.value("remote_commit_hash_by_tag").toString();
   local_commit_hash = obj.value("local_commit_hash").toString();
   timestamp = QDateTime::fromSecsSinceEpoch(obj.value("timestamp").toInt());
 }
