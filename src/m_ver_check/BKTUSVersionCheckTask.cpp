@@ -61,9 +61,9 @@ auto BKTUSVersionCheckTask::Run() -> int {
 
   QList<QUrl> urls = {
       {"https://ftp.bktus.com/GpgFrontend/appcast.xml"},
-      {"https://git.bktus.com/GpgFrontend/GpgFrontend/atom/?h=" +
+      {"https://git.bktus.com/gpgfrontend/gpgfrontend/atom/?h=" +
        current_version_},
-      {"https://git.bktus.com/GpgFrontend/GpgFrontend/atom/?h=" +
+      {"https://git.bktus.com/gpgfrontend/gpgfrontend/atom/?h=" +
        meta_.local_commit_hash},
   };
 
