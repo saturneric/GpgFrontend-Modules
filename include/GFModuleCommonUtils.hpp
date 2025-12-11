@@ -475,6 +475,15 @@ inline auto ConvertVoidPtrToQVariant(void* ptr) -> QVariant {
   return variant;
 }
 
+template <typename T>
+auto GFUIGetGUIObjectAs(const QString& handle) -> T* {
+  auto* obj = static_cast<QObject*>(GFUIGetGUIObject(QDUP(handle)));
+  if (!obj) {
+    return nullptr;
+  }
+  return qobject_cast<T*>(obj);
+}
+
 #define Q_VARIANT_Q_OBJECT_FACTORY_DECLARE(name) \
   auto name(void* data_raw_ptr) -> void*;
 

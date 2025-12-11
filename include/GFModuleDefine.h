@@ -60,7 +60,9 @@
   }                                                                         \
   using MEvent = QMap<QString, QString>;                                    \
   using EventHandler = std::function<int(const MEvent&)>;                   \
+  namespace {                                                               \
   static QMap<QString, EventHandler> Module##nameEventHandlers;             \
   static QMap<QString, EventHandler>& _gr_module_event_handlers =           \
       Module##nameEventHandlers;                                            \
+  }                                                                         \
   DEFINE_EXECUTE_API_USING_STANDARD_EVEN_HANDLE_MODEL
