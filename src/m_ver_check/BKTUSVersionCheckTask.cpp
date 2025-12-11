@@ -291,6 +291,7 @@ void BKTUSVersionCheckTask::slot_parse_current_commit_hash_info(
   FLOG_DEBUG("got commit info from bktus: %1, %2, %3", title_text, id_text,
              published_text);
 
+  // the new form of id_text is like: urn:sha1:abcdef1234567890...
   meta_.current_commit_hash_publish_in_remote =
-      id_text.trimmed() == meta_.local_commit_hash.trimmed();
+      id_text.trimmed().contains(meta_.local_commit_hash.trimmed());
 }
