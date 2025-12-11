@@ -33,18 +33,24 @@
 #include <GFSDKLog.h>
 
 // qt
+#include <QApplication>
 #include <QCoreApplication>
 #include <QCryptographicHash>
+#include <QDialog>
 #include <QDir>
 #include <QFileInfo>
 #include <QJsonDocument>
+#include <QMainWindow>
+#include <QMenu>
 #include <QString>
+#include <QVBoxLayout>
 
 // c++
 #include <optional>
 
 #include "GFModuleCommonUtils.hpp"
 #include "GFModuleDefine.h"
+#include "GnupgTab.h"
 #include "GpgInfo.h"
 
 GF_MODULE_API_DEFINE_V2("com.bktus.gpgfrontend.module.gnupg_info_gathering",
@@ -80,21 +86,32 @@ auto GFRegisterModule() -> int {
   MLogDebug("gnupg info gathering module registering...");
 
   REGISTER_TRANS_READER();
-
-  GFUIMountEntry(DUP("AboutDialogTabs"),
-                 QMapToMetaDataArray({
-                     {"TabTitle", GC_TR("GnuPG")},
-                 }),
-                 1, GnupgTabFactory);
-
   return 0;
 }
 
 auto GFActiveModule() -> int {
   LISTEN("APPLICATION_LOADED");
   LISTEN("REQUEST_GATHERING_ALL_GNUPG_INFO");
+  LISTEN("MAINWINDOW_MENU_MOUNTED");
   return 0;
 }
+
+namespace {
+
+auto RaiseUpdateDialog(QWidget *parent) -> QDialog * {
+  auto *dialog = new QDialog(parent);
+  dialog->setWindowTitle(QCoreApplication::translate("GTrC", "GnuPG"));
+  dialog->setModal(true);
+  dialog->setAttribute(Qt::WA_DeleteOnClose);
+  auto *layout = new QVBoxLayout();
+  auto *update_tab = new GnupgTab(dialog);
+  layout->addWidget(update_tab);
+  dialog->setLayout(layout);
+  dialog->resize(500, 600);
+  dialog->show();
+  return dialog;
+}
+}  // namespace
 
 REGISTER_EVENT_HANDLER(APPLICATION_LOADED, [](const MEvent &event) -> int {
   // Do Nothing
@@ -116,9 +133,59 @@ auto GFUnregisterModule() -> int {
   return 0;
 }
 
-auto StartStartGatheringGnuPGComponentsInfo(
-    const QString &gpgme_version, const QString &gpgconf_path,
-    const QString &default_home_path) -> int {
+REGISTER_EVENT_HANDLER(MAINWINDOW_MENU_MOUNTED, [](const MEvent &event) -> int {
+  LOG_DEBUG("main window menu mounted event: processing");
+
+  if (!event.contains("main_window")) {
+    LOG_DEBUG("main window menu mounted event: no main_window found");
+    CB_ERR(event, -1, "no main_window found");
+  }
+
+  auto *main_window = GFUIGetGUIObjectAs<QMainWindow>(event["main_window"]);
+  if (!main_window) {
+    LOG_ERROR(
+        "main window menu mounted: main_window handle invalid or not "
+        "QMainWindow");
+    CB_ERR(event, -1, "main_window handle invalid or not QMainWindow");
+  }
+
+  if (!event.contains("help_menu")) {
+    LOG_DEBUG("main window menu mounted event: no help_menu found");
+    CB_ERR(event, -1, "no help_menu found");
+  }
+
+  auto *help_menu = GFUIGetGUIObjectAs<QMenu>(event["help_menu"]);
+  if (!help_menu) {
+    LOG_ERROR(
+        "main window menu mounted: help_menu handle invalid or not "
+        "QMenu");
+    CB_ERR(event, -1, "help_menu handle invalid or not QMenu");
+  }
+
+  LOG_DEBUG("adding check update action to help menu");
+
+  QMetaObject::invokeMethod(
+      QApplication::instance(),
+      [&]() -> void {
+        QWidget *parent =
+            qobject_cast<QWidget *>(static_cast<QObject *>(main_window));
+        auto *action =
+            new QAction(QCoreApplication::translate("GTrC", "GnuPG"), nullptr);
+        action->setToolTip(
+            QCoreApplication::translate("GTrC", "Information about GnuPG"));
+        action->setIcon(QIcon(":/icons/key.png"));
+        QObject::connect(action, &QAction::triggered, parent,
+                         [=]() { RaiseUpdateDialog(parent); });
+        help_menu->addAction(action);
+      },
+      Qt::BlockingQueuedConnection);
+  CB_SUCC(event);
+});
+
+auto StartStartGatheringGnuPGComponentsInfo(const QString &gpgme_version,
+                                            const QString &gpgconf_path,
+                                            const QString &default_home_path)
+    -> int {
   auto context = Context{gpgme_version, gpgconf_path};
 
   // get all components
