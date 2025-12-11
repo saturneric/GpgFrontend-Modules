@@ -105,7 +105,8 @@ auto CheckUpdate(const QMap<QString, QString>& event) -> int {
 
 auto RaiseUpdateDialog(QWidget* parent) -> QDialog* {
   auto* dialog = new QDialog(parent);
-  dialog->setWindowTitle(GC_TR("Check for Updates"));
+  dialog->setWindowTitle(
+      QCoreApplication::translate("GTrC", "Check for Updates"));
   dialog->setModal(true);
   dialog->setAttribute(Qt::WA_DeleteOnClose);
   auto* layout = new QVBoxLayout();
@@ -155,8 +156,10 @@ REGISTER_EVENT_HANDLER(MAINWINDOW_MENU_MOUNTED, [](const MEvent& event) -> int {
       [&]() -> void {
         QWidget* parent =
             qobject_cast<QWidget*>(static_cast<QObject*>(main_window));
-        auto* action = new QAction(GC_TR("Check for Updates"), nullptr);
-        action->setToolTip(GC_TR("Check for updates"));
+        auto* action = new QAction(
+            QCoreApplication::translate("GTrC", "Check for Updates"), nullptr);
+        action->setToolTip(QCoreApplication::translate(
+            "GTrC", "Check for updates from the Internet."));
         action->setIcon(QIcon(":/icons/update.png"));
         QObject::connect(action, &QAction::triggered, parent,
                          [=]() { RaiseUpdateDialog(parent); });
@@ -275,8 +278,10 @@ REGISTER_EVENT_HANDLER(
           QApplication::instance(),
           [=]() {
             auto* update_checking_check_box =
-                new QCheckBox(GC_TR("Checking for version updates when the "
-                                    "application starts."),
+                new QCheckBox(QCoreApplication::translate(
+                                  "GTrC",
+                                  "Checking for version updates when the "
+                                  "application starts."),
                               capability_group_box);
             update_checking_check_box->setObjectName(
                 "update_checking_check_box");
@@ -285,13 +290,16 @@ REGISTER_EVENT_HANDLER(
                 update_checking_check_box);
 
             auto* github_radio_button =
-                new QRadioButton(GC_TR("GitHub"), capability_group_box);
-            auto* bktus_radio_button =
-                new QRadioButton(GC_TR("BKTUS.com"), capability_group_box);
+                new QRadioButton(QCoreApplication::translate("GTrC", "GitHub"),
+                                 capability_group_box);
+            auto* bktus_radio_button = new QRadioButton(
+                QCoreApplication::translate("GTrC", "BKTUS.com"),
+                capability_group_box);
 
             auto layout = new QHBoxLayout();
-            layout->addWidget(new QLabel(GC_TR("Update Checking API:"),
-                                         capability_group_box));
+            layout->addWidget(new QLabel(
+                QCoreApplication::translate("GTrC", "Update Checking API:"),
+                capability_group_box));
             layout->addWidget(github_radio_button);
             layout->addWidget(bktus_radio_button);
 

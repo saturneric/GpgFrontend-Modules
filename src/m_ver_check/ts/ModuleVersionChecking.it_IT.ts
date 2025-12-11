@@ -4,9 +4,35 @@
 <context>
     <name>GTrC</name>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="62"/>
-        <source>Update</source>
-        <translation>Aggiorna</translation>
+        <location filename="../VersionCheckingModule.cpp" line="109"/>
+        <location filename="../VersionCheckingModule.cpp" line="160"/>
+        <source>Check for Updates</source>
+        <translation type="unfinished">Verifica aggiornamenti</translation>
+    </message>
+    <message>
+        <location filename="../VersionCheckingModule.cpp" line="161"/>
+        <source>Check for updates from the Internet.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../VersionCheckingModule.cpp" line="281"/>
+        <source>Checking for version updates when the application starts.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../VersionCheckingModule.cpp" line="293"/>
+        <source>GitHub</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../VersionCheckingModule.cpp" line="296"/>
+        <source>BKTUS.com</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../VersionCheckingModule.cpp" line="301"/>
+        <source>Update Checking API:</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -67,64 +93,52 @@
         <translation>per controllare l’ultima versione stabile.</translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="157"/>
+        <location filename="../UpdateTab.cpp" line="154"/>
         <source>Latest Version From %1</source>
         <translation>Ultima versione da %1</translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="175"/>
+        <location filename="../UpdateTab.cpp" line="172"/>
         <source>This version is either withdrawn due to critical issues or is an unreleased build. Please stop using it and download the latest stable version.</source>
         <translation>Questa versione è stata ritirata per problemi critici oppure è una build non rilasciata. Smetti di usarla e scarica l’ultima versione stabile.</translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="163"/>
+        <location filename="../UpdateTab.cpp" line="160"/>
         <source>Your current version is outdated.</source>
         <translation>La tua versione attuale è obsoleta.</translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="164"/>
-        <location filename="../UpdateTab.cpp" line="178"/>
-        <location filename="../UpdateTab.cpp" line="189"/>
-        <location filename="../UpdateTab.cpp" line="202"/>
+        <location filename="../UpdateTab.cpp" line="161"/>
+        <location filename="../UpdateTab.cpp" line="175"/>
+        <location filename="../UpdateTab.cpp" line="186"/>
         <source>Click</source>
         <translation>Fai clic</translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="167"/>
-        <location filename="../UpdateTab.cpp" line="180"/>
-        <location filename="../UpdateTab.cpp" line="192"/>
-        <location filename="../UpdateTab.cpp" line="205"/>
+        <location filename="../UpdateTab.cpp" line="164"/>
+        <location filename="../UpdateTab.cpp" line="177"/>
+        <location filename="../UpdateTab.cpp" line="189"/>
         <source>here</source>
         <translation>qui</translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="187"/>
-        <source>The current version&apos;s commit hash does not match the official release. This may indicate a modified or unofficial build.</source>
-        <translation>L’hash del commit della versione attuale non corrisponde a una release ufficiale. Questo potrebbe indicare una build modificata o non ufficiale.</translation>
-    </message>
-    <message>
-        <location filename="../UpdateTab.cpp" line="193"/>
-        <source>to verify your installation or download the official version.</source>
-        <translation>per verificare la tua installazione o scaricare la versione ufficiale.</translation>
-    </message>
-    <message>
-        <location filename="../UpdateTab.cpp" line="200"/>
+        <location filename="../UpdateTab.cpp" line="184"/>
         <source>The commit hash for this build was not found in the official repository. This may indicate a modified or unofficial version.</source>
         <translation>L’hash del commit per questa build non è stato trovato nel repository ufficiale. Questo potrebbe indicare una versione modificata o non ufficiale.</translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="206"/>
+        <location filename="../UpdateTab.cpp" line="190"/>
         <source>to verify your installation or download the official build.</source>
         <translation>per verificare la tua installazione o scaricare la build ufficiale.</translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="212"/>
+        <location filename="../UpdateTab.cpp" line="196"/>
         <source>You are using the latest stable version. No action is required.</source>
         <translation>Stai usando l’ultima versione stabile. Nessuna azione richiesta.</translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="167"/>
-        <location filename="../UpdateTab.cpp" line="180"/>
+        <location filename="../UpdateTab.cpp" line="164"/>
+        <location filename="../UpdateTab.cpp" line="177"/>
         <source>to download the latest stable version.</source>
         <translation>per scaricare l’ultima versione stabile.</translation>
     </message>
