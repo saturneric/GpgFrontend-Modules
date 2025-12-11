@@ -26,10 +26,11 @@
  *
  */
 
-#include <QObject>
+#include <QNetworkReply>
+
+#include "KeyInfo.h"
 
 class QNetworkAccessManager;
-class QNetworkReply;
 
 class VKSInterface : public QObject {
   Q_OBJECT

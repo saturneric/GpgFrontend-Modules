@@ -32,4 +32,4 @@ aux_source_directory(. INTEGRATED_MODULE_SOURCE)
 register_module(key_server_sync MODULE_TARGET ${INTEGRATED_MODULE_SOURCE})
 
 # link qt
-target_link_libraries(${MODULE_TARGET} PRIVATE Qt::Core Qt::Network)
+target_link_libraries(${MODULE_TARGET} PRIVATE Qt::Core Qt::Widgets Qt::Network)

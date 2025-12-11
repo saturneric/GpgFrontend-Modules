@@ -40,8 +40,7 @@
 #include <QUrl>
 #include <QUrlQuery>
 
-//
-#include <GFModuleCommonUtils.hpp>
+#include "GFModuleCommonUtils.hpp"
 
 VKSInterface::VKSInterface(QString key_server, QObject* parent)
     : QObject(parent),
