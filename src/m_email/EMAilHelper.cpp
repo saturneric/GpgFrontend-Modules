@@ -29,6 +29,7 @@
 #include "EMailHelper.h"
 
 #include <QRegularExpression>
+#include <QTimeZone>
 
 #include "GFModuleCommonUtils.hpp"
 
@@ -89,8 +90,8 @@ auto ExtractFieldValueMailBox(const vmime::shared_ptr<vmime::header>& header,
 }
 
 auto ExtractFieldValueAddressList(
-    const vmime::shared_ptr<vmime::header>& header,
-    const QString& field_name) -> QString {
+    const vmime::shared_ptr<vmime::header>& header, const QString& field_name)
+    -> QString {
   auto field = header->getField(field_name.toStdString());
   if (!field) {
     FLOG_WARN("cannot get '%1' Field from header", field_name);
@@ -153,13 +154,21 @@ auto ExtractFieldValueDateTime(const vmime::shared_ptr<vmime::header>& header,
 
   auto zone = field_value->getZone();
   QDateTime datetime(date, time);
-  datetime.setOffsetFromUtc(zone * 60);
+
+  int offset_sec = zone * 60;
+
+#if QT_VERSION >= QT_VERSION_CHECK(6, 6, 0)
+  QTimeZone tz(offset_sec);
+  datetime.setTimeZone(tz);
+#else
+  datetime.setOffsetFromUtc(offset_sec);
+#endif
 
   return datetime;
 }
 
-auto ParseEmailString(const QString& input, QString& name,
-                      QString& email) -> bool {
+auto ParseEmailString(const QString& input, QString& name, QString& email)
+    -> bool {
   QRegularExpressionMatch match = kNameEmailStringRegex.match(input);
 
   if (match.hasMatch()) {
@@ -171,8 +180,8 @@ auto ParseEmailString(const QString& input, QString& name,
   return false;
 }
 
-auto EncodeBase64WithLineBreaks(const QByteArray& data,
-                                int line_length) -> QString {
+auto EncodeBase64WithLineBreaks(const QByteArray& data, int line_length)
+    -> QString {
   // Get the Base64 encoded data
   QByteArray base64_data = data.toBase64();
 

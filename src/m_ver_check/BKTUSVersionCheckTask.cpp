@@ -125,14 +125,11 @@ void BKTUSVersionCheckTask::slot_parse_latest_version_info(
   auto reply_bytes = reply->readAll();
 
   QDomDocument doc;
-  QString err_msg;
-  int err_line = 0;
-  int err_column = 0;
   auto xml_text = QString::fromUtf8(reply_bytes);
-  bool ok = doc.setContent(xml_text, &err_msg, &err_line, &err_column);
-  if (!ok) {
-    FLOG_WARN("xml parse failed: %1, line: %2, column: %3", err_msg, err_line,
-              err_column);
+  auto result = doc.setContent(xml_text);
+  if (!result) {
+    FLOG_WARN("xml parse failed: %1, line: %2, column: %3", result.errorMessage,
+              result.errorLine, result.errorColumn);
     return;
   }
 
@@ -187,14 +184,11 @@ void BKTUSVersionCheckTask::slot_parse_current_tag_info(QNetworkReply* reply) {
   auto reply_bytes = reply->readAll();
 
   QDomDocument doc;
-  QString err_msg;
-  int err_line = 0;
-  int err_column = 0;
   QString xml_text = QString::fromUtf8(reply_bytes);
-  bool ok = doc.setContent(xml_text, &err_msg, &err_line, &err_column);
-  if (!ok) {
-    FLOG_WARN("xml parse failed: %1, line: %2, column: %3", err_msg, err_line,
-              err_column);
+  auto result = doc.setContent(xml_text);
+  if (!result) {
+    FLOG_WARN("xml parse failed: %1, line: %2, column: %3", result.errorMessage,
+              result.errorLine, result.errorColumn);
     return;
   }
 
@@ -249,14 +243,11 @@ void BKTUSVersionCheckTask::slot_parse_current_commit_hash_info(
   auto reply_bytes = reply->readAll();
 
   QDomDocument doc;
-  QString err_msg;
-  int err_line = 0;
-  int err_column = 0;
   QString xml_text = QString::fromUtf8(reply_bytes);
-  bool ok = doc.setContent(xml_text, &err_msg, &err_line, &err_column);
-  if (!ok) {
-    FLOG_WARN("xml parse failed: %1, line: %2, column: %3", err_msg, err_line,
-              err_column);
+  auto result = doc.setContent(xml_text);
+  if (!result) {
+    FLOG_WARN("xml parse failed: %1, line: %2, column: %3", result.errorMessage,
+              result.errorLine, result.errorColumn);
     return;
   }
 

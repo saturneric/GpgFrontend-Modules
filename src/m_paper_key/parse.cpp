@@ -167,7 +167,9 @@ int calculate_fingerprint(struct packet *packet, size_t public_len,
                           unsigned char fingerprint[20]) {
   if (packet->buf[0] == 3) {
     return -1;
-  } else if (packet->buf[0] == 4) {
+  }
+
+  if (packet->buf[0] == 4) {
     QCryptographicHash sha(QCryptographicHash::Sha1);
     QByteArray head;
 
@@ -175,8 +177,10 @@ int calculate_fingerprint(struct packet *packet, size_t public_len,
     head.append(static_cast<char>(public_len >> 8));
     head.append(static_cast<char>(public_len & 0xFF));
 
-    sha.addData(head);
-    sha.addData(reinterpret_cast<const char *>(packet->buf), public_len);
+    sha.addData(QByteArrayView(head));
+    sha.addData(QByteArrayView(reinterpret_cast<const char *>(packet->buf),
+                               static_cast<qsizetype>(public_len)));
+
     QByteArray result = sha.result();
 
     if (result.size() != 20) {
