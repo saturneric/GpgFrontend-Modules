@@ -30,8 +30,7 @@ library file.
 ## Developing Modules
 
 - Follow the patterns in `modules/src/*/CMakeLists.txt` and use the SDK headers
-  (`GFModuleDeclare.h`, `GFModuleDefine.h`, `GFModuleExport.h`) provided by the
-  main repo.
+  provided by the main repo.
 - Register your module via `register_module(...)`; superproject CMake enables
   `CMAKE_AUTOMOC`, `CMAKE_AUTORCC`, and `CMAKE_AUTOUIC`.
 - Match the Qt major version used by the host build to keep the module loadable.
