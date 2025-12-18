@@ -38,7 +38,7 @@
 #include "VKSInterface.h"
 
 GF_MODULE_API_DEFINE_V2("com.bktus.gpgfrontend.module.key_server_sync",
-                        "KeyServerSync", "1.0.0",
+                        "KeyServerSync", "1.1.0",
                         "Sync Information From Trusted Key Server.",
                         "Saturneric")
 
