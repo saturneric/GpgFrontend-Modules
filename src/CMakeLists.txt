@@ -27,6 +27,5 @@
 
 add_subdirectory(m_ver_check)
 add_subdirectory(m_gpg_info)
-add_subdirectory(m_paper_key)
 add_subdirectory(m_key_server_sync)
 add_subdirectory(m_email)
