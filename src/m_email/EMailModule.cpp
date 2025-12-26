@@ -33,16 +33,20 @@
 #include <GFSDKLog.h>
 
 // qt
+#include <QApplication>
 #include <QCoreApplication>
 #include <QCryptographicHash>
 #include <QFileInfo>
 #include <QJsonDocument>
+#include <QMainWindow>
+#include <QMenu>
 #include <QString>
 
 #include "EMailMetaDataDialog.h"
 
 // vmime
 #define VMIME_STATIC
+#include <algorithm>
 #include <vmime/vmime.hpp>
 
 // vmime extend
@@ -54,9 +58,8 @@
 //
 #include "EMailBasicGpgOpera.h"
 #include "EMailHelper.h"
-#include "EMailMetaDataDialog.h"
 
-GF_MODULE_API_DEFINE_V2("com.bktus.gpgfrontend.module.email", "Email", "1.0.0",
+GF_MODULE_API_DEFINE_V2("com.bktus.gpgfrontend.module.email", "Email", "1.1.0",
                         "Everything related to E-Mails.", "Saturneric")
 
 DEFINE_TRANSLATIONS_STRUCTURE(ModuleEMail);
@@ -66,239 +69,814 @@ auto GFRegisterModule() -> int {
 
   REGISTER_TRANS_READER();
 
-  LISTEN("EMAIL_VERIFY_EML_DATA");
-  LISTEN("EMAIL_DECRYPT_EML_DATA");
-  LISTEN("EMAIL_SIGN_EML_DATA");
-  LISTEN("EMAIL_ENCRYPT_EML_DATA");
-  LISTEN("EMAIL_ENCRYPT_SIGN_EML_DATA");
-  LISTEN("EMAIL_DECRYPT_VERIFY_EML_DATA");
+  LISTEN("MAINWINDOW_MENU_MOUNTED");
+
+  LISTEN("EDIT_TAB_TYPE_EMAIL_OP_ENCRYPT");
+  LISTEN("EDIT_TAB_TYPE_EMAIL_OP_DECRYPT");
+  LISTEN("EDIT_TAB_TYPE_EMAIL_OP_SIGN");
+  LISTEN("EDIT_TAB_TYPE_EMAIL_OP_VERIFY");
+  LISTEN("EDIT_TAB_TYPE_EMAIL_OP_ENCRYPT_SIGN");
+  LISTEN("EDIT_TAB_TYPE_EMAIL_OP_DECRYPT_VERIFY");
+
   return 0;
 }
 
 auto GFActiveModule() -> int { return 0; }
 
-REGISTER_EVENT_HANDLER(EMAIL_VERIFY_EML_DATA, [](const MEvent& event) -> int {
-  if (event["channel"].isEmpty()) CB_ERR(event, -1, "channel is empty");
-  if (event["eml_data"].isEmpty()) CB_ERR(event, -1, "eml_data is empty");
+namespace {
 
-  auto channel = event.value("channel", "0").toInt();
-  auto data = QByteArray::fromBase64(QString(event["eml_data"]).toLatin1());
+auto ErrorHelper(int ret, const QString& err) -> QString {
+  if (ret == -2) {
+    auto info =
+        QApplication::translate(
+            "EMailModule",
+            "# EML Data Error\n\n"
+            "The provided EML data does not conform to RFC 3156 standards "
+            "and cannot be processed.\n\n"
+            "**Details:** %1\n\n"
+            "### What is EML Data?\n"
+            "EML is a file format for representing email messages, "
+            "typically "
+            "including headers, body text, attachments, and metadata. "
+            "Complete and properly structured EML data is required for "
+            "validation.\n\n"
+            "### Suggested Solutions\n"
+            "1. Verify the EML data is complete and matches the structure "
+            "outlined in RFC 3156.\n"
+            "2. Refer to the official documentation for the EML structure: "
+            "%2\n\n"
+            "After correcting the EML data, try the operation again.")
+            .arg(err)
+            .arg("https://www.rfc-editor.org/rfc/rfc3156.txt");
 
-  EMailMetaData meta_data;
-  QString error_string;
-  QString capsule_id;
-  auto ret = VerifyEMLData(channel, data, meta_data, error_string, capsule_id);
-  if (ret != 0) CB_ERR(event, ret, error_string);
+    return info;
+  }
 
-  // callback
-  CB(event, GFGetModuleID(),
-     {
-         {"ret", QString::number(0)},
-         {"mime", QString::fromLatin1(meta_data.mime.toBase64())},
-         {"mime_hash", meta_data.mime_hash},
-         {"signature", QString::fromLatin1(meta_data.signature.toBase64())},
-         {"from", meta_data.from},
-         {"to", meta_data.to.join("; ")},
-         {"cc", meta_data.cc.join("; ")},
-         {"bcc", meta_data.bcc.join("; ")},
-         {"subject", meta_data.subject},
-         {"datetime", QString::number(meta_data.datetime.toMSecsSinceEpoch())},
-         {"micalg", meta_data.micalg},
-         {"public_keys", meta_data.public_keys},
-         {"capsule_id", capsule_id},
-     });
+  auto error_message =
+      QApplication::translate(
+          "EMailModule",
+          "# Email Operation Error\n\n"
+          "An error occurred during the email operation. The process "
+          "could not be completed.\n\n"
+          "**Details:**\n"
+          "- **Error Code:** %1\n"
+          "- **Error Message:** %2\n\n"
+          "### Possible Causes\n"
+          "1. The email data may be incomplete or corrupted.\n"
+          "2. The selected GPG key does not have the necessary "
+          "permissions.\n"
+          "3. Issues in the GPG environment or configuration.\n\n"
+          "### Suggested Solutions\n"
+          "1. Ensure the email data is complete and follows the expected "
+          "format.\n"
+          "2. Verify the GPG key has the required access permissions.\n"
+          "3. Check your GPG environment and configuration settings.\n"
+          "4. Review the error details above or application logs for "
+          "further troubleshooting.\n\n"
+          "If the issue persists, consider seeking technical support or "
+          "consulting the documentation.")
+          .arg(ret)
+          .arg(err);
 
-  return 0;
+  return error_message;
+}
+
+}  // namespace
+
+REGISTER_EVENT_HANDLER(MAINWINDOW_MENU_MOUNTED, [](const MEvent& event) -> int {
+  LOG_DEBUG("main window menu mounted event: processing");
+
+  if (!event.contains("main_window")) {
+    LOG_DEBUG("main window menu mounted event: no main_window found");
+    CB_ERR(event, -1, "no main_window found");
+  }
+
+  auto* main_window = GFUIGetGUIObjectAs<QMainWindow>(event["main_window"]);
+  if (!main_window) {
+    LOG_ERROR(
+        "main window menu mounted: main_window handle invalid or not "
+        "QMainWindow");
+    CB_ERR(event, -1, "main_window handle invalid or not QMainWindow");
+  }
+
+  if (!event.contains("import_key_menu")) {
+    LOG_DEBUG("main window menu mounted event: no import_key_menu found");
+    CB_ERR(event, -1, "no import_key_menu found");
+  }
+
+  auto* workspace_menu =
+      GFUIGetGUIObjectAs<QMenu>(event["file_workspace_menu"]);
+  if (!workspace_menu) {
+    LOG_ERROR(
+        "main window menu mounted: workspace_menu handle invalid or not "
+        "QMenu");
+    CB_ERR(event, -1, "workspace_menu handle invalid or not QMenu");
+  }
+
+  LOG_DEBUG("adding key server sync actions to import key menu");
+
+  auto* edit = GFUIGetGUIObjectAs<QWidget>("main_window_edit");
+  if (!edit) {
+    LOG_ERROR(
+        "main window menu mounted: main_window_edit handle invalid or not "
+        "QWidget");
+    CB_ERR(event, -1, "main_window_edit handle invalid or not QWidget");
+  }
+
+  QMetaObject::invokeMethod(
+      QApplication::instance(),
+      [&]() -> void {
+        QWidget* parent =
+            qobject_cast<QWidget*>(static_cast<QObject*>(main_window));
+        auto* action = new QAction(
+            QCoreApplication::translate("GTrC", "Mail Editor"), parent);
+
+        action->setToolTip(QCoreApplication::translate(
+            "GTrC", "Open a new text editor for email."));
+        action->setIcon(QIcon(":/icons/email.png"));
+        bool ok =
+            QObject::connect(action, &QAction::triggered, parent, [edit]() {
+              QMetaObject::invokeMethod(
+                  edit, "SlotNewCustomTab", Qt::DirectConnection,
+                  Q_ARG(QString, "email"), Q_ARG(QString, "untitled.eml"),
+                  Q_ARG(QIcon, QIcon(":/icons/email.png")));
+            });
+
+        if (!ok) {
+          LOG_ERROR("connecting mail editor action failed");
+        }
+
+        workspace_menu->addAction(action);
+      },
+      Qt::BlockingQueuedConnection);
+  CB_SUCC(event);
 });
 
-REGISTER_EVENT_HANDLER(EMAIL_DECRYPT_EML_DATA, [](const MEvent& event) -> int {
-  if (event["channel"].isEmpty()) CB_ERR(event, -1, "channel is empty");
-  if (event["eml_data"].isEmpty()) CB_ERR(event, -1, "eml_data is empty");
+namespace {
 
-  auto channel = event.value("channel", "0").toInt();
-  auto data = QByteArray::fromBase64(QString(event["eml_data"]).toLatin1());
-
-  EMailMetaData meta_data;
-  QString eml_data;
-  QString capsule_id;
-  auto ret = DecryptEMLData(channel, data, meta_data, eml_data, capsule_id);
-  if (ret != 0) CB_ERR(event, ret, eml_data);
-
-  // callback
-  CB(event, GFGetModuleID(),
-     {
-         {"ret", QString::number(0)},
-         {"eml_data", QString::fromLatin1(eml_data.toLatin1().toBase64())},
-         {"from", meta_data.from},
-         {"to", meta_data.to.join("; ")},
-         {"cc", meta_data.cc.join("; ")},
-         {"bcc", meta_data.bcc.join("; ")},
-         {"subject", meta_data.subject},
-         {"datetime", QString::number(meta_data.datetime.toMSecsSinceEpoch())},
-         {"capsule_id", capsule_id},
-     });
-
-  return 0;
-});
-
-REGISTER_EVENT_HANDLER(EMAIL_SIGN_EML_DATA, [](const MEvent& event) -> int {
-  if (event["body_data"].isEmpty()) CB_ERR(event, -1, "body_data is empty");
-  if (event["channel"].isEmpty()) CB_ERR(event, -1, "channel is empty");
-  if (event["sign_key"].isEmpty()) CB_ERR(event, -1, "sign_key is empty");
-
-  auto channel = event.value("channel", "0").toInt();
-  auto sign_key = event.value("sign_key", "");
-
-  FLOG_DEBUG("eml sign key: %1", sign_key);
-
-  auto body_data =
-      QByteArray::fromBase64(QString(event["body_data"]).toLatin1());
-
-  auto* dialog = GUI_OBJECT(CreateEMailMetaDataDialog, 0);
-  auto* r_dialog =
-      qobject_cast<EMailMetaDataDialog*>(static_cast<QObject*>(dialog));
-  if (r_dialog == nullptr)
-    CB_ERR(event, -1, "convert dialog to r_dialog failed");
-
-  r_dialog->SetChannel(channel);
-  r_dialog->SetKeys({sign_key});
-  r_dialog->SetBodyData({body_data});
-
-  vmime::shared_ptr<vmime::message> message;
-  if (CheckIfEMLMessage(body_data, message)) {
-    EMailMetaData meta_data;
-    auto ret = GetEMLMetaData(message, meta_data);
-
-    if (ret != 0) {
-      CB_ERR(event, -1, "Get MetaData From EML Data Failed");
-    }
-
-    QString eml_data;
-    QString capsule_id;
-    ret = SignEMLData(channel, sign_key, message, eml_data, capsule_id);
-    if (ret != 0) {
-      CB_ERR(event, -2, eml_data);
-    }
-
+auto DoVerifyEMLData(int channel, const QByteArray& data, const MEvent& event,
+                     int& result_status, QString& result_detail,
+                     QString& error_string, EMailMetaData& meta_data) -> int {
+  gpg_error_t err;
+  gpgme_verify_result_t result;
+  auto ret = VerifyEMLData(channel, data, meta_data, error_string, err, result);
+  if (ret == kFAILED || ret == kEML_FAILED) {
     CB(event, GFGetModuleID(),
        {
            {"ret", QString::number(0)},
-           {"eml_data", eml_data},
-           {"capsule_id", capsule_id},
+           {"result_status", QString::number(-1)},
+           {"result", ErrorHelper(ret, error_string)},
        });
-    return 0;
+    return ret;
   }
 
-  GFUIShowDialog(dialog, nullptr);
-  QObject::connect(r_dialog, &EMailMetaDataDialog::SignalEMLMetaData, r_dialog,
-                   [=](const EMailMetaData& meta_data) {
-                     QString eml_data;
-                     QString capsule_id;
-                     auto ret = SignPlainText(channel, sign_key, meta_data,
-                                              body_data, eml_data, capsule_id);
-                     if (ret != 0) {
-                       CB_ERR(event, -2, eml_data);
-                     }
+  const char* tmp = nullptr;
+  result_status = GFAnalyseVerifyResult(channel, err, result, &tmp);
+  result_detail = UnStrDup(tmp);
+  GFGpgFreeResult(result);
 
-                     CB(event, GFGetModuleID(),
-                        {
-                            {"ret", QString::number(0)},
-                            {"eml_data", eml_data},
-                            {"capsule_id", capsule_id},
-                        });
-                     return 0;
-                   });
-
-  QObject::connect(
-      r_dialog, &EMailMetaDataDialog::SignalNoEMLMetaData, r_dialog,
-      [=](const QString& error_string) { CB_ERR(event, -1, error_string); });
-
-  return 0;
-});
-
-REGISTER_EVENT_HANDLER(EMAIL_ENCRYPT_EML_DATA, [](const MEvent& event) -> int {
-  if (event["body_data"].isEmpty()) CB_ERR(event, -1, "body_data is empty");
-  if (event["channel"].isEmpty()) CB_ERR(event, -1, "channel is empty");
-  if (event["encrypt_keys"].isEmpty())
-    CB_ERR(event, -1, "encrypt_keys is empty");
-
-  auto channel = event.value("channel", "0").toInt();
-  auto encrypt_keys = event.value("encrypt_keys", "").split(';');
-
-  FLOG_DEBUG("eml encrypt keys: %1", encrypt_keys.join(';'));
-
-  auto body_data =
-      QByteArray::fromBase64(QString(event["body_data"]).toLatin1());
-
-  vmime::shared_ptr<vmime::message> message;
-  if (CheckIfEMLMessage(body_data, message)) {
-    QString eml_data;
-    QString capsule_id;
-    auto ret = EncryptEMLData(channel, encrypt_keys, message, body_data,
-                              eml_data, capsule_id);
-    if (ret != 0) {
-      CB_ERR(event, -2, eml_data);
-    }
-
+  if (ret == kGPG_FAILED) {
+    // decrypt failed
     CB(event, GFGetModuleID(),
        {
            {"ret", QString::number(0)},
-           {"eml_data", eml_data},
-           {"capsule_id", capsule_id},
+           {"result_status", QString::number(result_status)},
+           {"result", result_detail},
        });
-    return 0;
+    return ret;
   }
 
-  auto* dialog = GUI_OBJECT(CreateEMailMetaDataDialog, 1);
-  auto* r_dialog =
-      qobject_cast<EMailMetaDataDialog*>(static_cast<QObject*>(dialog));
-  if (r_dialog == nullptr)
-    CB_ERR(event, -1, "convert dialog to r_dialog failed");
-
-  r_dialog->SetChannel(channel);
-  r_dialog->SetKeys(encrypt_keys);
-  r_dialog->SetBodyData({body_data});
-
-  GFUIShowDialog(dialog, nullptr);
-
-  QObject::connect(r_dialog, &EMailMetaDataDialog::SignalEMLMetaData, r_dialog,
-                   [=](const EMailMetaData& meta_data) {
-                     QString eml_data;
-                     QString capsule_id;
-                     QString plain_text_eml_data;
-
-                     auto ret = BuildPlainTextEML(meta_data, body_data,
-                                                  plain_text_eml_data);
-
-                     if (ret != 0) {
-                       CB_ERR(event, -1, "Build PlainText EML Data Failed");
-                     }
-
-                     ret = EncryptPlainText(channel, encrypt_keys, meta_data,
-                                            plain_text_eml_data.toLatin1(),
-                                            eml_data, capsule_id);
-                     if (ret != 0) {
-                       CB_ERR(event, -2, eml_data);
-                     }
-
-                     CB(event, GFGetModuleID(),
-                        {
-                            {"ret", QString::number(0)},
-                            {"eml_data", eml_data},
-                            {"capsule_id", capsule_id},
-                        });
-                     return 0;
-                   });
-
-  QObject::connect(
-      r_dialog, &EMailMetaDataDialog::SignalNoEMLMetaData, r_dialog,
-      [=](const QString& error_string) { CB_ERR(event, -1, error_string); });
-
-  return 0;
-});
+  if (ret != kSUCCESS) {
+    CB(event, GFGetModuleID(),
+       {
+           {"ret", QString::number(0)},
+           {"result_status", QString::number(-1)},
+           {"result", ErrorHelper(ret, error_string)},
+       });
+    return ret;
+  }
+  return kSUCCESS;
+}
+}  // namespace
 
 REGISTER_EVENT_HANDLER(
-    EMAIL_ENCRYPT_SIGN_EML_DATA, [](const MEvent& event) -> int {
+    EDIT_TAB_TYPE_EMAIL_OP_VERIFY, [](const MEvent& event) -> int {
+      if (event["channel"].isEmpty()) CB_ERR(event, -1, "channel is empty");
+      if (event["data"].isEmpty()) CB_ERR(event, -1, "data is empty");
+
+      auto channel = event.value("channel", "0").toInt();
+      auto data = QByteArray::fromBase64(QString(event["data"]).toLatin1());
+
+      EMailMetaData meta_data;
+      QString error_string;
+      int result_status;
+      QString result_detail;
+      if (DoVerifyEMLData(channel, data, event, result_status, result_detail,
+                          error_string, meta_data) != kSUCCESS) {
+        return -1;
+      }
+
+      QString email_info;
+      email_info.append("# E-Mail Information\n\n");
+      email_info.append(QString("- %1: %2\n")
+                            .arg(QApplication::translate("EMailModule", "From"))
+                            .arg(meta_data.from));
+      email_info.append(QString("- %1: %2\n")
+                            .arg(QApplication::translate("EMailModule", "To"))
+                            .arg(meta_data.to.join("; ")));
+      email_info.append(
+          QString("- %1: %2\n")
+              .arg(QApplication::translate("EMailModule", "Subject"))
+              .arg(meta_data.subject));
+      email_info.append(QString("- %1: %2\n")
+                            .arg(QApplication::translate("EMailModule", "CC"))
+                            .arg(meta_data.cc.join("; ")));
+      email_info.append(QString("- %1: %2\n")
+                            .arg(QApplication::translate("EMailModule", "BCC"))
+                            .arg(meta_data.bcc.join("; ")));
+      email_info.append(QString("- %1: %2\n")
+                            .arg(QApplication::translate("EMailModule", "Date"))
+                            .arg(QLocale().toString(meta_data.datetime)));
+
+      email_info.append("\n");
+
+      email_info.append("# OpenPGP Information\n\n");
+
+      email_info.append(QString("- %1: %2\n")
+                            .arg(QApplication::translate(
+                                "EMailModule", "Signed EML Data Hash (SHA1)"))
+                            .arg(meta_data.mime_hash));
+      email_info.append(
+          QString("- %1: %2\n")
+              .arg(QApplication::translate("EMailModule",
+                                           "Message Integrity Check Algorithm"))
+              .arg(meta_data.micalg));
+
+      email_info.append("\n");
+
+      email_info.append("#" + result_detail + "\n");
+
+      // callback
+      CB(event, GFGetModuleID(),
+         {
+             {"ret", QString::number(0)},
+             {"result_status", QString::number(result_status)},
+             {"result", email_info},
+         });
+      return 0;
+    });
+
+namespace {
+
+auto DoDecryptEMLData(int channel, const QByteArray& data, const MEvent& event,
+                      int& result_status, QString& result_detail,
+                      QString& eml_data, EMailMetaData& meta_data) -> int {
+  gpgme_error_t err;
+  gpgme_decrypt_result_t result;
+  auto ret = DecryptEMLData(channel, data, meta_data, eml_data, err, result);
+
+  if (ret == kFAILED || ret == kEML_FAILED) {
+    CB(event, GFGetModuleID(),
+       {
+           {"ret", QString::number(0)},
+           {"data", data},
+           {"result_status", QString::number(-1)},
+           {"result", ErrorHelper(ret, eml_data)},
+       });
+    return ret;
+  }
+
+  const char* tmp = nullptr;
+  result_status = GFAnalyseDecryptResult(channel, err, result, &tmp);
+  result_detail = UnStrDup(tmp);
+  GFGpgFreeResult(result);
+
+  if (ret == kGPG_FAILED) {
+    // decrypt failed
+    CB(event, GFGetModuleID(),
+       {
+           {"ret", QString::number(0)},
+           {"data", data},
+           {"result_status", QString::number(result_status)},
+           {"result", result_detail},
+       });
+    return ret;
+  }
+
+  if (ret != kSUCCESS) {
+    CB(event, GFGetModuleID(),
+       {
+           {"ret", QString::number(0)},
+           {"data", data},
+           {"result_status", QString::number(-1)},
+           {"result", ErrorHelper(ret, eml_data)},
+       });
+    return ret;
+  }
+
+  return 0;
+}
+
+}  // namespace
+
+REGISTER_EVENT_HANDLER(
+    EDIT_TAB_TYPE_EMAIL_OP_DECRYPT, [](const MEvent& event) -> int {
+      if (event["channel"].isEmpty()) CB_ERR(event, -1, "channel is empty");
+      if (event["data"].isEmpty()) CB_ERR(event, -1, "data is empty");
+
+      auto channel = event.value("channel", "0").toInt();
+      auto data = QByteArray::fromBase64(QString(event["data"]).toLatin1());
+
+      QString eml_data;
+      int result_status;
+      QString result_detail;
+      EMailMetaData meta_data;
+      if (DoDecryptEMLData(channel, data, event, result_status, result_detail,
+                           eml_data, meta_data) != kSUCCESS) {
+        return -1;
+      }
+
+      QString email_info;
+      email_info.append("# E-Mail Information\n\n");
+      email_info.append(QString("- %1: %2\n")
+                            .arg(QApplication::translate("EMailModule", "From"))
+                            .arg(meta_data.from));
+      email_info.append(QString("- %1: %2\n")
+                            .arg(QApplication::translate("EMailModule", "To"))
+                            .arg(meta_data.to.join("; ")));
+      email_info.append(
+          QString("- %1: %2\n")
+              .arg(QApplication::translate("EMailModule", "Subject"))
+              .arg(meta_data.subject));
+      email_info.append(QString("- %1: %2\n")
+                            .arg(QApplication::translate("EMailModule", "CC"))
+                            .arg(meta_data.cc.join("; ")));
+      email_info.append(QString("- %1: %2\n")
+                            .arg(QApplication::translate("EMailModule", "BCC"))
+                            .arg(meta_data.bcc.join("; ")));
+      email_info.append(QString("- %1: %2\n")
+                            .arg(QApplication::translate("EMailModule", "Date"))
+                            .arg(QLocale().toString(meta_data.datetime)));
+
+      email_info.append("\n");
+
+      email_info.append("# OpenPGP Information\n\n");
+      email_info.append("#" + result_detail + "\n");
+
+      // callback
+      CB(event, GFGetModuleID(),
+         {
+             {"ret", QString::number(0)},
+             {"data", eml_data},
+             {"result_status", QString::number(result_status)},
+             {"result", email_info},
+         });
+      return kSUCCESS;
+    });
+
+namespace {
+
+auto DoSignEMLData(int channel, const QString& sign_key,
+                   vmime::shared_ptr<vmime::message>& message,
+                   const QByteArray& body_data, const MEvent& event,
+                   int& result_status, QString& result_detail,
+                   QString& eml_data) -> int {
+  EMailMetaData meta_data;
+  auto ret = GetEMLMetaData(message, meta_data);
+
+  if (ret != 0) {
+    CB_ERR(event, -1, "Get MetaData From EML Data Failed");
+  }
+
+  gpg_error_t err;
+  gpgme_sign_result_t result;
+  ret = SignEMLData(channel, sign_key, message, eml_data, err, result);
+
+  if (ret == kFAILED || ret == kEML_FAILED) {
+    CB(event, GFGetModuleID(),
+       {
+           {"ret", QString::number(0)},
+           {"data", body_data},
+           {"result_status", QString::number(-1)},
+           {"result", ErrorHelper(ret, eml_data)},
+       });
+    return ret;
+  }
+
+  const char* tmp = nullptr;
+  result_status = GFAnalyseSignResult(channel, err, result, &tmp);
+  result_detail = UnStrDup(tmp);
+  GFGpgFreeResult(result);
+
+  if (ret == kGPG_FAILED) {
+    // decrypt failed
+    CB(event, GFGetModuleID(),
+       {
+           {"ret", QString::number(0)},
+           {"data", body_data},
+           {"result_status", QString::number(result_status)},
+           {"result", result_detail},
+       });
+    return ret;
+  }
+
+  if (ret != kSUCCESS) {
+    CB(event, GFGetModuleID(),
+       {
+           {"ret", QString::number(0)},
+           {"data", body_data},
+           {"result_status", QString::number(-1)},
+           {"result", ErrorHelper(ret, eml_data)},
+       });
+    return ret;
+  }
+
+  return kSUCCESS;
+}
+
+auto DoSignPlainText(int channel, const QString& sign_key,
+                     const EMailMetaData& meta_data,
+                     const QByteArray& body_data, const MEvent& event,
+                     int& result_status, QString& result_detail,
+                     QString& eml_data) -> int {
+  gpg_error_t err;
+  gpgme_sign_result_t result;
+
+  auto ret = SignPlainText(channel, sign_key, meta_data, body_data, eml_data,
+                           err, result);
+  if (ret == kFAILED || ret == kEML_FAILED) {
+    CB(event, GFGetModuleID(),
+       {
+           {"ret", QString::number(0)},
+           {"data", body_data},
+           {"result_status", QString::number(-1)},
+           {"result", ErrorHelper(ret, eml_data)},
+       });
+    return ret;
+  }
+
+  const char* tmp = nullptr;
+  result_status = GFAnalyseSignResult(channel, err, result, &tmp);
+  result_detail = UnStrDup(tmp);
+  GFGpgFreeResult(result);
+
+  if (ret == kGPG_FAILED) {
+    // decrypt failed
+    CB(event, GFGetModuleID(),
+       {
+           {"ret", QString::number(0)},
+           {"data", body_data},
+           {"result_status", QString::number(result_status)},
+           {"result", result_detail},
+       });
+    return ret;
+  }
+
+  if (ret != kSUCCESS) {
+    CB(event, GFGetModuleID(),
+       {
+           {"ret", QString::number(0)},
+           {"data", body_data},
+           {"result_status", QString::number(-1)},
+           {"result", ErrorHelper(ret, eml_data)},
+       });
+    return ret;
+  }
+
+  return kSUCCESS;
+}
+
+}  // namespace
+
+REGISTER_EVENT_HANDLER(
+    EDIT_TAB_TYPE_EMAIL_OP_SIGN, [](const MEvent& event) -> int {
+      if (event["body_data"].isEmpty()) CB_ERR(event, -1, "body_data is empty");
+      if (event["channel"].isEmpty()) CB_ERR(event, -1, "channel is empty");
+      if (event["sign_key"].isEmpty()) CB_ERR(event, -1, "sign_key is empty");
+
+      auto channel = event.value("channel", "0").toInt();
+      auto sign_key = event.value("sign_key", "");
+
+      FLOG_DEBUG("eml sign key: %1", sign_key);
+
+      auto body_data =
+          QByteArray::fromBase64(QString(event["body_data"]).toLatin1());
+
+      auto* dialog = GUI_OBJECT(CreateEMailMetaDataDialog, {});
+      auto* r_dialog =
+          qobject_cast<EMailMetaDataDialog*>(static_cast<QObject*>(dialog));
+      if (r_dialog == nullptr)
+        CB_ERR(event, -1, "convert dialog to r_dialog failed");
+
+      r_dialog->SetChannel(channel);
+      r_dialog->SetFromKeys({sign_key});
+      r_dialog->SetBodyData({body_data});
+
+      vmime::shared_ptr<vmime::message> message;
+      if (CheckIfEMLMessage(body_data, message)) {
+        int result_status = 0;
+        QString result_detail;
+        QString eml_data;
+        if (DoSignEMLData(channel, sign_key, message, body_data, event,
+                          result_status, result_detail, eml_data) != kSUCCESS) {
+          return -1;
+        }
+
+        CB(event, GFGetModuleID(),
+           {
+               {"ret", QString::number(0)},
+               {"data", eml_data},
+               {"result_status", QString::number(result_status)},
+               {"result", result_detail},
+           });
+        return 0;
+      }
+
+      GFUIShowDialog(dialog, nullptr);
+      QObject::connect(
+          r_dialog, &EMailMetaDataDialog::SignalEMLMetaData, r_dialog,
+          [=](const EMailMetaData& meta_data) {
+            int result_status = 0;
+            QString result_detail;
+            QString eml_data;
+            if (DoSignPlainText(channel, sign_key, meta_data, body_data, event,
+                                result_status, result_detail,
+                                eml_data) == kSUCCESS) {
+              CB(event, GFGetModuleID(),
+                 {
+                     {"ret", QString::number(0)},
+                     {"data", eml_data},
+                     {"result_status", QString::number(result_status)},
+                     {"result", result_detail},
+                 });
+            }
+          });
+
+      QObject::connect(r_dialog, &EMailMetaDataDialog::SignalNoEMLMetaData,
+                       r_dialog, [=](const QString& error_string) {
+                         CB(event, GFGetModuleID(),
+                            {
+                                {"ret", QString::number(0)},
+                                {"data", body_data},
+                                {"result_status", QString::number(-1)},
+                                {"result", ErrorHelper(-1, error_string)},
+                            });
+                       });
+
+      return 0;
+    });
+
+namespace {
+
+auto DoEncryptEMLData(int channel, const QStringList& encrypt_keys,
+                      const vmime::shared_ptr<vmime::message>& message,
+                      const QByteArray& body_data, const MEvent& event,
+                      int& result_status, QString& result_detail,
+                      QString& eml_data) -> int {
+  gpgme_error_t err;
+  gpgme_encrypt_result_t result;
+  auto ret = EncryptEMLData(channel, encrypt_keys, message, body_data, eml_data,
+                            err, result);
+
+  if (ret == kFAILED || ret == kEML_FAILED) {
+    CB(event, GFGetModuleID(),
+       {
+           {"ret", QString::number(0)},
+           {"data", QString::fromLatin1(body_data.toBase64())},
+           {"result_status", QString::number(-1)},
+           {"result", ErrorHelper(ret, eml_data)},
+       });
+    return ret;
+  }
+
+  const char* tmp = nullptr;
+  result_status = GFAnalyseEncryptResult(channel, err, result, &tmp);
+  result_detail = UnStrDup(tmp);
+  GFGpgFreeResult(result);
+
+  if (ret == kGPG_FAILED) {
+    // encrypt failed
+    CB(event, GFGetModuleID(),
+       {
+           {"ret", QString::number(0)},
+           {"data", QString::fromLatin1(body_data.toBase64())},
+           {"result_status", QString::number(result_status)},
+           {"result", result_detail},
+       });
+    return ret;
+  }
+
+  return kSUCCESS;
+}
+
+auto DoEncryptPlainText(int channel, const QStringList& encrypt_keys,
+                        const EMailMetaData& meta_data,
+                        const QByteArray& body_data, const MEvent& event,
+                        int& result_status, QString& result_detail,
+                        QString& eml_data) -> int {
+  gpgme_error_t err;
+  gpgme_encrypt_result_t result;
+  QString plain_text_eml_data;
+  auto ret = BuildPlainTextEML(meta_data, body_data, plain_text_eml_data);
+
+  if (ret != kSUCCESS) {
+    CB(event, GFGetModuleID(),
+       {
+           {"ret", QString::number(0)},
+           {"data", QString::fromLatin1(body_data.toBase64())},
+           {"result_status", QString::number(-1)},
+           {"result", ErrorHelper(ret, eml_data)},
+       });
+    return ret;
+  }
+
+  ret = EncryptPlainText(channel, encrypt_keys, meta_data,
+                         plain_text_eml_data.toLatin1(), eml_data, err, result);
+
+  if (ret == kFAILED || ret == kEML_FAILED) {
+    CB(event, GFGetModuleID(),
+       {
+           {"ret", QString::number(0)},
+           {"data", QString::fromLatin1(body_data.toBase64())},
+           {"result_status", QString::number(-1)},
+           {"result", ErrorHelper(ret, eml_data)},
+       });
+    return ret;
+  }
+
+  const char* tmp = nullptr;
+  result_status = GFAnalyseEncryptResult(channel, err, result, &tmp);
+  result_detail = UnStrDup(tmp);
+  GFGpgFreeResult(result);
+
+  if (ret == kGPG_FAILED) {
+    // encrypt failed
+    CB(event, GFGetModuleID(),
+       {
+           {"ret", QString::number(0)},
+           {"data", QString::fromLatin1(body_data.toBase64())},
+           {"result_status", QString::number(result_status)},
+           {"result", result_detail},
+       });
+    return ret;
+  }
+
+  return kSUCCESS;
+}
+};  // namespace
+
+REGISTER_EVENT_HANDLER(
+    EDIT_TAB_TYPE_EMAIL_OP_ENCRYPT, [](const MEvent& event) -> int {
+      if (event["body_data"].isEmpty()) CB_ERR(event, -1, "body_data is empty");
+      if (event["channel"].isEmpty()) CB_ERR(event, -1, "channel is empty");
+      if (event["encrypt_keys"].isEmpty())
+        CB_ERR(event, -1, "encrypt_keys is empty");
+
+      auto channel = event.value("channel", "0").toInt();
+      auto encrypt_keys = event.value("encrypt_keys", "").split(';');
+
+      FLOG_DEBUG("eml encrypt keys: %1", encrypt_keys.join(';'));
+
+      auto body_data =
+          QByteArray::fromBase64(QString(event["body_data"]).toLatin1());
+
+      vmime::shared_ptr<vmime::message> message;
+      if (CheckIfEMLMessage(body_data, message)) {
+        QString eml_data;
+        int result_status;
+        QString result_detail;
+        if (DoEncryptEMLData(channel, encrypt_keys, message, body_data, event,
+                             result_status, result_detail,
+                             eml_data) != kSUCCESS) {
+          return -1;
+        }
+
+        CB(event, GFGetModuleID(),
+           {
+               {"ret", QString::number(0)},
+               {"data", eml_data},
+               {"result", result_detail},
+               {"result_status", QString::number(result_status)},
+           });
+        return 0;
+      }
+
+      auto* dialog = GUI_OBJECT(CreateEMailMetaDataDialog, {});
+      auto* r_dialog =
+          qobject_cast<EMailMetaDataDialog*>(static_cast<QObject*>(dialog));
+      if (r_dialog == nullptr)
+        CB_ERR(event, -1, "convert dialog to r_dialog failed");
+
+      r_dialog->SetChannel(channel);
+      r_dialog->SetToKeys(encrypt_keys);
+      r_dialog->SetBodyData({body_data});
+
+      GFUIShowDialog(dialog, nullptr);
+
+      QObject::connect(
+          r_dialog, &EMailMetaDataDialog::SignalEMLMetaData, r_dialog,
+          [=](const EMailMetaData& meta_data) -> void {
+            QString eml_data;
+            int result_status;
+            QString result_detail;
+            if (DoEncryptPlainText(channel, encrypt_keys, meta_data, body_data,
+                                   event, result_status, result_detail,
+                                   eml_data) == kSUCCESS) {
+              CB(event, GFGetModuleID(),
+                 {
+                     {"ret", QString::number(0)},
+                     {"data", eml_data},
+                     {"result", result_detail},
+                     {"result_status", QString::number(result_status)},
+                 });
+            }
+          });
+
+      QObject::connect(
+          r_dialog, &EMailMetaDataDialog::SignalNoEMLMetaData, r_dialog,
+          [=](const QString& error_string) {
+            CB(event, GFGetModuleID(),
+               {
+                   {"ret", QString::number(0)},
+                   {"data", QString::fromLatin1(body_data.toBase64())},
+                   {"result_status", QString::number(-1)},
+                   {"result", ErrorHelper(-1, error_string)},
+               });
+          });
+
+      return 0;
+    });
+
+namespace {
+
+auto DoEncryptSignEMLData(int channel, const QStringList& encrypt_keys,
+                          const QString& sign_key,
+                          vmime::shared_ptr<vmime::message>& message,
+                          QByteArray& body_data, const MEvent& event,
+                          int result_status, QString& result_detail,
+                          QString& eml_data) -> int {
+  if (DoSignEMLData(channel, sign_key, message, body_data, event, result_status,
+                    result_detail, eml_data) != kSUCCESS) {
+    return -1;
+  }
+
+  body_data = eml_data.toLatin1();
+  eml_data.clear();
+
+  int t_result_status;
+  QString t_result_detail;
+
+  vmime::shared_ptr<vmime::message> signed_message;
+  bool r = CheckIfEMLMessage(body_data, signed_message);
+  if (!r) {
+    CB_ERR(event, -1, "Parse Signed Message Failed");
+  }
+
+  auto ret =
+      DoEncryptEMLData(channel, encrypt_keys, signed_message, body_data, event,
+                       t_result_status, t_result_detail, eml_data);
+
+  result_status = std::min(t_result_status, result_status);
+  result_detail = t_result_detail + "\n\n" + result_detail;
+  return ret;
+}
+
+auto DoEncryptSignPlainText(int channel, const QStringList& encrypt_keys,
+                            const QString& sign_key,
+                            const EMailMetaData& meta_data,
+                            QByteArray& body_data, const MEvent& event,
+                            int& result_status, QString& result_detail,
+                            QString& eml_data) -> int {
+  if (DoSignPlainText(channel, sign_key, meta_data, body_data, event,
+                      result_status, result_detail, eml_data) != kSUCCESS) {
+    return -1;
+  }
+
+  body_data = eml_data.toLatin1();
+  eml_data.clear();
+
+  int t_result_status;
+  QString t_result_detail;
+
+  vmime::shared_ptr<vmime::message> signed_message;
+  bool r = CheckIfEMLMessage(body_data, signed_message);
+  if (!r) {
+    CB_ERR(event, -1, "Parse Signed Message Failed");
+  }
+
+  auto ret =
+      DoEncryptEMLData(channel, encrypt_keys, signed_message, body_data, event,
+                       t_result_status, t_result_detail, eml_data);
+
+  result_status = std::min(t_result_status, result_status);
+  result_detail = t_result_detail + "\n" + result_detail;
+  return ret;
+}
+
+}  // namespace
+
+REGISTER_EVENT_HANDLER(
+    EDIT_TAB_TYPE_EMAIL_OP_ENCRYPT_SIGN, [](const MEvent& event) -> int {
       if (event["body_data"].isEmpty()) CB_ERR(event, -1, "body_data is empty");
       if (event["channel"].isEmpty()) CB_ERR(event, -1, "channel is empty");
       if (event["encrypt_keys"].isEmpty())
@@ -317,47 +895,32 @@ REGISTER_EVENT_HANDLER(
       vmime::shared_ptr<vmime::message> message;
       if (CheckIfEMLMessage(body_data, message)) {
         QString eml_data;
-        QString sign_capsule_id;
-        auto ret =
-            SignEMLData(channel, sign_key, message, eml_data, sign_capsule_id);
-        if (ret != 0) {
-          CB_ERR(event, -2, eml_data);
+        int result_status = 0;
+        QString result_detail;
+        if (DoEncryptSignEMLData(channel, encrypt_keys, sign_key, message,
+                                 body_data, event, result_status, result_detail,
+                                 eml_data) != kSUCCESS) {
+          return -1;
         }
-
-        QByteArray body_data = eml_data.toLatin1();
-        eml_data.clear();
-
-        vmime::shared_ptr<vmime::message> signed_message;
-        bool r = CheckIfEMLMessage(body_data, signed_message);
-        if (!r) {
-          CB_ERR(event, -1, "Parse Signed Message Failed");
-        }
-
-        QString encr_capsule_id;
-        ret = EncryptEMLData(channel, encrypt_keys, signed_message, body_data,
-                             eml_data, encr_capsule_id);
-        if (ret != 0) {
-          CB_ERR(event, -2, eml_data);
-        }
-
         CB(event, GFGetModuleID(),
            {
                {"ret", QString::number(0)},
-               {"eml_data", eml_data},
-               {"sign_capsule_id", sign_capsule_id},
-               {"encr_capsule_id", encr_capsule_id},
+               {"data", eml_data},
+               {"result", result_detail},
+               {"result_status", QString::number(result_status)},
            });
         return 0;
       }
 
-      auto* dialog = GUI_OBJECT(CreateEMailMetaDataDialog, 1);
+      auto* dialog = GUI_OBJECT(CreateEMailMetaDataDialog, {});
       auto* r_dialog =
           qobject_cast<EMailMetaDataDialog*>(static_cast<QObject*>(dialog));
       if (r_dialog == nullptr)
         CB_ERR(event, -1, "convert dialog to r_dialog failed");
 
       r_dialog->SetChannel(channel);
-      r_dialog->SetKeys(encrypt_keys);
+      r_dialog->SetToKeys(encrypt_keys);
+      r_dialog->SetFromKeys({sign_key});
       r_dialog->SetBodyData({body_data});
 
       GFUIShowDialog(dialog, nullptr);
@@ -366,74 +929,139 @@ REGISTER_EVENT_HANDLER(
           r_dialog, &EMailMetaDataDialog::SignalEMLMetaData, r_dialog,
           [=](const EMailMetaData& meta_data) {
             QString eml_data;
-            QString sign_capsule_id;
-            QString encr_capsule_id;
-            auto ret = SignPlainText(channel, sign_key, meta_data, body_data,
-                                     eml_data, sign_capsule_id);
-            if (ret != 0) {
-              CB_ERR(event, -2, eml_data);
+            int result_status = 0;
+            QString result_detail;
+            QByteArray body_data_copy = body_data;
+
+            FLOG_DEBUG("meta data, from: %1", meta_data.from);
+
+            if (DoEncryptSignPlainText(channel, encrypt_keys, sign_key,
+                                       meta_data, body_data_copy, event,
+                                       result_status, result_detail,
+                                       eml_data) != kSUCCESS) {
+              return -1;
             }
-
-            QByteArray body_data = eml_data.toLatin1();
-            eml_data.clear();
-
-            ret = EncryptPlainText(channel, encrypt_keys, meta_data, body_data,
-                                   eml_data, encr_capsule_id);
-            if (ret != 0) {
-              CB_ERR(event, -2, eml_data);
-            }
-
             CB(event, GFGetModuleID(),
                {
                    {"ret", QString::number(0)},
-                   {"eml_data", eml_data},
-                   {"sign_capsule_id", sign_capsule_id},
-                   {"encr_capsule_id", encr_capsule_id},
+                   {"data", eml_data},
+                   {"result", result_detail},
+                   {"result_status", QString::number(result_status)},
                });
             return 0;
           });
 
-      QObject::connect(r_dialog, &EMailMetaDataDialog::SignalNoEMLMetaData,
-                       r_dialog, [=](const QString& error_string) {
-                         CB_ERR(event, -1, error_string);
-                       });
+      QObject::connect(
+          r_dialog, &EMailMetaDataDialog::SignalNoEMLMetaData, r_dialog,
+          [=](const QString& error_string) {
+            CB(event, GFGetModuleID(),
+               {
+                   {"ret", QString::number(0)},
+                   {"data", QString::fromLatin1(body_data.toBase64())},
+                   {"result_status", QString::number(-1)},
+                   {"result", ErrorHelper(-1, error_string)},
+               });
+          });
 
       return 0;
     });
 
+namespace {
+
+auto DoDecryptVerifyEMLData(int channel, const QByteArray& data,
+                            const MEvent& event, int& result_status,
+                            QString& result_detail, QString& eml_data,
+                            QString& error_string, EMailMetaData& meta_data)
+    -> int {
+  if (DoDecryptEMLData(channel, data, event, result_status, result_detail,
+                       eml_data, meta_data) != kSUCCESS) {
+    return -1;
+  }
+
+  int t_result_status;
+  QString t_result_detail;
+
+  if (DoVerifyEMLData(channel, eml_data.toLatin1(), event, t_result_status,
+                      t_result_detail, error_string, meta_data) != kSUCCESS) {
+    return -1;
+  }
+
+  result_status = std::min(t_result_status, result_status);
+  result_detail = t_result_detail + "\n" + result_detail;
+
+  return kSUCCESS;
+}
+}  // namespace
+
 REGISTER_EVENT_HANDLER(
-    EMAIL_DECRYPT_VERIFY_EML_DATA, [](const MEvent& event) -> int {
+    EDIT_TAB_TYPE_EMAIL_OP_DECRYPT_VERIFY, [](const MEvent& event) -> int {
       if (event["channel"].isEmpty()) CB_ERR(event, -1, "channel is empty");
-      if (event["eml_data"].isEmpty()) CB_ERR(event, -1, "eml_data is empty");
+      if (event["data"].isEmpty()) CB_ERR(event, -1, "data is empty");
 
       auto channel = event.value("channel", "0").toInt();
-      auto data = QByteArray::fromBase64(QString(event["eml_data"]).toLatin1());
+      auto data = QByteArray::fromBase64(QString(event["data"]).toLatin1());
 
       auto body_data =
           QByteArray::fromBase64(QString(event["body_data"]).toLatin1());
 
       QString eml_data;
-      QString decr_capsule_id;
       EMailMetaData meta_data;
-      auto ret =
-          DecryptEMLData(channel, data, meta_data, eml_data, decr_capsule_id);
-      if (ret != 0) {
-        CB_ERR(event, -2, eml_data);
+      QString error_string;
+      int result_status;
+      QString result_detail;
+
+      if (DoDecryptVerifyEMLData(channel, data, event, result_status,
+                                 result_detail, eml_data, error_string,
+                                 meta_data) != kSUCCESS) {
+        return -1;
       }
 
-      QString verify_capsule_id;
-      ret = VerifyEMLData(channel, eml_data.toLatin1(), meta_data, eml_data,
-                          verify_capsule_id);
-      if (ret != 0) {
-        CB_ERR(event, -2, eml_data);
-      }
+      QString email_info;
+      email_info.append("# E-Mail Information\n\n");
+      email_info.append(QString("- %1: %2\n")
+                            .arg(QApplication::translate("EMailModule", "From"))
+                            .arg(meta_data.from));
+      email_info.append(QString("- %1: %2\n")
+                            .arg(QApplication::translate("EMailModule", "To"))
+                            .arg(meta_data.to.join("; ")));
+      email_info.append(
+          QString("- %1: %2\n")
+              .arg(QApplication::translate("EMailModule", "Subject"))
+              .arg(meta_data.subject));
+      email_info.append(QString("- %1: %2\n")
+                            .arg(QApplication::translate("EMailModule", "CC"))
+                            .arg(meta_data.cc.join("; ")));
+      email_info.append(QString("- %1: %2\n")
+                            .arg(QApplication::translate("EMailModule", "BCC"))
+                            .arg(meta_data.bcc.join("; ")));
+      email_info.append(QString("- %1: %2\n")
+                            .arg(QApplication::translate("EMailModule", "Date"))
+                            .arg(QLocale().toString(meta_data.datetime)));
 
+      email_info.append("\n");
+
+      email_info.append("# OpenPGP Information\n\n");
+
+      email_info.append(QString("- %1: %2\n")
+                            .arg(QApplication::translate(
+                                "EMailModule", "Signed EML Data Hash (SHA1)"))
+                            .arg(meta_data.mime_hash));
+      email_info.append(
+          QString("- %1: %2\n")
+              .arg(QApplication::translate("EMailModule",
+                                           "Message Integrity Check Algorithm"))
+              .arg(meta_data.micalg));
+
+      email_info.append("\n");
+
+      email_info.append("#" + result_detail + "\n");
+
+      // callback
       CB(event, GFGetModuleID(),
          {
              {"ret", QString::number(0)},
-             {"eml_data", eml_data},
-             {"decr_capsule_id", decr_capsule_id},
-             {"verify_capsule_id", verify_capsule_id},
+             {"result_status", QString::number(result_status)},
+             {"result", email_info},
          });
       return 0;
     });
