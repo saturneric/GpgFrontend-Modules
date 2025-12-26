@@ -206,7 +206,7 @@ REGISTER_EVENT_HANDLER(MAINWINDOW_MENU_MOUNTED, [](const MEvent& event) -> int {
         QWidget* parent =
             qobject_cast<QWidget*>(static_cast<QObject*>(main_window));
         auto* action = new QAction(
-            QCoreApplication::translate("GTrC", "Key Server"), nullptr);
+            QCoreApplication::translate("GTrC", "Key Server"), parent);
         action->setToolTip(QCoreApplication::translate(
             "GTrC", "Import public keys from a trusted key server."));
         action->setIcon(QIcon(":/icons/import_key_from_server.png"));
