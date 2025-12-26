@@ -32,6 +32,10 @@
 #include <GFSDKLog.h>
 #include <GFSDKModule.h>
 #include <GFSDKUI.h>
+#include <GFSDKUIModel.h>
+
+//
+#include <gpgme.h>
 
 #include <QMap>
 #include <QSharedPointer>
