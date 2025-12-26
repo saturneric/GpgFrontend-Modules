@@ -40,7 +40,7 @@ class Ui_EMailMetaDataDialog;
 class EMailMetaDataDialog : public QDialog {
   Q_OBJECT
  public:
-  explicit EMailMetaDataDialog(int mode, QWidget* parent);
+  explicit EMailMetaDataDialog(QWidget* parent);
 
   /**
    * @brief Set the Channel object
@@ -52,7 +52,14 @@ class EMailMetaDataDialog : public QDialog {
    * @brief Set the Sign Keys object
    *
    */
-  void SetKeys(QStringList ks);
+  void SetFromKeys(QStringList ks);
+
+  /**
+   * @brief Set the To Keys object
+   *
+   * @param ks
+   */
+  void SetToKeys(QStringList ks);
 
   /**
    * @brief Set the Body Data object
@@ -99,10 +106,10 @@ class EMailMetaDataDialog : public QDialog {
   static auto are_valid_emails(const QString& emails) -> bool;
 
   QSharedPointer<Ui_EMailMetaDataDialog> ui_;
-  int mode_;
   QByteArray body_data_;
   int channel_;
-  QStringList keys_;
+  QStringList from_keys_;
+  QStringList to_keys_;
   QString from_name_;
   QString from_email_;
 };
