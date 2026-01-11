@@ -115,11 +115,13 @@
   }                                                                       \
   END_EXECUTE_MODULE()
 
-#define REGISTER_EVENT_HANDLER(event_id, handler)                      \
-  static const bool _gv_register_event_handler_by_id_##event_id = [] { \
-    _gr_module_event_handlers[#event_id] = handler;                    \
-    return true;                                                       \
-  }();
+#define REGISTER_EVENT_HANDLER(event_id, handler)                         \
+  namespace {                                                             \
+  auto _gv_register_event_handler_by_id_##event_id = []() -> const bool { \
+    _gr_module_event_handlers[#event_id] = handler;                       \
+    return true;                                                          \
+  }();                                                                    \
+  }
 
 inline void MLogDebug(const QString& s) { GFModuleLogDebug(s.toUtf8()); }
 inline void MLogInfo(const QString& s) { GFModuleLogInfo(s.toUtf8()); }
