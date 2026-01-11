@@ -36,11 +36,15 @@
 #include <QApplication>
 #include <QCoreApplication>
 #include <QCryptographicHash>
+#include <QFileDialog>
 #include <QFileInfo>
 #include <QJsonDocument>
 #include <QMainWindow>
 #include <QMenu>
+#include <QMessageBox>
+#include <QPlainTextEdit>
 #include <QString>
+#include <QTextDocument>
 
 #include "EMailMetaDataDialog.h"
 
@@ -78,10 +82,19 @@ auto GFRegisterModule() -> int {
   LISTEN("EDIT_TAB_TYPE_EMAIL_OP_ENCRYPT_SIGN");
   LISTEN("EDIT_TAB_TYPE_EMAIL_OP_DECRYPT_VERIFY");
 
+  LISTEN("EDIT_TAB_TYPE_EMAIL_OP_SAVE_FILE");
   return 0;
 }
 
 auto GFActiveModule() -> int { return 0; }
+
+auto GFDeactivateModule() -> int { return 0; }
+
+auto GFUnregisterModule() -> int {
+  MLogDebug("email module unregistering...");
+
+  return 0;
+}
 
 namespace {
 
@@ -927,7 +940,7 @@ REGISTER_EVENT_HANDLER(
 
       QObject::connect(
           r_dialog, &EMailMetaDataDialog::SignalEMLMetaData, r_dialog,
-          [=](const EMailMetaData& meta_data) {
+          [=](const EMailMetaData& meta_data) -> int {
             QString eml_data;
             int result_status = 0;
             QString result_detail;
@@ -1066,10 +1079,96 @@ REGISTER_EVENT_HANDLER(
       return 0;
     });
 
-auto GFDeactivateModule() -> int { return 0; }
+REGISTER_EVENT_HANDLER(
+    EDIT_TAB_TYPE_EMAIL_OP_SAVE_FILE, [](const MEvent& event) -> int {
+      if (event["page"].isEmpty()) CB_ERR(event, -1, "page is empty");
 
-auto GFUnregisterModule() -> int {
-  MLogDebug("email module unregistering...");
+      auto* page = GFUIGetGUIObjectAs<QWidget>(event["page"]);
+      if (!page) {
+        LOG_ERROR("page handler is not a QWidget");
+        CB_ERR(event, -1, "page handle invalid or not QMainWindow");
+      }
 
-  return 0;
-}
+      auto* tab_widget = GFUIGetGUIObjectAs<QTabWidget>(event["tab_widget"]);
+      if (!tab_widget) {
+        LOG_ERROR("tab widget handler is not a QTabWidget");
+        CB_ERR(event, -1, "main_window handle invalid or not QMainWindow");
+      }
+
+      QString filename;
+
+      auto ok = QMetaObject::invokeMethod(page, "GetFilePath",
+                                          Qt::BlockingQueuedConnection,
+                                          Q_RETURN_ARG(QString, filename));
+
+      if (!ok) {
+        LOG_ERROR("invoke GetFilePath failed");
+        CB_ERR(event, -1, "invoke GetFilePath failed");
+      }
+
+      if (filename.isEmpty()) {
+        auto ok = QMetaObject::invokeMethod(
+            QCoreApplication::instance(),
+            [&]() -> void {
+              filename = QFileDialog::getSaveFileName(
+                  page, QApplication::translate("EMailModule", "Save file"),
+                  QDir::currentPath());
+            },
+            Qt::BlockingQueuedConnection);
+
+        if (!ok) {
+          LOG_ERROR("invoke getSaveFileName failed");
+          CB_ERR(event, -1, "invoke getSaveFileName failed");
+        }
+      }
+
+      if (filename.isEmpty()) {
+        LOG_INFO("user cancelled to select file to save");
+        CB_SUCC(event);
+      }
+
+      QFileInfo file_info(filename);
+      if (file_info.suffix().toLower() != "eml") {
+        file_info.setFile(file_info.path(),
+                          file_info.completeBaseName() + ".eml");
+        filename = file_info.absoluteFilePath();
+        FLOG_DEBUG("append .eml suffix to filename: %1", filename);
+      }
+
+      QFile file(filename);
+      if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        QMessageBox::warning(
+            page, QApplication::translate("EMailModule", "Warning"),
+            QApplication::translate("EMailModule", "Cannot read file%1:\n%2.")
+                .arg(filename)
+                .arg(file.errorString()));
+        return false;
+      }
+
+      QPlainTextEdit* text_edit = nullptr;
+      ok = QMetaObject::invokeMethod(page, "GetTextPage",
+                                     Qt::BlockingQueuedConnection,
+                                     Q_RETURN_ARG(QPlainTextEdit*, text_edit));
+      if (!ok || text_edit == nullptr) {
+        LOG_ERROR("invoke GetTextPage failed");
+        CB_ERR(event, -1, "invoke GetTextPage failed");
+      }
+
+      QTextStream output_stream(&file);
+      QApplication::setOverrideCursor(Qt::WaitCursor);
+      output_stream << text_edit->toPlainText().replace("\n", "\r\n").toUtf8();
+      QApplication::restoreOverrideCursor();
+      QTextDocument* document = text_edit->document();
+
+      document->setModified(false);
+
+      int cur_index = tab_widget->currentIndex();
+      tab_widget->setTabText(cur_index, QFileInfo(filename).fileName());
+
+      QMetaObject::invokeMethod(page, "SetFilePath",
+                                Qt::BlockingQueuedConnection,
+                                Q_ARG(QString, filename));
+      QMetaObject::invokeMethod(page, "NotifyFileSaved",
+                                Qt::BlockingQueuedConnection);
+      return 0;
+    });
