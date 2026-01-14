@@ -128,8 +128,12 @@ void BKTUSVersionCheckTask::slot_parse_latest_version_info(
   auto xml_text = QString::fromUtf8(reply_bytes);
   auto result = doc.setContent(xml_text);
   if (!result) {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
     FLOG_WARN("xml parse failed: %1, line: %2, column: %3", result.errorMessage,
               result.errorLine, result.errorColumn);
+#else
+    LOG_WARN("xml parse failed");
+#endif
     return;
   }
 
@@ -139,7 +143,7 @@ void BKTUSVersionCheckTask::slot_parse_latest_version_info(
 
   FLOG_DEBUG("appcast.xml items: %1", items.size());
   if (items.size() == 0) {
-    MLogWarn("no xml entry of latest version");
+    LOG_WARN("no xml entry of latest version");
     return;
   }
 
@@ -187,8 +191,12 @@ void BKTUSVersionCheckTask::slot_parse_current_tag_info(QNetworkReply* reply) {
   QString xml_text = QString::fromUtf8(reply_bytes);
   auto result = doc.setContent(xml_text);
   if (!result) {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
     FLOG_WARN("xml parse failed: %1, line: %2, column: %3", result.errorMessage,
               result.errorLine, result.errorColumn);
+#else
+    LOG_WARN("xml parse failed");
+#endif
     return;
   }
 
@@ -246,8 +254,12 @@ void BKTUSVersionCheckTask::slot_parse_current_commit_hash_info(
   QString xml_text = QString::fromUtf8(reply_bytes);
   auto result = doc.setContent(xml_text);
   if (!result) {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
     FLOG_WARN("xml parse failed: %1, line: %2, column: %3", result.errorMessage,
               result.errorLine, result.errorColumn);
+#else
+    LOG_WARN("xml parse failed");
+#endif
     return;
   }
 
