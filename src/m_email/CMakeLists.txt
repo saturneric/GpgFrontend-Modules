@@ -64,7 +64,7 @@ target_link_libraries(${MODULE_TARGET} PRIVATE Qt::Core Qt::Widgets Qt::Concurre
 target_link_libraries(${MODULE_TARGET} PRIVATE vmime-static)
 
 # add gpgme header path if needed
-if (BUILD_AND_STATIC_LINK_GPGME)
+if (GNUPG_DEPS_BUILT)
   get_target_property(_incs GnuPGDeps INTERFACE_INCLUDE_DIRECTORIES)
   message(STATUS "GnuPGDeps include dirs: ${_incs}")
   target_include_directories(${MODULE_TARGET} PRIVATE ${_incs})
