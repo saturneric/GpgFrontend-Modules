@@ -63,6 +63,13 @@ target_link_libraries(${MODULE_TARGET} PRIVATE Qt::Core Qt::Widgets Qt::Concurre
 # link vmime
 target_link_libraries(${MODULE_TARGET} PRIVATE vmime-static)
 
+# add gpgme header path if needed
+if (BUILD_AND_STATIC_LINK_GPGME)
+  get_target_property(_incs GnuPGDeps INTERFACE_INCLUDE_DIRECTORIES)
+  message(STATUS "GnuPGDeps include dirs: ${_incs}")
+  target_include_directories(${MODULE_TARGET} PRIVATE ${_incs})
+endif()
+
 # i18n
 set(LOCALE_TS_PATH ${CMAKE_CURRENT_SOURCE_DIR}/ts)
 set(TS_FILES "${LOCALE_TS_PATH}/ModuleEMail.en_US.ts"
