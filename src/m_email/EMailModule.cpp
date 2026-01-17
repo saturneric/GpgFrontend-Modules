@@ -63,7 +63,7 @@
 #include "EMailBasicGpgOpera.h"
 #include "EMailHelper.h"
 
-GF_MODULE_API_DEFINE_V2("com.bktus.gpgfrontend.module.email", "Email", "1.1.0",
+GF_MODULE_API_DEFINE_V2("com.bktus.gpgfrontend.module.email", "Email", "1.1.1",
                         "Everything related to E-Mails.", "Saturneric")
 
 DEFINE_TRANSLATIONS_STRUCTURE(ModuleEMail);
@@ -83,6 +83,11 @@ auto GFRegisterModule() -> int {
   LISTEN("EDIT_TAB_TYPE_EMAIL_OP_DECRYPT_VERIFY");
 
   LISTEN("EDIT_TAB_TYPE_EMAIL_OP_SAVE_FILE");
+
+  // register file extension handler
+  GFUIRegisterFileExtensionHandleEvent(DUP("eml"), DUP("EMAIL"));
+
+  LISTEN("FILE_EXT_EMAIL_OP_OPEN_FILE");
   return 0;
 }
 
@@ -1172,3 +1177,68 @@ REGISTER_EVENT_HANDLER(
                                 Qt::BlockingQueuedConnection);
       return 0;
     });
+
+REGISTER_EVENT_HANDLER(
+    FILE_EXT_EMAIL_OP_OPEN_FILE, [](const MEvent& event) -> int {
+      if (event["file_path"].isEmpty()) CB_ERR(event, -1, "file_path is empty");
+
+      auto file_path = event.value("file_path", "");
+
+      QFileInfo file_info(file_path);
+      QFile file(file_path);
+      if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        QMessageBox::warning(
+            nullptr, QApplication::translate("EMailModule", "Warning"),
+            QApplication::translate("EMailModule", "Cannot read file %1:\n%2.")
+                .arg(file_path)
+                .arg(file.errorString()));
+        return -1;
+      }
+
+      // stop here if file is too large (> 1mb)
+      if (file.size() > static_cast<qint64>(1 * 1024 * 1024)) {
+        QMessageBox::warning(
+            nullptr, QApplication::translate("EMailModule", "Warning"),
+            QApplication::translate(
+                "EMailModule",
+                "The file %1 is too large (%2 bytes) to be opened. The "
+                "maximum allowed size is 1 MB.")
+                .arg(file_path)
+                .arg(file.size()));
+        return -1;
+      }
+
+      auto* edit = GFUIGetGUIObjectAs<QWidget>("main_window_edit");
+      if (!edit) {
+        LOG_ERROR(
+            "main window menu mounted: main_window_edit handle invalid or not "
+            "QWidget");
+        CB_ERR(event, -1, "main_window_edit handle invalid or not QWidget");
+      }
+
+      QWidget* page = nullptr;
+
+      auto ok = QMetaObject::invokeMethod(
+          edit, "SlotNewCustomTab", Qt::BlockingQueuedConnection,
+          Q_RETURN_ARG(QWidget*, page), Q_ARG(QString, "email"),
+          Q_ARG(QString, file_info.fileName()),
+          Q_ARG(QIcon, QIcon(":/icons/email.png")));
+
+      if (!ok || !page) {
+        LOG_ERROR("create new email tab page failed");
+        CB_ERR(event, -1, "create new email tab page failed");
+      }
+
+      QPlainTextEdit* text_edit = nullptr;
+      ok = QMetaObject::invokeMethod(page, "GetTextPage",
+                                     Qt::BlockingQueuedConnection,
+                                     Q_RETURN_ARG(QPlainTextEdit*, text_edit));
+      if (!ok || text_edit == nullptr) {
+        LOG_ERROR("invoke GetTextPage failed");
+        CB_ERR(event, -1, "invoke GetTextPage failed");
+      }
+
+      text_edit->setPlainText(
+          QString::fromUtf8(file.readAll()).replace("\r\n", "\n"));
+      return 0;
+    })
