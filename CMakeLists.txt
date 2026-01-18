@@ -67,6 +67,15 @@ include_directories(
   ${SDK_INCLUDE_PATH}
 )
 
+# add gpgme header path if needed
+if (GNUPG_DEPS_BUILT)
+  get_target_property(_incs GnuPGDeps INTERFACE_INCLUDE_DIRECTORIES)
+  if (NOT _incs)
+    message(FATAL_ERROR "Failed to get GnuPGDeps include directories")
+  endif()
+  include_directories(${_incs})
+endif()
+
 link_directories(
   ${SDK_LIB_PATH}
 )
