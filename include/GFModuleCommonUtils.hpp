@@ -53,7 +53,7 @@
   class GTrC {                                                           \
     Q_DECLARE_TR_FUNCTIONS(GTrC)                                         \
   };                                                                     \
-  auto TranslatorDataReader(const char* p_l, char** p_d) -> int {        \
+  auto TranslatorDataReader(const char* p_l, char** p_d)->int {          \
     auto locale = UDUP(p_l);                                             \
     QFile f(QString(":/i18n/%2.%1.qm").arg(locale).arg(#name));          \
     if (f.exists() && f.open(QIODevice::ReadOnly)) {                     \
@@ -80,8 +80,8 @@
 #define TOSTRING(x) STRINGIFY(x)
 #define GTRC_AS_STRING(name) TOSTRING(GTrC_##name)
 
-#define EXECUTE_MODULE()                                \
-  auto GFExecuteModule(GFModuleEvent* p_event) -> int { \
+#define EXECUTE_MODULE()                              \
+  auto GFExecuteModule(GFModuleEvent* p_event)->int { \
     auto event = ConvertEventToMap(p_event);
 
 #define END_EXECUTE_MODULE() }
@@ -99,6 +99,13 @@
     CB(event, GFGetModuleID(),                                  \
        {{"ret", QString::number(ret)}, {"err", QString(err)}}); \
     return ret;                                                 \
+  }
+
+#undef CB_ERR_NO_RET
+#define CB_ERR_NO_RET(event, ret, err)                          \
+  {                                                             \
+    CB(event, GFGetModuleID(),                                  \
+       {{"ret", QString::number(ret)}, {"err", QString(err)}}); \
   }
 
 #define DEFINE_EXECUTE_API_USING_STANDARD_EVEN_HANDLE_MODEL               \
@@ -488,10 +495,10 @@ auto GFUIGetGUIObjectAs(const QString& handle) -> T* {
 }
 
 #define Q_VARIANT_Q_OBJECT_FACTORY_DECLARE(name) \
-  auto name(void* data_raw_ptr) -> void*;
+  auto name(void* data_raw_ptr)->void*;
 
 #define Q_VARIANT_Q_OBJECT_FACTORY_DEFINE(name, func)   \
-  auto name(void* data_raw_ptr) -> void* {              \
+  auto name(void* data_raw_ptr)->void* {                \
     auto data = ConvertVoidPtrToQVariant(data_raw_ptr); \
     return func(data);                                  \
   }

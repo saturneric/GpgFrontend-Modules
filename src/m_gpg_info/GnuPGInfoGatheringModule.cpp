@@ -54,7 +54,7 @@
 #include "GpgInfo.h"
 
 GF_MODULE_API_DEFINE_V2("com.bktus.gpgfrontend.module.gnupg_info_gathering",
-                        "GatherGnupgInfo", "1.2.1",
+                        "GatherGnupgInfo", "1.2.2",
                         "Try gathering gnupg information.", "Saturneric")
 
 DEFINE_TRANSLATIONS_STRUCTURE(ModuleGnuPGInfoGathering);
@@ -205,6 +205,11 @@ auto StartGatheringAllGnuPGInfo() -> int {
   const auto gpgconf_path = UDUP(GFModuleRetrieveRTValueOrDefault(
       DUP("core"), DUP("gpgme.ctx.gpgconf_path"), DUP("")));
   MLogDebug(QString("got gpgconf path from rt: %1").arg(gpgconf_path));
+
+  if (gpgconf_path.isEmpty()) {
+    MLogDebug("gpgconf path is empty, skip gathering gnupg info.");
+    return -1;
+  }
 
   auto default_home_path = UDUP(GFModuleRetrieveRTValueOrDefault(
       DUP("core"), DUP("gpgme.ctx.default_database_path"), DUP("")));
