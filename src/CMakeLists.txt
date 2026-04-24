@@ -24,8 +24,11 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 # modules
-
-add_subdirectory(m_ver_check)
-add_subdirectory(m_gpg_info)
 add_subdirectory(m_key_server_sync)
 add_subdirectory(m_email)
+
+# modules that are not needed in sandboxed environment
+if(NOT GPGFRONTEND_XCODE_ENABLE_SANDBOX)
+  add_subdirectory(m_ver_check)
+  add_subdirectory(m_gpg_info)
+endif()
