@@ -219,17 +219,17 @@ void UpdateTab::slot_check_version_update() {
 
   if (api == "bktus") {
     auto* task = new BKTUSVersionCheckTask();
-    connect(task, &BKTUSVersionCheckTask::SignalUpgradeVersion,
-            QThread::currentThread(),
-            [this](const SoftwareVersion&) { slot_show_version_status(); });
+    connect(
+        task, &BKTUSVersionCheckTask::SignalUpgradeVersion, this,
+        [this](const SoftwareVersion&) -> void { slot_show_version_status(); });
     connect(task, &BKTUSVersionCheckTask::SignalUpgradeVersion, task,
             &QObject::deleteLater);
     task->Run();
   } else {
     auto* task = new GitHubVersionCheckTask();
-    connect(task, &GitHubVersionCheckTask::SignalUpgradeVersion,
-            QThread::currentThread(),
-            [this](const SoftwareVersion&) { slot_show_version_status(); });
+    connect(
+        task, &GitHubVersionCheckTask::SignalUpgradeVersion, this,
+        [this](const SoftwareVersion&) -> void { slot_show_version_status(); });
     connect(task, &GitHubVersionCheckTask::SignalUpgradeVersion, task,
             &QObject::deleteLater);
     task->Run();

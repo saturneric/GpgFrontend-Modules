@@ -46,7 +46,7 @@
 #include "Utils.h"
 
 GF_MODULE_API_DEFINE_V2("com.bktus.gpgfrontend.module.version_checking",
-                        "VersionChecking", "1.4.1",
+                        "VersionChecking", "1.4.2",
                         "Try checking GpgFrontend version.", "Saturneric");
 
 DEFINE_TRANSLATIONS_STRUCTURE(ModuleVersionChecking);
@@ -91,7 +91,7 @@ auto CheckUpdate(const QMap<QString, QString>& event) -> int {
     auto* task = new GitHubVersionCheckTask();
     QObject::connect(
         task, &GitHubVersionCheckTask::SignalUpgradeVersion,
-        QThread::currentThread(), [event](const SoftwareVersion& sv) {
+        QCoreApplication::instance(), [event](const SoftwareVersion& sv) {
           GFDurableCacheSave(DUP("update_checking_cache"),
                              DUP(QJsonDocument(sv.ToJson()).toJson()));
           CB_SUCC(event);
@@ -162,7 +162,7 @@ REGISTER_EVENT_HANDLER(MAINWINDOW_MENU_MOUNTED, [](const MEvent& event) -> int {
             "GTrC", "Check for updates from the Internet."));
         action->setIcon(QIcon(":/icons/update.png"));
         QObject::connect(action, &QAction::triggered, parent,
-                         [=]() { RaiseUpdateDialog(parent); });
+                         [=]() -> void { RaiseUpdateDialog(parent); });
         help_menu->addAction(action);
       },
       Qt::BlockingQueuedConnection);
@@ -336,11 +336,21 @@ REGISTER_EVENT_HANDLER(
         CB_ERR(event, -1, "network_settings_tab handle invalid or not QWidget");
       }
 
+      // we need to apply the settings in the main thread to avoid some
+      // potential racing conditions
+      auto p_tab = QPointer<QWidget>(tab);
+
       QMetaObject::invokeMethod(
           QApplication::instance(),
           [=]() {
+            if (!p_tab) {
+              LOG_ERROR(
+                  "network settings tab apply settings: network_settings_tab "
+                  "already deleted when applying settings");
+              return;
+            }
             auto* update_checking_check_box =
-                tab->findChild<QCheckBox*>("update_checking_check_box");
+                p_tab->findChild<QCheckBox*>("update_checking_check_box");
             if (update_checking_check_box) {
               settings->setValue(
                   "network/version_checking/"
