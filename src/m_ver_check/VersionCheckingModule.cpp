@@ -136,6 +136,8 @@ REGISTER_EVENT_HANDLER(MAINWINDOW_MENU_MOUNTED, [](const MEvent& event) -> int {
     CB_ERR(event, -1, "main_window handle invalid or not QMainWindow");
   }
 
+  auto p_mw = QPointer<QMainWindow>(main_window);
+
   if (!event.contains("help_menu")) {
     LOG_DEBUG("main window menu mounted event: no help_menu found");
     CB_ERR(event, -1, "no help_menu found");
@@ -149,11 +151,20 @@ REGISTER_EVENT_HANDLER(MAINWINDOW_MENU_MOUNTED, [](const MEvent& event) -> int {
     CB_ERR(event, -1, "help_menu handle invalid or not QMenu");
   }
 
+  auto p_help_menu = QPointer<QMenu>(help_menu);
+
   LOG_DEBUG("adding check update action to help menu");
 
   QMetaObject::invokeMethod(
       QApplication::instance(),
       [&]() -> void {
+        if (!p_mw || !p_help_menu) {
+          LOG_ERROR(
+              "main window menu mounted: main_window or help_menu was deleted "
+              "before invoking the check update action");
+          return;
+        }
+
         QWidget* parent =
             qobject_cast<QWidget*>(static_cast<QObject*>(main_window));
         auto* action = new QAction(
@@ -368,8 +379,21 @@ REGISTER_EVENT_HANDLER(
               settings->setValue("network/version_checking/update_checking_api",
                                  api);
             }
+
+            FLOG_DEBUG(
+                "network settings tab apply settings: version checking "
+                "settings applied, "
+                "check for updates on startup: %1, update checking api: %2",
+                update_checking_check_box
+                    ? QString::number(update_checking_check_box->isChecked())
+                    : "null",
+                update_api_group
+                    ? (update_api_group->buttons().at(1)->isChecked()
+                           ? "bktus"
+                           : "github")
+                    : "null");
           },
-          Qt::BlockingQueuedConnection);
+          Qt::QueuedConnection);
 
       CB_SUCC(event);
     });
