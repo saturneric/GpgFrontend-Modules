@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2021-2024 Saturneric <eric@bktus.com>
+ * Copyright (C) 2021-2026 Saturneric <eric@bktus.com>
  *
  * This file is part of GpgFrontend.
  *
@@ -217,7 +217,8 @@ REGISTER_EVENT_HANDLER(MAINWINDOW_MENU_MOUNTED, [](const MEvent& event) -> int {
               QMetaObject::invokeMethod(
                   edit, "SlotNewCustomTab", Qt::DirectConnection,
                   Q_ARG(QString, "email"), Q_ARG(QString, "untitled.eml"),
-                  Q_ARG(QIcon, QIcon(":/icons/email.png")));
+                  Q_ARG(QIcon, QIcon(":/icons/email.png")),
+                  Q_ARG(QString, ":/icons/email.png"));
             });
 
         if (!ok) {
@@ -1229,7 +1230,8 @@ REGISTER_EVENT_HANDLER(
             edit, "SlotNewCustomTab", Qt::DirectConnection,
             Q_RETURN_ARG(QWidget*, page), Q_ARG(QString, "email"),
             Q_ARG(QString, file_info.fileName()),
-            Q_ARG(QIcon, QIcon(":/icons/email.png")));
+            Q_ARG(QIcon, QIcon(":/icons/email.png")),
+            Q_ARG(QString, ":/icons/email.png"));
 
         if (!ok || !page) {
           LOG_ERROR("create new email tab page failed");
