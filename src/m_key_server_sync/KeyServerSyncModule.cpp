@@ -38,7 +38,7 @@
 #include "VKSInterface.h"
 
 GF_MODULE_API_DEFINE_V2("com.bktus.gpgfrontend.module.key_server_sync",
-                        "KeyServerSync", "1.1.0",
+                        "KeyServerSync", "1.2.0",
                         "Sync Information From Trusted Key Server.",
                         "Saturneric")
 
@@ -52,6 +52,7 @@ auto GFActiveModule() -> int {
   LISTEN("REQUEST_GET_PUBLIC_KEY_BY_FINGERPRINT");
   LISTEN("REQUEST_GET_PUBLIC_KEY_BY_KEY_ID");
   LISTEN("REQUEST_UPLOAD_PUBLIC_KEY");
+  LISTEN("REQUEST_SEARCH_PUBLIC_KEY_BY_FINGERPRINT");
   LISTEN("MAINWINDOW_MENU_MOUNTED");
   LISTEN("KEY_PAIR_OPERA_MENU_CREATED");
   return 0;
@@ -393,6 +394,41 @@ REGISTER_EVENT_HANDLER(
                        &VKSInterface::deleteLater);
       vks->UploadKey(key_text);
       return 0;
+    });
+
+REGISTER_EVENT_HANDLER(
+    REQUEST_SEARCH_PUBLIC_KEY_BY_FINGERPRINT, [](const MEvent& event) -> int {
+      auto fingerprint = event["fingerprint"].trimmed();
+      if (fingerprint.isEmpty()) {
+        CB_ERR(event, -1, "fingerprint is empty");
+      }
+
+      QWidget* parent = nullptr;
+
+      if (event.contains("parent")) {
+        parent = GFUIGetGUIObjectAs<QWidget>(event["parent"]);
+      }
+
+      if (parent == nullptr) {
+        parent = QApplication::activeWindow();
+      }
+
+      FLOG_DEBUG("open key server search dialog with fingerprint: %1",
+                 fingerprint);
+
+      QMetaObject::invokeMethod(
+          QApplication::instance(),
+          [parent, fingerprint]() {
+            auto* dialog = new SearchKeyDialog(parent);
+            dialog->SetPresetFingerprint(fingerprint);
+            dialog->setAttribute(Qt::WA_DeleteOnClose);
+            dialog->show();
+            dialog->raise();
+            dialog->activateWindow();
+          },
+          Qt::QueuedConnection);
+
+      CB_SUCC(event);
     });
 
 auto GFDeactivateModule() -> int { return 0; }

@@ -39,54 +39,29 @@ class SearchKeyDialog : public QDialog {
  public:
   explicit SearchKeyDialog(QWidget* parent = nullptr);
 
+  explicit SearchKeyDialog(const QString& fingerprint,
+                           QWidget* parent = nullptr);
+
+  void SetPresetFingerprint(const QString& fingerprint);
+
  private slots:
-
-  /**
-   * @brief
-   *
-   */
   void slot_search();
-
-  /**
-   * @brief
-   *
-   * @param message
-   */
   void slot_set_error_message(const QString& message);
-
-  /**
-   * @brief
-   *
-   * @param loading
-   */
   void slot_set_loading(bool loading);
 
-  /**
-   * @brief
-   *
-   * @param error
-   * @param error_string
-   * @param keys
-   */
   void slot_search_finished_pks(QNetworkReply::NetworkError error,
                                 const QString& error_string,
                                 const QList<KeyServerKeyInfo>& keys);
 
-  /**
-   * @brief
-   *
-   * @param error
-   * @param error_string
-   * @param key_data
-   */
   void slot_lookup_finished_pks(QNetworkReply::NetworkError error,
                                 const QString& error_string,
                                 const QByteArray& key_data);
 
-  /**
-   * @brief
-   */
   void slot_import(int row, int column);
+
+ private:
+  void init_ui();
+  void set_search_type(const QString& type);
 
  private:
   std::shared_ptr<Ui_SearchKeyDialog> ui_;

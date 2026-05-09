@@ -39,7 +39,17 @@
 #include "ui_SearchKeyDialog.h"
 
 SearchKeyDialog::SearchKeyDialog(QWidget* parent)
-    : ui_(SecureCreateSharedObject<Ui_SearchKeyDialog>()) {
+    : QDialog(parent), ui_(SecureCreateSharedObject<Ui_SearchKeyDialog>()) {
+  init_ui();
+}
+
+SearchKeyDialog::SearchKeyDialog(const QString& fingerprint, QWidget* parent)
+    : QDialog(parent), ui_(SecureCreateSharedObject<Ui_SearchKeyDialog>()) {
+  init_ui();
+  SetPresetFingerprint(fingerprint);
+}
+
+void SearchKeyDialog::init_ui() {
   ui_->setupUi(this);
 
   connect(ui_->searchButton, &QPushButton::clicked, this,
@@ -67,6 +77,30 @@ SearchKeyDialog::SearchKeyDialog(QWidget* parent)
   ui_->keyServerComboBox->addItem("https://pgp.mit.edu");
 
   ui_->keyServerComboBox->setCurrentIndex(0);
+}
+
+void SearchKeyDialog::SetPresetFingerprint(const QString& fingerprint) {
+  auto fpr = fingerprint.trimmed();
+
+  if (fpr.startsWith("0x", Qt::CaseInsensitive)) {
+    fpr = fpr.mid(2);
+  }
+
+  fpr.remove(QRegularExpression(R"(\s+)"));
+
+  set_search_type("fpr");
+  ui_->searchEdit->setText(fpr);
+  ui_->searchEdit->selectAll();
+  ui_->searchEdit->setFocus();
+
+  slot_set_error_message("");
+}
+
+void SearchKeyDialog::set_search_type(const QString& type) {
+  const auto index = ui_->searchTypeComboBox->findData(type);
+  if (index >= 0) {
+    ui_->searchTypeComboBox->setCurrentIndex(index);
+  }
 }
 
 void SearchKeyDialog::slot_search() {

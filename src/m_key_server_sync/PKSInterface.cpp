@@ -165,9 +165,18 @@ auto PKSInterface::Search(const QString& url, const QString& type,
       url + "/pks/lookup?search=" + QUrl::toPercentEncoding(value) +
       "&op=index&options=mr";
 
+  FLOG_DEBUG("SSL supported: %1", QSslSocket::supportsSsl());
+  FLOG_DEBUG("SSL build version: %1",
+             QSslSocket::sslLibraryBuildVersionString());
+  FLOG_DEBUG("SSL runtime version: %1", QSslSocket::sslLibraryVersionString());
+
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+  FLOG_DEBUG("SSL active backend: %1", QSslSocket::activeBackend());
+#endif
+
   if (type == "fpr" || type == "keyid") {
-    url_from_remote =
-        url + "/pks/lookup?search=0x" + value + "&op=index&options=mr";
+    url_from_remote = QString("http://keyserver.ubuntu.com") +
+                      "/pks/lookup?search=0x" + value + "&op=index&options=mr";
   }
 
   auto request = QNetworkRequest(url_from_remote);
