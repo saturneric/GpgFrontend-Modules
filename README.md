@@ -132,23 +132,10 @@ set(TS_FILES
   "${LOCALE_TS_PATH}/ModuleMyModule.en_US.ts"
   "${LOCALE_TS_PATH}/ModuleMyModule.zh_CN.ts")
 
-if(NOT XCODE_BUILD)
-  qt_add_translations(${MODULE_TARGET}
-    RESOURCE_PREFIX "/i18n"
-    TS_FILES ${TS_FILES}
-    SOURCES ${MODULE_SOURCE}
-    INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR})
-else()
-  # Xcode requires a separate target for lrelease
-  add_custom_target("${MODULE_TARGET}_i18n" ALL)
-  qt_add_lrelease("${MODULE_TARGET}_i18n"
-    TS_FILES ${TS_FILES}
-    QM_FILES_OUTPUT_VARIABLE TRANSLATIONS_QM)
-  qt_add_resources(${MODULE_TARGET} "${MODULE_TARGET}_i18n"
-    PREFIX "/i18n"
-    BASE ${CMAKE_CURRENT_BINARY_DIR}
-    FILES ${TRANSLATIONS_QM})
-endif()
+module_add_translations(${MODULE_TARGET}
+  TS_FILES ${TS_FILES}
+  SOURCES ${MODULE_SOURCE}
+  INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR})
 ```
 
 > Match the Qt major version of the host build — a version mismatch will
