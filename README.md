@@ -7,8 +7,6 @@ modules are built alongside the application and loaded at startup. You can
 disable individual modules in the application settings, or remove a module from
 an archive install by deleting its shared-library file.
 
----
-
 ## Integrated Modules
 
 | Directory           | Module ID                      | Description                                   |
@@ -17,8 +15,6 @@ an archive install by deleting its shared-library file.
 | `m_gpg_info`        | `…module.gnupg_info_gathering` | Displays local GnuPG installation details.    |
 | `m_key_server_sync` | `…module.key_server_sync`      | Searches and syncs keys with HKP/VKS servers. |
 | `m_email`           | `…module.email`                | E-mail helpers built on vmime.                |
-
----
 
 ## Repository Layout
 
@@ -41,8 +37,6 @@ SDK headers are at `src/sdk/` in the main tree and added to the include path
 automatically. See [`src/sdk/README.md`](../src/sdk/README.md) for the full API
 reference.
 
----
-
 ## Build Notes
 
 - Enable modules by setting `-DGPGFRONTEND_BUILD_MODULES=ON` in the
@@ -55,8 +49,6 @@ reference.
   automatically for all modules.
 - Translations use `qt_add_translations`; `.ts` files live under each module's
   `ts/` subdirectory.
-
----
 
 ## Writing a New Module
 
@@ -140,8 +132,6 @@ module_add_translations(${MODULE_TARGET}
 
 > Match the Qt major version of the host build — a version mismatch will
 > prevent the module from loading.
-
----
 
 ## Key Concepts
 
@@ -327,8 +317,6 @@ auto GFRegisterModule() -> int {
 Wrap strings with `QCoreApplication::translate("GTrC", "...")`.
 `.ts` files go in `ts/ModuleMyModule.<locale>.ts` and are embedded as Qt
 resources under `:/i18n/`.
-
----
 
 ## Licensing
 
