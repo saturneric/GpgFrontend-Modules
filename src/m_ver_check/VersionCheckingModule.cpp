@@ -46,7 +46,7 @@
 #include "Utils.h"
 
 GF_MODULE_API_DEFINE_V2("com.bktus.gpgfrontend.module.version_checking",
-                        "VersionChecking", "1.4.2",
+                        "VersionChecking", "1.5.0",
                         "Try checking GpgFrontend version.", "Saturneric");
 
 DEFINE_TRANSLATIONS_STRUCTURE(ModuleVersionChecking);

@@ -31,3 +31,12 @@
 #include "SoftwareVersion.h"
 
 void FillGrtWithVersionInfo(const SoftwareVersion& version);
+
+/**
+ * @brief Extract a normalized "vX.Y.Z" version string from a raw release tag or
+ * title. Returns an empty string when the raw text does not match.
+ *
+ * @param raw_tag the raw tag/title from a release feed.
+ * @return QString the matched version (e.g. "v2.1.3"), or empty on no match.
+ */
+auto ExtractVersionFromRawTag(const QString& raw_tag) -> QString;

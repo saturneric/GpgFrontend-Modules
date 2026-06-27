@@ -121,7 +121,7 @@ void UpdateTab::slot_show_version_status() {
         " <a "
         "href=\"https://www.gpgfrontend.bktus.com/overview/downloads/\">" +
         tr("official download page") + "</a> " +
-        tr("to check for the latest stable version.") + "</center>");
+        tr("to check for the latest version.") + "</center>");
     upgrade_label_->show();
     upgrade_info_box_->show();
     return;
@@ -161,7 +161,7 @@ void UpdateTab::slot_show_version_status() {
         "</center><center>" + tr("Click") +
         " <a "
         "href=\"https://www.gpgfrontend.bktus.com/overview/downloads/\">" +
-        tr("here") + "</a> " + tr("to download the latest stable version.") +
+        tr("here") + "</a> " + tr("to download the latest version.") +
         "</center>");
     upgrade_label_->show();
     upgrade_info_box_->show();
@@ -171,10 +171,10 @@ void UpdateTab::slot_show_version_status() {
         "<center>" +
         tr("This version is either withdrawn due to critical issues or is an "
            "unreleased build. "
-           "Please stop using it and download the latest stable version.") +
+           "Please stop using it and download the latest version.") +
         "</center><center>" + tr("Click") +
         " <a href=\"https://www.gpgfrontend.bktus.com/overview/downloads/\">" +
-        tr("here") + "</a> " + tr("to download the latest stable version.") +
+        tr("here") + "</a> " + tr("to download the latest version.") +
         "</center>");
     upgrade_label_->show();
     upgrade_info_box_->show();
@@ -193,7 +193,7 @@ void UpdateTab::slot_show_version_status() {
     upgrade_info_box_->show();
   } else {
     upgrade_label_->setText("<center>" +
-                            tr("You are using the latest stable version. No "
+                            tr("You are using the latest version. No "
                                "action is required.") +
                             "</center>");
     upgrade_label_->show();

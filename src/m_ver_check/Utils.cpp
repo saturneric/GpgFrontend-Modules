@@ -32,7 +32,16 @@
 #include <GFSDKExtra.h>
 #include <GFSDKLog.h>
 
+#include <QRegularExpression>
+
 #include "VersionCheckingModule.h"
+
+auto ExtractVersionFromRawTag(const QString& raw_tag) -> QString {
+  static const QRegularExpression kVersionRe(
+      R"(^[vV](\d+\.)?(\d+\.)?(\*|\d+))");
+  auto match = kVersionRe.match(raw_tag);
+  return match.hasMatch() ? match.captured(0) : QString{};
+}
 
 void FillGrtWithVersionInfo(const SoftwareVersion& version) {
   GFModuleUpsertRTValue(GFGetModuleID(),

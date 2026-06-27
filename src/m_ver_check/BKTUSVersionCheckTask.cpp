@@ -147,30 +147,37 @@ void BKTUSVersionCheckTask::slot_parse_latest_version_info(
     return;
   }
 
-  auto item = items.at(0).toElement();
-  auto title = item.firstChildElement("title").text();
-  auto pub_date = item.firstChildElement("pubDate").text();
-  auto desc = item.firstChildElement("description").text();
+  // pick the newest item that belongs to the same series as the running build,
+  // so a stable user is never offered a mainline release and vice versa.
+  for (int i = 0; i < items.size(); ++i) {
+    auto item = items.at(i).toElement();
+    if (item.isNull()) continue;
 
-  auto latest_version = title;
-  FLOG_DEBUG("raw tag name from bktus: %1", latest_version);
+    auto title = item.firstChildElement("title").text();
+    auto version = ExtractVersionFromRawTag(title);
+    if (version.isEmpty()) {
+      FLOG_WARN("fail to match regex rules for release name from bktus: %1",
+                title);
+      continue;
+    }
 
-  QRegularExpression re(R"(^[vV](\d+\.)?(\d+\.)?(\*|\d+))");
-  auto version_match = re.match(latest_version);
-  if (version_match.hasMatch()) {
-    latest_version = version_match.captured(0);
-  } else {
-    latest_version = "";
-    FLOG_WARN("fail to match regex rules for release name from bktus: %1",
-              latest_version);
+    if (!SoftwareVersion::SameSeries(version, current_version_)) continue;
+    if (!meta_.latest_version.isEmpty() &&
+        GFCompareSoftwareVersion(
+            GFModuleStrDup(version.toUtf8()),
+            GFModuleStrDup(meta_.latest_version.toUtf8())) <= 0) {
+      continue;
+    }
+
+    meta_.latest_version = version;
+    meta_.publish_date = item.firstChildElement("pubDate").text();
+    meta_.release_note = item.firstChildElement("description").text();
   }
 
-  const auto& publish_date = pub_date;
-  const auto& release_note = desc;
-
-  meta_.latest_version = latest_version;
-  meta_.publish_date = publish_date;
-  meta_.release_note = release_note;
+  if (meta_.latest_version.isEmpty()) {
+    FLOG_WARN("no bktus release found in series of current version: %1",
+              current_version_);
+  }
 }
 
 void BKTUSVersionCheckTask::slot_parse_current_tag_info(QNetworkReply* reply) {

@@ -99,6 +99,24 @@ struct SoftwareVersion {
    */
   void FromJson(const QJsonObject& obj);
 
+  /**
+   * @brief Return the release series ("channel") a version belongs to, i.e. its
+   * "major.minor" prefix (e.g. "2.1" for the stable track, "2.2" for the
+   * mainline track). Returns an empty string if the version cannot be parsed.
+   *
+   * @param version a version string, with or without a leading 'v'.
+   * @return QString the "major.minor" series identifier.
+   */
+  [[nodiscard]] static auto VersionSeries(const QString& version) -> QString;
+
+  /**
+   * @brief Whether two versions belong to the same release series.
+   *
+   * @return true if both versions share a non-empty "major.minor" series.
+   */
+  [[nodiscard]] static auto SameSeries(const QString& a, const QString& b)
+      -> bool;
+
  private:
   static auto version_compare(const QString& a, const QString& b) -> int;
 };

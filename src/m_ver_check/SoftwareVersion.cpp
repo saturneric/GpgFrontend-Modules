@@ -65,6 +65,30 @@ auto SoftwareVersion::ToJson() const -> QJsonObject {
   return obj;
 }
 
+auto SoftwareVersion::VersionSeries(const QString& version) -> QString {
+  if (version.isEmpty()) return {};
+
+  auto real_version = version.startsWith('v') || version.startsWith('V')
+                          ? version.mid(1)
+                          : version;
+
+  const auto parts = real_version.split('.');
+  if (parts.size() < 2) return {};
+
+  bool major_ok = false;
+  bool minor_ok = false;
+  parts[0].toInt(&major_ok);
+  parts[1].toInt(&minor_ok);
+  if (!major_ok || !minor_ok) return {};
+
+  return parts[0] + "." + parts[1];
+}
+
+auto SoftwareVersion::SameSeries(const QString& a, const QString& b) -> bool {
+  auto series_a = VersionSeries(a);
+  return !series_a.isEmpty() && series_a == VersionSeries(b);
+}
+
 void SoftwareVersion::FromJson(const QJsonObject& obj) {
   api = obj.value("api").toString();
   latest_version = obj.value("latest_version").toString();

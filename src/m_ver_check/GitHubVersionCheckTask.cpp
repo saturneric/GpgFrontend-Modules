@@ -58,7 +58,10 @@ GitHubVersionCheckTask::GitHubVersionCheckTask()
 auto GitHubVersionCheckTask::Run() -> int {
   QString base_url = "https://api.github.com/repos/saturneric/gpgfrontend";
   QList<QUrl> urls = {
-      {base_url + "/releases/latest"},
+      // fetch the release list (not /releases/latest): with parallel stable and
+      // mainline tracks we must pick the newest release within the running
+      // build's own series, which a single global "latest" cannot express.
+      {base_url + "/releases?per_page=100"},
       {base_url + "/releases/tags/" + current_version_},
       {base_url + "/commits/" + meta_.local_commit_hash},
   };
@@ -121,30 +124,44 @@ void GitHubVersionCheckTask::slot_parse_latest_version_info(
   auto reply_bytes = reply->readAll();
   auto latest_reply_json = QJsonDocument::fromJson(reply_bytes);
 
-  if (!latest_reply_json.isObject()) {
+  if (!latest_reply_json.isArray()) {
     FLOG_WARN("cannot parse data from github: %1", reply_bytes);
     return;
   }
 
-  QString latest_version = latest_reply_json["tag_name"].toString();
-  FLOG_DEBUG("raw tag name from github: %1", latest_version);
+  // pick the newest release that belongs to the same series as the running
+  // build, so a stable user is never offered a mainline release and vice versa.
+  for (const auto& value : latest_reply_json.array()) {
+    if (!value.isObject()) continue;
+    auto release = value.toObject();
 
-  QRegularExpression re(R"(^[vV](\d+\.)?(\d+\.)?(\*|\d+))");
-  auto version_match = re.match(latest_version);
-  if (version_match.hasMatch()) {
-    latest_version = version_match.captured(0);
-  } else {
-    latest_version = "";
-    FLOG_WARN("the raw tag name from github: %1 cannot match regex rules",
-              latest_version);
+    if (release["draft"].toBool()) continue;
+
+    auto raw_tag = release["tag_name"].toString();
+    auto version = ExtractVersionFromRawTag(raw_tag);
+    if (version.isEmpty()) {
+      FLOG_WARN("raw tag name from github: %1 cannot match regex rules",
+                raw_tag);
+      continue;
+    }
+
+    if (!SoftwareVersion::SameSeries(version, current_version_)) continue;
+    if (!meta_.latest_version.isEmpty() &&
+        GFCompareSoftwareVersion(
+            GFModuleStrDup(version.toUtf8()),
+            GFModuleStrDup(meta_.latest_version.toUtf8())) <= 0) {
+      continue;
+    }
+
+    meta_.latest_version = version;
+    meta_.publish_date = release["published_at"].toString();
+    meta_.release_note = release["body"].toString();
   }
 
-  auto publish_date = latest_reply_json["published_at"].toString();
-  auto release_note = latest_reply_json["body"].toString();
-
-  meta_.latest_version = latest_version;
-  meta_.publish_date = publish_date;
-  meta_.release_note = release_note;
+  if (meta_.latest_version.isEmpty()) {
+    FLOG_WARN("no github release found in series of current version: %1",
+              current_version_);
+  }
 }
 
 void GitHubVersionCheckTask::slot_parse_current_version_info(
