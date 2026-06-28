@@ -65,7 +65,7 @@
 #include "EMailBasicGpgOpera.h"
 #include "EMailHelper.h"
 
-GF_MODULE_API_DEFINE_V2("com.bktus.gpgfrontend.module.email", "Email", "1.2.1",
+GF_MODULE_API_DEFINE_V2("com.bktus.gpgfrontend.module.email", "Email", "1.2.2",
                         "Everything related to E-Mails.", "Saturneric")
 
 DEFINE_TRANSLATIONS_STRUCTURE(ModuleEMail);
@@ -108,6 +108,36 @@ auto BuildOpenPGPMetaCard(const EMailMetaData& m) -> QJsonObject {
        {QApplication::translate("EMailModule",
                                 "Message Integrity Check Algorithm"),
         m.micalg}});
+}
+
+// Build "Encryption Recipient" cards from the selected recipient keys. The
+// encrypt result itself does not carry recipient identities for every engine
+// (GnuPG reports none), but the module always knows which keys it encrypted to,
+// so resolve each to its primary UID here — mirroring the native operation's
+// recipient card.
+auto BuildRecipientCards(int channel, const QStringList& encrypt_keys)
+    -> QJsonArray {
+  QJsonArray cards;
+  for (const auto& key_id : encrypt_keys) {
+    if (key_id.isEmpty()) continue;
+
+    QString recipient;
+    GFGpgKeyUID* uid = nullptr;
+    if (GFGpgKeyPrimaryUID(channel, QDUP(key_id), &uid) == 0 &&
+        uid != nullptr) {
+      const auto name = UDUP(uid->name);
+      const auto email = UDUP(uid->email);
+      UDUP(uid->comment);  // free the unused field
+      GFFreeMemory(uid);
+      recipient = email.isEmpty() ? name : QString("%1 <%2>").arg(name, email);
+    }
+
+    cards.append(MakeCardJson(
+        QApplication::translate("EMailModule", "Encryption Recipient"), "ok",
+        {{QApplication::translate("EMailModule", "Recipient"), recipient},
+         {QApplication::translate("EMailModule", "Key ID"), key_id}}));
+  }
+  return cards;
 }
 
 // Concatenate two crypto card JSON arrays (as returned by GFAnalyse*Result)
@@ -901,7 +931,7 @@ REGISTER_EVENT_HANDLER(
                {"result_cards",
                 BuildResultCardsParam(
                     QApplication::translate("EMailModule", "Encrypt E-Mail"),
-                    {}, result_cards)},
+                    BuildRecipientCards(channel, encrypt_keys), result_cards)},
            });
         return 0;
       }
@@ -928,17 +958,18 @@ REGISTER_EVENT_HANDLER(
             if (DoEncryptPlainText(channel, encrypt_keys, meta_data, body_data,
                                    event, result_status, result_detail,
                                    result_cards, eml_data) == kSUCCESS) {
+              auto meta_cards = BuildRecipientCards(channel, encrypt_keys);
+              meta_cards.prepend(BuildEMailHeaderCard(meta_data));
               CB(event, GFGetModuleID(),
                  {
                      {"ret", QString::number(0)},
                      {"data", eml_data},
                      {"result", result_detail},
                      {"result_status", QString::number(result_status)},
-                     {"result_cards",
-                      BuildResultCardsParam(
-                          QApplication::translate("EMailModule",
-                                                  "Encrypt E-Mail"),
-                          {BuildEMailHeaderCard(meta_data)}, result_cards)},
+                     {"result_cards", BuildResultCardsParam(
+                                          QApplication::translate(
+                                              "EMailModule", "Encrypt E-Mail"),
+                                          meta_cards, result_cards)},
                  });
             }
           });
@@ -1071,7 +1102,7 @@ REGISTER_EVENT_HANDLER(
                 BuildResultCardsParam(
                     QApplication::translate("EMailModule",
                                             "Encrypt and Sign E-Mail"),
-                    {}, result_cards)},
+                    BuildRecipientCards(channel, encrypt_keys), result_cards)},
            });
         return 0;
       }
@@ -1106,6 +1137,8 @@ REGISTER_EVENT_HANDLER(
                                        result_cards, eml_data) != kSUCCESS) {
               return -1;
             }
+            auto meta_cards = BuildRecipientCards(channel, encrypt_keys);
+            meta_cards.prepend(BuildEMailHeaderCard(meta_data));
             CB(event, GFGetModuleID(),
                {
                    {"ret", QString::number(0)},
@@ -1116,7 +1149,7 @@ REGISTER_EVENT_HANDLER(
                     BuildResultCardsParam(
                         QApplication::translate("EMailModule",
                                                 "Encrypt and Sign E-Mail"),
-                        {BuildEMailHeaderCard(meta_data)}, result_cards)},
+                        meta_cards, result_cards)},
                });
             return 0;
           });
@@ -1240,6 +1273,7 @@ REGISTER_EVENT_HANDLER(
       CB(event, GFGetModuleID(),
          {
              {"ret", QString::number(0)},
+             {"data", eml_data},
              {"result_status", QString::number(result_status)},
              {"result", email_info},
              {"result_cards", result_cards_param},
