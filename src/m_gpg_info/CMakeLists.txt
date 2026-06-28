@@ -36,12 +36,7 @@ target_link_libraries(${MODULE_TARGET} PRIVATE Qt::Core Qt::Widgets Qt::Concurre
 
 # i18n
 set(LOCALE_TS_PATH ${CMAKE_CURRENT_SOURCE_DIR}/ts)
-set(TS_FILES "${LOCALE_TS_PATH}/ModuleGnuPGInfoGathering.en_US.ts"
-  "${LOCALE_TS_PATH}/ModuleGnuPGInfoGathering.de_DE.ts"
-  "${LOCALE_TS_PATH}/ModuleGnuPGInfoGathering.fr_FR.ts"
-  "${LOCALE_TS_PATH}/ModuleGnuPGInfoGathering.it_iT.ts"
-  "${LOCALE_TS_PATH}/ModuleGnuPGInfoGathering.zh_CN.ts"
-  "${LOCALE_TS_PATH}/ModuleGnuPGInfoGathering.zh_TW.ts")
+gpgfrontend_collect_ts_files(TS_FILES "ModuleGnuPGInfoGathering" "${LOCALE_TS_PATH}")
 
 module_add_translations(${MODULE_TARGET}
   TS_FILES ${TS_FILES}

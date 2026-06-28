@@ -65,12 +65,7 @@ target_link_libraries(${MODULE_TARGET} PRIVATE vmime-static)
 
 # i18n
 set(LOCALE_TS_PATH ${CMAKE_CURRENT_SOURCE_DIR}/ts)
-set(TS_FILES "${LOCALE_TS_PATH}/ModuleEMail.en_US.ts"
-  "${LOCALE_TS_PATH}/ModuleEMail.de_DE.ts"
-  "${LOCALE_TS_PATH}/ModuleEMail.fr_FR.ts"
-  "${LOCALE_TS_PATH}/ModuleEMail.it_iT.ts"
-  "${LOCALE_TS_PATH}/ModuleEMail.zh_CN.ts"
-  "${LOCALE_TS_PATH}/ModuleEMail.zh_TW.ts")
+gpgfrontend_collect_ts_files(TS_FILES "ModuleEMail" "${LOCALE_TS_PATH}")
 
 module_add_translations(${MODULE_TARGET}
   TS_FILES ${TS_FILES}

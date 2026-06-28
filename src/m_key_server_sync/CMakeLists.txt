@@ -36,13 +36,7 @@ target_link_libraries(${MODULE_TARGET} PRIVATE Qt::Core Qt::Widgets Qt::Network)
 
 # i18n
 set(LOCALE_TS_PATH ${CMAKE_CURRENT_SOURCE_DIR}/ts)
-set(TS_FILES
-  "${LOCALE_TS_PATH}/ModuleKeyServerSync.en_US.ts"
-  "${LOCALE_TS_PATH}/ModuleKeyServerSync.de_DE.ts"
-  "${LOCALE_TS_PATH}/ModuleKeyServerSync.fr_FR.ts"
-  "${LOCALE_TS_PATH}/ModuleKeyServerSync.it_IT.ts"
-  "${LOCALE_TS_PATH}/ModuleKeyServerSync.zh_CN.ts"
-  "${LOCALE_TS_PATH}/ModuleKeyServerSync.zh_TW.ts")
+gpgfrontend_collect_ts_files(TS_FILES "ModuleKeyServerSync" "${LOCALE_TS_PATH}")
 
 module_add_translations(${MODULE_TARGET}
   TS_FILES ${TS_FILES}

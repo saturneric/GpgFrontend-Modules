@@ -39,13 +39,7 @@ set(CMAKE_AUTOUIC_SEARCH_PATHS ${CMAKE_AUTOUIC_SEARCH_PATHS} ${CMAKE_CURRENT_SOU
 
 # i18n
 set(LOCALE_TS_PATH ${CMAKE_CURRENT_SOURCE_DIR}/ts)
-set(TS_FILES
-  "${LOCALE_TS_PATH}/ModuleVersionChecking.en_US.ts"
-  "${LOCALE_TS_PATH}/ModuleVersionChecking.de_DE.ts"
-  "${LOCALE_TS_PATH}/ModuleVersionChecking.fr_FR.ts"
-  "${LOCALE_TS_PATH}/ModuleVersionChecking.it_IT.ts"
-  "${LOCALE_TS_PATH}/ModuleVersionChecking.zh_CN.ts"
-  "${LOCALE_TS_PATH}/ModuleVersionChecking.zh_TW.ts")
+gpgfrontend_collect_ts_files(TS_FILES "ModuleVersionChecking" "${LOCALE_TS_PATH}")
 
 module_add_translations(${MODULE_TARGET}
   TS_FILES ${TS_FILES}
