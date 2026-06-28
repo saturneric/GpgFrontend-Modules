@@ -89,7 +89,7 @@
 <context>
     <name>EMailModule</name>
     <message>
-        <location filename="../EMailModule.cpp" line="109"/>
+        <location filename="../EMailModule.cpp" line="219"/>
         <source># EML Data Error
 
 The provided EML data does not conform to RFC 3156 standards and cannot be processed.
@@ -120,7 +120,7 @@ EML ist ein Dateiformat zur Darstellung von E-Mail-Nachrichten, das typischerwei
 Nach der Korrektur der EML-Daten versuchen Sie den Vorgang erneut.</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="134"/>
+        <location filename="../EMailModule.cpp" line="244"/>
         <source># Email Operation Error
 
 An error occurred during the email operation. The process could not be completed.
@@ -163,85 +163,151 @@ Während des E-Mail-Vorgangs ist ein Fehler aufgetreten. Der Vorgang konnte nich
 Wenn das Problem weiterhin besteht, wenden Sie sich an den technischen Support oder konsultieren Sie die Dokumentation.</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="301"/>
-        <location filename="../EMailModule.cpp" line="421"/>
-        <location filename="../EMailModule.cpp" line="1041"/>
+        <location filename="../EMailModule.cpp" line="93"/>
+        <location filename="../EMailModule.cpp" line="415"/>
+        <location filename="../EMailModule.cpp" line="546"/>
+        <location filename="../EMailModule.cpp" line="1230"/>
         <source>From</source>
         <translation>Von</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="304"/>
-        <location filename="../EMailModule.cpp" line="424"/>
-        <location filename="../EMailModule.cpp" line="1044"/>
+        <location filename="../EMailModule.cpp" line="92"/>
+        <source>E-Mail</source>
+        <translation>E-Mail</translation>
+    </message>
+    <message>
+        <location filename="../EMailModule.cpp" line="94"/>
+        <location filename="../EMailModule.cpp" line="418"/>
+        <location filename="../EMailModule.cpp" line="549"/>
+        <location filename="../EMailModule.cpp" line="1233"/>
         <source>To</source>
         <translation>An</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="308"/>
-        <location filename="../EMailModule.cpp" line="428"/>
-        <location filename="../EMailModule.cpp" line="1048"/>
+        <location filename="../EMailModule.cpp" line="95"/>
+        <location filename="../EMailModule.cpp" line="422"/>
+        <location filename="../EMailModule.cpp" line="553"/>
+        <location filename="../EMailModule.cpp" line="1237"/>
         <source>Subject</source>
         <translation>Betreff</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="311"/>
-        <location filename="../EMailModule.cpp" line="431"/>
-        <location filename="../EMailModule.cpp" line="1051"/>
+        <location filename="../EMailModule.cpp" line="96"/>
+        <location filename="../EMailModule.cpp" line="425"/>
+        <location filename="../EMailModule.cpp" line="556"/>
+        <location filename="../EMailModule.cpp" line="1240"/>
         <source>CC</source>
         <translation>CC</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="314"/>
-        <location filename="../EMailModule.cpp" line="434"/>
-        <location filename="../EMailModule.cpp" line="1054"/>
+        <location filename="../EMailModule.cpp" line="97"/>
+        <location filename="../EMailModule.cpp" line="428"/>
+        <location filename="../EMailModule.cpp" line="559"/>
+        <location filename="../EMailModule.cpp" line="1243"/>
         <source>BCC</source>
         <translation>BCC</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="317"/>
-        <location filename="../EMailModule.cpp" line="437"/>
-        <location filename="../EMailModule.cpp" line="1057"/>
+        <location filename="../EMailModule.cpp" line="98"/>
+        <location filename="../EMailModule.cpp" line="431"/>
+        <location filename="../EMailModule.cpp" line="562"/>
+        <location filename="../EMailModule.cpp" line="1246"/>
         <source>Date</source>
         <translation>Datum</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="325"/>
-        <location filename="../EMailModule.cpp" line="1065"/>
+        <location filename="../EMailModule.cpp" line="105"/>
+        <source>OpenPGP</source>
+        <translation>OpenPGP</translation>
+    </message>
+    <message>
+        <location filename="../EMailModule.cpp" line="106"/>
+        <location filename="../EMailModule.cpp" line="439"/>
+        <location filename="../EMailModule.cpp" line="1254"/>
         <source>Signed EML Data Hash (SHA1)</source>
         <translation>Hash der signierten EML-Daten (SHA1)</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="330"/>
-        <location filename="../EMailModule.cpp" line="1070"/>
+        <location filename="../EMailModule.cpp" line="108"/>
+        <location filename="../EMailModule.cpp" line="444"/>
+        <location filename="../EMailModule.cpp" line="1259"/>
         <source>Message Integrity Check Algorithm</source>
         <translation>Algorithmus zur Nachrichtenintegritätsprüfung</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1120"/>
+        <location filename="../EMailModule.cpp" line="136"/>
+        <source>Encryption Recipient</source>
+        <translation>Verschlüsselungsempfänger</translation>
+    </message>
+    <message>
+        <location filename="../EMailModule.cpp" line="137"/>
+        <source>Recipient</source>
+        <translation>Empfänger</translation>
+    </message>
+    <message>
+        <location filename="../EMailModule.cpp" line="138"/>
+        <source>Key ID</source>
+        <translation>Schlüssel-ID</translation>
+    </message>
+    <message>
+        <location filename="../EMailModule.cpp" line="453"/>
+        <source>Verify E-Mail</source>
+        <translation>E-Mail verifizieren</translation>
+    </message>
+    <message>
+        <location filename="../EMailModule.cpp" line="571"/>
+        <source>Decrypt E-Mail</source>
+        <translation>E-Mail entschlüsseln</translation>
+    </message>
+    <message>
+        <location filename="../EMailModule.cpp" line="748"/>
+        <location filename="../EMailModule.cpp" line="773"/>
+        <source>Sign E-Mail</source>
+        <translation>E-Mail signieren</translation>
+    </message>
+    <message>
+        <location filename="../EMailModule.cpp" line="933"/>
+        <location filename="../EMailModule.cpp" line="970"/>
+        <source>Encrypt E-Mail</source>
+        <translation>E-Mail verschlüsseln</translation>
+    </message>
+    <message>
+        <location filename="../EMailModule.cpp" line="1103"/>
+        <location filename="../EMailModule.cpp" line="1150"/>
+        <source>Encrypt and Sign E-Mail</source>
+        <translation>E-Mail verschlüsseln und signieren</translation>
+    </message>
+    <message>
+        <location filename="../EMailModule.cpp" line="1268"/>
+        <source>Decrypt and Verify E-Mail</source>
+        <translation>E-Mail entschlüsseln und verifizieren</translation>
+    </message>
+    <message>
+        <location filename="../EMailModule.cpp" line="1316"/>
         <source>Save file</source>
         <translation>Datei speichern</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1147"/>
-        <location filename="../EMailModule.cpp" line="1192"/>
-        <location filename="../EMailModule.cpp" line="1219"/>
+        <location filename="../EMailModule.cpp" line="1343"/>
+        <location filename="../EMailModule.cpp" line="1388"/>
+        <location filename="../EMailModule.cpp" line="1415"/>
         <source>Warning</source>
         <translation>Warnung</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1148"/>
+        <location filename="../EMailModule.cpp" line="1344"/>
         <source>Cannot read file%1:
 %2.</source>
         <translation>Datei %1 kann nicht gelesen werden:
 %2.</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1193"/>
+        <location filename="../EMailModule.cpp" line="1389"/>
         <source>The file %1 is too large (%2 bytes) to be opened. The maximum allowed size is 1 MB.</source>
         <translation>Die Datei %1 ist zu groß (%2 Bytes), um geöffnet zu werden. Die maximal zulässige Größe beträgt 1 MB.</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1220"/>
+        <location filename="../EMailModule.cpp" line="1416"/>
         <source>Cannot read file %1:
 %2.</source>
         <translation>Datei %1 kann nicht gelesen werden:
@@ -251,12 +317,12 @@ Wenn das Problem weiterhin besteht, wenden Sie sich an den technischen Support o
 <context>
     <name>GTrC</name>
     <message>
-        <location filename="../EMailModule.cpp" line="210"/>
+        <location filename="../EMailModule.cpp" line="320"/>
         <source>Mail Editor</source>
         <translation>E-Mail-Editor</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="212"/>
+        <location filename="../EMailModule.cpp" line="322"/>
         <source>Open a new text editor for email.</source>
         <translation>Neuen Texteditor für E-Mail öffnen.</translation>
     </message>
