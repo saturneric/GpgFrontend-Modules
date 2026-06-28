@@ -22,12 +22,12 @@
     <message>
         <location filename="../VersionCheckingModule.cpp" line="304"/>
         <source>GitHub</source>
-        <translation></translation>
+        <translation>GitHub</translation>
     </message>
     <message>
         <location filename="../VersionCheckingModule.cpp" line="307"/>
         <source>BKTUS.com</source>
-        <translation></translation>
+        <translation>BKTUS.com</translation>
     </message>
     <message>
         <location filename="../VersionCheckingModule.cpp" line="312"/>
@@ -90,12 +90,12 @@
     <message>
         <location filename="../UpdateTab.cpp" line="124"/>
         <source>to check for the latest version.</source>
-        <translation type="unfinished"></translation>
+        <translation>检查最新版本</translation>
     </message>
     <message>
         <location filename="../UpdateTab.cpp" line="196"/>
         <source>You are using the latest version. No action is required.</source>
-        <translation type="unfinished"></translation>
+        <translation>您正在使用最新版本。无需执行任何操作。</translation>
     </message>
     <message>
         <source>to check for the latest stable version.</source>
@@ -133,12 +133,12 @@
         <location filename="../UpdateTab.cpp" line="164"/>
         <location filename="../UpdateTab.cpp" line="177"/>
         <source>to download the latest version.</source>
-        <translation type="unfinished"></translation>
+        <translation>下载最新版本</translation>
     </message>
     <message>
         <location filename="../UpdateTab.cpp" line="172"/>
         <source>This version is either withdrawn due to critical issues or is an unreleased build. Please stop using it and download the latest version.</source>
-        <translation type="unfinished"></translation>
+        <translation>此版本可能因严重问题而被撤回，或为未发布版本。请停止使用并下载最新版本。</translation>
     </message>
     <message>
         <location filename="../UpdateTab.cpp" line="184"/>

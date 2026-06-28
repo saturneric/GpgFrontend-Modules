@@ -7,32 +7,32 @@
         <location filename="../VersionCheckingModule.cpp" line="109"/>
         <location filename="../VersionCheckingModule.cpp" line="171"/>
         <source>Check for Updates</source>
-        <translation type="unfinished">Nach Updates suchen</translation>
+        <translation>Nach Updates suchen</translation>
     </message>
     <message>
         <location filename="../VersionCheckingModule.cpp" line="172"/>
         <source>Check for updates from the Internet.</source>
-        <translation type="unfinished"></translation>
+        <translation>Nach Updates im Internet suchen.</translation>
     </message>
     <message>
         <location filename="../VersionCheckingModule.cpp" line="292"/>
         <source>Checking for version updates when the application starts.</source>
-        <translation type="unfinished"></translation>
+        <translation>Prüft beim Start der Anwendung auf Versionsupdates.</translation>
     </message>
     <message>
         <location filename="../VersionCheckingModule.cpp" line="304"/>
         <source>GitHub</source>
-        <translation type="unfinished"></translation>
+        <translation>GitHub</translation>
     </message>
     <message>
         <location filename="../VersionCheckingModule.cpp" line="307"/>
         <source>BKTUS.com</source>
-        <translation type="unfinished"></translation>
+        <translation>BKTUS.com</translation>
     </message>
     <message>
         <location filename="../VersionCheckingModule.cpp" line="312"/>
         <source>Update Checking API:</source>
-        <translation type="unfinished"></translation>
+        <translation>API für die Update-Prüfung:</translation>
     </message>
 </context>
 <context>
@@ -90,12 +90,12 @@
     <message>
         <location filename="../UpdateTab.cpp" line="124"/>
         <source>to check for the latest version.</source>
-        <translation type="unfinished"></translation>
+        <translation>um die neueste Version zu überprüfen.</translation>
     </message>
     <message>
         <location filename="../UpdateTab.cpp" line="196"/>
         <source>You are using the latest version. No action is required.</source>
-        <translation type="unfinished"></translation>
+        <translation>Sie verwenden die neueste Version. Es sind keine weiteren Schritte erforderlich.</translation>
     </message>
     <message>
         <source>to check for the latest stable version.</source>
@@ -133,12 +133,12 @@
         <location filename="../UpdateTab.cpp" line="164"/>
         <location filename="../UpdateTab.cpp" line="177"/>
         <source>to download the latest version.</source>
-        <translation type="unfinished"></translation>
+        <translation>um die neueste Version herunterzuladen.</translation>
     </message>
     <message>
         <location filename="../UpdateTab.cpp" line="172"/>
         <source>This version is either withdrawn due to critical issues or is an unreleased build. Please stop using it and download the latest version.</source>
-        <translation type="unfinished"></translation>
+        <translation>Diese Version wurde entweder aufgrund kritischer Probleme zurückgezogen oder ist ein nicht freigegebenes Build. Bitte verwenden Sie sie nicht weiter und laden Sie die neueste Version herunter.</translation>
     </message>
     <message>
         <location filename="../UpdateTab.cpp" line="184"/>

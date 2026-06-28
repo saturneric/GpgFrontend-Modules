@@ -4,40 +4,51 @@
 <context>
     <name>EMailMetaDataDialog</name>
     <message>
+        <location filename="../EMailMetaDataDialog.ui" line="20"/>
         <source>Message</source>
-        <translation type="vanished">邮件消息</translation>
+        <translation>邮件消息</translation>
     </message>
     <message>
+        <location filename="../EMailMetaDataDialog.ui" line="54"/>
         <source>From</source>
-        <translation type="vanished">发件人</translation>
+        <translation>发件人</translation>
     </message>
     <message>
+        <location filename="../EMailMetaDataDialog.ui" line="77"/>
         <source>To</source>
-        <translation type="vanished">收件人</translation>
+        <translation>收件人</translation>
     </message>
     <message>
+        <location filename="../EMailMetaDataDialog.ui" line="100"/>
+        <location filename="../EMailMetaDataDialog.ui" line="207"/>
         <source>CC</source>
-        <translation type="vanished">抄送</translation>
+        <translation>抄送</translation>
     </message>
     <message>
+        <location filename="../EMailMetaDataDialog.ui" line="123"/>
+        <location filename="../EMailMetaDataDialog.ui" line="214"/>
         <source>BCC</source>
-        <translation type="vanished">密送</translation>
+        <translation>密送</translation>
     </message>
     <message>
+        <location filename="../EMailMetaDataDialog.ui" line="153"/>
         <source>Subject</source>
-        <translation type="vanished">主题</translation>
+        <translation>主题</translation>
     </message>
     <message>
+        <location filename="../EMailMetaDataDialog.ui" line="175"/>
         <source>Tips: You can fill in multiple email addresses, please separate them with &quot;;&quot;, except for the &apos;From&apos; field.</source>
-        <translation type="vanished">提示： 您可以填写多个电子邮件地址，请用&quot;;&quot;分隔，但&apos;发件人&apos;字段除外。</translation>
+        <translation>提示： 您可以填写多个电子邮件地址，请用&quot;;&quot;分隔，但&apos;发件人&apos;字段除外。</translation>
     </message>
     <message>
+        <location filename="../EMailMetaDataDialog.ui" line="234"/>
         <source>Cancel</source>
-        <translation type="vanished">取消</translation>
+        <translation>取消</translation>
     </message>
     <message>
+        <location filename="../EMailMetaDataDialog.ui" line="241"/>
         <source>OK</source>
-        <translation type="vanished">确认</translation>
+        <translation>确认</translation>
     </message>
     <message>
         <location filename="../EMailMetaDataDialog.cpp" line="196"/>
@@ -93,7 +104,20 @@ EML is a file format for representing email messages, typically including header
 2. Refer to the official documentation for the EML structure: %2
 
 After correcting the EML data, try the operation again.</source>
-        <translation type="unfinished"></translation>
+        <translation># EML 数据错误
+
+提供的 EML 数据不符合 RFC 3156 标准，无法处理。
+
+**详细信息：** %1
+
+### 什么是 EML 数据？
+EML 是一种用于表示电子邮件的文件格式，通常包含头部、正文、附件和元数据。验证需要完整且结构正确的 EML 数据。
+
+### 建议解决方案
+1. 验证 EML 数据是否完整，并符合 RFC 3156 规定的结构。
+2. 查阅 EML 结构的官方文档： %2
+
+修正 EML 数据后，请重试该操作。</translation>
     </message>
     <message>
         <location filename="../EMailModule.cpp" line="134"/>
@@ -117,90 +141,111 @@ An error occurred during the email operation. The process could not be completed
 4. Review the error details above or application logs for further troubleshooting.
 
 If the issue persists, consider seeking technical support or consulting the documentation.</source>
-        <translation type="unfinished"></translation>
+        <translation># 电子邮件操作错误
+
+电子邮件操作过程中发生错误，无法完成处理。
+
+**详细信息：**
+- **错误代码：** %1
+- **错误信息：** %2
+
+### 可能原因
+1. 电子邮件数据可能不完整或已损坏。
+2. 所选 GPG 密钥缺乏必要的权限。
+3. GPG 环境或配置存在问题。
+
+### 建议解决方案
+1. 确保电子邮件数据完整且符合预期格式。
+2. 验证 GPG 密钥是否具有所需的访问权限。
+3. 检查您的 GPG 环境和配置设置。
+4. 查看上述错误详细信息或应用程序日志以进行进一步排查。
+
+如果问题仍然存在，请寻求技术支持或查阅相关文档。</translation>
     </message>
     <message>
         <location filename="../EMailModule.cpp" line="301"/>
         <location filename="../EMailModule.cpp" line="421"/>
         <location filename="../EMailModule.cpp" line="1041"/>
         <source>From</source>
-        <translation type="unfinished">发件人</translation>
+        <translation>发件人</translation>
     </message>
     <message>
         <location filename="../EMailModule.cpp" line="304"/>
         <location filename="../EMailModule.cpp" line="424"/>
         <location filename="../EMailModule.cpp" line="1044"/>
         <source>To</source>
-        <translation type="unfinished">收件人</translation>
+        <translation>收件人</translation>
     </message>
     <message>
         <location filename="../EMailModule.cpp" line="308"/>
         <location filename="../EMailModule.cpp" line="428"/>
         <location filename="../EMailModule.cpp" line="1048"/>
         <source>Subject</source>
-        <translation type="unfinished">主题</translation>
+        <translation>主题</translation>
     </message>
     <message>
         <location filename="../EMailModule.cpp" line="311"/>
         <location filename="../EMailModule.cpp" line="431"/>
         <location filename="../EMailModule.cpp" line="1051"/>
         <source>CC</source>
-        <translation type="unfinished">抄送</translation>
+        <translation>抄送</translation>
     </message>
     <message>
         <location filename="../EMailModule.cpp" line="314"/>
         <location filename="../EMailModule.cpp" line="434"/>
         <location filename="../EMailModule.cpp" line="1054"/>
         <source>BCC</source>
-        <translation type="unfinished">密送</translation>
+        <translation>密送</translation>
     </message>
     <message>
         <location filename="../EMailModule.cpp" line="317"/>
         <location filename="../EMailModule.cpp" line="437"/>
         <location filename="../EMailModule.cpp" line="1057"/>
         <source>Date</source>
-        <translation type="unfinished"></translation>
+        <translation>日期</translation>
     </message>
     <message>
         <location filename="../EMailModule.cpp" line="325"/>
         <location filename="../EMailModule.cpp" line="1065"/>
         <source>Signed EML Data Hash (SHA1)</source>
-        <translation type="unfinished"></translation>
+        <translation>已签名 EML 数据哈希值 (SHA1)</translation>
     </message>
     <message>
         <location filename="../EMailModule.cpp" line="330"/>
         <location filename="../EMailModule.cpp" line="1070"/>
         <source>Message Integrity Check Algorithm</source>
-        <translation type="unfinished"></translation>
+        <translation>消息完整性检查算法</translation>
     </message>
     <message>
         <location filename="../EMailModule.cpp" line="1120"/>
         <source>Save file</source>
-        <translation type="unfinished"></translation>
+        <translation>保存文件</translation>
     </message>
     <message>
         <location filename="../EMailModule.cpp" line="1147"/>
         <location filename="../EMailModule.cpp" line="1192"/>
         <location filename="../EMailModule.cpp" line="1219"/>
         <source>Warning</source>
-        <translation type="unfinished"></translation>
+        <translation>警告</translation>
     </message>
     <message>
         <location filename="../EMailModule.cpp" line="1148"/>
         <source>Cannot read file%1:
 %2.</source>
-        <translation type="unfinished"></translation>
+        <translation>无法读取文件%1：
+%2。</translation>
     </message>
     <message>
         <location filename="../EMailModule.cpp" line="1193"/>
         <source>The file %1 is too large (%2 bytes) to be opened. The maximum allowed size is 1 MB.</source>
-        <translation type="unfinished"></translation>
+        <translation>文件 %1 太大（%2 字节），无法打开。允许的最大大小为 1 MB。</translation>
     </message>
     <message>
         <location filename="../EMailModule.cpp" line="1220"/>
         <source>Cannot read file %1:
 %2.</source>
-        <translation type="unfinished"></translation>
+        <translation>无法读取文件 %1：
+%2。</translation>
     </message>
 </context>
 <context>
@@ -208,12 +253,12 @@ If the issue persists, consider seeking technical support or consulting the docu
     <message>
         <location filename="../EMailModule.cpp" line="210"/>
         <source>Mail Editor</source>
-        <translation type="unfinished"></translation>
+        <translation>邮件编辑器</translation>
     </message>
     <message>
         <location filename="../EMailModule.cpp" line="212"/>
         <source>Open a new text editor for email.</source>
-        <translation type="unfinished"></translation>
+        <translation>打开新的电子邮件文本编辑器。</translation>
     </message>
 </context>
 </TS>

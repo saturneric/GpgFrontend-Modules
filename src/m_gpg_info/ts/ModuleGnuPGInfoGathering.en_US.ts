@@ -16,6 +16,34 @@
     </message>
 </context>
 <context>
+    <name>GnuPGInfo</name>
+    <message>
+        <location filename="../GnuPGInfo.ui" line="14"/>
+        <source>GnuPG Info</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../GnuPGInfo.ui" line="71"/>
+        <source>Version</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../GnuPGInfo.ui" line="119"/>
+        <source>Components</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../GnuPGInfo.ui" line="151"/>
+        <source>Directories</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../GnuPGInfo.ui" line="180"/>
+        <source>Options</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>GnupgTab</name>
     <message>
         <location filename="../GnupgTab.cpp" line="49"/>

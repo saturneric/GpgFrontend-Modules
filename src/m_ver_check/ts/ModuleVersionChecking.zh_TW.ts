@@ -7,32 +7,32 @@
         <location filename="../VersionCheckingModule.cpp" line="109"/>
         <location filename="../VersionCheckingModule.cpp" line="171"/>
         <source>Check for Updates</source>
-        <translation type="unfinished">檢查更新</translation>
+        <translation>檢查更新</translation>
     </message>
     <message>
         <location filename="../VersionCheckingModule.cpp" line="172"/>
         <source>Check for updates from the Internet.</source>
-        <translation type="unfinished"></translation>
+        <translation>從網際網路檢查更新。</translation>
     </message>
     <message>
         <location filename="../VersionCheckingModule.cpp" line="292"/>
         <source>Checking for version updates when the application starts.</source>
-        <translation type="unfinished"></translation>
+        <translation>應用程式啟動時檢查版本更新。</translation>
     </message>
     <message>
         <location filename="../VersionCheckingModule.cpp" line="304"/>
         <source>GitHub</source>
-        <translation type="unfinished"></translation>
+        <translation>GitHub</translation>
     </message>
     <message>
         <location filename="../VersionCheckingModule.cpp" line="307"/>
         <source>BKTUS.com</source>
-        <translation type="unfinished"></translation>
+        <translation>BKTUS.com</translation>
     </message>
     <message>
         <location filename="../VersionCheckingModule.cpp" line="312"/>
         <source>Update Checking API:</source>
-        <translation type="unfinished"></translation>
+        <translation>更新檢查 API：</translation>
     </message>
 </context>
 <context>
@@ -90,12 +90,12 @@
     <message>
         <location filename="../UpdateTab.cpp" line="124"/>
         <source>to check for the latest version.</source>
-        <translation type="unfinished"></translation>
+        <translation>以查詢最新版本。</translation>
     </message>
     <message>
         <location filename="../UpdateTab.cpp" line="196"/>
         <source>You are using the latest version. No action is required.</source>
-        <translation type="unfinished"></translation>
+        <translation>您已使用最新版本。無需任何操作。</translation>
     </message>
     <message>
         <source>to check for the latest stable version.</source>
@@ -133,12 +133,12 @@
         <location filename="../UpdateTab.cpp" line="164"/>
         <location filename="../UpdateTab.cpp" line="177"/>
         <source>to download the latest version.</source>
-        <translation type="unfinished"></translation>
+        <translation>以下載最新版本。</translation>
     </message>
     <message>
         <location filename="../UpdateTab.cpp" line="172"/>
         <source>This version is either withdrawn due to critical issues or is an unreleased build. Please stop using it and download the latest version.</source>
-        <translation type="unfinished"></translation>
+        <translation>此版本因重大問題已被撤回，或屬於尚未發佈的版本。請停止使用，並下載最新版本。</translation>
     </message>
     <message>
         <location filename="../UpdateTab.cpp" line="184"/>
