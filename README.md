@@ -48,7 +48,12 @@ reference.
 - `CMAKE_AUTOMOC`, `CMAKE_AUTORCC`, and `CMAKE_AUTOUIC` are enabled
   automatically for all modules.
 - Translations use `qt_add_translations`; `.ts` files live under each module's
-  `ts/` subdirectory.
+  `ts/` subdirectory. The set of locales is shared with the application: it is
+  declared once as `GPGFRONTEND_SUPPORTED_LOCALES` in
+  [`cmake/Translations.cmake`](../cmake/Translations.cmake), and each module
+  expands it into its `TS_FILES` with `gpgfrontend_collect_ts_files()`. Run
+  [`scripts/update_translations.sh`](../scripts/update_translations.sh)
+  to create/refresh the `.ts` files for the app and every module at once.
 
 ## Writing a New Module
 
@@ -119,16 +124,22 @@ register_module(my_module MODULE_TARGET ${MODULE_SOURCE})
 target_link_libraries(${MODULE_TARGET} PRIVATE Qt::Core Qt::Widgets)
 
 # --- Translations (optional) ---
+# Expand the shared locale set (cmake/Translations.cmake) into the .ts list so
+# the module ships exactly the languages the application does. "ModuleMyModule"
+# is the base name prefixing each ts/<base>.<locale>.ts path.
 set(LOCALE_TS_PATH ${CMAKE_CURRENT_SOURCE_DIR}/ts)
-set(TS_FILES
-  "${LOCALE_TS_PATH}/ModuleMyModule.en_US.ts"
-  "${LOCALE_TS_PATH}/ModuleMyModule.zh_CN.ts")
+gpgfrontend_collect_ts_files(TS_FILES "ModuleMyModule" "${LOCALE_TS_PATH}")
 
 module_add_translations(${MODULE_TARGET}
   TS_FILES ${TS_FILES}
   SOURCES ${MODULE_SOURCE}
   INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR})
 ```
+
+Then run
+[`scripts/update_translations.sh`](../scripts/update_translations.sh) to
+generate the `ts/ModuleMyModule.<locale>.ts` files for every supported locale —
+it creates any that are missing, so you never hand-author them.
 
 > Match the Qt major version of the host build — a version mismatch will
 > prevent the module from loading.
@@ -316,7 +327,12 @@ auto GFRegisterModule() -> int {
 
 Wrap strings with `QCoreApplication::translate("GTrC", "...")`.
 `.ts` files go in `ts/ModuleMyModule.<locale>.ts` and are embedded as Qt
-resources under `:/i18n/`.
+resources under `:/i18n/`. The locale set is not chosen per module — it comes
+from the shared `GPGFRONTEND_SUPPORTED_LOCALES` list (see [Build
+Notes](#build-notes)), so the module always offers the same languages as the
+application. After adding or changing `tr()` strings, run
+[`scripts/update_translations.sh`](../scripts/update_translations.sh) to sync
+every locale's `.ts`.
 
 ## Licensing
 
