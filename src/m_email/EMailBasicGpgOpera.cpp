@@ -1013,7 +1013,7 @@ auto VerifyEMLData(int channel, const QByteArray& data,
     public_keys_buffer.append(Q_SC(oss.str()));
   }
 
-  FLOG_DEBUG("mime part info, attached public keys: ",
+  FLOG_DEBUG("mime part info, attached public keys: %1",
              public_keys_buffer.join("\n"));
 
   /*

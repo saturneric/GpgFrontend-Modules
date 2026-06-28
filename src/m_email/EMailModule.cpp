@@ -38,7 +38,9 @@
 #include <QCryptographicHash>
 #include <QFileDialog>
 #include <QFileInfo>
+#include <QJsonArray>
 #include <QJsonDocument>
+#include <QJsonObject>
 #include <QMainWindow>
 #include <QMenu>
 #include <QMessageBox>
@@ -63,10 +65,88 @@
 #include "EMailBasicGpgOpera.h"
 #include "EMailHelper.h"
 
-GF_MODULE_API_DEFINE_V2("com.bktus.gpgfrontend.module.email", "Email", "1.1.2",
+GF_MODULE_API_DEFINE_V2("com.bktus.gpgfrontend.module.email", "Email", "1.2.1",
                         "Everything related to E-Mails.", "Saturneric")
 
 DEFINE_TRANSLATIONS_STRUCTURE(ModuleEMail);
+
+namespace {
+
+// Build one Info Board card object (title/status/fields) in the JSON shape the
+// UI's decode_info_board_cards() expects. Empty values are dropped so the card
+// stays compact, matching how the native operations render.
+auto MakeCardJson(const QString& title, const QString& status,
+                  const QList<QPair<QString, QString>>& fields) -> QJsonObject {
+  QJsonArray field_array;
+  for (const auto& f : fields) {
+    if (f.second.isEmpty()) continue;
+    field_array.append(QJsonArray{f.first, f.second});
+  }
+  return QJsonObject{
+      {"title", title}, {"status", status}, {"fields", field_array}};
+}
+
+// Structured E-Mail header card from parsed metadata.
+auto BuildEMailHeaderCard(const EMailMetaData& m) -> QJsonObject {
+  return MakeCardJson(
+      QApplication::translate("EMailModule", "E-Mail"), "neutral",
+      {{QApplication::translate("EMailModule", "From"), m.from},
+       {QApplication::translate("EMailModule", "To"), m.to.join("; ")},
+       {QApplication::translate("EMailModule", "Subject"), m.subject},
+       {QApplication::translate("EMailModule", "CC"), m.cc.join("; ")},
+       {QApplication::translate("EMailModule", "BCC"), m.bcc.join("; ")},
+       {QApplication::translate("EMailModule", "Date"),
+        m.datetime.isValid() ? QLocale().toString(m.datetime) : QString()}});
+}
+
+// Structured OpenPGP/MIME metadata card from parsed metadata.
+auto BuildOpenPGPMetaCard(const EMailMetaData& m) -> QJsonObject {
+  return MakeCardJson(
+      QApplication::translate("EMailModule", "OpenPGP"), "neutral",
+      {{QApplication::translate("EMailModule", "Signed EML Data Hash (SHA1)"),
+        m.mime_hash},
+       {QApplication::translate("EMailModule",
+                                "Message Integrity Check Algorithm"),
+        m.micalg}});
+}
+
+// Concatenate two crypto card JSON arrays (as returned by GFAnalyse*Result)
+// into one, for combined operations like Encrypt+Sign and Decrypt+Verify.
+auto MergeCardArrays(const QString& a, const QString& b) -> QString {
+  QJsonArray merged;
+  for (const auto& s : {a, b}) {
+    if (s.isEmpty()) continue;
+    const auto doc = QJsonDocument::fromJson(s.toUtf8());
+    if (doc.isArray()) {
+      for (const auto& v : doc.array()) merged.append(v);
+    }
+  }
+  return QString::fromUtf8(
+      QJsonDocument(merged).toJson(QJsonDocument::Compact));
+}
+
+// Assemble the `result_cards` payload the UI decodes: the module's own metadata
+// cards followed by the crypto-analysis cards produced by the SDK (which reuses
+// the same converter the native operations use). `crypto_cards_json` is the
+// JSON array string returned via the GFAnalyse*Result `cards` out-param.
+auto BuildResultCardsParam(const QString& operation,
+                           const QJsonArray& meta_cards,
+                           const QString& crypto_cards_json) -> QString {
+  QJsonArray cards = meta_cards;
+  if (!crypto_cards_json.isEmpty()) {
+    const auto doc = QJsonDocument::fromJson(crypto_cards_json.toUtf8());
+    if (doc.isArray()) {
+      for (const auto& v : doc.array()) cards.append(v);
+    }
+  }
+
+  if (cards.isEmpty()) return {};
+
+  QJsonObject obj{{"operation", operation}, {"cards", cards}};
+  return QString::fromUtf8(QJsonDocument(obj).toJson(QJsonDocument::Compact));
+}
+
+}  // namespace
 
 auto GFRegisterModule() -> int {
   MLogDebug("email module registering...");
@@ -235,7 +315,8 @@ namespace {
 
 auto DoVerifyEMLData(int channel, const QByteArray& data, const MEvent& event,
                      int& result_status, QString& result_detail,
-                     QString& error_string, EMailMetaData& meta_data) -> int {
+                     QString& result_cards, QString& error_string,
+                     EMailMetaData& meta_data) -> int {
   gpg_error_t err;
   gpgme_verify_result_t result;
   auto ret = VerifyEMLData(channel, data, meta_data, error_string, err, result);
@@ -250,8 +331,10 @@ auto DoVerifyEMLData(int channel, const QByteArray& data, const MEvent& event,
   }
 
   const char* tmp = nullptr;
-  result_status = GFAnalyseVerifyResult(channel, err, result, &tmp);
+  const char* cards_tmp = nullptr;
+  result_status = GFAnalyseVerifyResult(channel, err, result, &tmp, &cards_tmp);
   result_detail = UnStrDup(tmp);
+  result_cards = UnStrDup(cards_tmp);
   GFGpgFreeResult(result);
 
   if (ret == kGPG_FAILED) {
@@ -290,8 +373,9 @@ REGISTER_EVENT_HANDLER(
       QString error_string;
       int result_status;
       QString result_detail;
+      QString result_cards;
       if (DoVerifyEMLData(channel, data, event, result_status, result_detail,
-                          error_string, meta_data) != kSUCCESS) {
+                          result_cards, error_string, meta_data) != kSUCCESS) {
         return -1;
       }
 
@@ -335,12 +419,18 @@ REGISTER_EVENT_HANDLER(
 
       email_info.append("#" + result_detail + "\n");
 
+      const auto result_cards_param = BuildResultCardsParam(
+          QApplication::translate("EMailModule", "Verify E-Mail"),
+          {BuildEMailHeaderCard(meta_data), BuildOpenPGPMetaCard(meta_data)},
+          result_cards);
+
       // callback
       CB(event, GFGetModuleID(),
          {
              {"ret", QString::number(0)},
              {"result_status", QString::number(result_status)},
              {"result", email_info},
+             {"result_cards", result_cards_param},
          });
       return 0;
     });
@@ -349,7 +439,8 @@ namespace {
 
 auto DoDecryptEMLData(int channel, const QByteArray& data, const MEvent& event,
                       int& result_status, QString& result_detail,
-                      QString& eml_data, EMailMetaData& meta_data) -> int {
+                      QString& result_cards, QString& eml_data,
+                      EMailMetaData& meta_data) -> int {
   gpgme_error_t err;
   gpgme_decrypt_result_t result;
   auto ret = DecryptEMLData(channel, data, meta_data, eml_data, err, result);
@@ -366,8 +457,11 @@ auto DoDecryptEMLData(int channel, const QByteArray& data, const MEvent& event,
   }
 
   const char* tmp = nullptr;
-  result_status = GFAnalyseDecryptResult(channel, err, result, &tmp);
+  const char* cards_tmp = nullptr;
+  result_status =
+      GFAnalyseDecryptResult(channel, err, result, &tmp, &cards_tmp);
   result_detail = UnStrDup(tmp);
+  result_cards = UnStrDup(cards_tmp);
   GFGpgFreeResult(result);
 
   if (ret == kGPG_FAILED) {
@@ -409,9 +503,10 @@ REGISTER_EVENT_HANDLER(
       QString eml_data;
       int result_status;
       QString result_detail;
+      QString result_cards;
       EMailMetaData meta_data;
       if (DoDecryptEMLData(channel, data, event, result_status, result_detail,
-                           eml_data, meta_data) != kSUCCESS) {
+                           result_cards, eml_data, meta_data) != kSUCCESS) {
         return -1;
       }
 
@@ -442,6 +537,10 @@ REGISTER_EVENT_HANDLER(
       email_info.append("# OpenPGP Information\n\n");
       email_info.append("#" + result_detail + "\n");
 
+      const auto result_cards_param = BuildResultCardsParam(
+          QApplication::translate("EMailModule", "Decrypt E-Mail"),
+          {BuildEMailHeaderCard(meta_data)}, result_cards);
+
       // callback
       CB(event, GFGetModuleID(),
          {
@@ -449,6 +548,7 @@ REGISTER_EVENT_HANDLER(
              {"data", eml_data},
              {"result_status", QString::number(result_status)},
              {"result", email_info},
+             {"result_cards", result_cards_param},
          });
       return kSUCCESS;
     });
@@ -459,7 +559,7 @@ auto DoSignEMLData(int channel, const QString& sign_key,
                    vmime::shared_ptr<vmime::message>& message,
                    const QByteArray& body_data, const MEvent& event,
                    int& result_status, QString& result_detail,
-                   QString& eml_data) -> int {
+                   QString& result_cards, QString& eml_data) -> int {
   EMailMetaData meta_data;
   auto ret = GetEMLMetaData(message, meta_data);
 
@@ -483,8 +583,10 @@ auto DoSignEMLData(int channel, const QString& sign_key,
   }
 
   const char* tmp = nullptr;
-  result_status = GFAnalyseSignResult(channel, err, result, &tmp);
+  const char* cards_tmp = nullptr;
+  result_status = GFAnalyseSignResult(channel, err, result, &tmp, &cards_tmp);
   result_detail = UnStrDup(tmp);
+  result_cards = UnStrDup(cards_tmp);
   GFGpgFreeResult(result);
 
   if (ret == kGPG_FAILED) {
@@ -517,7 +619,7 @@ auto DoSignPlainText(int channel, const QString& sign_key,
                      const EMailMetaData& meta_data,
                      const QByteArray& body_data, const MEvent& event,
                      int& result_status, QString& result_detail,
-                     QString& eml_data) -> int {
+                     QString& result_cards, QString& eml_data) -> int {
   gpg_error_t err;
   gpgme_sign_result_t result;
 
@@ -535,8 +637,10 @@ auto DoSignPlainText(int channel, const QString& sign_key,
   }
 
   const char* tmp = nullptr;
-  result_status = GFAnalyseSignResult(channel, err, result, &tmp);
+  const char* cards_tmp = nullptr;
+  result_status = GFAnalyseSignResult(channel, err, result, &tmp, &cards_tmp);
   result_detail = UnStrDup(tmp);
+  result_cards = UnStrDup(cards_tmp);
   GFGpgFreeResult(result);
 
   if (ret == kGPG_FAILED) {
@@ -595,9 +699,11 @@ REGISTER_EVENT_HANDLER(
       if (CheckIfEMLMessage(body_data, message)) {
         int result_status = 0;
         QString result_detail;
+        QString result_cards;
         QString eml_data;
         if (DoSignEMLData(channel, sign_key, message, body_data, event,
-                          result_status, result_detail, eml_data) != kSUCCESS) {
+                          result_status, result_detail, result_cards,
+                          eml_data) != kSUCCESS) {
           return -1;
         }
 
@@ -607,6 +713,10 @@ REGISTER_EVENT_HANDLER(
                {"data", eml_data},
                {"result_status", QString::number(result_status)},
                {"result", result_detail},
+               {"result_cards",
+                BuildResultCardsParam(
+                    QApplication::translate("EMailModule", "Sign E-Mail"), {},
+                    result_cards)},
            });
         return 0;
       }
@@ -617,9 +727,10 @@ REGISTER_EVENT_HANDLER(
           [=](const EMailMetaData& meta_data) {
             int result_status = 0;
             QString result_detail;
+            QString result_cards;
             QString eml_data;
             if (DoSignPlainText(channel, sign_key, meta_data, body_data, event,
-                                result_status, result_detail,
+                                result_status, result_detail, result_cards,
                                 eml_data) == kSUCCESS) {
               CB(event, GFGetModuleID(),
                  {
@@ -627,6 +738,10 @@ REGISTER_EVENT_HANDLER(
                      {"data", eml_data},
                      {"result_status", QString::number(result_status)},
                      {"result", result_detail},
+                     {"result_cards",
+                      BuildResultCardsParam(
+                          QApplication::translate("EMailModule", "Sign E-Mail"),
+                          {BuildEMailHeaderCard(meta_data)}, result_cards)},
                  });
             }
           });
@@ -651,7 +766,7 @@ auto DoEncryptEMLData(int channel, const QStringList& encrypt_keys,
                       const vmime::shared_ptr<vmime::message>& message,
                       const QByteArray& body_data, const MEvent& event,
                       int& result_status, QString& result_detail,
-                      QString& eml_data) -> int {
+                      QString& result_cards, QString& eml_data) -> int {
   gpgme_error_t err;
   gpgme_encrypt_result_t result;
   auto ret = EncryptEMLData(channel, encrypt_keys, message, body_data, eml_data,
@@ -669,8 +784,11 @@ auto DoEncryptEMLData(int channel, const QStringList& encrypt_keys,
   }
 
   const char* tmp = nullptr;
-  result_status = GFAnalyseEncryptResult(channel, err, result, &tmp);
+  const char* cards_tmp = nullptr;
+  result_status =
+      GFAnalyseEncryptResult(channel, err, result, &tmp, &cards_tmp);
   result_detail = UnStrDup(tmp);
+  result_cards = UnStrDup(cards_tmp);
   GFGpgFreeResult(result);
 
   if (ret == kGPG_FAILED) {
@@ -692,7 +810,7 @@ auto DoEncryptPlainText(int channel, const QStringList& encrypt_keys,
                         const EMailMetaData& meta_data,
                         const QByteArray& body_data, const MEvent& event,
                         int& result_status, QString& result_detail,
-                        QString& eml_data) -> int {
+                        QString& result_cards, QString& eml_data) -> int {
   gpgme_error_t err;
   gpgme_encrypt_result_t result;
   QString plain_text_eml_data;
@@ -724,8 +842,11 @@ auto DoEncryptPlainText(int channel, const QStringList& encrypt_keys,
   }
 
   const char* tmp = nullptr;
-  result_status = GFAnalyseEncryptResult(channel, err, result, &tmp);
+  const char* cards_tmp = nullptr;
+  result_status =
+      GFAnalyseEncryptResult(channel, err, result, &tmp, &cards_tmp);
   result_detail = UnStrDup(tmp);
+  result_cards = UnStrDup(cards_tmp);
   GFGpgFreeResult(result);
 
   if (ret == kGPG_FAILED) {
@@ -764,8 +885,9 @@ REGISTER_EVENT_HANDLER(
         QString eml_data;
         int result_status;
         QString result_detail;
+        QString result_cards;
         if (DoEncryptEMLData(channel, encrypt_keys, message, body_data, event,
-                             result_status, result_detail,
+                             result_status, result_detail, result_cards,
                              eml_data) != kSUCCESS) {
           return -1;
         }
@@ -776,6 +898,10 @@ REGISTER_EVENT_HANDLER(
                {"data", eml_data},
                {"result", result_detail},
                {"result_status", QString::number(result_status)},
+               {"result_cards",
+                BuildResultCardsParam(
+                    QApplication::translate("EMailModule", "Encrypt E-Mail"),
+                    {}, result_cards)},
            });
         return 0;
       }
@@ -798,15 +924,21 @@ REGISTER_EVENT_HANDLER(
             QString eml_data;
             int result_status;
             QString result_detail;
+            QString result_cards;
             if (DoEncryptPlainText(channel, encrypt_keys, meta_data, body_data,
                                    event, result_status, result_detail,
-                                   eml_data) == kSUCCESS) {
+                                   result_cards, eml_data) == kSUCCESS) {
               CB(event, GFGetModuleID(),
                  {
                      {"ret", QString::number(0)},
                      {"data", eml_data},
                      {"result", result_detail},
                      {"result_status", QString::number(result_status)},
+                     {"result_cards",
+                      BuildResultCardsParam(
+                          QApplication::translate("EMailModule",
+                                                  "Encrypt E-Mail"),
+                          {BuildEMailHeaderCard(meta_data)}, result_cards)},
                  });
             }
           });
@@ -833,9 +965,10 @@ auto DoEncryptSignEMLData(int channel, const QStringList& encrypt_keys,
                           vmime::shared_ptr<vmime::message>& message,
                           QByteArray& body_data, const MEvent& event,
                           int result_status, QString& result_detail,
-                          QString& eml_data) -> int {
+                          QString& result_cards, QString& eml_data) -> int {
+  QString sign_cards;
   if (DoSignEMLData(channel, sign_key, message, body_data, event, result_status,
-                    result_detail, eml_data) != kSUCCESS) {
+                    result_detail, sign_cards, eml_data) != kSUCCESS) {
     return -1;
   }
 
@@ -844,6 +977,7 @@ auto DoEncryptSignEMLData(int channel, const QStringList& encrypt_keys,
 
   int t_result_status;
   QString t_result_detail;
+  QString encrypt_cards;
 
   vmime::shared_ptr<vmime::message> signed_message;
   bool r = CheckIfEMLMessage(body_data, signed_message);
@@ -851,12 +985,13 @@ auto DoEncryptSignEMLData(int channel, const QStringList& encrypt_keys,
     CB_ERR(event, -1, "Parse Signed Message Failed");
   }
 
-  auto ret =
-      DoEncryptEMLData(channel, encrypt_keys, signed_message, body_data, event,
-                       t_result_status, t_result_detail, eml_data);
+  auto ret = DoEncryptEMLData(channel, encrypt_keys, signed_message, body_data,
+                              event, t_result_status, t_result_detail,
+                              encrypt_cards, eml_data);
 
   result_status = std::min(t_result_status, result_status);
   result_detail = t_result_detail + "\n\n" + result_detail;
+  result_cards = MergeCardArrays(encrypt_cards, sign_cards);
   return ret;
 }
 
@@ -865,9 +1000,11 @@ auto DoEncryptSignPlainText(int channel, const QStringList& encrypt_keys,
                             const EMailMetaData& meta_data,
                             QByteArray& body_data, const MEvent& event,
                             int& result_status, QString& result_detail,
-                            QString& eml_data) -> int {
+                            QString& result_cards, QString& eml_data) -> int {
+  QString sign_cards;
   if (DoSignPlainText(channel, sign_key, meta_data, body_data, event,
-                      result_status, result_detail, eml_data) != kSUCCESS) {
+                      result_status, result_detail, sign_cards,
+                      eml_data) != kSUCCESS) {
     return -1;
   }
 
@@ -876,6 +1013,7 @@ auto DoEncryptSignPlainText(int channel, const QStringList& encrypt_keys,
 
   int t_result_status;
   QString t_result_detail;
+  QString encrypt_cards;
 
   vmime::shared_ptr<vmime::message> signed_message;
   bool r = CheckIfEMLMessage(body_data, signed_message);
@@ -883,12 +1021,13 @@ auto DoEncryptSignPlainText(int channel, const QStringList& encrypt_keys,
     CB_ERR(event, -1, "Parse Signed Message Failed");
   }
 
-  auto ret =
-      DoEncryptEMLData(channel, encrypt_keys, signed_message, body_data, event,
-                       t_result_status, t_result_detail, eml_data);
+  auto ret = DoEncryptEMLData(channel, encrypt_keys, signed_message, body_data,
+                              event, t_result_status, t_result_detail,
+                              encrypt_cards, eml_data);
 
   result_status = std::min(t_result_status, result_status);
   result_detail = t_result_detail + "\n" + result_detail;
+  result_cards = MergeCardArrays(encrypt_cards, sign_cards);
   return ret;
 }
 
@@ -916,9 +1055,10 @@ REGISTER_EVENT_HANDLER(
         QString eml_data;
         int result_status = 0;
         QString result_detail;
+        QString result_cards;
         if (DoEncryptSignEMLData(channel, encrypt_keys, sign_key, message,
                                  body_data, event, result_status, result_detail,
-                                 eml_data) != kSUCCESS) {
+                                 result_cards, eml_data) != kSUCCESS) {
           return -1;
         }
         CB(event, GFGetModuleID(),
@@ -927,6 +1067,11 @@ REGISTER_EVENT_HANDLER(
                {"data", eml_data},
                {"result", result_detail},
                {"result_status", QString::number(result_status)},
+               {"result_cards",
+                BuildResultCardsParam(
+                    QApplication::translate("EMailModule",
+                                            "Encrypt and Sign E-Mail"),
+                    {}, result_cards)},
            });
         return 0;
       }
@@ -950,6 +1095,7 @@ REGISTER_EVENT_HANDLER(
             QString eml_data;
             int result_status = 0;
             QString result_detail;
+            QString result_cards;
             QByteArray body_data_copy = body_data;
 
             FLOG_DEBUG("meta data, from: %1", meta_data.from);
@@ -957,7 +1103,7 @@ REGISTER_EVENT_HANDLER(
             if (DoEncryptSignPlainText(channel, encrypt_keys, sign_key,
                                        meta_data, body_data_copy, event,
                                        result_status, result_detail,
-                                       eml_data) != kSUCCESS) {
+                                       result_cards, eml_data) != kSUCCESS) {
               return -1;
             }
             CB(event, GFGetModuleID(),
@@ -966,6 +1112,11 @@ REGISTER_EVENT_HANDLER(
                    {"data", eml_data},
                    {"result", result_detail},
                    {"result_status", QString::number(result_status)},
+                   {"result_cards",
+                    BuildResultCardsParam(
+                        QApplication::translate("EMailModule",
+                                                "Encrypt and Sign E-Mail"),
+                        {BuildEMailHeaderCard(meta_data)}, result_cards)},
                });
             return 0;
           });
@@ -989,24 +1140,28 @@ namespace {
 
 auto DoDecryptVerifyEMLData(int channel, const QByteArray& data,
                             const MEvent& event, int& result_status,
-                            QString& result_detail, QString& eml_data,
-                            QString& error_string, EMailMetaData& meta_data)
-    -> int {
+                            QString& result_detail, QString& result_cards,
+                            QString& eml_data, QString& error_string,
+                            EMailMetaData& meta_data) -> int {
+  QString decrypt_cards;
   if (DoDecryptEMLData(channel, data, event, result_status, result_detail,
-                       eml_data, meta_data) != kSUCCESS) {
+                       decrypt_cards, eml_data, meta_data) != kSUCCESS) {
     return -1;
   }
 
   int t_result_status;
   QString t_result_detail;
+  QString verify_cards;
 
   if (DoVerifyEMLData(channel, eml_data.toLatin1(), event, t_result_status,
-                      t_result_detail, error_string, meta_data) != kSUCCESS) {
+                      t_result_detail, verify_cards, error_string,
+                      meta_data) != kSUCCESS) {
     return -1;
   }
 
   result_status = std::min(t_result_status, result_status);
   result_detail = t_result_detail + "\n" + result_detail;
+  result_cards = MergeCardArrays(verify_cards, decrypt_cards);
 
   return kSUCCESS;
 }
@@ -1028,10 +1183,11 @@ REGISTER_EVENT_HANDLER(
       QString error_string;
       int result_status;
       QString result_detail;
+      QString result_cards;
 
       if (DoDecryptVerifyEMLData(channel, data, event, result_status,
-                                 result_detail, eml_data, error_string,
-                                 meta_data) != kSUCCESS) {
+                                 result_detail, result_cards, eml_data,
+                                 error_string, meta_data) != kSUCCESS) {
         return -1;
       }
 
@@ -1075,12 +1231,18 @@ REGISTER_EVENT_HANDLER(
 
       email_info.append("#" + result_detail + "\n");
 
+      const auto result_cards_param = BuildResultCardsParam(
+          QApplication::translate("EMailModule", "Decrypt and Verify E-Mail"),
+          {BuildEMailHeaderCard(meta_data), BuildOpenPGPMetaCard(meta_data)},
+          result_cards);
+
       // callback
       CB(event, GFGetModuleID(),
          {
              {"ret", QString::number(0)},
              {"result_status", QString::number(result_status)},
              {"result", email_info},
+             {"result_cards", result_cards_param},
          });
       return 0;
     });
