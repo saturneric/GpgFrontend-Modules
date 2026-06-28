@@ -7,12 +7,12 @@
         <location filename="../GnuPGInfoGatheringModule.cpp" line="103"/>
         <location filename="../GnuPGInfoGatheringModule.cpp" line="173"/>
         <source>GnuPG</source>
-        <translation>GnuPG</translation>
+        <translation type="unfinished">GnuPG</translation>
     </message>
     <message>
         <location filename="../GnuPGInfoGatheringModule.cpp" line="175"/>
         <source>Information about GnuPG</source>
-        <translation>Informazioni su GnuPG</translation>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -20,27 +20,27 @@
     <message>
         <location filename="../GnuPGInfo.ui" line="14"/>
         <source>GnuPG Info</source>
-        <translation>Informazioni GnuPG</translation>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../GnuPGInfo.ui" line="71"/>
         <source>Version</source>
-        <translation>Versione</translation>
+        <translation type="unfinished">Versione</translation>
     </message>
     <message>
         <location filename="../GnuPGInfo.ui" line="119"/>
         <source>Components</source>
-        <translation>Componenti</translation>
+        <translation type="unfinished">Componenti</translation>
     </message>
     <message>
         <location filename="../GnuPGInfo.ui" line="151"/>
         <source>Directories</source>
-        <translation>Directory</translation>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../GnuPGInfo.ui" line="180"/>
         <source>Options</source>
-        <translation>Opzioni</translation>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -48,53 +48,53 @@
     <message>
         <location filename="../GnupgTab.cpp" line="49"/>
         <source>Name</source>
-        <translation>Nome</translation>
+        <translation type="unfinished">Nome</translation>
     </message>
     <message>
         <location filename="../GnupgTab.cpp" line="49"/>
         <location filename="../GnupgTab.cpp" line="96"/>
         <source>Description</source>
-        <translation>Descrizione</translation>
+        <translation type="unfinished">Descrizione</translation>
     </message>
     <message>
         <location filename="../GnupgTab.cpp" line="49"/>
         <source>Version</source>
-        <translation>Versione</translation>
+        <translation type="unfinished">Versione</translation>
     </message>
     <message>
         <location filename="../GnupgTab.cpp" line="50"/>
         <source>Checksum</source>
-        <translation>Checksum</translation>
+        <translation type="unfinished">Somma di controllo</translation>
     </message>
     <message>
         <location filename="../GnupgTab.cpp" line="50"/>
         <source>Binary Path</source>
-        <translation>Percorso del binario</translation>
+        <translation type="unfinished">Percorso binario</translation>
     </message>
     <message>
         <location filename="../GnupgTab.cpp" line="52"/>
         <source>Components</source>
-        <translation>Componenti</translation>
+        <translation type="unfinished">Componenti</translation>
     </message>
     <message>
         <location filename="../GnupgTab.cpp" line="53"/>
         <source>Directories</source>
-        <translation>Directory</translation>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../GnupgTab.cpp" line="54"/>
         <source>Options</source>
-        <translation>Opzioni</translation>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../GnupgTab.cpp" line="74"/>
         <source>Directory Type</source>
-        <translation>Tipo di directory</translation>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../GnupgTab.cpp" line="74"/>
         <source>Path</source>
-        <translation>Percorso</translation>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Configurations</source>
@@ -103,27 +103,27 @@
     <message>
         <location filename="../GnupgTab.cpp" line="95"/>
         <source>Component</source>
-        <translation>Componente</translation>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../GnupgTab.cpp" line="95"/>
         <source>Group</source>
-        <translation>Gruppo</translation>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../GnupgTab.cpp" line="95"/>
         <source>Key</source>
-        <translation>Chiave</translation>
+        <translation type="unfinished">Chiave</translation>
     </message>
     <message>
         <location filename="../GnupgTab.cpp" line="96"/>
         <source>Default Value</source>
-        <translation>Valore predefinito</translation>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../GnupgTab.cpp" line="97"/>
         <source>Value</source>
-        <translation>Valore</translation>
+        <translation type="unfinished">Valore</translation>
     </message>
 </context>
 </TS>
