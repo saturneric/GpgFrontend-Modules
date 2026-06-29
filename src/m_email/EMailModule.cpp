@@ -348,8 +348,9 @@ auto DoVerifyEMLData(int channel, const QByteArray& data, const MEvent& event,
                      QString& result_cards, QString& error_string,
                      EMailMetaData& meta_data) -> int {
   gpg_error_t err;
-  gpgme_verify_result_t result;
-  auto ret = VerifyEMLData(channel, data, meta_data, error_string, err, result);
+  QString capsule_id;
+  auto ret =
+      VerifyEMLData(channel, data, meta_data, error_string, err, capsule_id);
   if (ret == kFAILED || ret == kEML_FAILED) {
     CB(event, GFGetModuleID(),
        {
@@ -362,10 +363,10 @@ auto DoVerifyEMLData(int channel, const QByteArray& data, const MEvent& event,
 
   const char* tmp = nullptr;
   const char* cards_tmp = nullptr;
-  result_status = GFAnalyseVerifyResult(channel, err, result, &tmp, &cards_tmp);
+  result_status = GFAnalyseVerifyResultByCapsule(channel, err, QDUP(capsule_id),
+                                                 &tmp, &cards_tmp);
   result_detail = UnStrDup(tmp);
   result_cards = UnStrDup(cards_tmp);
-  GFGpgFreeResult(result);
 
   if (ret == kGPG_FAILED) {
     // decrypt failed
@@ -472,8 +473,8 @@ auto DoDecryptEMLData(int channel, const QByteArray& data, const MEvent& event,
                       QString& result_cards, QString& eml_data,
                       EMailMetaData& meta_data) -> int {
   gpgme_error_t err;
-  gpgme_decrypt_result_t result;
-  auto ret = DecryptEMLData(channel, data, meta_data, eml_data, err, result);
+  QString capsule_id;
+  auto ret = DecryptEMLData(channel, data, meta_data, eml_data, err, capsule_id);
 
   if (ret == kFAILED || ret == kEML_FAILED) {
     CB(event, GFGetModuleID(),
@@ -488,11 +489,10 @@ auto DoDecryptEMLData(int channel, const QByteArray& data, const MEvent& event,
 
   const char* tmp = nullptr;
   const char* cards_tmp = nullptr;
-  result_status =
-      GFAnalyseDecryptResult(channel, err, result, &tmp, &cards_tmp);
+  result_status = GFAnalyseDecryptResultByCapsule(channel, err, QDUP(capsule_id),
+                                                  &tmp, &cards_tmp);
   result_detail = UnStrDup(tmp);
   result_cards = UnStrDup(cards_tmp);
-  GFGpgFreeResult(result);
 
   if (ret == kGPG_FAILED) {
     // decrypt failed
@@ -598,8 +598,8 @@ auto DoSignEMLData(int channel, const QString& sign_key,
   }
 
   gpg_error_t err;
-  gpgme_sign_result_t result;
-  ret = SignEMLData(channel, sign_key, message, eml_data, err, result);
+  QString capsule_id;
+  ret = SignEMLData(channel, sign_key, message, eml_data, err, capsule_id);
 
   if (ret == kFAILED || ret == kEML_FAILED) {
     CB(event, GFGetModuleID(),
@@ -614,10 +614,10 @@ auto DoSignEMLData(int channel, const QString& sign_key,
 
   const char* tmp = nullptr;
   const char* cards_tmp = nullptr;
-  result_status = GFAnalyseSignResult(channel, err, result, &tmp, &cards_tmp);
+  result_status = GFAnalyseSignResultByCapsule(channel, err, QDUP(capsule_id),
+                                               &tmp, &cards_tmp);
   result_detail = UnStrDup(tmp);
   result_cards = UnStrDup(cards_tmp);
-  GFGpgFreeResult(result);
 
   if (ret == kGPG_FAILED) {
     // decrypt failed
@@ -651,10 +651,10 @@ auto DoSignPlainText(int channel, const QString& sign_key,
                      int& result_status, QString& result_detail,
                      QString& result_cards, QString& eml_data) -> int {
   gpg_error_t err;
-  gpgme_sign_result_t result;
+  QString capsule_id;
 
   auto ret = SignPlainText(channel, sign_key, meta_data, body_data, eml_data,
-                           err, result);
+                           err, capsule_id);
   if (ret == kFAILED || ret == kEML_FAILED) {
     CB(event, GFGetModuleID(),
        {
@@ -668,10 +668,10 @@ auto DoSignPlainText(int channel, const QString& sign_key,
 
   const char* tmp = nullptr;
   const char* cards_tmp = nullptr;
-  result_status = GFAnalyseSignResult(channel, err, result, &tmp, &cards_tmp);
+  result_status = GFAnalyseSignResultByCapsule(channel, err, QDUP(capsule_id),
+                                               &tmp, &cards_tmp);
   result_detail = UnStrDup(tmp);
   result_cards = UnStrDup(cards_tmp);
-  GFGpgFreeResult(result);
 
   if (ret == kGPG_FAILED) {
     // decrypt failed
@@ -798,9 +798,9 @@ auto DoEncryptEMLData(int channel, const QStringList& encrypt_keys,
                       int& result_status, QString& result_detail,
                       QString& result_cards, QString& eml_data) -> int {
   gpgme_error_t err;
-  gpgme_encrypt_result_t result;
+  QString capsule_id;
   auto ret = EncryptEMLData(channel, encrypt_keys, message, body_data, eml_data,
-                            err, result);
+                            err, capsule_id);
 
   if (ret == kFAILED || ret == kEML_FAILED) {
     CB(event, GFGetModuleID(),
@@ -815,11 +815,10 @@ auto DoEncryptEMLData(int channel, const QStringList& encrypt_keys,
 
   const char* tmp = nullptr;
   const char* cards_tmp = nullptr;
-  result_status =
-      GFAnalyseEncryptResult(channel, err, result, &tmp, &cards_tmp);
+  result_status = GFAnalyseEncryptResultByCapsule(channel, err, QDUP(capsule_id),
+                                                  &tmp, &cards_tmp);
   result_detail = UnStrDup(tmp);
   result_cards = UnStrDup(cards_tmp);
-  GFGpgFreeResult(result);
 
   if (ret == kGPG_FAILED) {
     // encrypt failed
@@ -842,7 +841,7 @@ auto DoEncryptPlainText(int channel, const QStringList& encrypt_keys,
                         int& result_status, QString& result_detail,
                         QString& result_cards, QString& eml_data) -> int {
   gpgme_error_t err;
-  gpgme_encrypt_result_t result;
+  QString capsule_id;
   QString plain_text_eml_data;
   auto ret = BuildPlainTextEML(meta_data, body_data, plain_text_eml_data);
 
@@ -858,7 +857,8 @@ auto DoEncryptPlainText(int channel, const QStringList& encrypt_keys,
   }
 
   ret = EncryptPlainText(channel, encrypt_keys, meta_data,
-                         plain_text_eml_data.toLatin1(), eml_data, err, result);
+                         plain_text_eml_data.toLatin1(), eml_data, err,
+                         capsule_id);
 
   if (ret == kFAILED || ret == kEML_FAILED) {
     CB(event, GFGetModuleID(),
@@ -873,11 +873,10 @@ auto DoEncryptPlainText(int channel, const QStringList& encrypt_keys,
 
   const char* tmp = nullptr;
   const char* cards_tmp = nullptr;
-  result_status =
-      GFAnalyseEncryptResult(channel, err, result, &tmp, &cards_tmp);
+  result_status = GFAnalyseEncryptResultByCapsule(channel, err, QDUP(capsule_id),
+                                                  &tmp, &cards_tmp);
   result_detail = UnStrDup(tmp);
   result_cards = UnStrDup(cards_tmp);
-  GFGpgFreeResult(result);
 
   if (ret == kGPG_FAILED) {
     // encrypt failed

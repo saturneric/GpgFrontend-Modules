@@ -39,8 +39,7 @@
 auto EncryptPlainText(int channel, const QStringList& keys,
                       const EMailMetaData& meta_data,
                       const QByteArray& body_data, QString& eml_data,
-                      gpgme_error_t& err, gpgme_encrypt_result_t& result)
-    -> int {
+                      gpgme_error_t& err, QString& capsule_id) -> int {
   auto from = meta_data.from;
   auto recipient_list = meta_data.to;
   auto cc_list = meta_data.cc;
@@ -57,8 +56,11 @@ auto EncryptPlainText(int channel, const QStringList& keys,
 
     auto encrypted_data = UDUP(s->encrypted_data);
     err = s->gpgme_error;
-    result = s->gpgme_encrypt_result;
+    capsule_id = UDUP(s->capsule_id);
     auto gpg_error_string = UDUP(s->error_string);
+
+    GFGpgFreeResult(s->gpgme_encrypt_result);
+    GFFreeMemory(s);
 
     if (ret != 0) {
       eml_data = "Operation Failed.";
@@ -204,7 +206,7 @@ auto EncryptPlainText(int channel, const QStringList& keys,
 auto EncryptEMLData(int channel, const QStringList& keys,
                     const vmime::shared_ptr<vmime::message>& message,
                     const QByteArray& body_data, QString& eml_data,
-                    gpgme_error_t& err, gpgme_encrypt_result_t& result) -> int {
+                    gpgme_error_t& err, QString& capsule_id) -> int {
   try {
     auto header = message->getHeader();
     auto body = message->getBody();
@@ -278,9 +280,10 @@ auto EncryptEMLData(int channel, const QStringList& keys,
 
     auto encrypted_data = UDUP(s->encrypted_data);
     err = s->gpgme_error;
-    result = s->gpgme_encrypt_result;
+    capsule_id = UDUP(s->capsule_id);
     auto gpg_error_string = UDUP(s->error_string);
 
+    GFGpgFreeResult(s->gpgme_encrypt_result);
     GFFreeMemory(s);
 
     if (ret != 0) {
@@ -379,8 +382,8 @@ auto EncryptEMLData(int channel, const QStringList& keys,
 
 auto SignPlainText(int channel, const QString& key,
                    const EMailMetaData& meta_data, const QByteArray& body_data,
-                   QString& eml_data, gpgme_error_t& err,
-                   gpgme_sign_result_t& result) -> int {
+                   QString& eml_data, gpgme_error_t& err, QString& capsule_id)
+    -> int {
   auto from = meta_data.from;
   auto recipient_list = meta_data.to;
   auto cc_list = meta_data.cc;
@@ -591,9 +594,10 @@ auto SignPlainText(int channel, const QString& key,
     auto signature = UDUP(s->signature);
     auto hash_algo = UDUP(s->hash_algo);
     err = s->gpgme_error;
-    result = s->gpgme_sign_result;
+    capsule_id = UDUP(s->capsule_id);
     auto gpg_error_string = UDUP(s->error_string);
 
+    GFGpgFreeResult(s->gpgme_sign_result);
     GFFreeMemory(s);
 
     if (ret != kSUCCESS) {
@@ -635,8 +639,8 @@ auto SignPlainText(int channel, const QString& key,
 
 auto SignEMLData(int channel, const QString& key,
                  const vmime::shared_ptr<vmime::message>& message,
-                 QString& eml_data, gpgme_error_t& err,
-                 gpgme_sign_result_t& result) -> int {
+                 QString& eml_data, gpgme_error_t& err, QString& capsule_id)
+    -> int {
   try {
     auto header = message->getHeader();
 
@@ -818,8 +822,9 @@ auto SignEMLData(int channel, const QString& key,
     auto hash_algo = UDUP(s->hash_algo);
     auto gpg_error_string = UDUP(s->error_string);
     err = s->gpgme_error;
-    result = s->gpgme_sign_result;
+    capsule_id = UDUP(s->capsule_id);
 
+    GFGpgFreeResult(s->gpgme_sign_result);
     GFFreeMemory(s);
 
     if (ret != 0) {
@@ -861,7 +866,7 @@ auto SignEMLData(int channel, const QString& key,
 
 auto VerifyEMLData(int channel, const QByteArray& data,
                    EMailMetaData& meta_data, QString& error_string,
-                   gpgme_error_t& err, gpgme_verify_result_t& result) -> int {
+                   gpgme_error_t& err, QString& capsule_id) -> int {
   vmime::string vmime_data(data.constData(), data.size());
 
   auto message = vmime::make_shared<vmime::message>();
@@ -1047,9 +1052,10 @@ auto VerifyEMLData(int channel, const QByteArray& data,
                              QDUP(part_sign_body_content), &s);
 
   err = s->gpgme_error;
-  result = s->gpgme_verify_result;
+  capsule_id = UDUP(s->capsule_id);
   auto gpg_error_string = UDUP(s->error_string);
 
+  GFGpgFreeResult(s->gpgme_verify_result);
   GFFreeMemory(s);
 
   if (ret != 0) {
@@ -1078,7 +1084,7 @@ auto VerifyEMLData(int channel, const QByteArray& data,
 
 auto DecryptEMLData(int channel, const QByteArray& data,
                     EMailMetaData& meta_data, QString& eml_data,
-                    gpgme_error_t& err, gpgme_decrypt_result_t& result) -> int {
+                    gpgme_error_t& err, QString& capsule_id) -> int {
   vmime::string vmime_data(data.constData(), data.size());
   auto message = vmime::make_shared<vmime::message>();
   try {
@@ -1225,9 +1231,10 @@ auto DecryptEMLData(int channel, const QByteArray& data,
 
   eml_data = UDUP(s->decrypted_data);
   err = s->gpgme_error;
-  result = s->gpgme_decrypt_result;
+  capsule_id = UDUP(s->capsule_id);
   auto gpg_error_string = UDUP(s->error_string);
 
+  GFGpgFreeResult(s->gpgme_decrypt_result);
   GFFreeMemory(s);
 
   if (ret != 0) {

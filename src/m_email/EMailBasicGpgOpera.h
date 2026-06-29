@@ -53,8 +53,7 @@ enum EMailGpgOperaResult : int8_t {
 auto EncryptPlainText(int channel, const QStringList& keys,
                       const EMailMetaData& meta_data,
                       const QByteArray& body_data, QString& eml_data,
-                      gpgme_error_t& err, gpgme_encrypt_result_t& result)
-    -> int;
+                      gpgme_error_t& err, QString& capsule_id) -> int;
 
 /**
  * @brief
@@ -68,7 +67,7 @@ auto EncryptPlainText(int channel, const QStringList& keys,
 auto EncryptEMLData(int channel, const QStringList& keys,
                     const vmime::shared_ptr<vmime::message>& message,
                     const QByteArray& body_data, QString& eml_data,
-                    gpgme_error_t& err, gpgme_encrypt_result_t& result) -> int;
+                    gpgme_error_t& err, QString& capsule_id) -> int;
 
 /**
  * @brief
@@ -82,8 +81,8 @@ auto EncryptEMLData(int channel, const QStringList& keys,
  */
 auto SignPlainText(int channel, const QString& key,
                    const EMailMetaData& meta_data, const QByteArray& body_data,
-                   QString& eml_data, gpgme_error_t& err,
-                   gpgme_sign_result_t& result) -> int;
+                   QString& eml_data, gpgme_error_t& err, QString& capsule_id)
+    -> int;
 
 /**
  * @brief
@@ -96,8 +95,8 @@ auto SignPlainText(int channel, const QString& key,
  */
 auto SignEMLData(int channel, const QString& key,
                  const vmime::shared_ptr<vmime::message>& message,
-                 QString& eml_data, gpgme_error_t& err,
-                 gpgme_sign_result_t& result) -> int;
+                 QString& eml_data, gpgme_error_t& err, QString& capsule_id)
+    -> int;
 
 /**
  * @brief
@@ -108,7 +107,7 @@ auto SignEMLData(int channel, const QString& key,
  */
 auto VerifyEMLData(int channel, const QByteArray& data,
                    EMailMetaData& meta_data, QString& error_string,
-                   gpgme_error_t& err, gpgme_verify_result_t& result) -> int;
+                   gpgme_error_t& err, QString& capsule_id) -> int;
 
 /**
  * @brief
@@ -119,4 +118,4 @@ auto VerifyEMLData(int channel, const QByteArray& data,
  */
 auto DecryptEMLData(int channel, const QByteArray& data,
                     EMailMetaData& meta_data, QString& eml_data,
-                    gpgme_error_t& err, gpgme_decrypt_result_t& result) -> int;
+                    gpgme_error_t& err, QString& capsule_id) -> int;
