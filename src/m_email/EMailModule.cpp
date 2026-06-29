@@ -65,7 +65,7 @@
 #include "EMailBasicGpgOpera.h"
 #include "EMailHelper.h"
 
-GF_MODULE_API_DEFINE_V2("com.bktus.gpgfrontend.module.email", "Email", "1.2.2",
+GF_MODULE_API_DEFINE_V2("com.bktus.gpgfrontend.module.email", "Email", "1.2.3",
                         "Everything related to E-Mails.", "Saturneric")
 
 DEFINE_TRANSLATIONS_STRUCTURE(ModuleEMail);
@@ -474,7 +474,8 @@ auto DoDecryptEMLData(int channel, const QByteArray& data, const MEvent& event,
                       EMailMetaData& meta_data) -> int {
   gpgme_error_t err;
   QString capsule_id;
-  auto ret = DecryptEMLData(channel, data, meta_data, eml_data, err, capsule_id);
+  auto ret =
+      DecryptEMLData(channel, data, meta_data, eml_data, err, capsule_id);
 
   if (ret == kFAILED || ret == kEML_FAILED) {
     CB(event, GFGetModuleID(),
@@ -489,8 +490,8 @@ auto DoDecryptEMLData(int channel, const QByteArray& data, const MEvent& event,
 
   const char* tmp = nullptr;
   const char* cards_tmp = nullptr;
-  result_status = GFAnalyseDecryptResultByCapsule(channel, err, QDUP(capsule_id),
-                                                  &tmp, &cards_tmp);
+  result_status = GFAnalyseDecryptResultByCapsule(
+      channel, err, QDUP(capsule_id), &tmp, &cards_tmp);
   result_detail = UnStrDup(tmp);
   result_cards = UnStrDup(cards_tmp);
 
@@ -815,8 +816,8 @@ auto DoEncryptEMLData(int channel, const QStringList& encrypt_keys,
 
   const char* tmp = nullptr;
   const char* cards_tmp = nullptr;
-  result_status = GFAnalyseEncryptResultByCapsule(channel, err, QDUP(capsule_id),
-                                                  &tmp, &cards_tmp);
+  result_status = GFAnalyseEncryptResultByCapsule(
+      channel, err, QDUP(capsule_id), &tmp, &cards_tmp);
   result_detail = UnStrDup(tmp);
   result_cards = UnStrDup(cards_tmp);
 
@@ -873,8 +874,8 @@ auto DoEncryptPlainText(int channel, const QStringList& encrypt_keys,
 
   const char* tmp = nullptr;
   const char* cards_tmp = nullptr;
-  result_status = GFAnalyseEncryptResultByCapsule(channel, err, QDUP(capsule_id),
-                                                  &tmp, &cards_tmp);
+  result_status = GFAnalyseEncryptResultByCapsule(
+      channel, err, QDUP(capsule_id), &tmp, &cards_tmp);
   result_detail = UnStrDup(tmp);
   result_cards = UnStrDup(cards_tmp);
 
