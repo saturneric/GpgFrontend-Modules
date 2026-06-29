@@ -38,9 +38,11 @@
 #include "VKSInterface.h"
 
 GF_MODULE_API_DEFINE_V2("com.bktus.gpgfrontend.module.key_server_sync",
-                        "KeyServerSync", "1.2.0",
+                        "KeyServerSync", "1.2.1",
                         "Sync Information From Trusted Key Server.",
                         "Saturneric")
+
+DEFINE_TRANSLATIONS_STRUCTURE(ModuleKeyServerSync);
 
 auto GFRegisterModule() -> int {
   LOG_DEBUG("key server sync module registering");
@@ -49,6 +51,8 @@ auto GFRegisterModule() -> int {
 }
 
 auto GFActiveModule() -> int {
+  REGISTER_TRANS_READER();
+
   LISTEN("REQUEST_GET_PUBLIC_KEY_BY_FINGERPRINT");
   LISTEN("REQUEST_GET_PUBLIC_KEY_BY_KEY_ID");
   LISTEN("REQUEST_UPLOAD_PUBLIC_KEY");
