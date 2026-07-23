@@ -38,7 +38,7 @@
 #include "VKSInterface.h"
 
 GF_MODULE_API_DEFINE_V2("com.bktus.gpgfrontend.module.key_server_sync",
-                        "KeyServerSync", "1.2.1",
+                        "KeyServerSync", "1.2.2",
                         "Sync Information From Trusted Key Server.",
                         "Saturneric")
 
@@ -70,18 +70,19 @@ auto UploadKeyToServer(QWidget* parent, int channel, const QString& key_id)
   int size = 0;
   auto ret = GFGpgExportKey(channel, QDUP(key_id), 1, &key_data, &size);
   if (ret != 0 || key_data == nullptr || size <= 0) {
+    QMessageBox::critical(
+        parent, QCoreApplication::translate("GTrC", "Key Upload Failed"),
+        QCoreApplication::translate(
+            "GTrC",
+            "Failed to export the public key before uploading.\n"
+            "Key: %1")
+            .arg(key_id));
     return -1;
   }
 
-  auto data = UDUP(key_data);
-
-  if (data.size() != size) {
-    FLOG_ERROR("uploaded key data size mismatch: expected %1, got %2", size,
-               data.size());
-    return -1;
-  }
-
-  QByteArray key_data_array = data.toUtf8();
+  // UnStrDup takes ownership of key_data and frees it; key_data must not be
+  // used afterwards.
+  auto key_text = UDUP(key_data);
 
   auto* vks = new VKSInterface();
   QObject::connect(
@@ -134,10 +135,12 @@ auto UploadKeyToServer(QWidget* parent, int channel, const QString& key_id)
                 .arg(key_id, error));
       });
 
-  QObject::connect(vks, &VKSInterface::SignalKeyRetrieved, vks,
+  QObject::connect(vks, &VKSInterface::SignalKeyUploaded, vks,
+                   &VKSInterface::deleteLater);
+  QObject::connect(vks, &VKSInterface::SignalErrorOccurred, vks,
                    &VKSInterface::deleteLater);
 
-  vks->UploadKey(key_data);
+  vks->UploadKey(key_text);
 
   return 0;
 }
@@ -269,19 +272,16 @@ REGISTER_EVENT_HANDLER(
             "GTrC", "Publish Public Key to Key Server"));
         QObject::connect(upload_key_pair, &QAction::triggered, tab,
                          [=]() { UploadKeyToServer(tab, channel, key_id); });
-        if (!(is_private_key && has_master_key)) {
-          upload_key_pair->setDisabled(true);
-        }
+        // Any key with a public part can be published, mirroring the Key
+        // Management "Publish Key to Keyserver" action.
 
         auto* update_key_pair = new QAction(QCoreApplication::translate(
             "GTrC", "Refresh Public Key From Key Server"));
         QObject::connect(update_key_pair, &QAction::triggered, tab,
                          [=]() { UpdateKeyFromKeyServer(tab, channel, fpr); });
 
-        // when a key has primary key, it should always upload to keyserver.
-        if (has_master_key) {
-          update_key_pair->setDisabled(true);
-        }
+        // Refresh re-imports the latest public key from the server; it is
+        // valid for any key, including your own.
 
         menu->addAction(upload_key_pair);
         menu->addAction(update_key_pair);
@@ -403,9 +403,6 @@ REGISTER_EVENT_HANDLER(
 REGISTER_EVENT_HANDLER(
     REQUEST_SEARCH_PUBLIC_KEY_BY_FINGERPRINT, [](const MEvent& event) -> int {
       auto fingerprint = event["fingerprint"].trimmed();
-      if (fingerprint.isEmpty()) {
-        CB_ERR(event, -1, "fingerprint is empty");
-      }
 
       QWidget* parent = nullptr;
 
@@ -424,7 +421,11 @@ REGISTER_EVENT_HANDLER(
           QApplication::instance(),
           [parent, fingerprint]() {
             auto* dialog = new SearchKeyDialog(parent);
-            dialog->SetPresetFingerprint(fingerprint);
+            // An empty preset opens a blank search dialog; only seed the field
+            // when a fingerprint was actually supplied (verify-failure flow).
+            if (!fingerprint.isEmpty()) {
+              dialog->SetPresetFingerprint(fingerprint);
+            }
             dialog->setAttribute(Qt::WA_DeleteOnClose);
             dialog->show();
             dialog->raise();
