@@ -55,6 +55,14 @@ void SearchKeyDialog::init_ui() {
   connect(ui_->searchButton, &QPushButton::clicked, this,
           &SearchKeyDialog::slot_search);
 
+  // Pressing Enter in the search field (or anywhere in the dialog) must run the
+  // search: without this the dialog looks like it "does nothing" until you find
+  // the button.
+  ui_->searchButton->setDefault(true);
+  ui_->searchButton->setAutoDefault(true);
+  connect(ui_->searchEdit, &QLineEdit::returnPressed, this,
+          &SearchKeyDialog::slot_search);
+
   connect(ui_->tableWidget, &QTableWidget::cellActivated, this,
           &SearchKeyDialog::slot_import);
 
@@ -71,6 +79,10 @@ void SearchKeyDialog::init_ui() {
   ui_->searchTypeComboBox->addItem(tr("By Key ID"), "keyid");
   ui_->searchTypeComboBox->addItem(tr("By Email"), "email");
   ui_->searchTypeComboBox->addItem(tr("By Fingerprint"), "fpr");
+
+  ui_->searchEdit->setPlaceholderText(
+      tr("Enter a value, then press Enter or Search"));
+  ui_->searchEdit->setFocus();
 
   ui_->keyServerComboBox->addItem("https://keyserver.ubuntu.com");
   ui_->keyServerComboBox->addItem("https://keys.openpgp.org");
@@ -104,7 +116,11 @@ void SearchKeyDialog::set_search_type(const QString& type) {
 }
 
 void SearchKeyDialog::slot_search() {
-  if (ui_->searchEdit->text().isEmpty()) {
+  FLOG_DEBUG("key server search triggered, type: %1, value length: %2",
+             ui_->searchTypeComboBox->currentData().toString(),
+             ui_->searchEdit->text().trimmed().size());
+
+  if (ui_->searchEdit->text().trimmed().isEmpty()) {
     slot_set_error_message(tr("Search value is empty."));
     return;
   }
@@ -262,7 +278,10 @@ void SearchKeyDialog::slot_search_finished_pks(
 void SearchKeyDialog::slot_import(int row, int column) {
   Q_UNUSED(column);
 
-  QString keyid = ui_->tableWidget->item(row, 0)->text();
+  auto* keyid_item = row >= 0 ? ui_->tableWidget->item(row, 0) : nullptr;
+  if (keyid_item == nullptr) return;
+
+  QString keyid = keyid_item->text();
   FLOG_DEBUG("importing key with keyid %1", keyid);
 
   auto* task = new PKSInterface(this);

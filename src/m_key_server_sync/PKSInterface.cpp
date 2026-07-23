@@ -161,23 +161,22 @@ auto PKSInterface::Search(const QString& url, const QString& type,
                           const QString& value) -> void {
   FLOG_DEBUG("searching keyserver %1 for type %2 value %3", url, type, value);
 
+  // Fingerprints and key IDs must be looked up as a hex handle prefixed with
+  // 0x; free-text (email) is percent-encoded as-is. Always use the keyserver
+  // the user selected rather than a hard-coded host.
+  QString search_param;
+  if (type == "fpr" || type == "keyid") {
+    auto handle = value;
+    if (handle.startsWith("0x", Qt::CaseInsensitive)) handle = handle.mid(2);
+    search_param = "0x" + handle;
+  } else {
+    search_param = QUrl::toPercentEncoding(value);
+  }
+
   QUrl url_from_remote =
-      url + "/pks/lookup?search=" + QUrl::toPercentEncoding(value) +
-      "&op=index&options=mr";
+      url + "/pks/lookup?search=" + search_param + "&op=index&options=mr";
 
   FLOG_DEBUG("SSL supported: %1", QSslSocket::supportsSsl());
-  FLOG_DEBUG("SSL build version: %1",
-             QSslSocket::sslLibraryBuildVersionString());
-  FLOG_DEBUG("SSL runtime version: %1", QSslSocket::sslLibraryVersionString());
-
-#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
-  FLOG_DEBUG("SSL active backend: %1", QSslSocket::activeBackend());
-#endif
-
-  if (type == "fpr" || type == "keyid") {
-    url_from_remote = QString("http://keyserver.ubuntu.com") +
-                      "/pks/lookup?search=0x" + value + "&op=index&options=mr";
-  }
 
   auto request = QNetworkRequest(url_from_remote);
   // set timeout and user agent
