@@ -204,6 +204,11 @@ void SearchKeyDialog::slot_set_error_message(const QString& message) {
   ui_->errorLabel->setText("<h4 style='color:red;'>" + message + "</h4>");
 }
 
+void SearchKeyDialog::slot_set_info_message(const QString& message) {
+  // Neutral (non-red) status line for benign outcomes such as an empty result.
+  ui_->errorLabel->setText("<h4>" + message + "</h4>");
+}
+
 void SearchKeyDialog::slot_set_loading(bool loading) {
   ui_->progressBar->setVisible(loading);
   ui_->searchButton->setDisabled(loading);
@@ -216,11 +221,25 @@ void SearchKeyDialog::slot_search_finished_pks(
     QNetworkReply::NetworkError error, const QString& error_string,
     const QList<KeyServerKeyInfo>& keys) {
   ui_->tableWidget->clearContents();
+  ui_->tableWidget->setRowCount(0);
   slot_set_error_message("");
   slot_set_loading(false);
 
+  // HKP keyservers answer /pks/lookup with 404 (ContentNotFoundError) when the
+  // search matched no keys. That is an empty result, not a transfer failure, so
+  // show a plain notice instead of the alarming raw transport error + URL.
+  if (error == QNetworkReply::ContentNotFoundError) {
+    slot_set_info_message(tr("No keys found matching your search."));
+    return;
+  }
+
   if (error != QNetworkReply::NoError) {
     slot_set_error_message(error_string);
+    return;
+  }
+
+  if (keys.isEmpty()) {
+    slot_set_info_message(tr("No keys found matching your search."));
     return;
   }
 

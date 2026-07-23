@@ -47,6 +47,7 @@ class SearchKeyDialog : public QDialog {
  private slots:
   void slot_search();
   void slot_set_error_message(const QString& message);
+  void slot_set_info_message(const QString& message);
   void slot_set_loading(bool loading);
 
   void slot_search_finished_pks(QNetworkReply::NetworkError error,
