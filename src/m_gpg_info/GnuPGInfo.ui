@@ -217,7 +217,7 @@
   </layout>
  </widget>
  <resources>
-  <include location="../gpgfrontend.qrc"/>
+  <include location="../../../resource/qrc/icons.qrc"/>
  </resources>
  <connections/>
 </ui>
