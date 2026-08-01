@@ -18,24 +18,29 @@
 <context>
     <name>GnuPGInfo</name>
     <message>
+        <location filename="../GnuPGInfo.ui" line="14"/>
         <source>GnuPG Info</source>
-        <translation type="vanished">GnuPG 資訊</translation>
+        <translation>GnuPG 資訊</translation>
     </message>
     <message>
+        <location filename="../GnuPGInfo.ui" line="71"/>
         <source>Version</source>
-        <translation type="vanished">版本</translation>
+        <translation>版本</translation>
     </message>
     <message>
+        <location filename="../GnuPGInfo.ui" line="119"/>
         <source>Components</source>
-        <translation type="vanished">元件</translation>
+        <translation>元件</translation>
     </message>
     <message>
+        <location filename="../GnuPGInfo.ui" line="151"/>
         <source>Directories</source>
-        <translation type="vanished">目錄</translation>
+        <translation>目錄</translation>
     </message>
     <message>
+        <location filename="../GnuPGInfo.ui" line="180"/>
         <source>Options</source>
-        <translation type="vanished">選項</translation>
+        <translation>選項</translation>
     </message>
 </context>
 <context>
