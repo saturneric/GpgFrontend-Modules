@@ -247,6 +247,48 @@ void* dlg = GUI_OBJECT(MyDialogFactory, QVariant("arg"));
 GFUIShowDialog(dlg, GFUIGetGUIObject(DUP("main_window")));
 ```
 
+#### Settings pages
+
+A module can own a page in the application's Settings dialog. Register it from
+`GFActiveModule()` and drop it again in `GFDeactivateModule()` — the registry
+holds a function pointer into your shared object, and leaving it behind would
+crash the next time the dialog is built.
+
+```cpp
+constexpr auto kPageId = "com.example.mymodule.settings";
+
+auto MySettingsPageFactory(void* /*data*/) -> void* {
+  return new MySettingsPage();  // fresh, unparented, one per dialog
+}
+
+auto GFActiveModule() -> int {
+  const auto keywords =
+      QStringList{GC_TR("proxy"), GC_TR("timeout")}.join('\n');
+  GFUIRegisterSettingsPage(DUP(kPageId), DUP("features"),
+                           DUP(GC_TR("My Module")), QDUP(keywords),
+                           MySettingsPageFactory, nullptr);
+  return 0;
+}
+
+auto GFDeactivateModule() -> int {
+  GFUIUnregisterSettingsPage(DUP(kPageId));
+  return 0;
+}
+```
+
+The dialog finds your page's `SetSettings()` and `ApplySettings()` **by name**,
+so declare both as `public slots` (or `Q_INVOKABLE`). `SetSettings()` loads the
+stored values and is called again if the user cancels; `ApplySettings()` writes
+them on OK. Stage edits in the widget and only persist them in `ApplySettings()`
+— that is what makes Cancel discard them. Declare a
+`void SignalRestartNeeded(int)` signal if a change on your page needs one; the
+dialog connects to it if it is there.
+
+Register `title` and `keywords` untranslated, with `GC_TR(...)`: modules are
+activated before the module translators are installed, so anything translated at
+registration time would be frozen at its source text for the rest of the session.
+`section_id` is one of `application`, `keys_engines`, `features`, `system`.
+
 ### Project settings
 
 Use `GFUIGlobalSettings()` to read and write persistent application settings.
