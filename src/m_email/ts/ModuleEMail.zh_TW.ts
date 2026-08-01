@@ -39,51 +39,40 @@
         <translation>「主旨」欄位不能為空。</translation>
     </message>
     <message>
-        <location filename="../EMailMetaDataDialog.ui" line="20"/>
         <source>Message</source>
-        <translation>訊息</translation>
+        <translation type="vanished">訊息</translation>
     </message>
     <message>
-        <location filename="../EMailMetaDataDialog.ui" line="54"/>
         <source>From</source>
-        <translation>寄件者</translation>
+        <translation type="vanished">寄件者</translation>
     </message>
     <message>
-        <location filename="../EMailMetaDataDialog.ui" line="77"/>
         <source>To</source>
-        <translation>收件者</translation>
+        <translation type="vanished">收件者</translation>
     </message>
     <message>
-        <location filename="../EMailMetaDataDialog.ui" line="100"/>
-        <location filename="../EMailMetaDataDialog.ui" line="207"/>
         <source>CC</source>
-        <translation>抄送</translation>
+        <translation type="vanished">抄送</translation>
     </message>
     <message>
-        <location filename="../EMailMetaDataDialog.ui" line="123"/>
-        <location filename="../EMailMetaDataDialog.ui" line="214"/>
         <source>BCC</source>
-        <translation>密件副本</translation>
+        <translation type="vanished">密件副本</translation>
     </message>
     <message>
-        <location filename="../EMailMetaDataDialog.ui" line="153"/>
         <source>Subject</source>
-        <translation>主旨</translation>
+        <translation type="vanished">主旨</translation>
     </message>
     <message>
-        <location filename="../EMailMetaDataDialog.ui" line="175"/>
         <source>Tips: You can fill in multiple email addresses, please separate them with &quot;;&quot;, except for the &apos;From&apos; field.</source>
-        <translation>提示：除「寄件者」欄位外，您可以填寫多個電子郵件地址，請以「;」分隔。</translation>
+        <translation type="vanished">提示：除「寄件者」欄位外，您可以填寫多個電子郵件地址，請以「;」分隔。</translation>
     </message>
     <message>
-        <location filename="../EMailMetaDataDialog.ui" line="234"/>
         <source>Cancel</source>
-        <translation>取消</translation>
+        <translation type="vanished">取消</translation>
     </message>
     <message>
-        <location filename="../EMailMetaDataDialog.ui" line="241"/>
         <source>OK</source>
-        <translation>確定</translation>
+        <translation type="vanished">確定</translation>
     </message>
 </context>
 <context>
