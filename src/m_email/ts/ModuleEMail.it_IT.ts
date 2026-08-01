@@ -39,40 +39,51 @@
         <translation>Il campo &apos;Oggetto&apos; non può essere vuoto.</translation>
     </message>
     <message>
+        <location filename="../EMailMetaDataDialog.ui" line="20"/>
         <source>Message</source>
-        <translation type="vanished">Messaggio</translation>
+        <translation>Messaggio</translation>
     </message>
     <message>
+        <location filename="../EMailMetaDataDialog.ui" line="54"/>
         <source>From</source>
-        <translation type="vanished">Da</translation>
+        <translation>Da</translation>
     </message>
     <message>
+        <location filename="../EMailMetaDataDialog.ui" line="77"/>
         <source>To</source>
-        <translation type="vanished">A</translation>
+        <translation>A</translation>
     </message>
     <message>
+        <location filename="../EMailMetaDataDialog.ui" line="100"/>
+        <location filename="../EMailMetaDataDialog.ui" line="207"/>
         <source>CC</source>
-        <translation type="vanished">CC</translation>
+        <translation>CC</translation>
     </message>
     <message>
+        <location filename="../EMailMetaDataDialog.ui" line="123"/>
+        <location filename="../EMailMetaDataDialog.ui" line="214"/>
         <source>BCC</source>
-        <translation type="vanished">BCC</translation>
+        <translation>BCC</translation>
     </message>
     <message>
+        <location filename="../EMailMetaDataDialog.ui" line="153"/>
         <source>Subject</source>
-        <translation type="vanished">Oggetto</translation>
+        <translation>Oggetto</translation>
     </message>
     <message>
+        <location filename="../EMailMetaDataDialog.ui" line="175"/>
         <source>Tips: You can fill in multiple email addresses, please separate them with &quot;;&quot;, except for the &apos;From&apos; field.</source>
-        <translation type="vanished">Suggerimento: è possibile inserire più indirizzi email, separandoli con &quot;;&quot;, ad eccezione del campo &apos;Da&apos;.</translation>
+        <translation>Suggerimento: è possibile inserire più indirizzi email, separandoli con &quot;;&quot;, ad eccezione del campo &apos;Da&apos;.</translation>
     </message>
     <message>
+        <location filename="../EMailMetaDataDialog.ui" line="234"/>
         <source>Cancel</source>
-        <translation type="vanished">Annulla</translation>
+        <translation>Annulla</translation>
     </message>
     <message>
+        <location filename="../EMailMetaDataDialog.ui" line="241"/>
         <source>OK</source>
-        <translation type="vanished">OK</translation>
+        <translation>OK</translation>
     </message>
 </context>
 <context>

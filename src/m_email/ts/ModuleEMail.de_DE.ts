@@ -4,40 +4,51 @@
 <context>
     <name>EMailMetaDataDialog</name>
     <message>
+        <location filename="../EMailMetaDataDialog.ui" line="20"/>
         <source>Message</source>
-        <translation type="vanished">Nachricht</translation>
+        <translation>Nachricht</translation>
     </message>
     <message>
+        <location filename="../EMailMetaDataDialog.ui" line="54"/>
         <source>From</source>
-        <translation type="vanished">Von</translation>
+        <translation>Von</translation>
     </message>
     <message>
+        <location filename="../EMailMetaDataDialog.ui" line="77"/>
         <source>To</source>
-        <translation type="vanished">An</translation>
+        <translation>An</translation>
     </message>
     <message>
+        <location filename="../EMailMetaDataDialog.ui" line="100"/>
+        <location filename="../EMailMetaDataDialog.ui" line="207"/>
         <source>CC</source>
-        <translation type="vanished">CC</translation>
+        <translation>CC</translation>
     </message>
     <message>
+        <location filename="../EMailMetaDataDialog.ui" line="123"/>
+        <location filename="../EMailMetaDataDialog.ui" line="214"/>
         <source>BCC</source>
-        <translation type="vanished">BCC</translation>
+        <translation>BCC</translation>
     </message>
     <message>
+        <location filename="../EMailMetaDataDialog.ui" line="153"/>
         <source>Subject</source>
-        <translation type="vanished">Betreff</translation>
+        <translation>Betreff</translation>
     </message>
     <message>
+        <location filename="../EMailMetaDataDialog.ui" line="175"/>
         <source>Tips: You can fill in multiple email addresses, please separate them with &quot;;&quot;, except for the &apos;From&apos; field.</source>
-        <translation type="vanished">Hinweis: Sie können mehrere E-Mail-Adressen eingeben. Bitte trennen Sie diese durch &quot;;&quot;, außer im Feld &apos;Von&apos;.</translation>
+        <translation>Hinweis: Sie können mehrere E-Mail-Adressen eingeben. Bitte trennen Sie diese durch &quot;;&quot;, außer im Feld &apos;Von&apos;.</translation>
     </message>
     <message>
+        <location filename="../EMailMetaDataDialog.ui" line="234"/>
         <source>Cancel</source>
-        <translation type="vanished">Abbrechen</translation>
+        <translation>Abbrechen</translation>
     </message>
     <message>
+        <location filename="../EMailMetaDataDialog.ui" line="241"/>
         <source>OK</source>
-        <translation type="vanished">OK</translation>
+        <translation>OK</translation>
     </message>
     <message>
         <location filename="../EMailMetaDataDialog.cpp" line="196"/>
