@@ -164,8 +164,8 @@ If the issue persists, consider seeking technical support or consulting the docu
     </message>
     <message>
         <location filename="../EMailModule.cpp" line="93"/>
-        <location filename="../EMailModule.cpp" line="415"/>
-        <location filename="../EMailModule.cpp" line="546"/>
+        <location filename="../EMailModule.cpp" line="416"/>
+        <location filename="../EMailModule.cpp" line="547"/>
         <location filename="../EMailModule.cpp" line="1230"/>
         <source>From</source>
         <translation>发件人</translation>
@@ -177,40 +177,40 @@ If the issue persists, consider seeking technical support or consulting the docu
     </message>
     <message>
         <location filename="../EMailModule.cpp" line="94"/>
-        <location filename="../EMailModule.cpp" line="418"/>
-        <location filename="../EMailModule.cpp" line="549"/>
+        <location filename="../EMailModule.cpp" line="419"/>
+        <location filename="../EMailModule.cpp" line="550"/>
         <location filename="../EMailModule.cpp" line="1233"/>
         <source>To</source>
         <translation>收件人</translation>
     </message>
     <message>
         <location filename="../EMailModule.cpp" line="95"/>
-        <location filename="../EMailModule.cpp" line="422"/>
-        <location filename="../EMailModule.cpp" line="553"/>
+        <location filename="../EMailModule.cpp" line="423"/>
+        <location filename="../EMailModule.cpp" line="554"/>
         <location filename="../EMailModule.cpp" line="1237"/>
         <source>Subject</source>
         <translation>主题</translation>
     </message>
     <message>
         <location filename="../EMailModule.cpp" line="96"/>
-        <location filename="../EMailModule.cpp" line="425"/>
-        <location filename="../EMailModule.cpp" line="556"/>
+        <location filename="../EMailModule.cpp" line="426"/>
+        <location filename="../EMailModule.cpp" line="557"/>
         <location filename="../EMailModule.cpp" line="1240"/>
         <source>CC</source>
         <translation>抄送</translation>
     </message>
     <message>
         <location filename="../EMailModule.cpp" line="97"/>
-        <location filename="../EMailModule.cpp" line="428"/>
-        <location filename="../EMailModule.cpp" line="559"/>
+        <location filename="../EMailModule.cpp" line="429"/>
+        <location filename="../EMailModule.cpp" line="560"/>
         <location filename="../EMailModule.cpp" line="1243"/>
         <source>BCC</source>
         <translation>密送</translation>
     </message>
     <message>
         <location filename="../EMailModule.cpp" line="98"/>
-        <location filename="../EMailModule.cpp" line="431"/>
-        <location filename="../EMailModule.cpp" line="562"/>
+        <location filename="../EMailModule.cpp" line="432"/>
+        <location filename="../EMailModule.cpp" line="563"/>
         <location filename="../EMailModule.cpp" line="1246"/>
         <source>Date</source>
         <translation>日期</translation>
@@ -222,14 +222,14 @@ If the issue persists, consider seeking technical support or consulting the docu
     </message>
     <message>
         <location filename="../EMailModule.cpp" line="106"/>
-        <location filename="../EMailModule.cpp" line="439"/>
+        <location filename="../EMailModule.cpp" line="440"/>
         <location filename="../EMailModule.cpp" line="1254"/>
         <source>Signed EML Data Hash (SHA1)</source>
         <translation>已签名 EML 数据哈希值 (SHA1)</translation>
     </message>
     <message>
         <location filename="../EMailModule.cpp" line="108"/>
-        <location filename="../EMailModule.cpp" line="444"/>
+        <location filename="../EMailModule.cpp" line="445"/>
         <location filename="../EMailModule.cpp" line="1259"/>
         <source>Message Integrity Check Algorithm</source>
         <translation>消息完整性检查算法</translation>
@@ -250,18 +250,18 @@ If the issue persists, consider seeking technical support or consulting the docu
         <translation>密钥 ID</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="453"/>
+        <location filename="../EMailModule.cpp" line="454"/>
         <source>Verify E-Mail</source>
         <translation>验证电子邮件</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="571"/>
+        <location filename="../EMailModule.cpp" line="572"/>
         <source>Decrypt E-Mail</source>
         <translation>解密电子邮件</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="748"/>
-        <location filename="../EMailModule.cpp" line="773"/>
+        <location filename="../EMailModule.cpp" line="749"/>
+        <location filename="../EMailModule.cpp" line="774"/>
         <source>Sign E-Mail</source>
         <translation>签名电子邮件</translation>
     </message>

@@ -4,23 +4,23 @@
 <context>
     <name>GTrC</name>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="88"/>
+        <location filename="../KeyServerSyncModule.cpp" line="93"/>
         <source>The following email addresses have status:
 </source>
         <translation>以下电子邮件地址的状态为：</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="98"/>
+        <location filename="../KeyServerSyncModule.cpp" line="103"/>
         <source>Could not parse status information.</source>
         <translation>无法解析状态信息。</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="105"/>
+        <location filename="../KeyServerSyncModule.cpp" line="110"/>
         <source>Public Key Upload Successful</source>
         <translation>公钥上传成功</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="106"/>
+        <location filename="../KeyServerSyncModule.cpp" line="111"/>
         <source>The public key was successfully uploaded to the key server keys.openpgp.org.
 Fingerprint: %1
 
@@ -37,12 +37,19 @@ Note: For verification, you can find more information here: https://keys.openpgp
 注意：如需了解验证详情，请访问：https://keys.openpgp.org/about</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="124"/>
+        <location filename="../KeyServerSyncModule.cpp" line="74"/>
+        <location filename="../KeyServerSyncModule.cpp" line="129"/>
         <source>Key Upload Failed</source>
         <translation>密钥上传失败</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="125"/>
+        <location filename="../KeyServerSyncModule.cpp" line="75"/>
+        <source>Failed to export the public key before uploading.
+Key: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../KeyServerSyncModule.cpp" line="130"/>
         <source>Failed to upload public key to the server.
 Fingerprint: %1
 Error: %2</source>
@@ -51,12 +58,12 @@ Error: %2</source>
 错误：%2</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="157"/>
+        <location filename="../KeyServerSyncModule.cpp" line="164"/>
         <source>Key Update Failed</source>
         <translation>密钥更新失败</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="158"/>
+        <location filename="../KeyServerSyncModule.cpp" line="165"/>
         <source>Failed to retrieve public key from the server.
 Key ID: %1
 Error: %2</source>
@@ -65,27 +72,27 @@ Error: %2</source>
 错误：%2</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="210"/>
+        <location filename="../KeyServerSyncModule.cpp" line="217"/>
         <source>Key Server</source>
         <translation>密钥服务器</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="211"/>
+        <location filename="../KeyServerSyncModule.cpp" line="218"/>
         <source>Import public keys from a trusted key server.</source>
         <translation>从受信任的密钥服务器导入公钥。</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="259"/>
+        <location filename="../KeyServerSyncModule.cpp" line="266"/>
         <source>Key Server Operations</source>
         <translation>密钥服务器操作</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="264"/>
+        <location filename="../KeyServerSyncModule.cpp" line="271"/>
         <source>Publish Public Key to Key Server</source>
         <translation>将公钥发布到密钥服务器</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="272"/>
+        <location filename="../KeyServerSyncModule.cpp" line="278"/>
         <source>Refresh Public Key From Key Server</source>
         <translation>从密钥服务器更新公钥</translation>
     </message>
@@ -93,92 +100,103 @@ Error: %2</source>
 <context>
     <name>SearchKeyDialog</name>
     <message>
-        <location filename="../SearchKeyDialog.cpp" line="66"/>
+        <location filename="../SearchKeyDialog.cpp" line="74"/>
         <source>Key ID</source>
         <translation>密钥 ID</translation>
     </message>
     <message>
-        <location filename="../SearchKeyDialog.cpp" line="66"/>
+        <location filename="../SearchKeyDialog.cpp" line="74"/>
         <source>UID</source>
         <translation>UID</translation>
     </message>
     <message>
-        <location filename="../SearchKeyDialog.cpp" line="66"/>
+        <location filename="../SearchKeyDialog.cpp" line="74"/>
         <source>Creation Date</source>
         <translation>创建日期</translation>
     </message>
     <message>
-        <location filename="../SearchKeyDialog.cpp" line="67"/>
+        <location filename="../SearchKeyDialog.cpp" line="75"/>
         <source>Expiration Date</source>
         <translation>到期日期</translation>
     </message>
     <message>
-        <location filename="../SearchKeyDialog.cpp" line="67"/>
+        <location filename="../SearchKeyDialog.cpp" line="75"/>
         <source>Algorithm</source>
         <translation>算法</translation>
     </message>
     <message>
-        <location filename="../SearchKeyDialog.cpp" line="67"/>
+        <location filename="../SearchKeyDialog.cpp" line="75"/>
         <source>Key Size</source>
         <translation>密钥大小</translation>
     </message>
     <message>
-        <location filename="../SearchKeyDialog.cpp" line="68"/>
+        <location filename="../SearchKeyDialog.cpp" line="76"/>
         <source>Status</source>
         <translation>状态</translation>
     </message>
     <message>
-        <location filename="../SearchKeyDialog.cpp" line="71"/>
+        <location filename="../SearchKeyDialog.cpp" line="79"/>
         <source>By Key ID</source>
         <translation>按密钥 ID</translation>
     </message>
     <message>
-        <location filename="../SearchKeyDialog.cpp" line="72"/>
+        <location filename="../SearchKeyDialog.cpp" line="80"/>
         <source>By Email</source>
         <translation>按电子邮件</translation>
     </message>
     <message>
-        <location filename="../SearchKeyDialog.cpp" line="73"/>
+        <location filename="../SearchKeyDialog.cpp" line="81"/>
         <source>By Fingerprint</source>
         <translation>按指纹</translation>
     </message>
     <message>
-        <location filename="../SearchKeyDialog.cpp" line="108"/>
+        <location filename="../SearchKeyDialog.cpp" line="84"/>
+        <source>Enter a value, then press Enter or Search</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../SearchKeyDialog.cpp" line="124"/>
         <source>Search value is empty.</source>
         <translation>搜索值不能为空。</translation>
     </message>
     <message>
-        <location filename="../SearchKeyDialog.cpp" line="124"/>
+        <location filename="../SearchKeyDialog.cpp" line="140"/>
         <source>Key server URL is empty.</source>
         <translation>密钥服务器 URL 不能为空。</translation>
     </message>
     <message>
-        <location filename="../SearchKeyDialog.cpp" line="133"/>
+        <location filename="../SearchKeyDialog.cpp" line="149"/>
         <source>Invalid key server URL format.</source>
         <translation>密钥服务器 URL 格式无效。</translation>
     </message>
     <message>
-        <location filename="../SearchKeyDialog.cpp" line="146"/>
+        <location filename="../SearchKeyDialog.cpp" line="162"/>
         <source>Invalid email format.</source>
         <translation>电子邮件格式无效。</translation>
     </message>
     <message>
-        <location filename="../SearchKeyDialog.cpp" line="159"/>
+        <location filename="../SearchKeyDialog.cpp" line="175"/>
         <source>Invalid fingerprint format. It should be a hex string of length 16 or 40.</source>
         <translation>指纹格式无效。应为长度为 16 或 40 的十六进制字符串。</translation>
     </message>
     <message>
-        <location filename="../SearchKeyDialog.cpp" line="173"/>
+        <location filename="../SearchKeyDialog.cpp" line="189"/>
         <source>Invalid Key ID format. It should be a hex string of length 8 or 16.</source>
         <translation>密钥 ID 格式无效。应为长度为 8 或 16 的十六进制字符串。</translation>
     </message>
     <message>
-        <location filename="../SearchKeyDialog.cpp" line="179"/>
+        <location filename="../SearchKeyDialog.cpp" line="195"/>
         <source>Unknown search type.</source>
         <translation>未知的搜索类型。</translation>
     </message>
     <message>
-        <location filename="../SearchKeyDialog.cpp" line="289"/>
+        <location filename="../SearchKeyDialog.cpp" line="232"/>
+        <location filename="../SearchKeyDialog.cpp" line="242"/>
+        <source>No keys found matching your search.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../SearchKeyDialog.cpp" line="327"/>
         <source>No GPG context is available.</source>
         <translation>没有可用的 GPG 上下文。</translation>
     </message>
