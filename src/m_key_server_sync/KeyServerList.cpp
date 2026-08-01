@@ -77,11 +77,6 @@ auto SeedEntries() -> QList<KeyServerEntry> {
   ubuntu.hkp = true;
   entries.append(ubuntu);
 
-  KeyServerEntry mit;
-  mit.url = "https://pgp.mit.edu";
-  mit.hkp = true;
-  entries.append(mit);
-
   return entries;
 }
 
