@@ -34,11 +34,24 @@
 #include <QtWidgets>
 
 #include "GFModuleDefine.h"
+#include "GFSDKUI.h"
+#include "KeyServerList.h"
+#include "KeyServerSettingsPage.h"
 #include "SearchKeyDialog.h"
 #include "VKSInterface.h"
 
+namespace {
+constexpr auto kSettingsPageId =
+    "com.bktus.gpgfrontend.module.key_server_sync.settings";
+
+/// Where publish and refresh should go right now.
+auto VksServer() -> QString {
+  return KeyServerList::UrlFor(KeyServerList::Capability::kVKS);
+}
+}  // namespace
+
 GF_MODULE_API_DEFINE_V2("com.bktus.gpgfrontend.module.key_server_sync",
-                        "KeyServerSync", "1.2.2",
+                        "KeyServerSync", "1.3.1",
                         "Sync Information From Trusted Key Server.",
                         "Saturneric")
 
@@ -59,6 +72,18 @@ auto GFActiveModule() -> int {
   LISTEN("REQUEST_SEARCH_PUBLIC_KEY_BY_FINGERPRINT");
   LISTEN("MAINWINDOW_MENU_MOUNTED");
   LISTEN("KEY_PAIR_OPERA_MENU_CREATED");
+
+  // Registered untranslated: the module translators are not installed yet, so
+  // anything translated here would be stuck at the source text for the rest of
+  // the session. The host translates these when it builds the dialog.
+  const auto keywords =
+      QStringList{GC_TR("keyserver"), GC_TR("key server"), GC_TR("hkp"),
+                  GC_TR("vks"),       GC_TR("publish"),    GC_TR("search")}
+          .join('\n');
+  GFUIRegisterSettingsPage(DUP(kSettingsPageId), DUP("keys_engines"),
+                           DUP(GC_TR("Key Servers")), QDUP(keywords),
+                           KeyServerSettingsPageFactory, nullptr);
+
   return 0;
 }
 
@@ -84,11 +109,12 @@ auto UploadKeyToServer(QWidget* parent, int channel, const QString& key_id)
   // used afterwards.
   auto key_text = UDUP(key_data);
 
-  auto* vks = new VKSInterface();
+  const auto server = VksServer();
+  auto* vks = new VKSInterface(server);
   QObject::connect(
       vks, &VKSInterface::SignalKeyUploaded, QThread::currentThread(),
-      [parent](const QString& fpr, const QJsonObject& status,
-               const QString& token) {
+      [parent, server](const QString& fpr, const QJsonObject& status,
+                       const QString& token) {
         // Handle successful response
         QString status_message = QCoreApplication::translate(
             "GTrC", "The following email addresses have status:\n");
@@ -104,6 +130,10 @@ auto UploadKeyToServer(QWidget* parent, int channel, const QString& key_id)
               "GTrC", "Could not parse status information.");
         }
 
+        // Name the server that was actually used: it is configurable now, so a
+        // hard-coded host in this message could simply be wrong.
+        const auto host = QUrl(server).host();
+
         // Notify user of successful upload and status details
         QMessageBox::information(
             parent,
@@ -111,15 +141,12 @@ auto UploadKeyToServer(QWidget* parent, int channel, const QString& key_id)
             QCoreApplication::translate(
                 "GTrC",
                 "The public key was successfully uploaded to the "
-                "key server keys.openpgp.org.\n"
+                "key server %4.\n"
                 "Fingerprint: %1\n\n"
                 "%2\n"
                 "Please check your email (%3) for further "
-                "verification from keys.openpgp.org.\n\n"
-                "Note: For verification, you can find more "
-                "information here: "
-                "https://keys.openpgp.org/about")
-                .arg(fpr, status_message, email_list.join(", ")));
+                "verification from %4.")
+                .arg(fpr, status_message, email_list.join(", "), host));
       });
 
   QObject::connect(
@@ -147,7 +174,7 @@ auto UploadKeyToServer(QWidget* parent, int channel, const QString& key_id)
 
 auto UpdateKeyFromKeyServer(QWidget* parent, int channel, const QString& fpr)
     -> int {
-  auto* vks = new VKSInterface();
+  auto* vks = new VKSInterface(VksServer());
 
   QObject::connect(vks, &VKSInterface::SignalKeyRetrieved,
                    QThread::currentThread(),
@@ -300,29 +327,33 @@ REGISTER_EVENT_HANDLER(
       QByteArray fingerprint = event["fingerprint"].toLatin1();
       FLOG_DEBUG("try to get key info of fingerprint: %1", fingerprint);
 
-      auto* vks = new VKSInterface();
+      const auto server = VksServer();
+      auto* vks = new VKSInterface(server);
       QObject::connect(vks, &VKSInterface::SignalKeyRetrieved,
-                       QThread::currentThread(), [event](const QString& key) {
+                       QThread::currentThread(),
+                       [event, server](const QString& key) {
                          // callback
                          CB(event, GFGetModuleID(),
                             {
                                 {"ret", QString::number(0)},
                                 {"key_data", key},
+                                {"key_server", server},
                             });
                        });
       QObject::connect(vks, &VKSInterface::SignalKeyRetrieved, vks,
                        &VKSInterface::deleteLater);
 
-      QObject::connect(vks, &VKSInterface::SignalErrorOccurred,
-                       QThread::currentThread(),
-                       [event](const QString& error, const QString& data) {
-                         CB(event, GFGetModuleID(),
-                            {
-                                {"ret", QString::number(-1)},
-                                {"error_msg", error},
-                                {"reply_data", data},
-                            });
-                       });
+      QObject::connect(
+          vks, &VKSInterface::SignalErrorOccurred, QThread::currentThread(),
+          [event, server](const QString& error, const QString& data) {
+            CB(event, GFGetModuleID(),
+               {
+                   {"ret", QString::number(-1)},
+                   {"error_msg", error},
+                   {"reply_data", data},
+                   {"key_server", server},
+               });
+          });
       QObject::connect(vks, &VKSInterface::SignalKeyRetrieved, vks,
                        &VKSInterface::deleteLater);
       vks->GetByFingerprint(fingerprint);
@@ -336,26 +367,30 @@ REGISTER_EVENT_HANDLER(
       QByteArray key_id = event["key_id"].toLatin1();
       FLOG_DEBUG("try to get key info of key id: %1", key_id);
 
-      auto* vks = new VKSInterface();
+      const auto server = VksServer();
+      auto* vks = new VKSInterface(server);
       QObject::connect(vks, &VKSInterface::SignalKeyRetrieved,
-                       QThread::currentThread(), [event](const QString& key) {
+                       QThread::currentThread(),
+                       [event, server](const QString& key) {
                          // callback
                          CB(event, GFGetModuleID(),
                             {
                                 {"ret", QString::number(0)},
                                 {"key_data", key},
+                                {"key_server", server},
                             });
                        });
-      QObject::connect(vks, &VKSInterface::SignalErrorOccurred,
-                       QThread::currentThread(),
-                       [event](const QString& error, const QString& data) {
-                         CB(event, GFGetModuleID(),
-                            {
-                                {"ret", QString::number(-1)},
-                                {"error_msg", error},
-                                {"reply_data", data},
-                            });
-                       });
+      QObject::connect(
+          vks, &VKSInterface::SignalErrorOccurred, QThread::currentThread(),
+          [event, server](const QString& error, const QString& data) {
+            CB(event, GFGetModuleID(),
+               {
+                   {"ret", QString::number(-1)},
+                   {"error_msg", error},
+                   {"reply_data", data},
+                   {"key_server", server},
+               });
+          });
       QObject::connect(vks, &VKSInterface::SignalKeyRetrieved, vks,
                        &VKSInterface::deleteLater);
       vks->GetByKeyId(key_id);
@@ -370,11 +405,12 @@ REGISTER_EVENT_HANDLER(
       QByteArray key_text = event["key_text"].toLatin1();
       FLOG_DEBUG("try to get key info of key id: %1", key_text);
 
-      auto* vks = new VKSInterface();
+      const auto server = VksServer();
+      auto* vks = new VKSInterface(server);
       QObject::connect(
           vks, &VKSInterface::SignalKeyUploaded, QThread::currentThread(),
-          [event](const QString& fpr, const QJsonObject& status,
-                  const QString& token) {
+          [event, server](const QString& fpr, const QJsonObject& status,
+                          const QString& token) {
             CB(event, GFGetModuleID(),
                {
                    {"ret", QString::number(0)},
@@ -382,18 +418,20 @@ REGISTER_EVENT_HANDLER(
                    {"status",
                     QString::fromUtf8(QJsonDocument(status).toJson())},
                    {"token", token},
+                   {"key_server", server},
                });
           });
-      QObject::connect(vks, &VKSInterface::SignalErrorOccurred,
-                       QThread::currentThread(),
-                       [event](const QString& error, const QString& data) {
-                         CB(event, GFGetModuleID(),
-                            {
-                                {"ret", QString::number(-1)},
-                                {"error_msg", error},
-                                {"reply_data", data},
-                            });
-                       });
+      QObject::connect(
+          vks, &VKSInterface::SignalErrorOccurred, QThread::currentThread(),
+          [event, server](const QString& error, const QString& data) {
+            CB(event, GFGetModuleID(),
+               {
+                   {"ret", QString::number(-1)},
+                   {"error_msg", error},
+                   {"reply_data", data},
+                   {"key_server", server},
+               });
+          });
       QObject::connect(vks, &VKSInterface::SignalKeyRetrieved, vks,
                        &VKSInterface::deleteLater);
       vks->UploadKey(key_text);
@@ -436,7 +474,12 @@ REGISTER_EVENT_HANDLER(
       CB_SUCC(event);
     });
 
-auto GFDeactivateModule() -> int { return 0; }
+auto GFDeactivateModule() -> int {
+  // The registry holds a function pointer into this shared object; leaving it
+  // behind would crash the next time the Settings dialog is built.
+  GFUIUnregisterSettingsPage(DUP(kSettingsPageId));
+  return 0;
+}
 
 auto GFUnregisterModule() -> int {
   MLogDebug("paper key module unregistering");

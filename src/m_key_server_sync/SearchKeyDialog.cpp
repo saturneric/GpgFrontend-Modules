@@ -32,6 +32,7 @@
 
 #include "GFModuleCommonUtils.hpp"
 #include "GFSDKGpg.h"
+#include "KeyServerList.h"
 #include "PKSInterface.h"
 #include "VKSInterface.h"
 
@@ -84,11 +85,14 @@ void SearchKeyDialog::init_ui() {
       tr("Enter a value, then press Enter or Search"));
   ui_->searchEdit->setFocus();
 
-  ui_->keyServerComboBox->addItem("https://keyserver.ubuntu.com");
-  ui_->keyServerComboBox->addItem("https://keys.openpgp.org");
-  ui_->keyServerComboBox->addItem("https://pgp.mit.edu");
+  // The list comes from Settings now. The box stays editable so a one-off
+  // server can still be typed in, but only what is configured is offered — and
+  // an ad-hoc address is not silently added to the list.
+  ui_->keyServerComboBox->addItems(KeyServerList::Urls());
 
-  ui_->keyServerComboBox->setCurrentIndex(0);
+  const auto preferred = KeyServerList::UrlFor(KeyServerList::Capability::kHKP);
+  const auto index = ui_->keyServerComboBox->findText(preferred);
+  ui_->keyServerComboBox->setCurrentIndex(index >= 0 ? index : 0);
 }
 
 void SearchKeyDialog::SetPresetFingerprint(const QString& fingerprint) {

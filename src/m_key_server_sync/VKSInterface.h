@@ -36,8 +36,17 @@ class VKSInterface : public QObject {
   Q_OBJECT
 
  public:
-  explicit VKSInterface(QString target_key_server = "https://keys.openpgp.org",
-                        QObject* parent = nullptr);
+  /**
+   * @brief Talk VKS to @p target_key_server.
+   *
+   * No default: the server is configurable, and a default here would let a call
+   * site quietly ignore the user's choice just by leaving the argument out.
+   */
+  explicit VKSInterface(QString target_key_server, QObject* parent = nullptr);
+
+  [[nodiscard]] auto TargetKeyServer() const -> QString {
+    return target_key_server_;
+  }
 
   void GetByFingerprint(const QString& fingerprint);
   void GetByKeyId(const QString& keyId);
@@ -59,6 +68,14 @@ class VKSInterface : public QObject {
   void on_reply_finished(QNetworkReply* reply);
 
  private:
+  /**
+   * @brief A request carrying this application's user agent and timeout.
+   *
+   * Every request has to identify itself and give up eventually; building them
+   * in one place is what stops a new call site from forgetting either.
+   */
+  [[nodiscard]] static auto make_request(const QUrl& url) -> QNetworkRequest;
+
   QString cache_key_;
   QString target_key_server_;
   QNetworkAccessManager* network_manager_;

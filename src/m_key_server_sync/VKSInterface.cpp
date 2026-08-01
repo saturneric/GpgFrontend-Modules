@@ -28,6 +28,8 @@
 
 #include "VKSInterface.h"
 
+#include <GFSDKExtra.h>
+
 #include <QByteArray>
 #include <QDebug>
 #include <QJsonArray>
@@ -42,6 +44,19 @@
 
 #include "GFModuleCommonUtils.hpp"
 
+namespace {
+/// Matches the HKP side; without it a stalled server hangs the caller forever.
+constexpr int kTransferTimeoutMs = 15000;
+}  // namespace
+
+auto VKSInterface::make_request(const QUrl& url) -> QNetworkRequest {
+  QNetworkRequest request(url);
+  request.setHeader(QNetworkRequest::UserAgentHeader,
+                    UDUP(GFHttpRequestUserAgent()));
+  request.setTransferTimeout(kTransferTimeoutMs);
+  return request;
+}
+
 VKSInterface::VKSInterface(QString key_server, QObject* parent)
     : QObject(parent),
       target_key_server_(std::move(key_server)),
@@ -52,8 +67,10 @@ VKSInterface::VKSInterface(QString key_server, QObject* parent)
 
 void VKSInterface::GetByFingerprint(const QString& fingerprint) {
   // search cache by first
-  cache_key_ =
-      QString("module:key-server-sync:key-data:fpr:%1").arg(fingerprint);
+  // Keyed by server too: which server answered is now the user's choice, and
+  // two of them can hold different versions of the same key.
+  cache_key_ = QString("module:key-server-sync:key-data:%1:fpr:%2")
+                   .arg(QUrl(target_key_server_).host(), fingerprint);
   auto value = UDUP(GFCacheGet(QDUP(cache_key_)));
   if (!value.isEmpty()) {
     emit SignalKeyRetrieved(value);
@@ -63,13 +80,13 @@ void VKSInterface::GetByFingerprint(const QString& fingerprint) {
   QUrl url(QString("%1/vks/v1/by-fingerprint/%2")
                .arg(target_key_server_)
                .arg(fingerprint));
-  QNetworkRequest request(url);
-  network_manager_->get(request);
+  network_manager_->get(make_request(url));
 }
 
 void VKSInterface::GetByKeyId(const QString& key_id) {
   // search cache by first
-  cache_key_ = QString("module:key-server-sync:key-data:id:%1").arg(key_id);
+  cache_key_ = QString("module:key-server-sync:key-data:%1:id:%2")
+                   .arg(QUrl(target_key_server_).host(), key_id);
   auto value = UDUP(GFCacheGet(QDUP(cache_key_)));
   if (!value.isEmpty()) {
     emit SignalKeyRetrieved(value);
@@ -78,21 +95,19 @@ void VKSInterface::GetByKeyId(const QString& key_id) {
 
   QUrl url(
       QString("%1/vks/v1/by-keyid/%2").arg(target_key_server_).arg(key_id));
-  QNetworkRequest request(url);
-  network_manager_->get(request);
+  network_manager_->get(make_request(url));
 }
 
 void VKSInterface::GetByEmail(const QString& email) {
   QUrl url(QString("%1/vks/v1/by-email/%2")
                .arg(target_key_server_)
                .arg(QUrl::toPercentEncoding(email)));
-  QNetworkRequest request(url);
-  network_manager_->get(request);
+  network_manager_->get(make_request(url));
 }
 
 void VKSInterface::UploadKey(const QString& key_text) {
   QUrl url(QString("%1/vks/v1/upload").arg(target_key_server_));
-  QNetworkRequest request(url);
+  auto request = make_request(url);
   request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
 
   QJsonObject json;
@@ -105,7 +120,7 @@ void VKSInterface::RequestVerify(const QString& token,
                                  const QStringList& addresses,
                                  const QStringList& locale) {
   QUrl url(QString("%1/vks/v1/request-verify").arg(target_key_server_));
-  QNetworkRequest request(url);
+  auto request = make_request(url);
   request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
 
   QJsonObject json;
