@@ -45,7 +45,8 @@ Note: For verification, you can find more information here: https://keys.openpgp
         <location filename="../KeyServerSyncModule.cpp" line="100"/>
         <source>Failed to export the public key before uploading.
 Key: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>上傳前匯出公鑰失敗。
+金鑰：%1</translation>
     </message>
     <message>
         <location filename="../KeyServerSyncModule.cpp" line="141"/>
@@ -54,7 +55,11 @@ Fingerprint: %1
 
 %2
 Please check your email (%3) for further verification from %4.</source>
-        <translation type="unfinished"></translation>
+        <translation>公鑰已成功上傳至金鑰伺服器 %4。
+指紋：%1
+
+%2
+請檢查您的電子郵件（%3）以接收 %4 的進一步驗證通知。</translation>
     </message>
     <message>
         <location filename="../KeyServerSyncModule.cpp" line="157"/>
@@ -105,152 +110,159 @@ Error: %2</source>
         <translation>從金鑰伺服器更新公鑰</translation>
     </message>
     <message>
-        <location filename="../KeyServerProbe.cpp" line="230"/>
+        <location filename="../KeyServerProbe.cpp" line="247"/>
         <source>The server could not be reached.</source>
-        <translation type="unfinished"></translation>
+        <translation>無法連線至伺服器。</translation>
     </message>
     <message>
-        <location filename="../KeyServerProbe.cpp" line="232"/>
+        <location filename="../KeyServerProbe.cpp" line="249"/>
         <source>The server responded, but not as a key server: it supports neither the HKP nor the VKS interface.</source>
-        <translation type="unfinished"></translation>
+        <translation>伺服器已回應，但並非金鑰伺服器：既不支援 HKP 也不支援 VKS 介面。</translation>
     </message>
 </context>
 <context>
     <name>KeyServerSettingsPage</name>
     <message>
+        <location filename="../KeyServerSettingsPage.ui" line="17"/>
         <location filename="../KeyServerSettingsPage.cpp" line="58"/>
         <source>Key Server List</source>
-        <translation type="unfinished"></translation>
+        <translation>金鑰伺服器清單</translation>
     </message>
     <message>
+        <location filename="../KeyServerSettingsPage.ui" line="49"/>
         <location filename="../KeyServerSettingsPage.cpp" line="59"/>
         <source>Add a Key Server</source>
-        <translation type="unfinished"></translation>
+        <translation>新增金鑰伺服器</translation>
     </message>
     <message>
+        <location filename="../KeyServerSettingsPage.ui" line="82"/>
         <location filename="../KeyServerSettingsPage.cpp" line="60"/>
         <source>Operations</source>
-        <translation type="unfinished"></translation>
+        <translation>操作</translation>
     </message>
     <message>
+        <location filename="../KeyServerSettingsPage.ui" line="60"/>
         <location filename="../KeyServerSettingsPage.cpp" line="62"/>
         <source>Add</source>
-        <translation type="unfinished"></translation>
+        <translation>新增</translation>
     </message>
     <message>
+        <location filename="../KeyServerSettingsPage.ui" line="88"/>
         <location filename="../KeyServerSettingsPage.cpp" line="63"/>
         <source>Set As Default</source>
-        <translation type="unfinished"></translation>
+        <translation>設為預設</translation>
     </message>
     <message>
+        <location filename="../KeyServerSettingsPage.ui" line="95"/>
         <location filename="../KeyServerSettingsPage.cpp" line="64"/>
         <source>Test Selected</source>
-        <translation type="unfinished"></translation>
+        <translation>測試選取項目</translation>
     </message>
     <message>
+        <location filename="../KeyServerSettingsPage.ui" line="102"/>
         <location filename="../KeyServerSettingsPage.cpp" line="65"/>
         <source>Delete Selected</source>
-        <translation type="unfinished"></translation>
+        <translation>刪除選取項目</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.cpp" line="67"/>
         <source>https://keys.example.org</source>
-        <translation type="unfinished"></translation>
+        <translation>https://keys.example.org</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.cpp" line="68"/>
         <source>A new key server is tested against the HKP and VKS interfaces before it is added. Searching uses HKP; publishing and refreshing use VKS.</source>
-        <translation type="unfinished"></translation>
+        <translation>新增金鑰伺服器前，會先測試其 HKP 與 VKS 介面。搜尋使用 HKP；發布與重新整理使用 VKS。</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.cpp" line="74"/>
         <source>Default</source>
-        <translation type="unfinished"></translation>
+        <translation>預設</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.cpp" line="74"/>
         <source>Address</source>
-        <translation type="unfinished"></translation>
+        <translation>位址</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.cpp" line="74"/>
         <source>HKP</source>
-        <translation type="unfinished"></translation>
+        <translation>HKP</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.cpp" line="74"/>
         <source>VKS</source>
-        <translation type="unfinished"></translation>
+        <translation>VKS</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.cpp" line="74"/>
         <source>Status</source>
-        <translation type="unfinished">狀態</translation>
+        <translation>狀態</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.cpp" line="75"/>
         <source>Last Tested</source>
-        <translation type="unfinished"></translation>
+        <translation>上次測試</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.cpp" line="107"/>
         <source>yes</source>
-        <translation type="unfinished"></translation>
+        <translation>是</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.cpp" line="108"/>
         <source>no</source>
-        <translation type="unfinished"></translation>
+        <translation>否</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.cpp" line="126"/>
         <source>Verified</source>
-        <translation type="unfinished"></translation>
+        <translation>已驗證</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.cpp" line="126"/>
         <source>Unverified</source>
-        <translation type="unfinished"></translation>
+        <translation>未驗證</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.cpp" line="135"/>
         <source>never</source>
-        <translation type="unfinished"></translation>
+        <translation>從未</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.cpp" line="161"/>
         <source>Invalid Address</source>
-        <translation type="unfinished"></translation>
+        <translation>無效位址</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.cpp" line="162"/>
         <source>&quot;%1&quot; is not a valid key server address.</source>
-        <translation type="unfinished"></translation>
+        <translation>「%1」不是有效的金鑰伺服器位址。</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.cpp" line="172"/>
         <source>Already Listed</source>
-        <translation type="unfinished"></translation>
+        <translation>已列出</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.cpp" line="173"/>
         <source>%1 is already in the key server list.</source>
-        <translation type="unfinished"></translation>
+        <translation>%1 已存在於金鑰伺服器列表中。</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.cpp" line="179"/>
         <source>Insecure Key Server Address</source>
-        <translation type="unfinished"></translation>
+        <translation>不安全的金鑰伺服器位址</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.cpp" line="180"/>
         <source>%1 uses plain HTTP, so anyone on the network can see and change what you look up or publish. Add it anyway?</source>
-        <translation type="unfinished"></translation>
+        <translation>%1 使用純 HTTP，因此網路上的任何人都可以查看或變更您查詢或發布的內容。仍要新增嗎？</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.cpp" line="272"/>
         <source>Key Server Not Verified</source>
-        <translation type="unfinished"></translation>
+        <translation>金鑰伺服器未驗證</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.cpp" line="273"/>
@@ -259,7 +271,11 @@ Error: %2</source>
 %2
 
 It has been added and marked unverified; use Test Selected to try again.</source>
-        <translation type="unfinished"></translation>
+        <translation>%1 未以金鑰伺服器身分回應。
+
+%2
+
+它已新增並標記為未驗證；請使用「測試選取項目」再試一次。</translation>
     </message>
 </context>
 <context>
@@ -317,7 +333,7 @@ It has been added and marked unverified; use Test Selected to try again.</source
     <message>
         <location filename="../SearchKeyDialog.cpp" line="85"/>
         <source>Enter a value, then press Enter or Search</source>
-        <translation type="unfinished"></translation>
+        <translation>輸入數值後，按 Enter 或搜尋</translation>
     </message>
     <message>
         <location filename="../SearchKeyDialog.cpp" line="128"/>
@@ -358,7 +374,7 @@ It has been added and marked unverified; use Test Selected to try again.</source
         <location filename="../SearchKeyDialog.cpp" line="236"/>
         <location filename="../SearchKeyDialog.cpp" line="246"/>
         <source>No keys found matching your search.</source>
-        <translation type="unfinished"></translation>
+        <translation>找不到符合搜尋條件的金鑰。</translation>
     </message>
     <message>
         <location filename="../SearchKeyDialog.cpp" line="331"/>
@@ -366,28 +382,34 @@ It has been added and marked unverified; use Test Selected to try again.</source
         <translation>沒有可用的 GPG 環境。</translation>
     </message>
     <message>
+        <location filename="../SearchKeyDialog.ui" line="14"/>
         <source>Search Keys</source>
-        <translation type="vanished">搜尋金鑰</translation>
+        <translation>搜尋金鑰</translation>
     </message>
     <message>
+        <location filename="../SearchKeyDialog.ui" line="36"/>
         <source>Key Server</source>
-        <translation type="vanished">金鑰伺服器</translation>
+        <translation>金鑰伺服器</translation>
     </message>
     <message>
+        <location filename="../SearchKeyDialog.ui" line="56"/>
         <source>Search Type</source>
-        <translation type="vanished">搜尋類型</translation>
+        <translation>搜尋類型</translation>
     </message>
     <message>
+        <location filename="../SearchKeyDialog.ui" line="66"/>
         <source>Search Value</source>
-        <translation type="vanished">搜尋值</translation>
+        <translation>搜尋值</translation>
     </message>
     <message>
+        <location filename="../SearchKeyDialog.ui" line="85"/>
         <source>Search</source>
-        <translation type="vanished">搜尋</translation>
+        <translation>搜尋</translation>
     </message>
     <message>
+        <location filename="../SearchKeyDialog.ui" line="105"/>
         <source>Tips: double click to import the selected key.</source>
-        <translation type="vanished">提示：雙擊可匯入所選金鑰。</translation>
+        <translation>提示：雙擊可匯入所選金鑰。</translation>
     </message>
 </context>
 </TS>

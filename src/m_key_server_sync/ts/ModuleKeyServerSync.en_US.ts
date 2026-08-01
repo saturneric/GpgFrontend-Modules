@@ -85,12 +85,12 @@ Error: %2</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../KeyServerProbe.cpp" line="230"/>
+        <location filename="../KeyServerProbe.cpp" line="247"/>
         <source>The server could not be reached.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../KeyServerProbe.cpp" line="232"/>
+        <location filename="../KeyServerProbe.cpp" line="249"/>
         <source>The server responded, but not as a key server: it supports neither the HKP nor the VKS interface.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -98,36 +98,43 @@ Error: %2</source>
 <context>
     <name>KeyServerSettingsPage</name>
     <message>
+        <location filename="../KeyServerSettingsPage.ui" line="17"/>
         <location filename="../KeyServerSettingsPage.cpp" line="58"/>
         <source>Key Server List</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <location filename="../KeyServerSettingsPage.ui" line="49"/>
         <location filename="../KeyServerSettingsPage.cpp" line="59"/>
         <source>Add a Key Server</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <location filename="../KeyServerSettingsPage.ui" line="82"/>
         <location filename="../KeyServerSettingsPage.cpp" line="60"/>
         <source>Operations</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <location filename="../KeyServerSettingsPage.ui" line="60"/>
         <location filename="../KeyServerSettingsPage.cpp" line="62"/>
         <source>Add</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <location filename="../KeyServerSettingsPage.ui" line="88"/>
         <location filename="../KeyServerSettingsPage.cpp" line="63"/>
         <source>Set As Default</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <location filename="../KeyServerSettingsPage.ui" line="95"/>
         <location filename="../KeyServerSettingsPage.cpp" line="64"/>
         <source>Test Selected</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <location filename="../KeyServerSettingsPage.ui" line="102"/>
         <location filename="../KeyServerSettingsPage.cpp" line="65"/>
         <source>Delete Selected</source>
         <translation type="unfinished"></translation>
@@ -343,6 +350,36 @@ It has been added and marked unverified; use Test Selected to try again.</source
     <message>
         <location filename="../SearchKeyDialog.cpp" line="331"/>
         <source>No GPG context is available.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../SearchKeyDialog.ui" line="14"/>
+        <source>Search Keys</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../SearchKeyDialog.ui" line="36"/>
+        <source>Key Server</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../SearchKeyDialog.ui" line="56"/>
+        <source>Search Type</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../SearchKeyDialog.ui" line="66"/>
+        <source>Search Value</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../SearchKeyDialog.ui" line="85"/>
+        <source>Search</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../SearchKeyDialog.ui" line="105"/>
+        <source>Tips: double click to import the selected key.</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

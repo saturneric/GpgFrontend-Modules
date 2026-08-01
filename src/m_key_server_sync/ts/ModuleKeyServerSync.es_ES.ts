@@ -45,7 +45,8 @@ Nota: Para la verificación, puede encontrar más información aquí: https://ke
         <location filename="../KeyServerSyncModule.cpp" line="100"/>
         <source>Failed to export the public key before uploading.
 Key: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>No se pudo exportar la clave pública antes de cargarla.
+Clave: %1</translation>
     </message>
     <message>
         <location filename="../KeyServerSyncModule.cpp" line="141"/>
@@ -54,7 +55,11 @@ Fingerprint: %1
 
 %2
 Please check your email (%3) for further verification from %4.</source>
-        <translation type="unfinished"></translation>
+        <translation>La clave pública se cargó correctamente en el servidor de claves %4.
+Huella: %1
+
+%2
+Por favor, revise su correo electrónico (%3) para obtener la verificación adicional de %4.</translation>
     </message>
     <message>
         <location filename="../KeyServerSyncModule.cpp" line="157"/>
@@ -105,152 +110,159 @@ Error: %2</translation>
         <translation>Actualizar clave pública desde el servidor de claves</translation>
     </message>
     <message>
-        <location filename="../KeyServerProbe.cpp" line="230"/>
+        <location filename="../KeyServerProbe.cpp" line="247"/>
         <source>The server could not be reached.</source>
-        <translation type="unfinished"></translation>
+        <translation>No se pudo contactar con el servidor.</translation>
     </message>
     <message>
-        <location filename="../KeyServerProbe.cpp" line="232"/>
+        <location filename="../KeyServerProbe.cpp" line="249"/>
         <source>The server responded, but not as a key server: it supports neither the HKP nor the VKS interface.</source>
-        <translation type="unfinished"></translation>
+        <translation>El servidor respondió, pero no como un servidor de claves: no admite ni la interfaz HKP ni la VKS.</translation>
     </message>
 </context>
 <context>
     <name>KeyServerSettingsPage</name>
     <message>
+        <location filename="../KeyServerSettingsPage.ui" line="17"/>
         <location filename="../KeyServerSettingsPage.cpp" line="58"/>
         <source>Key Server List</source>
-        <translation type="unfinished"></translation>
+        <translation>Lista de servidores de claves</translation>
     </message>
     <message>
+        <location filename="../KeyServerSettingsPage.ui" line="49"/>
         <location filename="../KeyServerSettingsPage.cpp" line="59"/>
         <source>Add a Key Server</source>
-        <translation type="unfinished"></translation>
+        <translation>Añadir un servidor de claves</translation>
     </message>
     <message>
+        <location filename="../KeyServerSettingsPage.ui" line="82"/>
         <location filename="../KeyServerSettingsPage.cpp" line="60"/>
         <source>Operations</source>
-        <translation type="unfinished"></translation>
+        <translation>Operaciones</translation>
     </message>
     <message>
+        <location filename="../KeyServerSettingsPage.ui" line="60"/>
         <location filename="../KeyServerSettingsPage.cpp" line="62"/>
         <source>Add</source>
-        <translation type="unfinished"></translation>
+        <translation>Añadir</translation>
     </message>
     <message>
+        <location filename="../KeyServerSettingsPage.ui" line="88"/>
         <location filename="../KeyServerSettingsPage.cpp" line="63"/>
         <source>Set As Default</source>
-        <translation type="unfinished"></translation>
+        <translation>Establecer como predeterminado</translation>
     </message>
     <message>
+        <location filename="../KeyServerSettingsPage.ui" line="95"/>
         <location filename="../KeyServerSettingsPage.cpp" line="64"/>
         <source>Test Selected</source>
-        <translation type="unfinished"></translation>
+        <translation>Probar seleccionado</translation>
     </message>
     <message>
+        <location filename="../KeyServerSettingsPage.ui" line="102"/>
         <location filename="../KeyServerSettingsPage.cpp" line="65"/>
         <source>Delete Selected</source>
-        <translation type="unfinished"></translation>
+        <translation>Eliminar seleccionado</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.cpp" line="67"/>
         <source>https://keys.example.org</source>
-        <translation type="unfinished"></translation>
+        <translation>https://keys.example.org</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.cpp" line="68"/>
         <source>A new key server is tested against the HKP and VKS interfaces before it is added. Searching uses HKP; publishing and refreshing use VKS.</source>
-        <translation type="unfinished"></translation>
+        <translation>Un nuevo servidor de claves se prueba contra las interfaces HKP y VKS antes de añadirse. La búsqueda utiliza HKP; la publicación y la actualización utilizan VKS.</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.cpp" line="74"/>
         <source>Default</source>
-        <translation type="unfinished"></translation>
+        <translation>Predeterminado</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.cpp" line="74"/>
         <source>Address</source>
-        <translation type="unfinished"></translation>
+        <translation>Dirección</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.cpp" line="74"/>
         <source>HKP</source>
-        <translation type="unfinished"></translation>
+        <translation>HKP</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.cpp" line="74"/>
         <source>VKS</source>
-        <translation type="unfinished"></translation>
+        <translation>VKS</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.cpp" line="74"/>
         <source>Status</source>
-        <translation type="unfinished">Estado</translation>
+        <translation>Estado</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.cpp" line="75"/>
         <source>Last Tested</source>
-        <translation type="unfinished"></translation>
+        <translation>Última prueba</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.cpp" line="107"/>
         <source>yes</source>
-        <translation type="unfinished"></translation>
+        <translation>Sí</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.cpp" line="108"/>
         <source>no</source>
-        <translation type="unfinished"></translation>
+        <translation>No</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.cpp" line="126"/>
         <source>Verified</source>
-        <translation type="unfinished"></translation>
+        <translation>Verificado</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.cpp" line="126"/>
         <source>Unverified</source>
-        <translation type="unfinished"></translation>
+        <translation>No verificado</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.cpp" line="135"/>
         <source>never</source>
-        <translation type="unfinished"></translation>
+        <translation>Nunca</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.cpp" line="161"/>
         <source>Invalid Address</source>
-        <translation type="unfinished"></translation>
+        <translation>Dirección no válida</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.cpp" line="162"/>
         <source>&quot;%1&quot; is not a valid key server address.</source>
-        <translation type="unfinished"></translation>
+        <translation>&quot;%1&quot; no es una dirección de servidor de claves válida.</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.cpp" line="172"/>
         <source>Already Listed</source>
-        <translation type="unfinished"></translation>
+        <translation>Ya incluido</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.cpp" line="173"/>
         <source>%1 is already in the key server list.</source>
-        <translation type="unfinished"></translation>
+        <translation>%1 ya está en la lista de servidores de claves.</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.cpp" line="179"/>
         <source>Insecure Key Server Address</source>
-        <translation type="unfinished"></translation>
+        <translation>Dirección de servidor de claves insegura</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.cpp" line="180"/>
         <source>%1 uses plain HTTP, so anyone on the network can see and change what you look up or publish. Add it anyway?</source>
-        <translation type="unfinished"></translation>
+        <translation>%1 usa HTTP sin cifrar, por lo que cualquiera en la red puede ver y modificar lo que busque o publique. ¿Agregarlo de todas formas?</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.cpp" line="272"/>
         <source>Key Server Not Verified</source>
-        <translation type="unfinished"></translation>
+        <translation>Servidor de claves no verificado</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.cpp" line="273"/>
@@ -259,34 +271,44 @@ Error: %2</translation>
 %2
 
 It has been added and marked unverified; use Test Selected to try again.</source>
-        <translation type="unfinished"></translation>
+        <translation>%1 no respondió como servidor de claves.
+
+%2
+
+Se ha agregado y se ha marcado como no verificado; use Probar seleccionado para intentarlo de nuevo.</translation>
     </message>
 </context>
 <context>
     <name>SearchKeyDialog</name>
     <message>
+        <location filename="../SearchKeyDialog.ui" line="14"/>
         <source>Search Keys</source>
-        <translation type="vanished">Buscar claves</translation>
+        <translation>Buscar claves</translation>
     </message>
     <message>
+        <location filename="../SearchKeyDialog.ui" line="36"/>
         <source>Key Server</source>
-        <translation type="vanished">Servidor de claves</translation>
+        <translation>Servidor de claves</translation>
     </message>
     <message>
+        <location filename="../SearchKeyDialog.ui" line="56"/>
         <source>Search Type</source>
-        <translation type="vanished">Tipo de búsqueda</translation>
+        <translation>Tipo de búsqueda</translation>
     </message>
     <message>
+        <location filename="../SearchKeyDialog.ui" line="66"/>
         <source>Search Value</source>
-        <translation type="vanished">Valor de búsqueda</translation>
+        <translation>Valor de búsqueda</translation>
     </message>
     <message>
+        <location filename="../SearchKeyDialog.ui" line="85"/>
         <source>Search</source>
-        <translation type="vanished">Buscar</translation>
+        <translation>Buscar</translation>
     </message>
     <message>
+        <location filename="../SearchKeyDialog.ui" line="105"/>
         <source>Tips: double click to import the selected key.</source>
-        <translation type="vanished">Consejo: haga doble clic para importar la clave seleccionada.</translation>
+        <translation>Consejo: haga doble clic para importar la clave seleccionada.</translation>
     </message>
     <message>
         <location filename="../SearchKeyDialog.cpp" line="75"/>
@@ -341,7 +363,7 @@ It has been added and marked unverified; use Test Selected to try again.</source
     <message>
         <location filename="../SearchKeyDialog.cpp" line="85"/>
         <source>Enter a value, then press Enter or Search</source>
-        <translation type="unfinished"></translation>
+        <translation>Ingrese un valor, luego presione Enter o Buscar</translation>
     </message>
     <message>
         <location filename="../SearchKeyDialog.cpp" line="128"/>
@@ -382,7 +404,7 @@ It has been added and marked unverified; use Test Selected to try again.</source
         <location filename="../SearchKeyDialog.cpp" line="236"/>
         <location filename="../SearchKeyDialog.cpp" line="246"/>
         <source>No keys found matching your search.</source>
-        <translation type="unfinished"></translation>
+        <translation>No se encontraron claves que coincidan con su búsqueda.</translation>
     </message>
     <message>
         <location filename="../SearchKeyDialog.cpp" line="331"/>
