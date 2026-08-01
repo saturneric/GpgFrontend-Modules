@@ -18,29 +18,24 @@
 <context>
     <name>GnuPGInfo</name>
     <message>
-        <location filename="../GnuPGInfo.ui" line="14"/>
         <source>GnuPG Info</source>
-        <translation>Informazioni GnuPG</translation>
+        <translation type="vanished">Informazioni GnuPG</translation>
     </message>
     <message>
-        <location filename="../GnuPGInfo.ui" line="71"/>
         <source>Version</source>
-        <translation>Versione</translation>
+        <translation type="vanished">Versione</translation>
     </message>
     <message>
-        <location filename="../GnuPGInfo.ui" line="119"/>
         <source>Components</source>
-        <translation>Componenti</translation>
+        <translation type="vanished">Componenti</translation>
     </message>
     <message>
-        <location filename="../GnuPGInfo.ui" line="151"/>
         <source>Directories</source>
-        <translation>Directory</translation>
+        <translation type="vanished">Directory</translation>
     </message>
     <message>
-        <location filename="../GnuPGInfo.ui" line="180"/>
         <source>Options</source>
-        <translation>Opzioni</translation>
+        <translation type="vanished">Opzioni</translation>
     </message>
 </context>
 <context>
