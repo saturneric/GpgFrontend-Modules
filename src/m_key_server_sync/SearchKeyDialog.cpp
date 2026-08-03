@@ -39,6 +39,27 @@
 //
 #include "ui_SearchKeyDialog.h"
 
+namespace {
+
+/// Row data slot holding the untruncated handle the keyserver reported, so the
+/// import lookup never has to reconstruct it from the shortened display text.
+constexpr int kKeyHandleRole = Qt::UserRole + 1;
+
+/// Shorten a keyserver handle to the conventional long key ID for display.
+///
+/// Where the key ID lives inside the fingerprint depends on the key version: a
+/// v4 fingerprint (SHA-1, 40 hex) ends with it, while a v6 fingerprint
+/// (SHA-256, 64 hex) starts with it (RFC 9580 §5.5.4.3). Blindly taking the
+/// last 16 chars — as this used to — turns a v6 fingerprint into a handle no
+/// keyserver can resolve.
+auto ShortenKeyHandle(const QString& handle) -> QString {
+  if (handle.size() == 64) return handle.left(16);
+  if (handle.size() == 40) return handle.right(16);
+  return handle;
+}
+
+}  // namespace
+
 SearchKeyDialog::SearchKeyDialog(QWidget* parent)
     : QDialog(parent), ui_(SecureCreateSharedObject<Ui_SearchKeyDialog>()) {
   init_ui();
@@ -172,12 +193,14 @@ void SearchKeyDialog::slot_search() {
       search_value = search_value.mid(2);
     }
 
-    // validate fingerprint format (hex string, length 40 or 16)
-    QRegularExpression fpr_regex("^(0x)?[A-Fa-f0-9]{16}([A-Fa-f0-9]{24})?$");
+    // validate fingerprint format: 16 (long key ID), 40 (v4 fingerprint) or
+    // 64 (v6 fingerprint, SHA-256 per RFC 9580) hex characters.
+    QRegularExpression fpr_regex(
+        "^(0x)?([A-Fa-f0-9]{16}|[A-Fa-f0-9]{40}|[A-Fa-f0-9]{64})$");
     if (!fpr_regex.match(search_value).hasMatch()) {
       slot_set_error_message(
           tr("Invalid fingerprint format. It should be a hex string of length "
-             "16 or 40."));
+             "16, 40 or 64."));
       slot_set_loading(false);
       return;
     }
@@ -251,7 +274,10 @@ void SearchKeyDialog::slot_search_finished_pks(
 
   int row = 0;
   for (const auto& key : keys) {
-    auto* keyid_item = new QTableWidgetItem(key.keyid.right(16));
+    auto* keyid_item = new QTableWidgetItem(ShortenKeyHandle(key.keyid));
+    // Import must look the key up by whatever the server reported — for a v6
+    // key that is the full 64-hex fingerprint, which the cell no longer shows.
+    keyid_item->setData(kKeyHandleRole, key.keyid);
     ui_->tableWidget->setItem(row, 0, keyid_item);
 
     auto uid = key.uids.isEmpty() ? KeyServerUID() : key.uids.first();
@@ -304,15 +330,16 @@ void SearchKeyDialog::slot_import(int row, int column) {
   auto* keyid_item = row >= 0 ? ui_->tableWidget->item(row, 0) : nullptr;
   if (keyid_item == nullptr) return;
 
-  QString keyid = keyid_item->text();
-  FLOG_DEBUG("importing key with keyid %1", keyid);
+  auto handle = keyid_item->data(kKeyHandleRole).toString();
+  if (handle.isEmpty()) handle = keyid_item->text();
+  FLOG_DEBUG("importing key with handle %1", handle);
 
   auto* task = new PKSInterface(this);
 
   connect(task, &PKSInterface::SignalKeyServerKeyLookupResult, this,
           &SearchKeyDialog::slot_lookup_finished_pks);
 
-  task->LookupKeyById(ui_->keyServerComboBox->currentText(), keyid);
+  task->LookupKeyById(ui_->keyServerComboBox->currentText(), handle);
 }
 
 void SearchKeyDialog::slot_lookup_finished_pks(

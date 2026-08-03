@@ -35,6 +35,9 @@
 namespace {
 
 auto GetAlgorithmName(const QString& algo_id) -> QString {
+  // Code points 25-28 arrived with RFC 9580 and are what v6 keys use; 35-41 are
+  // the post-quantum algorithms this application can already generate. Without
+  // them every modern key found on a keyserver reads as "Unknown (27)".
   static const QMap<QString, QString> algo_map = {
       {"1", "RSA"},
       {"2", "RSA (Encrypt-Only)"},
@@ -46,13 +49,31 @@ auto GetAlgorithmName(const QString& algo_id) -> QString {
       {"20", "ElGamal"},
       {"22", "EdDSA"},
       {"23", "AEDH"},
-      {"24", "AEDSA"}};
+      {"24", "AEDSA"},
+      {"25", "X25519"},
+      {"26", "X448"},
+      {"27", "Ed25519"},
+      {"28", "Ed448"},
+      {"35", "ML-KEM-768 + X25519"},
+      {"36", "ML-KEM-1024 + X448"},
+      {"37", "ML-DSA-65 + Ed25519"},
+      {"38", "ML-DSA-87 + Ed448"},
+      {"39", "SLH-DSA-SHAKE-128s"},
+      {"40", "SLH-DSA-SHAKE-128f"},
+      {"41", "SLH-DSA-SHAKE-256s"}};
 
   return algo_map.value(algo_id, QString("Unknown (%1)").arg(algo_id));
 }
 
 auto GetKeySizeDescription(const QString& algo_id, const QString& key_size)
     -> QString {
+  // These algorithms carry their parameters in the algorithm ID itself, so a
+  // keyserver has no meaningful length to report — usually 0. Printing
+  // "0 bits" would be worse than saying nothing.
+  static const QSet<QString> kFixedParamAlgos = {
+      "25", "26", "27", "28", "35", "36", "37", "38", "39", "40", "41"};
+  if (kFixedParamAlgos.contains(algo_id)) return "-";
+
   if (key_size.isEmpty()) return "Unknown";
 
   // For ECC algorithms, show curve instead of size
@@ -208,8 +229,13 @@ void PKSInterface::dealing_reply_from_server() {
 void PKSInterface::LookupKeyById(const QString& url, const QString& keyid) {
   FLOG_DEBUG("looking up keyid %1 from keyserver %2", keyid, url);
 
+  // The handle may be a key ID or a full v4/v6 fingerprint; either way HKP
+  // wants exactly one 0x prefix.
+  auto handle = keyid.trimmed();
+  if (handle.startsWith("0x", Qt::CaseInsensitive)) handle = handle.mid(2);
+
   QUrl url_from_remote =
-      url + "/pks/lookup?search=0x" + keyid + "&op=get&options=mr";
+      url + "/pks/lookup?search=0x" + handle + "&op=get&options=mr";
 
   auto request = QNetworkRequest(url_from_remote);
   request.setHeader(QNetworkRequest::UserAgentHeader, GFHttpRequestUserAgent());

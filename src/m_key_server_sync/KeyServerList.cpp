@@ -111,8 +111,6 @@ auto HasCapability(const KeyServerEntry& entry,
   switch (capability) {
     case KeyServerList::Capability::kHKP:
       return entry.hkp;
-    case KeyServerList::Capability::kVKS:
-      return entry.vks;
     case KeyServerList::Capability::kAny:
       return true;
   }
@@ -275,6 +273,32 @@ auto UrlFor(Capability capability) -> QString {
   // Nothing matched. Going ahead with the default surfaces a real error the
   // user can act on, where doing nothing would just look broken.
   return default_url;
+}
+
+auto SyncRoute() -> Route {
+  const auto entries = Load();
+  const auto default_url = ResolveDefaultUrl(entries);
+
+  for (const auto& entry : entries) {
+    if (entry.url != default_url) continue;
+
+    // VKS first where the server has it: it confirms the address by email and
+    // keeps third-party signatures out. HKP is the fallback, not the
+    // preference — but it does carry both operations, so a server that only
+    // speaks HKP is a reason to change protocol, never a reason to go
+    // somewhere else.
+    if (entry.vks) return {entry.url, true};
+    if (entry.hkp) return {entry.url, false};
+
+    // Never successfully probed, so nothing is known either way. Try the
+    // better protocol rather than assume the worse one; a failure here names
+    // the server the user picked, which is something they can act on.
+    return {entry.url, true};
+  }
+
+  // Only reachable when settings are unavailable, in which case
+  // ResolveDefaultUrl names a server that does speak VKS.
+  return {default_url, true};
 }
 
 }  // namespace KeyServerList

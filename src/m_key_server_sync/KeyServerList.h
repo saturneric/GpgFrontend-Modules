@@ -61,7 +61,14 @@ namespace KeyServerList {
 enum class Capability {
   kAny,  ///< no protocol requirement, use the default
   kHKP,  ///< /pks/lookup, used for search and import
-  kVKS,  ///< /vks/v1, used for publish and refresh
+};
+
+/**
+ * @brief Which server to talk to, and which protocol to talk to it with.
+ */
+struct Route {
+  QString url;
+  bool vks{false};  ///< speak /vks/v1; speak /pks when false
 };
 
 /**
@@ -106,9 +113,27 @@ auto Urls() -> QStringList;
  * real network error tells the user far more than an operation that silently
  * does nothing.
  *
+ * Only for operations that genuinely cannot be carried out any other way —
+ * searching parses HKP output. Publish and refresh work over either protocol
+ * and must use @ref SyncRoute instead, so that they stay on the server the
+ * user chose.
+ *
  * @param capability what the caller is about to do
  * @return QString never empty
  */
 auto UrlFor(Capability capability) -> QString;
+
+/**
+ * @brief Where publish and refresh should go, and how.
+ *
+ * Always the user's default server. Both operations can be carried out over
+ * either protocol, so there is never a reason to send them somewhere the user
+ * did not ask for: VKS is preferred where the server speaks it, HKP is used
+ * where it does not. Sending a publish to a different host than the one that
+ * was chosen is not something the user can undo afterwards.
+ *
+ * @return Route url is never empty
+ */
+auto SyncRoute() -> Route;
 
 }  // namespace KeyServerList

@@ -31,12 +31,14 @@
 #include <GFSDKGpg.h>
 
 #include <QtCore>
+#include <QtNetwork>
 #include <QtWidgets>
 
 #include "GFModuleDefine.h"
 #include "GFSDKUI.h"
 #include "KeyServerList.h"
 #include "KeyServerSettingsPage.h"
+#include "PKSInterface.h"
 #include "SearchKeyDialog.h"
 #include "VKSInterface.h"
 
@@ -44,14 +46,102 @@ namespace {
 constexpr auto kSettingsPageId =
     "com.bktus.gpgfrontend.module.key_server_sync.settings";
 
-/// Where publish and refresh should go right now.
-auto VksServer() -> QString {
-  return KeyServerList::UrlFor(KeyServerList::Capability::kVKS);
+using KeyCallback = std::function<void(const QString&)>;
+using ErrorCallback = std::function<void(const QString&, const QString&)>;
+
+/**
+ * @brief Fetch one public key over whichever protocol @p route names.
+ *
+ * The two interfaces report in different shapes; normalising them here keeps
+ * every caller free of the question, which is the only reason a server that
+ * speaks just one of them can be used at all.
+ *
+ * @param by_fingerprint VKS has separate endpoints for the two handle kinds;
+ *        HKP does not care.
+ */
+void FetchKey(const KeyServerList::Route& route, const QString& handle,
+              bool by_fingerprint, const KeyCallback& on_key,
+              const ErrorCallback& on_error) {
+  if (route.vks) {
+    auto* vks = new VKSInterface(route.url);
+    QObject::connect(vks, &VKSInterface::SignalKeyRetrieved,
+                     QThread::currentThread(),
+                     [on_key](const QString& key) { on_key(key); });
+    QObject::connect(vks, &VKSInterface::SignalErrorOccurred,
+                     QThread::currentThread(),
+                     [on_error](const QString& error, const QString& data) {
+                       on_error(error, data);
+                     });
+    QObject::connect(vks, &VKSInterface::SignalKeyRetrieved, vks,
+                     &VKSInterface::deleteLater);
+    QObject::connect(vks, &VKSInterface::SignalErrorOccurred, vks,
+                     &VKSInterface::deleteLater);
+
+    if (by_fingerprint) {
+      vks->GetByFingerprint(handle);
+    } else {
+      vks->GetByKeyId(handle);
+    }
+    return;
+  }
+
+  auto* pks = new PKSInterface();
+  QObject::connect(
+      pks, &PKSInterface::SignalKeyServerKeyLookupResult,
+      QThread::currentThread(),
+      [on_key, on_error](QNetworkReply::NetworkError error,
+                         const QString& error_string, const QByteArray& data) {
+        if (error != QNetworkReply::NoError) {
+          on_error(error_string, QString::fromUtf8(data));
+          return;
+        }
+        // An empty 200 is how some HKP servers say "no such key"; importing it
+        // would report success while changing nothing.
+        if (data.trimmed().isEmpty()) {
+          on_error(QCoreApplication::translate(
+                       "GTrC", "The key server did not return a key."),
+                   {});
+          return;
+        }
+        on_key(QString::fromUtf8(data));
+      });
+  QObject::connect(pks, &PKSInterface::SignalKeyServerKeyLookupResult, pks,
+                   &PKSInterface::deleteLater);
+
+  pks->LookupKeyById(route.url, handle);
+}
+
+/**
+ * @brief Ask before publishing over HKP.
+ *
+ * VKS publishing is a different bargain: the server checks the address by mail
+ * and the key can be taken down again. HKP offers neither, so the one place
+ * where the protocol choice is not the caller's business is here.
+ *
+ * @return bool false when the user declined
+ */
+auto ConfirmHkpPublish(QWidget* parent, const QString& url) -> bool {
+  const auto host = QUrl(url).host();
+  return QMessageBox::warning(
+             parent,
+             QCoreApplication::translate("GTrC",
+                                         "Publish Without Verification?"),
+             QCoreApplication::translate(
+                 "GTrC",
+                 "%1 does not support verified publishing (VKS), so the key "
+                 "would be uploaded over HKP instead.\n\n"
+                 "The server will not confirm your email address, and the "
+                 "upload cannot be undone — HKP key servers do not let keys be "
+                 "removed.\n\n"
+                 "Publish to %1 anyway?")
+                 .arg(host),
+             QMessageBox::Ok | QMessageBox::Cancel,
+             QMessageBox::Cancel) == QMessageBox::Ok;
 }
 }  // namespace
 
 GF_MODULE_API_DEFINE_V2("com.bktus.gpgfrontend.module.key_server_sync",
-                        "KeyServerSync", "1.3.1",
+                        "KeyServerSync", "1.3.2",
                         "Sync Information From Trusted Key Server.",
                         "Saturneric")
 
@@ -109,7 +199,50 @@ auto UploadKeyToServer(QWidget* parent, int channel, const QString& key_id)
   // used afterwards.
   auto key_text = UDUP(key_data);
 
-  const auto server = VksServer();
+  const auto route = KeyServerList::SyncRoute();
+  const auto server = route.url;
+
+  if (!route.vks) {
+    if (!ConfirmHkpPublish(parent, server)) return 0;
+
+    auto* pks = new PKSInterface();
+    QObject::connect(
+        pks, &PKSInterface::SignalKeyServerKeyUploadResult,
+        QThread::currentThread(),
+        [parent, server, key_id](QNetworkReply::NetworkError error,
+                                 const QString& error_string) {
+          if (error != QNetworkReply::NoError) {
+            QMessageBox::critical(
+                parent,
+                QCoreApplication::translate("GTrC", "Key Upload Failed"),
+                QCoreApplication::translate(
+                    "GTrC",
+                    "Failed to upload public key to the server.\n"
+                    "Fingerprint: %1\n"
+                    "Error: %2")
+                    .arg(key_id, error_string));
+            return;
+          }
+
+          // No verification mail follows an HKP upload, so do not promise one.
+          QMessageBox::information(
+              parent,
+              QCoreApplication::translate("GTrC",
+                                          "Public Key Upload Successful"),
+              QCoreApplication::translate(
+                  "GTrC",
+                  "The public key was uploaded to the key server %2 over "
+                  "HKP.\n"
+                  "Fingerprint: %1")
+                  .arg(key_id, QUrl(server).host()));
+        });
+    QObject::connect(pks, &PKSInterface::SignalKeyServerKeyUploadResult, pks,
+                     &PKSInterface::deleteLater);
+
+    pks->UploadKey(server, key_text.toUtf8());
+    return 0;
+  }
+
   auto* vks = new VKSInterface(server);
   QObject::connect(
       vks, &VKSInterface::SignalKeyUploaded, QThread::currentThread(),
@@ -174,31 +307,29 @@ auto UploadKeyToServer(QWidget* parent, int channel, const QString& key_id)
 
 auto UpdateKeyFromKeyServer(QWidget* parent, int channel, const QString& fpr)
     -> int {
-  auto* vks = new VKSInterface(VksServer());
+  const auto route = KeyServerList::SyncRoute();
+  const auto host = QUrl(route.url).host();
 
-  QObject::connect(vks, &VKSInterface::SignalKeyRetrieved,
-                   QThread::currentThread(),
-                   [parent, channel](const QString& key_data) {
-                     auto data = key_data.toUtf8();
-                     GFGpgImportKeys(channel, parent, data.constData(),
-                                     static_cast<int>(data.size()));
-                   });
-
-  QObject::connect(
-      vks, &VKSInterface::SignalErrorOccurred, QThread::currentThread(),
-      [parent, fpr](const QString& error, const QString& data) {
+  FetchKey(
+      route, fpr, true,
+      [parent, channel](const QString& key_data) {
+        auto data = key_data.toUtf8();
+        GFGpgImportKeys(channel, parent, data.constData(),
+                        static_cast<int>(data.size()));
+      },
+      [parent, fpr, host](const QString& error, const QString& data) {
+        Q_UNUSED(data);
+        // Name the server: it is the user's choice now, and a failure they
+        // cannot attribute to a host is one they cannot fix.
         QMessageBox::critical(
             parent, QCoreApplication::translate("GTrC", "Key Update Failed"),
             QCoreApplication::translate(
                 "GTrC",
-                "Failed to retrieve public key from the server.\n"
+                "Failed to retrieve public key from %3.\n"
                 "Key ID: %1\n"
                 "Error: %2")
-                .arg(fpr, error));
+                .arg(fpr, error, host));
       });
-  QObject::connect(vks, &VKSInterface::SignalKeyRetrieved, vks,
-                   &VKSInterface::deleteLater);
-  vks->GetByFingerprint(fpr);
   return 0;
 }
 
@@ -324,27 +455,22 @@ REGISTER_EVENT_HANDLER(
       if (event["fingerprint"].isEmpty())
         CB_ERR(event, -1, "fingerprint is empty");
 
-      QByteArray fingerprint = event["fingerprint"].toLatin1();
+      QString fingerprint = event["fingerprint"];
       FLOG_DEBUG("try to get key info of fingerprint: %1", fingerprint);
 
-      const auto server = VksServer();
-      auto* vks = new VKSInterface(server);
-      QObject::connect(vks, &VKSInterface::SignalKeyRetrieved,
-                       QThread::currentThread(),
-                       [event, server](const QString& key) {
-                         // callback
-                         CB(event, GFGetModuleID(),
-                            {
-                                {"ret", QString::number(0)},
-                                {"key_data", key},
-                                {"key_server", server},
-                            });
-                       });
-      QObject::connect(vks, &VKSInterface::SignalKeyRetrieved, vks,
-                       &VKSInterface::deleteLater);
+      const auto route = KeyServerList::SyncRoute();
+      const auto server = route.url;
 
-      QObject::connect(
-          vks, &VKSInterface::SignalErrorOccurred, QThread::currentThread(),
+      FetchKey(
+          route, fingerprint, true,
+          [event, server](const QString& key) {
+            CB(event, GFGetModuleID(),
+               {
+                   {"ret", QString::number(0)},
+                   {"key_data", key},
+                   {"key_server", server},
+               });
+          },
           [event, server](const QString& error, const QString& data) {
             CB(event, GFGetModuleID(),
                {
@@ -354,9 +480,6 @@ REGISTER_EVENT_HANDLER(
                    {"key_server", server},
                });
           });
-      QObject::connect(vks, &VKSInterface::SignalKeyRetrieved, vks,
-                       &VKSInterface::deleteLater);
-      vks->GetByFingerprint(fingerprint);
       return 0;
     });
 
@@ -364,24 +487,22 @@ REGISTER_EVENT_HANDLER(
     REQUEST_GET_PUBLIC_KEY_BY_KEY_ID, [](const MEvent& event) -> int {
       if (event["key_id"].isEmpty()) CB_ERR(event, -1, "key_id is empty");
 
-      QByteArray key_id = event["key_id"].toLatin1();
+      QString key_id = event["key_id"];
       FLOG_DEBUG("try to get key info of key id: %1", key_id);
 
-      const auto server = VksServer();
-      auto* vks = new VKSInterface(server);
-      QObject::connect(vks, &VKSInterface::SignalKeyRetrieved,
-                       QThread::currentThread(),
-                       [event, server](const QString& key) {
-                         // callback
-                         CB(event, GFGetModuleID(),
-                            {
-                                {"ret", QString::number(0)},
-                                {"key_data", key},
-                                {"key_server", server},
-                            });
-                       });
-      QObject::connect(
-          vks, &VKSInterface::SignalErrorOccurred, QThread::currentThread(),
+      const auto route = KeyServerList::SyncRoute();
+      const auto server = route.url;
+
+      FetchKey(
+          route, key_id, false,
+          [event, server](const QString& key) {
+            CB(event, GFGetModuleID(),
+               {
+                   {"ret", QString::number(0)},
+                   {"key_data", key},
+                   {"key_server", server},
+               });
+          },
           [event, server](const QString& error, const QString& data) {
             CB(event, GFGetModuleID(),
                {
@@ -391,9 +512,6 @@ REGISTER_EVENT_HANDLER(
                    {"key_server", server},
                });
           });
-      QObject::connect(vks, &VKSInterface::SignalKeyRetrieved, vks,
-                       &VKSInterface::deleteLater);
-      vks->GetByKeyId(key_id);
 
       return 0;
     });
@@ -405,7 +523,44 @@ REGISTER_EVENT_HANDLER(
       QByteArray key_text = event["key_text"].toLatin1();
       FLOG_DEBUG("try to get key info of key id: %1", key_text);
 
-      const auto server = VksServer();
+      const auto route = KeyServerList::SyncRoute();
+      const auto server = route.url;
+
+      if (!route.vks) {
+        // No widget to ask through here, and the callers of this event already
+        // confirm that publishing is permanent. Report the protocol so the
+        // caller can say what actually happened rather than promise a
+        // verification mail that is never coming.
+        auto* pks = new PKSInterface();
+        QObject::connect(pks, &PKSInterface::SignalKeyServerKeyUploadResult,
+                         QThread::currentThread(),
+                         [event, server](QNetworkReply::NetworkError error,
+                                         const QString& error_string) {
+                           if (error != QNetworkReply::NoError) {
+                             CB(event, GFGetModuleID(),
+                                {
+                                    {"ret", QString::number(-1)},
+                                    {"error_msg", error_string},
+                                    {"key_server", server},
+                                    {"protocol", "hkp"},
+                                });
+                             return;
+                           }
+
+                           CB(event, GFGetModuleID(),
+                              {
+                                  {"ret", QString::number(0)},
+                                  {"key_server", server},
+                                  {"protocol", "hkp"},
+                              });
+                         });
+        QObject::connect(pks, &PKSInterface::SignalKeyServerKeyUploadResult,
+                         pks, &PKSInterface::deleteLater);
+
+        pks->UploadKey(server, key_text);
+        return 0;
+      }
+
       auto* vks = new VKSInterface(server);
       QObject::connect(
           vks, &VKSInterface::SignalKeyUploaded, QThread::currentThread(),
@@ -419,6 +574,7 @@ REGISTER_EVENT_HANDLER(
                     QString::fromUtf8(QJsonDocument(status).toJson())},
                    {"token", token},
                    {"key_server", server},
+                   {"protocol", "vks"},
                });
           });
       QObject::connect(
@@ -430,6 +586,7 @@ REGISTER_EVENT_HANDLER(
                    {"error_msg", error},
                    {"reply_data", data},
                    {"key_server", server},
+                   {"protocol", "vks"},
                });
           });
       QObject::connect(vks, &VKSInterface::SignalKeyRetrieved, vks,

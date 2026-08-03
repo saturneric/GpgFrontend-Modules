@@ -67,7 +67,8 @@ KeyServerSettingsPage::KeyServerSettingsPage(QWidget* parent)
   ui_->addKeyServerEdit->setPlaceholderText(tr("https://keys.example.org"));
   ui_->tipsLabel->setText(tr(
       "A new key server is tested against the HKP and VKS interfaces before "
-      "it is added. Searching uses HKP; publishing and refreshing use VKS."));
+      "it is added. Searching uses HKP. Publishing and refreshing always use "
+      "the default server: over VKS where it offers it, over HKP otherwise."));
 
   ui_->keyServerTable->setColumnCount(kColumnCount);
   ui_->keyServerTable->setHorizontalHeaderLabels(
@@ -218,7 +219,25 @@ void KeyServerSettingsPage::slot_set_default() {
   const auto row = selected_row();
   if (row < 0 || row >= entries_.size()) return;
 
-  default_url_ = entries_.at(row).url;
+  const auto& entry = entries_.at(row);
+
+  // Everything still goes to this server, but publishing over HKP is a weaker
+  // deal than over VKS, and here is where the user can pick a different one
+  // without hunting for the setting later.
+  if (entry.verified && !entry.vks) {
+    const auto answer = QMessageBox::warning(
+        this, tr("No Verified Publishing"),
+        tr("%1 does not support the VKS interface, so publishing and "
+           "refreshing will use HKP instead.\n\n"
+           "Over HKP the server does not confirm your email address, and an "
+           "uploaded key cannot be removed again.\n\n"
+           "Use %1 as the default anyway?")
+            .arg(QUrl(entry.url).host()),
+        QMessageBox::Ok | QMessageBox::Cancel, QMessageBox::Cancel);
+    if (answer != QMessageBox::Ok) return;
+  }
+
+  default_url_ = entry.url;
   refresh_table();
 }
 
