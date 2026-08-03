@@ -58,6 +58,20 @@ auto ShortenKeyHandle(const QString& handle) -> QString {
   return handle;
 }
 
+/// Render a keyserver timestamp.
+///
+/// The machine-readable format leaves a field empty to mean the date does not
+/// apply — a key with no expiry sends nothing at all. Feeding that straight to
+/// fromSecsSinceEpoch() printed 1970-01-01, which reads as an expired key.
+auto FormatKeyServerDate(const QString& seconds, const QString& absent)
+    -> QString {
+  bool ok = false;
+  const auto value = seconds.toLongLong(&ok);
+  if (!ok || value <= 0) return absent;
+
+  return QLocale().toString(QDateTime::fromSecsSinceEpoch(value), "yyyy-MM-dd");
+}
+
 }  // namespace
 
 SearchKeyDialog::SearchKeyDialog(QWidget* parent)
@@ -281,17 +295,19 @@ void SearchKeyDialog::slot_search_finished_pks(
     ui_->tableWidget->setItem(row, 0, keyid_item);
 
     auto uid = key.uids.isEmpty() ? KeyServerUID() : key.uids.first();
-    auto* uid_item = new QTableWidgetItem(uid.uid);
+    // A key can legitimately come back with no identity attached: verifying
+    // key servers withhold user IDs until the address has been confirmed. An
+    // empty cell would read as a parsing failure.
+    auto* uid_item = new QTableWidgetItem(
+        uid.uid.trimmed().isEmpty() ? tr("(no user ID published)") : uid.uid);
     ui_->tableWidget->setItem(row, 1, uid_item);
 
-    auto* creation_date_item = new QTableWidgetItem(QLocale().toString(
-        QDateTime::fromSecsSinceEpoch(key.creation_date.toLongLong()),
-        "yyyy-MM-dd"));
+    auto* creation_date_item = new QTableWidgetItem(
+        FormatKeyServerDate(key.creation_date, tr("Unknown")));
     ui_->tableWidget->setItem(row, 2, creation_date_item);
 
-    auto* expiration_date_item = new QTableWidgetItem(QLocale().toString(
-        QDateTime::fromSecsSinceEpoch(key.expiration_date.toLongLong()),
-        "yyyy-MM-dd"));
+    auto* expiration_date_item = new QTableWidgetItem(
+        FormatKeyServerDate(key.expiration_date, tr("Never")));
     ui_->tableWidget->setItem(row, 3, expiration_date_item);
 
     auto* algo_item = new QTableWidgetItem(key.algorithm_desc);

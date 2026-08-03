@@ -67,15 +67,6 @@ auto GetAlgorithmName(const QString& algo_id) -> QString {
 
 auto GetKeySizeDescription(const QString& algo_id, const QString& key_size)
     -> QString {
-  // These algorithms carry their parameters in the algorithm ID itself, so a
-  // keyserver has no meaningful length to report — usually 0. Printing
-  // "0 bits" would be worse than saying nothing.
-  static const QSet<QString> kFixedParamAlgos = {
-      "25", "26", "27", "28", "35", "36", "37", "38", "39", "40", "41"};
-  if (kFixedParamAlgos.contains(algo_id)) return "-";
-
-  if (key_size.isEmpty()) return "Unknown";
-
   // For ECC algorithms, show curve instead of size
   if (algo_id == "18" || algo_id == "19" || algo_id == "22") {
     static const QMap<QString, QString> curve_map = {
@@ -85,10 +76,19 @@ auto GetKeySizeDescription(const QString& algo_id, const QString& key_size)
         {"nistp384", "NIST P-384"}, {"nistp521", "NIST P-521"},
         {"cv25519", "Curve25519"},  {"ed25519", "Ed25519"}};
 
-    return curve_map.value(key_size, QString("%1 bits").arg(key_size));
+    const auto curve = curve_map.constFind(key_size);
+    if (curve != curve_map.constEnd()) return curve.value();
   }
 
-  return QString("%1 bits").arg(key_size);
+  // Algorithms that fix their parameters in the algorithm ID are reported
+  // inconsistently: keys.openpgp.org gives Ed448 its real 456, others send 0.
+  // Show a real figure when there is one, and a dash rather than "0 bits" —
+  // which reads as a broken key — when there is not.
+  bool ok = false;
+  const auto bits = key_size.toInt(&ok);
+  if (!ok || bits <= 0) return "-";
+
+  return QString("%1 bits").arg(bits);
 }
 
 auto GetFlagsDescription(const QString& flags) -> QString {
