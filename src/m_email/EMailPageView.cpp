@@ -313,6 +313,7 @@ void EMailPageView::LoadFromSource(const QByteArray& source) {
   refresh_attachments();
 
   loading_ = false;
+  last_source_ = source;
 
   // A freshly loaded view matches the document exactly, which is what lets the
   // host hand the original bytes to a verify untouched.
@@ -449,13 +450,17 @@ auto EMailPageView::SaveToSource() -> QByteArray {
   QString eml;
   if (BuildMimeEML(message_, message_.body, message_.attachments, eml) != 0) {
     MLogWarn("failed to serialize message: " + eml);
-    // Returning the body alone would silently discard the headers and every
-    // attachment, so keep what the document already had instead.
-    return message_.body;
+    // Hand back exactly what was loaded. Returning the body alone -- which an
+    // earlier version did -- replaces the document with the message text and
+    // silently drops every header the user typed and every attachment they
+    // added. Staying dirty means the next flush tries again rather than
+    // treating the failure as saved.
+    return last_source_;
   }
 
   dirty_ = false;
-  return eml.toUtf8();
+  last_source_ = eml.toUtf8();
+  return last_source_;
 }
 
 auto EMailPageView::IsDirty() -> bool { return dirty_; }
@@ -472,6 +477,9 @@ void EMailPageView::WipeContent() {
   for (auto& att : message_.attachments) wipe(att.data);
   message_.attachments.clear();
   message_ = EMailMetaData{};
+
+  if (!last_source_.isEmpty()) last_source_.fill('\0');
+  last_source_.clear();
 
   loading_ = true;
   body_edit_->clear();

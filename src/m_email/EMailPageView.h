@@ -121,6 +121,9 @@ class EMailPageView : public QWidget {
   void set_cc_bcc_visible(bool visible);
 
   EMailMetaData message_;
+  /// The document as it was last loaded or written. Kept so a serialization
+  /// that fails can hand back what was there rather than a lossy substitute.
+  QByteArray last_source_;
   bool dirty_{false};
   bool loading_{false};
 
