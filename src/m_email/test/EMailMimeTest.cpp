@@ -669,18 +669,18 @@ TEST(EMailMimeTest, InnerPartHeaderDropsRoutingAndTraceHeaders) {
   EXPECT_FALSE(header.contains("X-Mailer:"));
 }
 
-// --- is the metadata dialog still reachable? -------------------------------
+// --- content that is not a message yet -------------------------------------
 //
-// The sign/encrypt handlers show EMailMetaDataDialog only when the tab's
-// content does not parse as a message. Now that the structured view serializes
-// through BuildMimeEML, that branch is only reached for content the view never
-// produced -- which is worth pinning, because it is the difference between the
-// dialog being a fallback and the dialog being dead code.
+// The sign/encrypt handlers take a different path when the tab's content does
+// not parse as a message: they wrap it in an envelope derived from the keys
+// the user selected. These two pin which content lands on which path, since
+// that is what decides whether an operation keeps the user's headers or
+// synthesizes new ones.
 
 TEST(EMailMimeTest, ViewOutputAlwaysParsesAsAMessage) {
   // Even with nothing filled in, what the view hands back must be a message:
-  // otherwise pressing Encrypt drops into the dialog path behind the view's
-  // back and asks for the same fields a second time.
+  // otherwise pressing Encrypt discards the headers the user typed and
+  // re-derives them from their keys instead.
   EMailMetaData blank;
 
   QString eml;
@@ -691,8 +691,37 @@ TEST(EMailMimeTest, ViewOutputAlwaysParsesAsAMessage) {
 }
 
 TEST(EMailMimeTest, BareBodyTextDoesNotParseAsAMessage) {
-  // The one case that still reaches the dialog: text typed straight into the
-  // raw source view, never round-tripped through the message view.
+  // The case that gets the derived envelope: text typed straight into the raw
+  // source view, never round-tripped through the message view.
   vmime::shared_ptr<vmime::message> message;
   EXPECT_FALSE(CheckIfEMLMessage("just a line the user typed", message));
+}
+
+// A draft the user has not addressed yet must still round-trip. It used to
+// fail to serialize, and the view's fallback then replaced the document with
+// the body alone -- quietly discarding every header already typed, and every
+// attachment already added.
+TEST(EMailMimeTest, UnaddressedDraftKeepsItsHeadersAndAttachments) {
+  EMailMetaData draft;
+  draft.from = "Alice <alice@example.com>";
+  draft.subject = "Still writing this";
+
+  QString eml;
+  ASSERT_EQ(
+      BuildMimeEML(draft, "half a thought",
+                   {MakeAttachment("notes.txt", "text/plain", "abc")}, eml),
+      0);
+
+  vmime::shared_ptr<vmime::message> message;
+  ASSERT_TRUE(CheckIfEMLMessage(eml.toUtf8(), message));
+
+  EMailMetaData parsed;
+  ASSERT_EQ(GetEMLMetaData(message, parsed), 0);
+  ASSERT_EQ(ExtractParts(message, parsed), 0);
+
+  EXPECT_EQ(parsed.subject, QString("Still writing this"));
+  EXPECT_TRUE(parsed.from.contains("alice@example.com"));
+  EXPECT_TRUE(parsed.to.isEmpty());
+  ASSERT_EQ(parsed.attachments.size(), 1);
+  EXPECT_EQ(parsed.attachments[0].filename, QString("notes.txt"));
 }
