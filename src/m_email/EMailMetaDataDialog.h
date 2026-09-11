@@ -61,13 +61,6 @@ class EMailMetaDataDialog : public QDialog {
    */
   void SetToKeys(QStringList ks);
 
-  /**
-   * @brief Set the Body Data object
-   *
-   * @param b
-   */
-  void SetBodyData(QByteArray b);
-
  signals:
 
   void SignalEMLMetaData(EMailMetaData meta_data);
@@ -77,8 +70,6 @@ class EMailMetaDataDialog : public QDialog {
  private slots:
 
   void slot_parse_eml_meta_data();
-
-  void slot_export_encrypted_data();
 
   void slot_set_from_field_by_sign_key();
 
@@ -106,7 +97,6 @@ class EMailMetaDataDialog : public QDialog {
   static auto are_valid_emails(const QString& emails) -> bool;
 
   QSharedPointer<Ui_EMailMetaDataDialog> ui_;
-  QByteArray body_data_;
   int channel_;
   QStringList from_keys_;
   QStringList to_keys_;

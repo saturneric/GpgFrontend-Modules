@@ -74,16 +74,17 @@ EMailMetaDataDialog::EMailMetaDataDialog(QWidget* parent)
     close();
   });
 
+  // Toggling only shows and hides the row. It used to clear() as well, which
+  // threw away addresses the user had already typed the moment they collapsed
+  // the row by accident.
   connect(ui_->ccButton, &QPushButton::clicked, this, [this]() {
     ui_->ccEdit->setHidden(!ui_->ccEdit->isHidden());
     ui_->ccLabel->setHidden(!ui_->ccLabel->isHidden());
-    ui_->ccEdit->clear();
   });
 
   connect(ui_->bccButton, &QPushButton::clicked, this, [this]() {
     ui_->bccEdit->setHidden(!ui_->bccEdit->isHidden());
     ui_->bccLabel->setHidden(!ui_->bccLabel->isHidden());
-    ui_->bccEdit->clear();
   });
 
   connect(this, &EMailMetaDataDialog::SignalEMLMetaData, this, &QDialog::close);
@@ -130,8 +131,6 @@ void EMailMetaDataDialog::slot_parse_eml_meta_data() {
 
   emit SignalEMLMetaData(meta_data);
 }
-
-void EMailMetaDataDialog::slot_export_encrypted_data() {}
 
 void EMailMetaDataDialog::SetFromKeys(QStringList k) {
   from_keys_ = std::move(k);
@@ -244,8 +243,4 @@ auto EMailMetaDataDialog::are_valid_emails(const QString& emails) -> bool {
 
 auto EMailMetaDataDialog::is_valid_email(const QString& email) -> bool {
   return kNameEmailStringValidateRegex.match(email).hasMatch();
-}
-
-void EMailMetaDataDialog::SetBodyData(QByteArray b) {
-  body_data_ = std::move(b);
 }
