@@ -71,3 +71,9 @@ module_add_translations(${MODULE_TARGET}
   TS_FILES ${TS_FILES}
   SOURCES ${INTEGRATED_MODULE_SOURCE}
   INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR})
+
+# tests (opt-in): a standalone gtest binary over the SDK-free MIME code.
+# The switch itself lives in modules/CMakeLists.txt -- it is modules-wide.
+if(GPGFRONTEND_MODULES_BUILD_TESTS)
+  add_subdirectory(test)
+endif()
