@@ -45,10 +45,13 @@
 #include <QMenu>
 #include <QMessageBox>
 #include <QPlainTextEdit>
+#include <QSaveFile>
+#include <QStandardPaths>
 #include <QString>
 #include <QTextDocument>
 
 #include "EMailMetaDataDialog.h"
+#include "EMailPageView.h"
 
 // vmime
 #define VMIME_STATIC
@@ -110,6 +113,41 @@ auto BuildOpenPGPMetaCard(const EMailMetaData& m) -> QJsonObject {
         m.micalg}});
 }
 
+// Human-readable byte size for an attachment row.
+auto FormatSize(qint64 bytes) -> QString {
+  return QLocale().formattedDataSize(bytes);
+}
+
+// One card listing what the message carries besides its body.
+//
+// Attachments used to be enumerated and then dropped on the floor, so a signed
+// or encrypted message with a document in it looked, to the user, exactly like
+// one without. The unsigned marker matters: in PGP/MIME only the
+// multipart/signed subtree is authenticated, so a part outside it arrived
+// unverified however good the signature on the rest is.
+auto BuildAttachmentCard(const EMailMetaData& m) -> QJsonObject {
+  QList<QPair<QString, QString>> fields;
+
+  for (const auto& att : m.attachments) {
+    const auto name = SanitizeAttachmentFileName(att.filename, att.mime_type);
+
+    auto description =
+        QString("%1, %2").arg(att.mime_type, FormatSize(att.data.size()));
+    if (att.is_openpgp_key) {
+      description += QApplication::translate("EMailModule", " — OpenPGP key");
+    }
+    if (!att.inside_signed_part) {
+      description +=
+          QApplication::translate("EMailModule", " — NOT covered by signature");
+    }
+
+    fields.append({name, description});
+  }
+
+  return MakeCardJson(QApplication::translate("EMailModule", "Attachments"),
+                      "neutral", fields);
+}
+
 // Build "Encryption Recipient" cards from the selected recipient keys. The
 // encrypt result itself does not carry recipient identities for every engine
 // (GnuPG reports none), but the module always knows which keys it encrypted to,
@@ -137,6 +175,17 @@ auto BuildRecipientCards(int channel, const QStringList& encrypt_keys)
         {{QApplication::translate("EMailModule", "Recipient"), recipient},
          {QApplication::translate("EMailModule", "Key ID"), key_id}}));
   }
+  return cards;
+}
+
+// The metadata cards for a message that was read rather than composed.
+auto BuildReadMetaCards(const EMailMetaData& m, bool with_openpgp)
+    -> QJsonArray {
+  QJsonArray cards{BuildEMailHeaderCard(m)};
+  if (with_openpgp) cards.append(BuildOpenPGPMetaCard(m));
+  // The board renders a limited number of cards, so only spend one on
+  // attachments when there is something to list.
+  if (!m.attachments.isEmpty()) cards.append(BuildAttachmentCard(m));
   return cards;
 }
 
@@ -181,6 +230,10 @@ auto BuildResultCardsParam(const QString& operation,
 auto GFRegisterModule() -> int {
   MLogDebug("email module registering...");
 
+  // The MIME code carries no SDK symbol of its own so it can be unit-tested
+  // without a module host; this is what gives it a logger at runtime.
+  SetMimeLogSink([](const QString& m) { MLogDebug(m); });
+
   REGISTER_TRANS_READER();
 
   LISTEN("MAINWINDOW_MENU_MOUNTED");
@@ -194,6 +247,13 @@ auto GFRegisterModule() -> int {
 
   LISTEN("EDIT_TAB_TYPE_EMAIL_OP_SAVE_FILE");
 
+  // The message view of an e-mail tab. The host still owns the page and its
+  // document -- this only supplies the widget shown on top of it, with the raw
+  // MIME still one click away.
+  GFUIRegisterTabPageView(
+      DUP("EMAIL"), [](void*) -> void* { return new EMailPageView(nullptr); },
+      nullptr);
+
   // register file extension handler
   GFUIRegisterFileExtensionHandleEvent(DUP("eml"), DUP("EMAIL"));
 
@@ -203,7 +263,12 @@ auto GFRegisterModule() -> int {
 
 auto GFActiveModule() -> int { return 0; }
 
-auto GFDeactivateModule() -> int { return 0; }
+auto GFDeactivateModule() -> int {
+  // A factory pointing into an unloaded shared object would crash the next
+  // time an e-mail tab is opened.
+  GFUIUnregisterTabPageView(DUP("EMAIL"));
+  return 0;
+}
 
 auto GFUnregisterModule() -> int {
   MLogDebug("email module unregistering...");
@@ -212,6 +277,18 @@ auto GFUnregisterModule() -> int {
 }
 
 namespace {
+
+// Where a Save dialog should open. Falls back to the home directory only if
+// the host cannot answer, which it always can in practice.
+auto default_save_dir() -> QString {
+  auto path = UnStrDup(GFUIDefaultUserFilePath());
+  return path.isEmpty() ? QDir::homePath() : path;
+}
+
+// Ceiling on the size of an .eml this module will open. Generous, because a
+// message with attachments is legitimately large; the protection against a
+// hostile *shape* is EMailParseLimits, not this number.
+constexpr qint64 kMaxEMLFileSize = 32LL * 1024 * 1024;
 
 auto ErrorHelper(int ret, const QString& err) -> QString {
   if (ret == -2) {
@@ -452,8 +529,7 @@ REGISTER_EVENT_HANDLER(
 
       const auto result_cards_param = BuildResultCardsParam(
           QApplication::translate("EMailModule", "Verify E-Mail"),
-          {BuildEMailHeaderCard(meta_data), BuildOpenPGPMetaCard(meta_data)},
-          result_cards);
+          BuildReadMetaCards(meta_data, true), result_cards);
 
       // callback
       CB(event, GFGetModuleID(),
@@ -570,7 +646,7 @@ REGISTER_EVENT_HANDLER(
 
       const auto result_cards_param = BuildResultCardsParam(
           QApplication::translate("EMailModule", "Decrypt E-Mail"),
-          {BuildEMailHeaderCard(meta_data)}, result_cards);
+          BuildReadMetaCards(meta_data, false), result_cards);
 
       // callback
       CB(event, GFGetModuleID(),
@@ -724,7 +800,6 @@ REGISTER_EVENT_HANDLER(
 
       r_dialog->SetChannel(channel);
       r_dialog->SetFromKeys({sign_key});
-      r_dialog->SetBodyData({body_data});
 
       vmime::shared_ptr<vmime::message> message;
       if (CheckIfEMLMessage(body_data, message)) {
@@ -944,7 +1019,6 @@ REGISTER_EVENT_HANDLER(
 
       r_dialog->SetChannel(channel);
       r_dialog->SetToKeys(encrypt_keys);
-      r_dialog->SetBodyData({body_data});
 
       GFUIShowDialog(dialog, nullptr);
 
@@ -1116,7 +1190,6 @@ REGISTER_EVENT_HANDLER(
       r_dialog->SetChannel(channel);
       r_dialog->SetToKeys(encrypt_keys);
       r_dialog->SetFromKeys({sign_key});
-      r_dialog->SetBodyData({body_data});
 
       GFUIShowDialog(dialog, nullptr);
 
@@ -1266,8 +1339,7 @@ REGISTER_EVENT_HANDLER(
 
       const auto result_cards_param = BuildResultCardsParam(
           QApplication::translate("EMailModule", "Decrypt and Verify E-Mail"),
-          {BuildEMailHeaderCard(meta_data), BuildOpenPGPMetaCard(meta_data)},
-          result_cards);
+          BuildReadMetaCards(meta_data, true), result_cards);
 
       // callback
       CB(event, GFGetModuleID(),
@@ -1314,7 +1386,7 @@ REGISTER_EVENT_HANDLER(
             [&]() -> void {
               filename = QFileDialog::getSaveFileName(
                   page, QApplication::translate("EMailModule", "Save file"),
-                  QDir::currentPath());
+                  default_save_dir());
             },
             Qt::BlockingQueuedConnection);
 
@@ -1337,16 +1409,6 @@ REGISTER_EVENT_HANDLER(
         FLOG_DEBUG("append .eml suffix to filename: %1", filename);
       }
 
-      QFile file(filename);
-      if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        QMessageBox::warning(
-            page, QApplication::translate("EMailModule", "Warning"),
-            QApplication::translate("EMailModule", "Cannot read file%1:\n%2.")
-                .arg(filename)
-                .arg(file.errorString()));
-        return false;
-      }
-
       QPlainTextEdit* text_edit = nullptr;
       ok = QMetaObject::invokeMethod(page, "GetTextPage",
                                      Qt::BlockingQueuedConnection,
@@ -1356,10 +1418,39 @@ REGISTER_EVENT_HANDLER(
         CB_ERR(event, -1, "invoke GetTextPage failed");
       }
 
-      QTextStream output_stream(&file);
+      // Normalize to LF first: the editor may already hold CRLF, and blindly
+      // expanding every "\n" then turns each of those into CRCRLF.
+      auto text = text_edit->toPlainText();
+      text.replace("\r\n", "\n");
+      text.replace("\n", "\r\n");
+
+      // Written binary and through QSaveFile: QIODevice::Text would translate
+      // the line endings a second time on Windows, and a plain QFile leaves a
+      // truncated .eml behind if the write fails halfway.
+      QSaveFile file(filename);
+      if (!file.open(QIODevice::WriteOnly)) {
+        QMessageBox::warning(
+            page, QApplication::translate("EMailModule", "Warning"),
+            QApplication::translate("EMailModule", "Cannot write file %1:\n%2.")
+                .arg(filename)
+                .arg(file.errorString()));
+        CB_ERR(event, -1, "cannot open file for writing");
+      }
+
       QApplication::setOverrideCursor(Qt::WaitCursor);
-      output_stream << text_edit->toPlainText().replace("\n", "\r\n").toUtf8();
+      const auto bytes = text.toUtf8();
+      const bool written = file.write(bytes) == bytes.size() && file.commit();
       QApplication::restoreOverrideCursor();
+
+      if (!written) {
+        QMessageBox::warning(
+            page, QApplication::translate("EMailModule", "Warning"),
+            QApplication::translate("EMailModule", "Cannot write file %1:\n%2.")
+                .arg(filename)
+                .arg(file.errorString()));
+        CB_ERR(event, -1, "writing file failed");
+      }
+
       QTextDocument* document = text_edit->document();
 
       document->setModified(false);
@@ -1382,17 +1473,22 @@ REGISTER_EVENT_HANDLER(
       auto file_path = event.value("file_path", "");
       QFileInfo file_info(file_path);
 
-      // stop here if file is too large (> 1mb)
-      if (file_info.size() > static_cast<qint64>(1 * 1024 * 1024)) {
+      // A 1 MB ceiling used to stand here, which refused any message with a
+      // real attachment. What it was actually protecting was the synchronous
+      // parse of untrusted input, and that is now bounded properly by the
+      // depth, part-count and decoded-size limits in ExtractParts -- so the
+      // ceiling can be about memory alone.
+      if (file_info.size() > kMaxEMLFileSize) {
         QMessageBox::warning(
             nullptr, QApplication::translate("EMailModule", "Warning"),
             QApplication::translate(
                 "EMailModule",
-                "The file %1 is too large (%2 bytes) to be opened. The "
-                "maximum allowed size is 1 MB.")
+                "The file %1 is too large (%2) to be opened. The maximum "
+                "allowed size is %3.")
                 .arg(file_path)
-                .arg(file_info.size()));
-        return -1;
+                .arg(QLocale().formattedDataSize(file_info.size()))
+                .arg(QLocale().formattedDataSize(kMaxEMLFileSize)));
+        CB_ERR(event, -1, "file too large");
       }
 
       auto* edit = GFUIGetGUIObjectAs<QWidget>("main_window_edit");
