@@ -50,7 +50,6 @@
 #include <QString>
 #include <QTextDocument>
 
-#include "EMailMetaDataDialog.h"
 #include "EMailPageView.h"
 
 // vmime
@@ -153,22 +152,60 @@ auto BuildAttachmentCard(const EMailMetaData& m) -> QJsonObject {
 // (GnuPG reports none), but the module always knows which keys it encrypted to,
 // so resolve each to its primary UID here — mirroring the native operation's
 // recipient card.
+// The address a key stands for, as "Name <email>".
+auto AddressOfKey(int channel, const QString& key_id) -> QString {
+  if (key_id.isEmpty()) return {};
+
+  GFGpgKeyUID* uid = nullptr;
+  if (GFGpgKeyPrimaryUID(channel, QDUP(key_id), &uid) != 0 || uid == nullptr) {
+    return {};
+  }
+
+  const auto name = UDUP(uid->name);
+  const auto email = UDUP(uid->email);
+  UDUP(uid->comment);  // free the unused field
+  GFFreeMemory(uid);
+
+  return email.isEmpty() ? name : QString("%1 <%2>").arg(name, email);
+}
+
+// Envelope for content that is not a message yet -- text typed straight into
+// the raw source view and handed to an operation without going through the
+// message view first.
+//
+// This used to be a modal dialog asking for From, To and Subject. Everything it
+// really needed is already known: encryption is to a set of keys and signing is
+// with one, and each of those keys carries the address it belongs to. So the
+// envelope is derived rather than demanded, and the user is not interrupted to
+// retype what they already chose in the key list.
+auto EnvelopeFromKeys(int channel, const QString& sign_key,
+                      const QStringList& encrypt_keys) -> EMailMetaData {
+  EMailMetaData meta_data;
+
+  meta_data.from = AddressOfKey(channel, sign_key);
+  for (const auto& key : encrypt_keys) {
+    const auto address = AddressOfKey(channel, key);
+    if (!address.isEmpty()) meta_data.to.append(address);
+  }
+
+  // A signed-only message has no recipient key to derive an address from, so
+  // it stays unaddressed -- which BuildMimeEML now handles rather than
+  // refusing.
+  if (meta_data.from.isEmpty() && !meta_data.to.isEmpty()) {
+    meta_data.from = meta_data.to.front();
+  }
+
+  meta_data.datetime = QDateTime::currentDateTime();
+  return meta_data;
+}
+
 auto BuildRecipientCards(int channel, const QStringList& encrypt_keys)
     -> QJsonArray {
   QJsonArray cards;
   for (const auto& key_id : encrypt_keys) {
     if (key_id.isEmpty()) continue;
 
-    QString recipient;
-    GFGpgKeyUID* uid = nullptr;
-    if (GFGpgKeyPrimaryUID(channel, QDUP(key_id), &uid) == 0 &&
-        uid != nullptr) {
-      const auto name = UDUP(uid->name);
-      const auto email = UDUP(uid->email);
-      UDUP(uid->comment);  // free the unused field
-      GFFreeMemory(uid);
-      recipient = email.isEmpty() ? name : QString("%1 <%2>").arg(name, email);
-    }
+    const auto recipient = AddressOfKey(channel, key_id);
 
     cards.append(MakeCardJson(
         QApplication::translate("EMailModule", "Encryption Recipient"), "ok",
@@ -792,15 +829,6 @@ REGISTER_EVENT_HANDLER(
       auto body_data =
           QByteArray::fromBase64(QString(event["body_data"]).toLatin1());
 
-      auto* dialog = GUI_OBJECT(CreateEMailMetaDataDialog, {});
-      auto* r_dialog =
-          qobject_cast<EMailMetaDataDialog*>(static_cast<QObject*>(dialog));
-      if (r_dialog == nullptr)
-        CB_ERR(event, -1, "convert dialog to r_dialog failed");
-
-      r_dialog->SetChannel(channel);
-      r_dialog->SetFromKeys({sign_key});
-
       vmime::shared_ptr<vmime::message> message;
       if (CheckIfEMLMessage(body_data, message)) {
         int result_status = 0;
@@ -827,42 +855,31 @@ REGISTER_EVENT_HANDLER(
         return 0;
       }
 
-      GFUIShowDialog(dialog, nullptr);
-      QObject::connect(
-          r_dialog, &EMailMetaDataDialog::SignalEMLMetaData, r_dialog,
-          [=](const EMailMetaData& meta_data) {
-            int result_status = 0;
-            QString result_detail;
-            QString result_cards;
-            QString eml_data;
-            if (DoSignPlainText(channel, sign_key, meta_data, body_data, event,
-                                result_status, result_detail, result_cards,
-                                eml_data) == kSUCCESS) {
-              CB(event, GFGetModuleID(),
-                 {
-                     {"ret", QString::number(0)},
-                     {"data", eml_data},
-                     {"result_status", QString::number(result_status)},
-                     {"result", result_detail},
-                     {"result_cards",
-                      BuildResultCardsParam(
-                          QApplication::translate("EMailModule", "Sign E-Mail"),
-                          {BuildEMailHeaderCard(meta_data)}, result_cards)},
-                 });
-            }
-          });
+      // Not a message yet: wrap the text in an envelope derived from the
+      // signing key rather than stopping to ask for one.
+      const auto meta_data = EnvelopeFromKeys(channel, sign_key, {});
 
-      QObject::connect(r_dialog, &EMailMetaDataDialog::SignalNoEMLMetaData,
-                       r_dialog, [=](const QString& error_string) {
-                         CB(event, GFGetModuleID(),
-                            {
-                                {"ret", QString::number(0)},
-                                {"data", body_data},
-                                {"result_status", QString::number(-1)},
-                                {"result", ErrorHelper(-1, error_string)},
-                            });
-                       });
+      int result_status = 0;
+      QString result_detail;
+      QString result_cards;
+      QString eml_data;
+      if (DoSignPlainText(channel, sign_key, meta_data, body_data, event,
+                          result_status, result_detail, result_cards,
+                          eml_data) != kSUCCESS) {
+        return -1;
+      }
 
+      CB(event, GFGetModuleID(),
+         {
+             {"ret", QString::number(0)},
+             {"data", eml_data},
+             {"result_status", QString::number(result_status)},
+             {"result", result_detail},
+             {"result_cards",
+              BuildResultCardsParam(
+                  QApplication::translate("EMailModule", "Sign E-Mail"),
+                  {BuildEMailHeaderCard(meta_data)}, result_cards)},
+         });
       return 0;
     });
 
@@ -1011,55 +1028,33 @@ REGISTER_EVENT_HANDLER(
         return 0;
       }
 
-      auto* dialog = GUI_OBJECT(CreateEMailMetaDataDialog, {});
-      auto* r_dialog =
-          qobject_cast<EMailMetaDataDialog*>(static_cast<QObject*>(dialog));
-      if (r_dialog == nullptr)
-        CB_ERR(event, -1, "convert dialog to r_dialog failed");
+      // Not a message yet: address it to the keys the user picked to encrypt
+      // to, rather than stopping to ask for addresses they have just chosen.
+      const auto meta_data = EnvelopeFromKeys(channel, {}, encrypt_keys);
 
-      r_dialog->SetChannel(channel);
-      r_dialog->SetToKeys(encrypt_keys);
+      QString eml_data;
+      int result_status;
+      QString result_detail;
+      QString result_cards;
+      if (DoEncryptPlainText(channel, encrypt_keys, meta_data, body_data, event,
+                             result_status, result_detail, result_cards,
+                             eml_data) != kSUCCESS) {
+        return -1;
+      }
 
-      GFUIShowDialog(dialog, nullptr);
-
-      QObject::connect(
-          r_dialog, &EMailMetaDataDialog::SignalEMLMetaData, r_dialog,
-          [=](const EMailMetaData& meta_data) -> void {
-            QString eml_data;
-            int result_status;
-            QString result_detail;
-            QString result_cards;
-            if (DoEncryptPlainText(channel, encrypt_keys, meta_data, body_data,
-                                   event, result_status, result_detail,
-                                   result_cards, eml_data) == kSUCCESS) {
-              auto meta_cards = BuildRecipientCards(channel, encrypt_keys);
-              meta_cards.prepend(BuildEMailHeaderCard(meta_data));
-              CB(event, GFGetModuleID(),
-                 {
-                     {"ret", QString::number(0)},
-                     {"data", eml_data},
-                     {"result", result_detail},
-                     {"result_status", QString::number(result_status)},
-                     {"result_cards", BuildResultCardsParam(
-                                          QApplication::translate(
-                                              "EMailModule", "Encrypt E-Mail"),
-                                          meta_cards, result_cards)},
-                 });
-            }
-          });
-
-      QObject::connect(
-          r_dialog, &EMailMetaDataDialog::SignalNoEMLMetaData, r_dialog,
-          [=](const QString& error_string) {
-            CB(event, GFGetModuleID(),
-               {
-                   {"ret", QString::number(0)},
-                   {"data", QString::fromLatin1(body_data.toBase64())},
-                   {"result_status", QString::number(-1)},
-                   {"result", ErrorHelper(-1, error_string)},
-               });
-          });
-
+      auto meta_cards = BuildRecipientCards(channel, encrypt_keys);
+      meta_cards.prepend(BuildEMailHeaderCard(meta_data));
+      CB(event, GFGetModuleID(),
+         {
+             {"ret", QString::number(0)},
+             {"data", eml_data},
+             {"result", result_detail},
+             {"result_status", QString::number(result_status)},
+             {"result_cards",
+              BuildResultCardsParam(
+                  QApplication::translate("EMailModule", "Encrypt E-Mail"),
+                  meta_cards, result_cards)},
+         });
       return 0;
     });
 
@@ -1181,64 +1176,36 @@ REGISTER_EVENT_HANDLER(
         return 0;
       }
 
-      auto* dialog = GUI_OBJECT(CreateEMailMetaDataDialog, {});
-      auto* r_dialog =
-          qobject_cast<EMailMetaDataDialog*>(static_cast<QObject*>(dialog));
-      if (r_dialog == nullptr)
-        CB_ERR(event, -1, "convert dialog to r_dialog failed");
+      // Not a message yet: address it from the signing key to the encryption
+      // keys, rather than stopping to ask for what the key list already says.
+      const auto meta_data = EnvelopeFromKeys(channel, sign_key, encrypt_keys);
 
-      r_dialog->SetChannel(channel);
-      r_dialog->SetToKeys(encrypt_keys);
-      r_dialog->SetFromKeys({sign_key});
+      QString eml_data;
+      int result_status = 0;
+      QString result_detail;
+      QString result_cards;
+      QByteArray body_data_copy = body_data;
 
-      GFUIShowDialog(dialog, nullptr);
+      if (DoEncryptSignPlainText(channel, encrypt_keys, sign_key, meta_data,
+                                 body_data_copy, event, result_status,
+                                 result_detail, result_cards,
+                                 eml_data) != kSUCCESS) {
+        return -1;
+      }
 
-      QObject::connect(
-          r_dialog, &EMailMetaDataDialog::SignalEMLMetaData, r_dialog,
-          [=](const EMailMetaData& meta_data) -> int {
-            QString eml_data;
-            int result_status = 0;
-            QString result_detail;
-            QString result_cards;
-            QByteArray body_data_copy = body_data;
-
-            FLOG_DEBUG("meta data, from: %1", meta_data.from);
-
-            if (DoEncryptSignPlainText(channel, encrypt_keys, sign_key,
-                                       meta_data, body_data_copy, event,
-                                       result_status, result_detail,
-                                       result_cards, eml_data) != kSUCCESS) {
-              return -1;
-            }
-            auto meta_cards = BuildRecipientCards(channel, encrypt_keys);
-            meta_cards.prepend(BuildEMailHeaderCard(meta_data));
-            CB(event, GFGetModuleID(),
-               {
-                   {"ret", QString::number(0)},
-                   {"data", eml_data},
-                   {"result", result_detail},
-                   {"result_status", QString::number(result_status)},
-                   {"result_cards",
-                    BuildResultCardsParam(
-                        QApplication::translate("EMailModule",
-                                                "Encrypt and Sign E-Mail"),
-                        meta_cards, result_cards)},
-               });
-            return 0;
-          });
-
-      QObject::connect(
-          r_dialog, &EMailMetaDataDialog::SignalNoEMLMetaData, r_dialog,
-          [=](const QString& error_string) {
-            CB(event, GFGetModuleID(),
-               {
-                   {"ret", QString::number(0)},
-                   {"data", QString::fromLatin1(body_data.toBase64())},
-                   {"result_status", QString::number(-1)},
-                   {"result", ErrorHelper(-1, error_string)},
-               });
-          });
-
+      auto meta_cards = BuildRecipientCards(channel, encrypt_keys);
+      meta_cards.prepend(BuildEMailHeaderCard(meta_data));
+      CB(event, GFGetModuleID(),
+         {
+             {"ret", QString::number(0)},
+             {"data", eml_data},
+             {"result", result_detail},
+             {"result_status", QString::number(result_status)},
+             {"result_cards",
+              BuildResultCardsParam(QApplication::translate(
+                                        "EMailModule", "Encrypt and Sign E-Mail"),
+                                    meta_cards, result_cards)},
+         });
       return 0;
     });
 
