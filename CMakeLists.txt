@@ -52,6 +52,12 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 option(GPGFRONTEND_MODULES_QT5_BUILD "Swith to Qt5 building mode" OFF)
 
+# Opt-in unit tests for modules. Declared here rather than inside a single
+# module so every module can hang a test target off the one switch, and so it
+# exists whether this project is configured standalone or as a subdirectory of
+# the application.
+option(GPGFRONTEND_MODULES_BUILD_TESTS "Build unit tests for modules" OFF)
+
 # show build arguments
 message(STATUS "GpgFrontend Modules Source Path: ${CMAKE_SOURCE_DIR}")
 message(STATUS "GpgFrontend Modules Runtime Path: ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
