@@ -1201,10 +1201,10 @@ REGISTER_EVENT_HANDLER(
              {"data", eml_data},
              {"result", result_detail},
              {"result_status", QString::number(result_status)},
-             {"result_cards",
-              BuildResultCardsParam(QApplication::translate(
-                                        "EMailModule", "Encrypt and Sign E-Mail"),
-                                    meta_cards, result_cards)},
+             {"result_cards", BuildResultCardsParam(
+                                  QApplication::translate(
+                                      "EMailModule", "Encrypt and Sign E-Mail"),
+                                  meta_cards, result_cards)},
          });
       return 0;
     });
