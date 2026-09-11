@@ -36,6 +36,24 @@
 #include "EMailHelper.h"
 #include "GFModuleCommonUtils.hpp"
 
+namespace {
+
+/// Describes a blob without disclosing it.
+///
+/// This module used to log whole messages at debug level -- the decrypted MIME
+/// body among them -- which put plaintext into the log file and, in one case,
+/// straight onto the console. A size and a short digest is enough to correlate
+/// a blob across a session, and discloses nothing.
+auto Elide(const QByteArray& data) -> QString {
+  const auto digest =
+      QCryptographicHash::hash(data, QCryptographicHash::Sha1).toHex().left(12);
+  return QString("%1 bytes, sha1:%2").arg(data.size()).arg(QString(digest));
+}
+
+auto Elide(const QString& data) -> QString { return Elide(data.toUtf8()); }
+
+}  // namespace
+
 auto EncryptPlainText(int channel, const QStringList& keys,
                       const EMailMetaData& meta_data,
                       const QByteArray& body_data, QString& eml_data,
@@ -190,7 +208,7 @@ auto EncryptPlainText(int channel, const QStringList& keys,
     encrypted_data_body->setContents(encrypted_data_content);
 
     eml_data = Q_SC(msg->generate(vmime::lineLengthLimits::convenient));
-    FLOG_DEBUG("EML Data: %1", eml_data);
+    FLOG_DEBUG("eml data: %1", Elide(eml_data));
 
     return kSUCCESS;
 
@@ -217,56 +235,12 @@ auto EncryptEMLData(int channel, const QStringList& keys,
     auto plain_body_signed_raw_data = body_data.mid(
         static_cast<qsizetype>(body_offset), static_cast<qsizetype>(body_len));
 
-    auto backup_content_type_header_field_component =
-        header->getField<vmime::headerField>(vmime::fields::CONTENT_TYPE)
-            ->clone();
-
-    std::shared_ptr<vmime::headerField> backup_content_type_header_field =
-        std::static_pointer_cast<vmime::headerField>(
-            backup_content_type_header_field_component);
-
-    auto backup_from_field_component =
-        header->getField<vmime::headerField>(vmime::fields::FROM)->clone();
-
-    std::shared_ptr<vmime::headerField> backup_from_field =
-        std::static_pointer_cast<vmime::headerField>(
-            backup_from_field_component);
-
-    auto backup_to_field_component =
-        header->getField<vmime::headerField>(vmime::fields::TO)->clone();
-
-    std::shared_ptr<vmime::headerField> backup_to_field =
-        std::static_pointer_cast<vmime::headerField>(backup_to_field_component);
-
-    auto backup_message_id_field_component =
-        header->hasField(vmime::fields::MESSAGE_ID)
-            ? header->getField<vmime::headerField>(vmime::fields::MESSAGE_ID)
-                  ->clone()
-            : nullptr;
-
-    std::shared_ptr<vmime::headerField> backup_message_id_field =
-        std::static_pointer_cast<vmime::headerField>(
-            backup_message_id_field_component);
-
-    auto backup_subject_field_component =
-        header->getField<vmime::headerField>(vmime::fields::SUBJECT)->clone();
-
-    std::shared_ptr<vmime::headerField> backup_subject_field =
-        std::static_pointer_cast<vmime::headerField>(
-            backup_subject_field_component);
-
-    auto plain_part = vmime::make_shared<vmime::bodyPart>();
-    auto plain_part_header = plain_part->getHeader();
-    plain_part_header->appendField(backup_content_type_header_field);
-    plain_part_header->appendField(backup_subject_field);
-    plain_part_header->appendField(backup_from_field);
-    plain_part_header->appendField(backup_to_field);
-    if (backup_message_id_field != nullptr) {
-      plain_part_header->appendField(backup_message_id_field);
-    }
-
-    auto plain_header_raw_data =
-        Q_SC(plain_part_header->generate(vmime::lineLengthLimits::convenient));
+    // Every Content-* field travels with the body, which is carried over
+    // below as a raw, still-encoded slice. Hand-picking a few headers here
+    // used to drop Content-Transfer-Encoding, so a base64 body -- which is
+    // every message carrying an attachment -- reached the recipient with
+    // nothing saying how to decode it.
+    auto plain_header_raw_data = BuildInnerPartHeader(header);
 
     auto plain_raw_data =
         plain_header_raw_data + "\r\n" + plain_body_signed_raw_data;
@@ -367,7 +341,7 @@ auto EncryptEMLData(int channel, const QStringList& keys,
     encrypted_data_body->setContents(encrypted_data_content);
 
     eml_data = Q_SC(message->generate(vmime::lineLengthLimits::convenient));
-    FLOG_DEBUG("EML Data: %1", eml_data);
+    FLOG_DEBUG("eml data: %1", Elide(eml_data));
 
     return kSUCCESS;
 
@@ -398,7 +372,7 @@ auto SignPlainText(int channel, const QString& key,
 
     if (ParseEmailString(from, name, email)) {
       msg_builder.setExpeditor(
-          vmime::mailbox(vmime::text(name.toStdString()), email.toStdString()));
+          vmime::mailbox(Q_TEXT(name), email.toStdString()));
     } else {
       msg_builder.setExpeditor(vmime::mailbox(from.toStdString()));
     }
@@ -408,7 +382,7 @@ auto SignPlainText(int channel, const QString& key,
 
       if (ParseEmailString(trimmed_recipient, name, email)) {
         msg_builder.getRecipients().appendAddress(
-            vmime::make_shared<vmime::mailbox>(vmime::text(name.toStdString()),
+            vmime::make_shared<vmime::mailbox>(Q_TEXT(name),
                                                email.toStdString()));
       } else {
         msg_builder.getRecipients().appendAddress(
@@ -421,7 +395,7 @@ auto SignPlainText(int channel, const QString& key,
       auto trimmed_recipient = recipient.trimmed();
       if (ParseEmailString(trimmed_recipient, name, email)) {
         msg_builder.getCopyRecipients().appendAddress(
-            vmime::make_shared<vmime::mailbox>(vmime::text(name.toStdString()),
+            vmime::make_shared<vmime::mailbox>(Q_TEXT(name),
                                                email.toStdString()));
       } else {
         msg_builder.getCopyRecipients().appendAddress(
@@ -434,7 +408,7 @@ auto SignPlainText(int channel, const QString& key,
       auto trimmed_recipient = recipient.trimmed();
       if (ParseEmailString(trimmed_recipient, name, email)) {
         msg_builder.getBlindCopyRecipients().appendAddress(
-            vmime::make_shared<vmime::mailbox>(vmime::text(name.toStdString()),
+            vmime::make_shared<vmime::mailbox>(Q_TEXT(name),
                                                email.toStdString()));
       } else {
         msg_builder.getBlindCopyRecipients().appendAddress(
@@ -444,7 +418,7 @@ auto SignPlainText(int channel, const QString& key,
     }
 
     if (!subject.isEmpty()) {
-      msg_builder.setSubject(vmime::text(subject.toStdString()));
+      msg_builder.setSubject(Q_TEXT(subject));
     }
 
     vmime::shared_ptr<vmime::message> msg = msg_builder.construct();
@@ -584,7 +558,7 @@ auto SignPlainText(int channel, const QString& key,
     FLOG_DEBUG("raw content of signature hash: %1",
                container_raw_data_hash.toHex());
 
-    FLOG_DEBUG("MIME Raw Data For Signature: %1", container_raw_data);
+    FLOG_DEBUG("mime raw data for signature: %1", Elide(container_raw_data));
     FLOG_DEBUG("Signature Channel: %1, Sign Key: %2", channel, key);
 
     GFGpgSignResult* s;
@@ -610,7 +584,7 @@ auto SignPlainText(int channel, const QString& key,
       return kGPG_FAILED;
     }
 
-    FLOG_DEBUG("Hash Algo: %1 Signature Data: %2", hash_algo, signature);
+    FLOG_DEBUG("hash algo: %1, signature: %2", hash_algo, Elide(signature));
     content_type_header_field->appendParameter(
         vmime::make_shared<vmime::parameter>(
             "micalg",
@@ -624,7 +598,7 @@ auto SignPlainText(int channel, const QString& key,
 
     eml_data = Q_SC(msg->generate(vmime::lineLengthLimits::convenient));
 
-    FLOG_DEBUG("EML Data: %1", eml_data);
+    FLOG_DEBUG("eml data: %1", Elide(eml_data));
 
     return kSUCCESS;
 
@@ -811,7 +785,7 @@ auto SignEMLData(int channel, const QString& key,
     FLOG_DEBUG("raw content of signature hash: %1",
                container_raw_data_hash.toHex());
 
-    FLOG_DEBUG("MIME Raw Data For Signature: %1", container_raw_data);
+    FLOG_DEBUG("mime raw data for signature: %1", Elide(container_raw_data));
     FLOG_DEBUG("Signature Channel: %1, Sign Key: %2", channel, key);
 
     GFGpgSignResult* s;
@@ -837,7 +811,7 @@ auto SignEMLData(int channel, const QString& key,
       return kGPG_FAILED;
     }
 
-    FLOG_DEBUG("Hash Algo: %1 Signature Data: %2", hash_algo, signature);
+    FLOG_DEBUG("hash algo: %1, signature: %2", hash_algo, Elide(signature));
     content_type_header_field->appendParameter(
         vmime::make_shared<vmime::parameter>(
             "micalg",
@@ -851,7 +825,7 @@ auto SignEMLData(int channel, const QString& key,
 
     eml_data = Q_SC(message->generate(vmime::lineLengthLimits::convenient));
 
-    FLOG_DEBUG("EML Data: %1", eml_data);
+    FLOG_DEBUG("eml data: %1", Elide(eml_data));
 
     return kSUCCESS;
 
@@ -943,11 +917,11 @@ auto VerifyEMLData(int channel, const QByteArray& data,
   auto from_field_value_text =
       ExtractFieldValueMailBox(header, vmime::fields::FROM);
   auto to_field_value_text =
-      ExtractFieldValueAddressList(header, vmime::fields::TO);
+      ExtractFieldValueAddressListItems(header, vmime::fields::TO);
   auto cc_field_value_text =
-      ExtractFieldValueAddressList(header, vmime::fields::CC);
+      ExtractFieldValueAddressListItems(header, vmime::fields::CC);
   auto bcc_field_value_text =
-      ExtractFieldValueAddressList(header, vmime::fields::BCC);
+      ExtractFieldValueAddressListItems(header, vmime::fields::BCC);
   auto date_field_value =
       ExtractFieldValueDateTime(header, vmime::fields::DATE);
   auto subject_field_value_text =
@@ -991,35 +965,28 @@ auto VerifyEMLData(int channel, const QByteArray& data,
   FLOG_DEBUG("mime part of raw content hash: %1",
              part_mime_content_hash.toHex());
 
-  FLOG_DEBUG("mime part of raw content: %1", part_mime_content_text);
-  qDebug().noquote() << "\n" << part_mime_content_text;
+  FLOG_DEBUG("mime part of raw content: %1", Elide(part_mime_content_text));
 
   if (part_mime_content_text.isEmpty()) {
     error_string = "Mime raw data part is empty";
     return kEML_FAILED;
   }
 
-  auto attachments =
-      vmime::attachmentHelper::findAttachmentsInBodyPart(part_mime);
-  FLOG_DEBUG("mime part info, attachment count: %1", attachments.size());
-
-  QStringList public_keys_buffer;
-
-  for (const auto& att : attachments) {
-    auto att_type = Q_SC(att->getType().generate()).trimmed();
-    FLOG_DEBUG("mime part info, attachment type: %1", att_type);
-
-    if (att_type != "application/pgp-keys") continue;
-
-    std::ostringstream oss;
-    vmime::utility::outputStreamAdapter osa(oss);
-    att->getData()->extract(osa);
-
-    public_keys_buffer.append(Q_SC(oss.str()));
+  // Walk the signed part for everything it carries. This used to enumerate the
+  // attachments and then skip every one that was not an OpenPGP key, so a
+  // signed message with a document attached showed the user nothing at all.
+  if (ExtractParts(message, meta_data) != 0) {
+    error_string = "Message structure exceeds the supported parsing limits";
+    return kEML_FAILED;
   }
 
-  FLOG_DEBUG("mime part info, attached public keys: %1",
-             public_keys_buffer.join("\n"));
+  QStringList public_keys_buffer;
+  for (const auto& att : meta_data.attachments) {
+    if (att.is_openpgp_key) public_keys_buffer.append(QString(att.data));
+  }
+
+  FLOG_DEBUG("mime part info, attachment count: %1, attached public keys: %2",
+             meta_data.attachments.size(), public_keys_buffer.size());
 
   /*
    * The second body MUST contain the OpenPGP digital signature. It MUST
@@ -1045,7 +1012,8 @@ auto VerifyEMLData(int channel, const QByteArray& data,
     return kEML_FAILED;
   }
 
-  FLOG_DEBUG("body part of signature content: %1", part_sign_body_content);
+  FLOG_DEBUG("body part of signature content: %1",
+             Elide(part_sign_body_content));
 
   GFGpgVerifyResult* s;
   auto ret = GFGpgVerifyData(channel, QDUP(part_mime_content_text),
@@ -1069,9 +1037,11 @@ auto VerifyEMLData(int channel, const QByteArray& data,
   }
 
   meta_data.from = from_field_value_text;
-  meta_data.to = to_field_value_text.split(',');
-  meta_data.cc = cc_field_value_text.split(',');
-  meta_data.bcc = bcc_field_value_text.split(',');
+  meta_data.to = to_field_value_text;
+  meta_data.cc = cc_field_value_text;
+  meta_data.bcc = bcc_field_value_text;
+  meta_data.reply_to = reply_to_field_value_text;
+  meta_data.organization = organization_text;
   meta_data.subject = subject_field_value_text;
   meta_data.datetime = date_field_value;
   meta_data.micalg = prm_micalg_value;
@@ -1138,11 +1108,11 @@ auto DecryptEMLData(int channel, const QByteArray& data,
   auto from_field_value_text =
       ExtractFieldValueMailBox(header, vmime::fields::FROM);
   auto to_field_value_text =
-      ExtractFieldValueAddressList(header, vmime::fields::TO);
+      ExtractFieldValueAddressListItems(header, vmime::fields::TO);
   auto cc_field_value_text =
-      ExtractFieldValueAddressList(header, vmime::fields::CC);
+      ExtractFieldValueAddressListItems(header, vmime::fields::CC);
   auto bcc_field_value_text =
-      ExtractFieldValueAddressList(header, vmime::fields::BCC);
+      ExtractFieldValueAddressListItems(header, vmime::fields::BCC);
   auto date_field_value =
       ExtractFieldValueDateTime(header, vmime::fields::DATE);
   auto subject_field_value_text =
@@ -1187,7 +1157,8 @@ auto DecryptEMLData(int channel, const QByteArray& data,
   osa.flush();
 
   auto part_mime_body_content_text = Q_SC(oss.str());
-  FLOG_DEBUG("body part of raw content text: %1", part_mime_body_content_text);
+  FLOG_DEBUG("body part of raw content text: %1",
+             Elide(part_mime_body_content_text));
 
   /*
    * A message complying with this
@@ -1224,7 +1195,7 @@ auto DecryptEMLData(int channel, const QByteArray& data,
     return kEML_FAILED;
   }
 
-  FLOG_DEBUG("body part of encrypt content: %1", part_encr_body_content);
+  FLOG_DEBUG("body part of encrypt content: %1", Elide(part_encr_body_content));
 
   GFGpgDecryptResult* s;
   auto ret = GFGpgDecryptData(channel, QDUP(part_encr_body_content), &s);
@@ -1249,12 +1220,24 @@ auto DecryptEMLData(int channel, const QByteArray& data,
 
   // callback
   meta_data.from = from_field_value_text;
-  meta_data.to = to_field_value_text.split(',');
-  meta_data.cc = cc_field_value_text.split(',');
-  meta_data.bcc = bcc_field_value_text.split(',');
+  meta_data.to = to_field_value_text;
+  meta_data.cc = cc_field_value_text;
+  meta_data.bcc = bcc_field_value_text;
+  meta_data.reply_to = reply_to_field_value_text;
+  meta_data.organization = organization_text;
   meta_data.subject = subject_field_value_text;
   meta_data.datetime = date_field_value;
   meta_data.encrypted_data = part_encr_body_content;
+
+  // The plaintext is itself a MIME message, so walk it for the body and any
+  // attachments. Nothing in the decrypted content reaches the user otherwise:
+  // it used to be handed back as raw source and nothing more.
+  vmime::shared_ptr<vmime::message> inner;
+  if (CheckIfEMLMessage(eml_data.toUtf8(), inner)) {
+    if (ExtractParts(inner, meta_data) != 0) {
+      MLogDebug("decrypted message exceeds the supported parsing limits");
+    }
+  }
 
   return kSUCCESS;
 }

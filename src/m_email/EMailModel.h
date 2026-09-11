@@ -28,7 +28,9 @@
 
 #pragma once
 
+#include <QByteArray>
 #include <QDateTime>
+#include <QList>
 #include <QString>
 #include <QStringList>
 
@@ -39,6 +41,30 @@
 #include <vmime/contentDispositionField.hpp>
 #include <vmime/contentTypeField.hpp>
 
+/**
+ * @brief One non-protocol part of a message.
+ *
+ * "Attachment" here means every part that is not the message body and not an
+ * OpenPGP control part -- so it covers inline images as well as things the
+ * user would call an attachment.
+ */
+struct EMailAttachment {
+  QString filename;   ///< as it arrived; NOT safe to use as a path
+  QString mime_type;  ///< e.g. "application/pdf"
+  QString description;
+  QString disposition;  ///< "attachment" or "inline"
+  QByteArray data;      ///< decoded content
+
+  /// application/pgp-keys, which the UI can offer to import rather than save.
+  bool is_openpgp_key{false};
+
+  /// Whether this part sits inside the multipart/signed subtree. Only those
+  /// parts are covered by the signature; anything else arrived unauthenticated
+  /// and must be shown as such, however trustworthy the rest of the message
+  /// looks.
+  bool inside_signed_part{false};
+};
+
 struct EMailMetaData {
   // Basic MetaData
   QString from;
@@ -48,6 +74,8 @@ struct EMailMetaData {
   QString subject;
   QDateTime datetime;
   QString micalg;
+  QString reply_to;
+  QString organization;
 
   // OpenPGP MetaData
   QString public_keys;
@@ -55,4 +83,9 @@ struct EMailMetaData {
   QString mime_hash;
   QByteArray signature;
   QByteArray encrypted_data;
+
+  // Content
+  QByteArray body;            ///< decoded text body, UTF-8
+  QString body_content_type;  ///< e.g. "text/plain"
+  QList<EMailAttachment> attachments;
 };
