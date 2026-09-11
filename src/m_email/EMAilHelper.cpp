@@ -304,8 +304,32 @@ auto BuildMimeEML(const EMailMetaData& meta_data, const QByteArray& body_data,
 
     plaintext_msg_builder.setSubject(Q_TEXT(subject));
 
-    vmime::shared_ptr<vmime::message> plaintext_msg =
-        plaintext_msg_builder.construct();
+    // vmime::messageBuilder refuses to construct a message with no recipient.
+    // That is a rule about sending, and this function is also what a draft is
+    // serialized through while it is being written -- an unaddressed draft
+    // still has to round-trip, or the headers and attachments the user has
+    // already entered are lost the moment anything reads the document back.
+    const bool addressed =
+        !recipient_list.isEmpty() || !cc_list.isEmpty() || !bcc_list.isEmpty();
+
+    vmime::shared_ptr<vmime::message> plaintext_msg;
+    if (addressed) {
+      plaintext_msg = plaintext_msg_builder.construct();
+    } else {
+      plaintext_msg = vmime::make_shared<vmime::message>();
+      auto draft_header = plaintext_msg->getHeader();
+      draft_header->Subject()->setValue(Q_TEXT(subject));
+      if (!from.trimmed().isEmpty()) {
+        if (ParseEmailString(from, name, email)) {
+          draft_header->From()->setValue(
+              vmime::mailbox(Q_TEXT(name), email.toStdString()));
+        } else {
+          draft_header->From()->setValue(vmime::mailbox(from.toStdString()));
+        }
+      }
+      draft_header->Date()->setValue(vmime::datetime::now());
+      draft_header->MimeVersion()->setValue(vmime::SUPPORTED_MIME_VERSION);
+    }
 
     auto plaintext_msg_header = plaintext_msg->getHeader();
 
