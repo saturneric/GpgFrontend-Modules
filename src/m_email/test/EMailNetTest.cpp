@@ -396,6 +396,105 @@ TEST_F(EMailImapNetTest, TheSentFolderComesFromSpecialUse) {
   EXPECT_EQ(folder, "Sent Mail");
 }
 
+/// The bytes a send would hand to SaveToSentFolder.
+auto SentCopyEml() -> QByteArray {
+  return "From: me@example.org\r\n"
+         "To: someone@example.org\r\n"
+         "Subject: Filed\r\n"
+         "Message-ID: <filed-1@example.org>\r\n"
+         "\r\n"
+         "body text\r\n";
+}
+
+TEST_F(EMailImapNetTest, ASentMessageIsAppendedToTheSentFolder) {
+  worker_.ListFolders(2);
+  // Nothing is filed yet, which is the normal case: most servers do not keep
+  // a copy of what they send for you.
+  server_.search_finds = false;
+
+  MailSentSaveOutcome outcome{};
+  QString folder;
+  QObject::connect(
+      &worker_, &EMailImapWorker::SignalSentSaved, &worker_,
+      [&](quint64, MailSentSaveOutcome o, const QString& f, const MailError&) {
+        outcome = o;
+        folder = f;
+      });
+
+  worker_.SaveToSentFolder(3, "filed-1@example.org", SentCopyEml());
+
+  EXPECT_EQ(outcome, MailSentSaveOutcome::kSAVED);
+  EXPECT_EQ(folder, "Sent Mail");
+  EXPECT_TRUE(server_.appended);
+  EXPECT_EQ(server_.appended_mailbox, "Sent Mail");
+
+  // Byte for byte. These octets may be exactly what a signature covers, so a
+  // copy that has been parsed and re-rendered is a copy that no longer
+  // verifies.
+  EXPECT_EQ(server_.appended_data, SentCopyEml());
+}
+
+TEST_F(EMailImapNetTest, TheFiledCopyIsMarkedSeen) {
+  worker_.ListFolders(2);
+  server_.search_finds = false;
+
+  worker_.SaveToSentFolder(3, "filed-1@example.org", SentCopyEml());
+
+  // A message the user just sent has been read by definition. Leaving it
+  // unread puts an unread badge on a folder nobody reads.
+  EXPECT_TRUE(server_.appended_flags.contains("\\Seen"));
+}
+
+TEST_F(EMailImapNetTest, AnAlreadyFiledMessageIsNotAppendedTwice) {
+  worker_.ListFolders(2);
+  // A server that files its own copy -- Gmail does. Appending here would leave
+  // the user two copies to tidy up by hand.
+  server_.search_finds = true;
+
+  MailSentSaveOutcome outcome{};
+  QObject::connect(&worker_, &EMailImapWorker::SignalSentSaved, &worker_,
+                   [&](quint64, MailSentSaveOutcome o, const QString&,
+                       const MailError&) { outcome = o; });
+
+  worker_.SaveToSentFolder(3, "filed-1@example.org", SentCopyEml());
+
+  EXPECT_EQ(outcome, MailSentSaveOutcome::kALREADY_THERE);
+  EXPECT_FALSE(server_.appended);
+}
+
+TEST_F(EMailImapNetTest, AMessageWithNoIdIsFiledButReportedUnverified) {
+  worker_.ListFolders(2);
+  server_.search_finds = false;
+
+  MailSentSaveOutcome outcome{};
+  QObject::connect(&worker_, &EMailImapWorker::SignalSentSaved, &worker_,
+                   [&](quint64, MailSentSaveOutcome o, const QString&,
+                       const MailError&) { outcome = o; });
+
+  worker_.SaveToSentFolder(3, {}, SentCopyEml());
+
+  // The copy is written, because that is what the user wanted. It cannot be
+  // looked up afterwards, and saying it was confirmed would be a claim we
+  // never checked.
+  EXPECT_TRUE(server_.appended);
+  EXPECT_EQ(outcome, MailSentSaveOutcome::kSAVED_UNVERIFIED);
+}
+
+TEST_F(EMailImapNetTest, FilingACopyIsTheOnlyThingOpenedForWriting) {
+  worker_.ListFolders(2);
+  server_.search_finds = false;
+  worker_.SaveToSentFolder(3, "filed-1@example.org", SentCopyEml());
+
+  // Everything else in this class opens folders with EXAMINE, which the server
+  // cannot let a client write through. Exactly one SELECT is expected, and it
+  // belongs to the append.
+  int selects = 0;
+  for (const auto& command : server_.Commands()) {
+    if (command.section(' ', 1, 1).toUpper() == "SELECT") ++selects;
+  }
+  EXPECT_EQ(selects, 1);
+}
+
 /**
  * @brief A main of our own, because Qt's socket layer needs an application.
  *

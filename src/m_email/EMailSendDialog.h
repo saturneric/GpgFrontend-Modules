@@ -73,8 +73,8 @@ class EMailSendDialog : public QDialog {
   void slot_send();
   void slot_stop_confirming();
   void handle_sent(quint64 seq, const EMailSendReceipt& receipt);
-  void handle_sent_lookup(quint64 seq, bool resolved, bool found,
-                          const QString& folder);
+  void handle_sent_saved(quint64 seq, MailSentSaveOutcome outcome,
+                         const QString& folder, const MailError& error);
   void handle_confirm_failed(quint64 seq, const MailError& error);
   void slot_copy_evidence();
   void slot_account_changed();
@@ -89,8 +89,8 @@ class EMailSendDialog : public QDialog {
 
   void start_smtp_worker();
   void stop_workers();
-  /// Begin the Sent-folder check, after the send is already reported as done.
-  void begin_sent_confirmation();
+  /// File a copy in Sent, after the send is already reported as done.
+  void begin_sent_copy();
   void refresh_result();
   /// Re-reads the selected account and says, before anything is sent, whether
   /// it can send at all.
@@ -110,18 +110,21 @@ class EMailSendDialog : public QDialog {
   QList<MailAccountConfig> accounts_;
   EMailSendReceipt receipt_;
 
-  /// Where the Sent check got to. Deliberately separate from the send itself:
-  /// stopping this must never read as having cancelled the submission.
+  /// Where filing the copy got to. Deliberately separate from the send
+  /// itself: stopping this must never read as having cancelled the submission,
+  /// and failing at it never means the message did not go out.
   enum class ConfirmState : uint8_t {
     kNOT_STARTED,
     kCHECKING,
-    kCONFIRMED,
-    kNOT_FOUND,
-    kUNAVAILABLE,
+    kCONFIRMED,    ///< a copy is in Sent -- filed by us or by the server
+    kUNAVAILABLE,  ///< could not be done; confirm_note_ says why
     kSTOPPED,
   };
   ConfirmState confirm_state_{ConfirmState::kNOT_STARTED};
   QString sent_folder_;
+  /// Whether the copy in Sent was the server's doing rather than ours. Both
+  /// are a copy in Sent; only one of them is something this program did.
+  bool already_filed_by_server_{false};
   /// Why the check could not be made, when it could not. Five different
   /// things reach kUNAVAILABLE and only one of them is "no Sent folder", so
   /// the state alone cannot say what happened.

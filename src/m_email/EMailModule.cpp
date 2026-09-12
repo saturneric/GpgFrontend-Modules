@@ -376,6 +376,9 @@ auto GFRegisterModule() -> int {
   qRegisterMetaType<EMailMessagePage>("EMailMessagePage");
   qRegisterMetaType<EMailOutgoingMessage>("EMailOutgoingMessage");
   qRegisterMetaType<EMailSendReceipt>("EMailSendReceipt");
+  // Crosses a thread boundary as a queued signal argument, so it has to be
+  // known to the metatype system by name before the first one is emitted.
+  qRegisterMetaType<MailSentSaveOutcome>("MailSentSaveOutcome");
 
   // vmime's platform handler is assigned lazily with no synchronisation, so
   // two worker threads racing their first connection could construct it twice.

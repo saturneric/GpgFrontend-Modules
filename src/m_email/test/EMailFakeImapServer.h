@@ -27,11 +27,10 @@
  */
 #pragma once
 
-
 #include <QByteArray>
-#include <QStringList>
 #include <QMutex>
 #include <QMutexLocker>
+#include <QStringList>
 #include <QTcpServer>
 #include <QTcpSocket>
 
@@ -44,7 +43,6 @@
  * read-only and PEEK guarantees checkable.
  */
 class FakeImapServer : public QTcpServer {
-
  public:
   explicit FakeImapServer(QObject* parent = nullptr) : QTcpServer(parent) {}
 
@@ -54,6 +52,26 @@ class FakeImapServer : public QTcpServer {
     QMutexLocker locker(&mutex_);
     return commands_;
   }
+
+  /// What SEARCH reports. Real servers answer "nothing matched" for a message
+  /// that is not filed yet, which is the case the Sent-copy path turns on:
+  /// answering "found" unconditionally would hide the append entirely.
+  bool search_finds = true;
+
+  /// Set to true by an APPEND, so a test can tell a copy was actually written
+  /// rather than only that the command was sent.
+  bool appended = false;
+
+  /// The literal an APPEND carried, byte for byte. The whole point of the
+  /// stream overload is that these octets are untouched, so a test has to be
+  /// able to compare them.
+  QByteArray appended_data;
+
+  /// The flags the APPEND asked for, as sent.
+  QString appended_flags;
+
+  /// The mailbox the APPEND named.
+  QString appended_mailbox;
 
   /// Raw message returned for a fetch of the whole body.
   QByteArray message_body =
@@ -68,9 +86,8 @@ class FakeImapServer : public QTcpServer {
   void incomingConnection(qintptr descriptor) override {
     auto* socket = new QTcpSocket(this);
     socket->setSocketDescriptor(descriptor);
-    connect(socket, &QTcpSocket::readyRead, this, [this, socket]() {
-      handle(socket);
-    });
+    connect(socket, &QTcpSocket::readyRead, this,
+            [this, socket]() { handle(socket); });
     socket->write("* OK [CAPABILITY IMAP4rev1] fake ready\r\n");
     socket->flush();
   }
@@ -79,8 +96,38 @@ class FakeImapServer : public QTcpServer {
   mutable QMutex mutex_;
   QStringList commands_;
 
+  /// Bytes still owed by an APPEND literal, and the tag that is waiting on it.
+  qint64 literal_remaining_ = 0;
+  QString literal_tag_;
+
   void handle(QTcpSocket* socket) {
-    while (socket->canReadLine()) {
+    while (true) {
+      // An APPEND literal is binary and may contain anything, newlines
+      // included, so it is read by COUNT rather than by line. Until it has all
+      // arrived nothing else on this connection can be parsed.
+      if (literal_remaining_ > 0) {
+        const auto chunk = socket->read(literal_remaining_);
+        if (chunk.isEmpty()) return;
+
+        appended_data += chunk;
+        literal_remaining_ -= chunk.size();
+        if (literal_remaining_ > 0) return;
+
+        // The client sends a bare CRLF after the literal to end the command.
+        socket->readLine();
+
+        appended = true;
+        // A message that is filed IS findable afterwards, which is what lets
+        // the verifying search in SaveToSentFolder mean something.
+        search_finds = true;
+        socket->write(
+            (literal_tag_ + " OK [APPENDUID 1 2] append done\r\n").toUtf8());
+        socket->flush();
+        continue;
+      }
+
+      if (!socket->canReadLine()) return;
+
       const auto line = QString::fromUtf8(socket->readLine()).trimmed();
       if (line.isEmpty()) continue;
       {
@@ -113,8 +160,32 @@ class FakeImapServer : public QTcpServer {
         out += (tag + (verb == "EXAMINE" ? " OK [READ-ONLY] done\r\n"
                                          : " OK [READ-WRITE] done\r\n"))
                    .toUtf8();
+      } else if (verb == "APPEND") {
+        // tag APPEND "Sent Mail" (\Seen) {123}
+        appended_mailbox = line.section('"', 1, 1);
+        const auto open_paren = line.indexOf('(');
+        const auto close_paren = line.indexOf(')');
+        if (open_paren >= 0 && close_paren > open_paren) {
+          appended_flags =
+              line.mid(open_paren + 1, close_paren - open_paren - 1);
+        }
+
+        const auto brace = line.lastIndexOf('{');
+        const auto end_brace = line.lastIndexOf('}');
+        literal_remaining_ =
+            brace >= 0 && end_brace > brace
+                ? line.mid(brace + 1, end_brace - brace - 1).toLongLong()
+                : 0;
+        literal_tag_ = tag;
+        appended_data.clear();
+
+        // "+" invites the literal. Nothing is answered for this tag until all
+        // of it has arrived.
+        socket->write("+ ready for literal\r\n");
+        socket->flush();
+        continue;
       } else if (verb == "SEARCH") {
-        out += "* SEARCH 1\r\n";
+        if (search_finds) out += "* SEARCH 1\r\n";
         out += (tag + " OK done\r\n").toUtf8();
       } else if (verb == "FETCH") {
         // A whole-body fetch asks for an empty section, "[]"; anything else is

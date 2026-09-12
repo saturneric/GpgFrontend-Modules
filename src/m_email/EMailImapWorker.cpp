@@ -614,6 +614,117 @@ void EMailImapWorker::FindInSentFolder(quint64 seq, const QString& message_id) {
 
 void EMailImapWorker::Disconnect() { impl_->Close(); }
 
+auto EMailImapWorker::OpenSentFolderForWrite(const QString& path)
+    -> vmime::shared_ptr<vmime::net::folder> {
+  if (!impl_->store) return nullptr;
+
+  // The cached read-only folder goes first, whatever path it holds: vmime
+  // refuses open() while any other live object shares the path, so a cached
+  // Sent folder would make this fail every time.
+  if (impl_->folder) {
+    try {
+      if (impl_->folder->isOpen()) impl_->folder->close(false);
+    } catch (...) {
+    }
+    impl_->folder = nullptr;
+    impl_->folder_path.clear();
+  }
+
+  auto folder = impl_->store->getFolder(vmime::utility::path::fromString(
+      path.toStdString(), "/", vmime::charsets::UTF_8));
+
+  // Deliberately NOT stored in impl_->folder. Nothing may inherit a writable
+  // handle: the next reader opens its own, read-only, as it always did.
+  folder->open(vmime::net::folder::MODE_READ_WRITE, true);
+  return folder;
+}
+
+namespace {
+
+/// Whether @p folder already holds a message carrying @p message_id.
+auto SentFolderHolds(const vmime::shared_ptr<vmime::net::folder>& folder,
+                     const QString& message_id) -> bool {
+  auto imap = vmime::dynamicCast<vmime::net::imap::IMAPFolder>(folder);
+  if (!imap || message_id.isEmpty()) return false;
+
+  vmime::net::imap::IMAPSearchAttributes attributes;
+  attributes.add(vmime::net::imap::IMAPSearchTokenFactory::HEADER(
+      "Message-ID", message_id.toStdString()));
+  return !imap->getMessageUIDsMatchingSearchAttributes(attributes).empty();
+}
+
+}  // namespace
+
+void EMailImapWorker::SaveToSentFolder(quint64 seq, const QString& message_id,
+                                       const QByteArray& eml) {
+  vmime::shared_ptr<vmime::net::folder> folder;
+
+  try {
+    const auto path = ResolveSentFolder();
+    if (path.isEmpty()) {
+      emit SignalSentSaved(seq, MailSentSaveOutcome::kUNRESOLVED, {}, {});
+      return;
+    }
+
+    folder = OpenSentFolderForWrite(path);
+    if (!folder) {
+      emit SignalSentSaved(seq, MailSentSaveOutcome::kFAILED, path,
+                           MailInternalError("cannot open the Sent folder"));
+      return;
+    }
+
+    const auto needle = NormalizeMessageId(message_id);
+
+    // Asked before anything is written. A server that files its own copy --
+    // Gmail does, most do not -- would otherwise end up with two, and a
+    // duplicate in Sent is a thing the user then has to clean up by hand.
+    if (SentFolderHolds(folder, needle)) {
+      folder->close(false);
+      emit SignalSentSaved(seq, MailSentSaveOutcome::kALREADY_THERE, path, {});
+      return;
+    }
+
+    // The stream overload, for the same reason the SMTP worker uses it: these
+    // octets may be exactly what a signature covers, and anything that parses
+    // and re-renders the message would rewrite them.
+    vmime::utility::inputStreamStringAdapter input(
+        std::string(eml.constData(), static_cast<size_t>(eml.size())));
+
+    // Seen, because a message the user just sent has been read by definition.
+    // Leaving it unread would put a bold entry in Sent and a "1 unread" badge
+    // on a folder nobody reads.
+    folder->addMessage(input, static_cast<size_t>(eml.size()),
+                       vmime::net::message::FLAG_SEEN, nullptr, nullptr);
+
+    // Read back rather than trusted. The append reported success, but what
+    // matters to the user is that the copy is findable in the folder, and a
+    // message with no Message-ID cannot be looked up at all -- which is
+    // reported as the gap it is rather than as a confirmation.
+    const auto verified = SentFolderHolds(folder, needle);
+    folder->close(false);
+
+    emit SignalSentSaved(seq,
+                         verified ? MailSentSaveOutcome::kSAVED
+                                  : MailSentSaveOutcome::kSAVED_UNVERIFIED,
+                         path, {});
+  } catch (const vmime::exception& e) {
+    if (folder) {
+      try {
+        if (folder->isOpen()) folder->close(false);
+      } catch (...) {
+      }
+    }
+
+    // Reported as a failure to FILE the message, never as a failure to send
+    // it. The send already succeeded and nothing here can undo that.
+    emit SignalSentSaved(
+        seq, MailSentSaveOutcome::kFAILED, {},
+        ClassifyVmimeException(
+            e, MailStage::kLISTING,
+            impl_->timeouts && impl_->timeouts->LastWasCancelled()));
+  }
+}
+
 auto EMailImapWorker::OpenFolderReadOnly(const QString& path)
     -> vmime::shared_ptr<vmime::net::folder> {
   if (!impl_->store) return nullptr;

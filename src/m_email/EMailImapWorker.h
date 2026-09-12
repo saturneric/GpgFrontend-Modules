@@ -89,6 +89,24 @@ struct EMailMessagePage {
 Q_DECLARE_METATYPE(EMailMessagePage)
 
 /**
+ * @brief What became of the attempt to put a sent message in Sent.
+ *
+ * Five answers rather than a bool, because "we could not check" and "it is not
+ * there" are different facts, and because a copy the SERVER filed and a copy
+ * WE filed are both fine but not the same event. None of these says anything
+ * about whether the message was sent: that was settled over SMTP before any
+ * of this ran, and nothing here may cast doubt on it.
+ */
+enum class MailSentSaveOutcome : uint8_t {
+  kALREADY_THERE,     ///< the server had filed a copy itself; nothing appended
+  kSAVED,             ///< appended by us, and found afterwards
+  kSAVED_UNVERIFIED,  ///< appended, and we cannot prove it: no Message-ID
+  kUNRESOLVED,        ///< no Sent folder could be identified
+  kFAILED,            ///< the append itself failed; see the error
+};
+Q_DECLARE_METATYPE(MailSentSaveOutcome)
+
+/**
  * @brief Owns an IMAP session, on its own thread.
  *
  * The only file besides the SMTP worker that includes vmime's networking. It
@@ -150,6 +168,27 @@ class EMailImapWorker : public QObject {
    */
   void FindInSentFolder(quint64 seq, const QString& message_id);
 
+  /**
+   * @brief Put a just-sent message in the account's Sent folder.
+   *
+   * The ONE operation in this class that writes to a mailbox, and the only
+   * reason the read-only invariant below has an exception. It runs after the
+   * message has already been accepted over SMTP, so nothing it does or fails
+   * to do changes whether the message was sent.
+   *
+   * Checks before it writes: a server that filed its own copy -- Gmail does,
+   * most do not -- must not end up with two. That check needs a Message-ID, so
+   * a message carrying none is appended without one and reported as
+   * kSAVED_UNVERIFIED rather than silently risking a duplicate quietly.
+   *
+   * @p eml is appended byte for byte, through the stream overload, so a
+   * signature over those octets survives being filed.
+   *
+   * Emits SignalSentSaved.
+   */
+  void SaveToSentFolder(quint64 seq, const QString& message_id,
+                        const QByteArray& eml);
+
   /// Close the session and release every vmime object, on this thread.
   void Disconnect();
 
@@ -184,6 +223,15 @@ class EMailImapWorker : public QObject {
   void SignalSentLookup(quint64 seq, bool resolved, bool found,
                         const QString& folder);
 
+  /**
+   * @brief Result of filing a copy in Sent.
+   *
+   * @param folder the folder written to, empty when none was resolved
+   * @param error meaningful only for MailSentSaveOutcome::kFAILED
+   */
+  void SignalSentSaved(quint64 seq, MailSentSaveOutcome outcome,
+                       const QString& folder, const MailError& error);
+
   void SignalFailed(quint64 seq, const MailError& error);
 
  public:
@@ -192,6 +240,20 @@ class EMailImapWorker : public QObject {
   [[nodiscard]] auto Token() const -> EMailCancelTokenPtr { return token_; }
 
  private:
+  /**
+   * @brief Open the Sent folder so one message can be appended to it.
+   *
+   * The single, deliberate exception to the read-only rule below, and scoped
+   * to exactly that: it is called only by SaveToSentFolder, it is never
+   * cached, and the folder it returns is closed as soon as the append is done.
+   * Nothing else in this class may use it.
+   *
+   * Releases the cached read-only folder first -- vmime refuses to open a path
+   * that another live folder object already holds.
+   */
+  auto OpenSentFolderForWrite(const QString& path)
+      -> vmime::shared_ptr<vmime::net::folder>;
+
   /**
    * @brief Open a folder for reading and nothing else.
    *

@@ -274,9 +274,9 @@ auto EMailSendDialog::build_result_card() -> QFrame* {
   add_status_row(tr("Submission"), &accepted_dot_, &accepted_label_);
 
   auto* sent_row =
-      add_status_row(tr("Sent copy"), &sent_copy_dot_, &sent_copy_label_);
+      add_status_row(tr("Copy in Sent"), &sent_copy_dot_, &sent_copy_label_);
   stop_confirm_button_ = new QToolButton(sent_row);
-  stop_confirm_button_->setText(tr("Stop checking"));
+  stop_confirm_button_->setText(tr("Stop"));
   stop_confirm_button_->setAutoRaise(true);
   stop_confirm_button_->setVisible(false);
   qobject_cast<QHBoxLayout*>(sent_row->layout())
@@ -511,36 +511,31 @@ void EMailSendDialog::handle_sent(quint64 seq,
   // The submission is finished and reported before anything else happens. The
   // user never waits on an IMAP round trip to learn whether their message went
   // out.
-  if (receipt_.accepted) begin_sent_confirmation();
+  if (receipt_.accepted) begin_sent_copy();
 }
 
-void EMailSendDialog::begin_sent_confirmation() {
+/**
+ * @brief File a copy of the message in the account's Sent folder.
+ *
+ * Runs only after the submission has already been reported. Most servers do
+ * not file a copy of what you send them -- that is the client's job, and not
+ * doing it is why sent mail used to vanish from this program's point of view.
+ *
+ * Nothing here can change whether the message was sent. Every way this can
+ * fail is reported against this line and never against the one above it.
+ */
+void EMailSendDialog::begin_sent_copy() {
   const auto index = account_combo_->currentIndex();
   if (index < 0 || index >= accounts_.size()) return;
 
   const auto account = accounts_.at(index);
 
-  // Confirmation needs IMAP, and an account may legitimately have only SMTP.
-  // That is not a failure; there is simply nothing to check against.
+  // Filing a copy needs IMAP, and an account may legitimately have only SMTP.
+  // That is not a failure; there is simply nowhere to put it.
   if (!account.imap.enabled) {
     confirm_note_ =
         tr("This account is set up for sending only, so there is no mailbox to "
-           "look in.");
-    confirm_state_ = ConfirmState::kUNAVAILABLE;
-    refresh_result();
-    return;
-  }
-
-  // A Sent copy is found by searching for the Message-ID, so a message that
-  // carries none cannot be looked up at all. That is the normal state of a
-  // message sent exactly as it arrived: adding an identifier would rewrite
-  // bytes a signature may cover, so none is added and this check is simply
-  // not available.
-  if (message_.message_id.isEmpty()) {
-    confirm_note_ =
-        tr("This message carries no Message-ID, so there is nothing to search "
-           "for. A message sent exactly as it arrived is never given one, "
-           "because adding it would change bytes a signature may cover.");
+           "keep a copy in.");
     confirm_state_ = ConfirmState::kUNAVAILABLE;
     refresh_result();
     return;
@@ -564,15 +559,16 @@ void EMailSendDialog::begin_sent_confirmation() {
   imap_worker_->moveToThread(imap_thread_);
   connect(imap_thread_, &QThread::finished, imap_worker_,
           &QObject::deleteLater);
-  connect(imap_worker_, &EMailImapWorker::SignalSentLookup, this,
-          &EMailSendDialog::handle_sent_lookup);
+  connect(imap_worker_, &EMailImapWorker::SignalSentSaved, this,
+          &EMailSendDialog::handle_sent_saved);
   connect(imap_worker_, &EMailImapWorker::SignalFailed, this,
           &EMailSendDialog::handle_confirm_failed);
   connect(
       imap_worker_, &EMailImapWorker::SignalConnected, this, [this](quint64) {
-        QMetaObject::invokeMethod(imap_worker_, "FindInSentFolder",
+        QMetaObject::invokeMethod(imap_worker_, "SaveToSentFolder",
                                   Qt::QueuedConnection, Q_ARG(quint64, seq_),
-                                  Q_ARG(QString, message_.message_id));
+                                  Q_ARG(QString, message_.message_id),
+                                  Q_ARG(QByteArray, message_.eml));
       });
   imap_thread_->start();
 
@@ -582,23 +578,53 @@ void EMailSendDialog::begin_sent_confirmation() {
   password.fill(QChar('\0'));
 }
 
-void EMailSendDialog::handle_sent_lookup(quint64 seq, bool resolved, bool found,
-                                         const QString& folder) {
+void EMailSendDialog::handle_sent_saved(quint64 seq,
+                                        MailSentSaveOutcome outcome,
+                                        const QString& folder,
+                                        const MailError& error) {
   if (seq != seq_) return;
   if (confirm_state_ == ConfirmState::kSTOPPED) return;
 
   sent_folder_ = folder;
 
-  // "We could not work out where sent mail goes" is a different answer from
-  // "it is not there", and reporting the first as the second would claim
-  // knowledge we do not have.
-  if (!resolved) {
-    confirm_note_ = tr("No Sent folder could be identified for this account.");
-    confirm_state_ = ConfirmState::kUNAVAILABLE;
-  } else {
-    confirm_state_ =
-        found ? ConfirmState::kCONFIRMED : ConfirmState::kNOT_FOUND;
+  switch (outcome) {
+    case MailSentSaveOutcome::kALREADY_THERE:
+    case MailSentSaveOutcome::kSAVED:
+      confirm_state_ = ConfirmState::kCONFIRMED;
+      confirm_note_.clear();
+      // Which of the two it was still matters to anyone reading closely, so
+      // the wording keeps them apart even though the state does not.
+      already_filed_by_server_ = outcome == MailSentSaveOutcome::kALREADY_THERE;
+      break;
+
+    case MailSentSaveOutcome::kSAVED_UNVERIFIED:
+      // Written, and not provable. Claiming a confirmed copy here would be
+      // asserting something we did not check.
+      confirm_state_ = ConfirmState::kUNAVAILABLE;
+      confirm_note_ =
+          tr("a copy was put in %1, but it cannot be looked up afterwards: "
+             "this message carries no Message-ID. A message sent exactly as it "
+             "arrived is never given one, because adding it would change bytes "
+             "a signature may cover.")
+              .arg(folder);
+      break;
+
+    case MailSentSaveOutcome::kUNRESOLVED:
+      confirm_note_ =
+          tr("no Sent folder could be identified for this account.");
+      confirm_state_ = ConfirmState::kUNAVAILABLE;
+      break;
+
+    case MailSentSaveOutcome::kFAILED:
+      confirm_note_ = error.title.isEmpty()
+                          ? tr("the copy could not be written to the mailbox.")
+                          : tr("the copy could not be written to the mailbox: "
+                               "%1")
+                                .arg(error.title);
+      confirm_state_ = ConfirmState::kUNAVAILABLE;
+      break;
   }
+
   refresh_result();
 }
 
@@ -665,38 +691,37 @@ void EMailSendDialog::refresh_result() {
     case ConfirmState::kNOT_STARTED:
       sent_copy_dot_->SetState(EMailStatusState::kPENDING);
       sent_copy_label_->setText(receipt_.accepted
-                                    ? tr("Not checked")
+                                    ? tr("Not saved")
                                     : tr("Waits until the message is sent"));
       break;
     case ConfirmState::kCHECKING:
       sent_copy_dot_->SetState(EMailStatusState::kPENDING);
-      sent_copy_label_->setText(tr("Checking Sent copy..."));
+      sent_copy_label_->setText(tr("Saving a copy to Sent..."));
       break;
     case ConfirmState::kCONFIRMED:
       sent_copy_dot_->SetState(EMailStatusState::kGOOD);
-      sent_copy_label_->setText(tr("Yes -- found in %1").arg(sent_folder_));
-      break;
-    case ConfirmState::kNOT_FOUND:
-      sent_copy_dot_->SetState(EMailStatusState::kUNKNOWN);
+      // The distinction is kept because it answers a question a user does ask:
+      // whether their server keeps its own copies, or this program does it.
       sent_copy_label_->setText(
-          tr("Not found in %1. Many servers file a copy only after a delay, "
-             "and some do not file one at all.")
-              .arg(sent_folder_));
+          already_filed_by_server_
+              ? tr("Yes -- your mail server had already filed it in %1")
+                    .arg(sent_folder_)
+              : tr("Yes -- saved to %1").arg(sent_folder_));
       break;
     case ConfirmState::kUNAVAILABLE:
       sent_copy_dot_->SetState(EMailStatusState::kUNKNOWN);
-      // The reason, not a guess at it. Five different things end up here and
-      // naming the wrong one sends the user to fix something that was never
-      // broken.
+      // The reason, not a guess at it. Several different things end up here
+      // and naming the wrong one sends the user to fix something that was
+      // never broken. The message still went out, and that is said first.
       sent_copy_label_->setText(
-          confirm_note_.isEmpty() ? tr("Not checked.")
-                                  : tr("Not checked -- %1").arg(confirm_note_));
+          confirm_note_.isEmpty()
+              ? tr("No copy was kept.")
+              : tr("The message was sent, but %1").arg(confirm_note_));
       break;
     case ConfirmState::kSTOPPED:
       sent_copy_dot_->SetState(EMailStatusState::kUNKNOWN);
       sent_copy_label_->setText(
-          tr("Not checked -- you stopped the check. The "
-             "message was still sent."));
+          tr("Stopped -- no copy was kept. The message was still sent."));
       break;
   }
 
