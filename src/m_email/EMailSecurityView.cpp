@@ -36,6 +36,7 @@
 #include <QLocale>
 #include <QTreeWidget>
 #include <QVBoxLayout>
+#include <functional>
 
 #include "EMailHelper.h"
 #include "EMailViewStyle.h"
@@ -116,7 +117,13 @@ void EMailSecurityView::build_ui() {
   layout->addWidget(headline_);
 
   tree_ = new QTreeWidget(this);
-  tree_->setUniformRowHeights(true);
+  // Findings and warnings are sentences, not labels, and a row that ends in an
+  // ellipsis is a row the user cannot act on. Wrapping costs uniform row
+  // heights, which is only a scrolling optimisation and is worth giving up for
+  // text that can actually be read.
+  tree_->setWordWrap(true);
+  tree_->setTextElideMode(Qt::ElideNone);
+  tree_->setUniformRowHeights(false);
   tree_->setAlternatingRowColors(true);
   tree_->setHeaderLabels({tr("Item"), tr("Detail")});
   tree_->header()->setStretchLastSection(true);
@@ -438,6 +445,23 @@ void EMailSecurityView::SetMessage(EMailSecurityState state,
   add_signature_section(regions, results);
   add_recipient_section(recipients);
   add_key_section(addresses, channel);
+
+  // Wrapping handles the usual case; a tooltip is what still works when the
+  // column is dragged narrow, and it costs one walk of a tree that is never
+  // large.
+  std::function<void(QTreeWidgetItem*)> add_tooltips =
+      [&](QTreeWidgetItem* item) {
+        for (int column = 0; column < tree_->columnCount(); ++column) {
+          const auto text = item->text(column);
+          if (!text.isEmpty()) item->setToolTip(column, text);
+        }
+        for (int i = 0; i < item->childCount(); ++i) {
+          add_tooltips(item->child(i));
+        }
+      };
+  for (int i = 0; i < tree_->topLevelItemCount(); ++i) {
+    add_tooltips(tree_->topLevelItem(i));
+  }
 
   tree_->expandAll();
 }

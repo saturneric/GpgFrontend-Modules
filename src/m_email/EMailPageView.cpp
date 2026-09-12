@@ -36,6 +36,7 @@
 #include <QDropEvent>
 #include <QFileDialog>
 #include <QFileInfo>
+#include <QFont>
 #include <QFormLayout>
 #include <QFrame>
 #include <QHBoxLayout>
@@ -47,7 +48,6 @@
 #include <QMessageBox>
 #include <QMimeData>
 #include <QPlainTextEdit>
-#include <QPushButton>
 #include <QSaveFile>
 #include <QStackedWidget>
 #include <QTabWidget>
@@ -265,14 +265,15 @@ auto EMailPageView::build_message_tab() -> QWidget* {
       };
 
   reply_button_ =
-      make_action(QStringLiteral("mail-reply-sender"), ":/icons/quote.png",
+      make_action(QStringLiteral("mail-reply-sender"), ":/icons/reply.png",
                   tr("Reply"), tr("Write a reply to the sender."));
   reply_all_button_ = make_action(
-      QStringLiteral("mail-reply-all"), ":/icons/quote.png", tr("Reply All"),
+      QStringLiteral("mail-reply-all"), ":/icons/reply-all.png",
+      tr("Reply All"),
       tr("Write a reply to the sender and everyone else who was addressed. "
          "Blind recipients are not included."));
   forward_button_ = make_action(
-      QStringLiteral("mail-forward"), ":/icons/export-email.png", tr("Forward"),
+      QStringLiteral("mail-forward"), ":/icons/redo.png", tr("Forward"),
       tr("Pass this message on, with its attachments."));
 
   connect(reply_button_, &QToolButton::clicked, this, [this]() {
@@ -304,7 +305,7 @@ auto EMailPageView::build_message_tab() -> QWidget* {
   action_separator_ = action_separator;
 
   forensic_toggle_ = make_action(
-      QStringLiteral("object-locked"), ":/icons/lock.png", tr("Read-only"),
+      QStringLiteral("object-locked"), ":/icons/read-only.png", tr("Read-only"),
       tr("Lock this message so it cannot be edited or rewritten. Reply and "
          "Forward still work and produce new messages."));
   forensic_toggle_->setCheckable(true);
@@ -435,21 +436,22 @@ auto EMailPageView::build_message_tab() -> QWidget* {
       };
 
   add_button_ = make_attachment_action(
-      QStringLiteral("mail-attachment"), ":/icons/add.png", tr("Attach File"),
+      QStringLiteral("mail-attachment"), ":/icons/attachment.png",
+      tr("Attach File…"),
       tr("Add one or more files to this message. Files can also be dropped "
          "onto the message."));
   // Removing takes a part out of the message being composed; it deletes
   // nothing on disk, and the wording and icon both stay away from suggesting
   // it does.
   remove_button_ = make_attachment_action(
-      QStringLiteral("list-remove"), ":/icons/minus.png", tr("Remove"),
+      QStringLiteral("list-remove"), ":/icons/remove.png", tr("Remove"),
       tr("Take the selected attachments out of this message."));
   save_button_ = make_attachment_action(
-      QStringLiteral("document-save"), ":/icons/filesave.png", tr("Save"),
+      QStringLiteral("document-save"), ":/icons/filesave.png", tr("Save…"),
       tr("Write the selected attachments to a folder."));
   save_all_button_ = make_attachment_action(
       QStringLiteral("document-save-all"), ":/icons/filesaveas.png",
-      tr("Save All"), tr("Write every attachment to a folder."));
+      tr("Save All…"), tr("Write every attachment to a folder."));
 
   buttons->addWidget(add_button_);
   buttons->addWidget(remove_button_);
@@ -630,12 +632,19 @@ void EMailPageView::AdoptSourceView(QWidget* source) {
   source_view_ = source;
   // Last, after Headers: the tabs run from the most interpreted view of the
   // message to the least, ending at the bytes themselves.
-  tabs_->addTab(source, QIcon(":/icons/editor.png"), tr("Raw Source"));
+  tabs_->addTab(source, QIcon(":/icons/code.png"), tr("Raw Source"));
 
   // A locked document cannot be edited here either. Set through the property
   // system because the page hands over a plain QWidget; an editor that does
   // not carry the property simply does not gain a way to be written to.
   if (forensic_) source_view_->setProperty("readOnly", true);
+}
+
+void EMailPageView::ApplyEditorFont(const QFont& font) {
+  // The body is the document's text, so it follows the text editor font. The
+  // header fields, buttons and tables are chrome and deliberately do not.
+  if (body_edit_ != nullptr) body_edit_->setFont(font);
+  if (body_view_ != nullptr) body_view_->setFont(font);
 }
 
 void EMailNotifyKeyringChanged() {
@@ -882,9 +891,12 @@ void EMailPageView::fit_status_banner() {
   const auto full = status_banner_->property("gf_full_text").toString();
   if (full.isEmpty()) return;
 
+  // contentsRect(), not width(): the label paints inside its margins, and
+  // measuring against the full width lets the last glyph fall off the edge
+  // without ever tripping the ellipsis.
   const QFontMetrics metrics(status_banner_->font());
-  status_banner_->setText(
-      metrics.elidedText(full, Qt::ElideRight, status_banner_->width()));
+  status_banner_->setText(metrics.elidedText(
+      full, Qt::ElideRight, status_banner_->contentsRect().width()));
 }
 
 auto EMailPageView::eventFilter(QObject* watched, QEvent* event) -> bool {

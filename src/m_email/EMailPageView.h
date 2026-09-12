@@ -38,6 +38,7 @@ class QToolButton;
 class QTreeWidget;
 class QFormLayout;
 class QFrame;
+class QFont;
 class QLabel;
 class QTabWidget;
 class EMailStructureView;
@@ -103,6 +104,16 @@ class EMailPageView : public QWidget {
    * stays the one canonical content of the tab.
    */
   void AdoptSourceView(QWidget* source);  // NOLINT
+
+  /**
+   * @brief Uses the editor font the application was configured with.
+   *
+   * Optional half of the page/view contract. Applied only to the parts that
+   * are the message itself -- the body editor and the rendered body -- and
+   * never to the surrounding labels and tables, which are chrome and follow
+   * the application font like every other widget.
+   */
+  void ApplyEditorFont(const QFont& font);  // NOLINT
 
   /**
    * @brief Takes the document's bytes as the message to show.
