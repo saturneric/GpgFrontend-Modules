@@ -30,10 +30,13 @@
 
 #include <GFSDKGpg.h>
 
+#include <QAbstractItemView>
 #include <QApplication>
+#include <QClipboard>
 #include <QHeaderView>
 #include <QLabel>
 #include <QLocale>
+#include <QMenu>
 #include <QTreeWidget>
 #include <QVBoxLayout>
 #include <functional>
@@ -45,6 +48,13 @@ namespace {
 
 constexpr int kColItem = 0;
 constexpr int kColValue = 1;
+
+/// Marks an address row that resolved to no key at all. Far past UserRole,
+/// which the tree's own payloads use.
+constexpr int kRoleMissingKey = Qt::UserRole + 20;
+
+/// Which section a top-level row is, as one of the kSection* constants.
+constexpr int kRoleSectionId = Qt::UserRole + 21;
 
 // Mirrors GpgFrontend::GpgKeyStatus, which GFGpgKeyBrief::usability reports.
 //
@@ -126,6 +136,9 @@ void EMailSecurityView::build_ui() {
 
   headline_ = new QLabel(this);
   headline_->setWordWrap(true);
+  // One sentence describing the table beneath it. At full size above an empty
+  // table it read as an orphaned caption rather than as a summary of anything.
+  EMailMakeSecondary(headline_);
   layout->addWidget(headline_);
 
   tree_ = new QTreeWidget(this);
@@ -141,32 +154,169 @@ void EMailSecurityView::build_ui() {
   tree_->header()->setStretchLastSection(true);
   tree_->header()->setSectionResizeMode(kColItem,
                                         QHeaderView::ResizeToContents);
+  EMailPolishTree(tree_);
+  // Copying a fingerprint out of this tab used to be impossible by any route:
+  // the rows are not selectable as text and there was no menu.
+  tree_->setContextMenuPolicy(Qt::CustomContextMenu);
+  connect(tree_, &QTreeWidget::customContextMenuRequested, this,
+          &EMailSecurityView::show_row_menu);
+
   layout->addWidget(tree_, 1);
+
+  // Takes the tree's place rather than a row of its own: exactly one of the
+  // two is on screen at any time.
+  empty_notice_ = EMailEmptyNotice(this, tr("No message is open."));
+  layout->addWidget(empty_notice_, 1);
+  tree_->setVisible(false);
+
+  apply_colors();
+}
+
+void EMailSecurityView::apply_colors() {
+  // The headline's colour is a function of the state, which is why the state
+  // is kept: SetMessage's arguments are gone by the time a theme change
+  // arrives, and a headline that had turned warning-coloured must not come
+  // back muted.
+  EMailSetLabelColor(headline_, state_ == EMailSecurityState::kMALFORMED_PGP
+                                    ? EMailWarningColor(this)
+                                    : EMailMutedColor(this));
+  EMailSetLabelColor(empty_notice_, EMailMutedColor(this));
+  EMailPaintTreeHeader(tree_);
+  EMailRepaintTree(tree_);
+}
+
+void EMailSecurityView::changeEvent(QEvent* event) {
+  QWidget::changeEvent(event);
+  if (EMailIsRestyle(event)) apply_colors();
 }
 
 void EMailSecurityView::Clear() {
   tree_->clear();
   headline_->clear();
+  ShowNotice(tr("No message is open."));
 }
 
-auto EMailSecurityView::add_group(const QString& title) -> QTreeWidgetItem* {
+void EMailSecurityView::ShowNotice(const QString& text) {
+  tree_->clear();
+  tree_->setVisible(false);
+  // The headline describes a table that is not there, so it goes with it.
+  headline_->setVisible(false);
+  empty_notice_->setText(text);
+  empty_notice_->setVisible(true);
+}
+
+void EMailSecurityView::show_row_menu(const QPoint& pos) {
+  auto* item = tree_->itemAt(pos);
+  if (item == nullptr) return;
+
+  tree_->setCurrentItem(item);
+
+  const auto value = item->text(kColValue);
+  const auto label = item->text(kColItem);
+
+  // The fingerprint of the key this row is about: the row itself when it is
+  // the fingerprint row, and otherwise the one hanging under it. Offered
+  // separately from Copy Value because the fingerprint is the thing anyone
+  // comes to this tab to take away, and hunting for the child row to
+  // right-click is a step with no purpose.
+  const auto fingerprint = [this, item]() -> QString {
+    if (item->text(kColItem) == tr("Fingerprint")) return item->text(kColValue);
+    for (int i = 0; i < item->childCount(); ++i) {
+      auto* child = item->child(i);
+      if (child->text(kColItem) == tr("Fingerprint")) {
+        return child->text(kColValue);
+      }
+    }
+    return {};
+  }();
+
+  const bool missing_key = item->data(kColItem, kRoleMissingKey).toBool();
+
+  QMenu menu(this);
+  auto* copy_value = menu.addAction(tr("Copy Value"));
+  copy_value->setEnabled(!value.isEmpty());
+
+  QAction* copy_fpr = nullptr;
+  if (!fingerprint.isEmpty()) {
+    copy_fpr = menu.addAction(tr("Copy Fingerprint"));
+  }
+
+  QAction* copy_address = nullptr;
+  QAction* import = nullptr;
+  if (missing_key) {
+    menu.addSeparator();
+    copy_address = menu.addAction(tr("Copy Address"));
+    if (message_carries_key_) {
+      // The common shape of a first contact: the message that names an
+      // address nothing is known about is also the message carrying the key
+      // for it. Offered only here, because this is the row that is otherwise
+      // a dead end.
+      import = menu.addAction(tr("Import the Key in This Message"));
+    }
+  }
+
+  // Only once something has already tried. Before that the tab runs a
+  // verification on its own when it is opened, and offering to repeat work
+  // that has not happened yet would be a control that means nothing.
+  QAction* verify_again = nullptr;
+  if (has_regions_ && verify_state_ != EMailVerifyState::kNOT_ATTEMPTED) {
+    menu.addSeparator();
+    verify_again = menu.addAction(tr("Verify Again"));
+  }
+
+  auto* chosen = menu.exec(tree_->viewport()->mapToGlobal(pos));
+  if (chosen == nullptr) return;
+
+  auto* clipboard = QApplication::clipboard();
+  if (chosen == copy_value) {
+    clipboard->setText(value);
+  } else if (copy_fpr != nullptr && chosen == copy_fpr) {
+    clipboard->setText(fingerprint);
+  } else if (copy_address != nullptr && chosen == copy_address) {
+    clipboard->setText(label);
+  } else if (import != nullptr && chosen == import) {
+    emit SignalImportMessageKeysRequested();
+  } else if (verify_again != nullptr && chosen == verify_again) {
+    emit SignalVerifyAgainRequested();
+  }
+}
+
+auto EMailSecurityView::add_group(const QString& title, const QString& id)
+    -> QTreeWidgetItem* {
   auto* group = new QTreeWidgetItem(tree_);
   group->setText(kColItem, title);
   auto font = group->font(kColItem);
   font.setBold(true);
   group->setFont(kColItem, font);
   group->setFirstColumnSpanned(true);
+  // Stored so RevealSection() can find this row again. Not matched on the
+  // title: that is translated, and the caller naming it is not.
+  group->setData(kColItem, kRoleSectionId, id);
   return group;
+}
+
+void EMailSecurityView::RevealSection(const QString& section) {
+  for (int i = 0; i < tree_->topLevelItemCount(); ++i) {
+    auto* item = tree_->topLevelItem(i);
+    if (item->data(kColItem, kRoleSectionId).toString() != section) continue;
+
+    tree_->setCurrentItem(item);
+    // PositionAtTop rather than EnsureVisible: the section's own rows are
+    // underneath it, and the point of coming here was to read them.
+    tree_->scrollToItem(item, QAbstractItemView::PositionAtTop);
+    return;
+  }
+
+  // No such section in this message. Nothing to point at, and inventing a
+  // selection elsewhere would send the user to the wrong rows.
 }
 
 void EMailSecurityView::add_signature_section(
     const QList<EMailSignatureRegion>& regions,
-    const QList<EMailSignatureResult>& results) {
+    const QList<EMailSignatureResult>& results, EMailVerifyState verify_state) {
   if (regions.isEmpty()) return;
 
-  auto* group = add_group(tr("Signatures"));
-  const auto muted = EMailMutedColor(this);
-
+  auto* group = add_group(tr("Signatures"), kSectionSignatures);
   for (const auto& region : regions) {
     auto* region_item = new QTreeWidgetItem(group);
     region_item->setText(kColItem,
@@ -190,10 +340,18 @@ void EMailSecurityView::add_signature_section(
       none->setText(kColItem, tr("Result"));
       // Said plainly rather than left blank: a signed range that nothing has
       // vouched for is a fact about the message, not a gap in the display.
-      none->setText(kColValue,
-                    tr("this section is signed, but nothing has verified it "
-                       "yet"));
-      none->setForeground(kColValue, muted);
+      //
+      // Which of the two it is matters. "Nothing has looked yet" is a state
+      // that resolves on its own; "something looked and came back with
+      // nothing" is a finding about the message, and the user can only tell
+      // they are entitled to ask again if the two are not worded alike.
+      none->setText(
+          kColValue,
+          verify_state == EMailVerifyState::kNOT_ATTEMPTED
+              ? tr("this section is signed, but nothing has verified it yet")
+              : tr("this section is signed, but verifying it produced no "
+                   "result -- the signing key may not be in your keyring"));
+      EMailSetCellTone(none, kColValue, EMailTone::kMUTED, this);
     }
 
     for (const auto& result : mine) {
@@ -201,16 +359,17 @@ void EMailSecurityView::add_signature_section(
       item->setText(kColItem,
                     result.uid.isEmpty() ? tr("Unknown signer") : result.uid);
       item->setText(kColValue, DescribeValidity(result.validity));
-      item->setForeground(kColValue, ValidityIsGood(result.validity)
-                                         ? EMailAccentColor(this, true)
-                                         : EMailWarningColor(this));
+      EMailSetCellTone(
+          item, kColValue,
+          ValidityIsGood(result.validity) ? EMailTone::kGOOD : EMailTone::kWARN,
+          this);
 
       const auto detail = [&](const QString& name, const QString& value) {
         if (value.isEmpty()) return;
         auto* row = new QTreeWidgetItem(item);
         row->setText(kColItem, name);
         row->setText(kColValue, value);
-        row->setForeground(kColItem, muted);
+        EMailSetCellTone(row, kColItem, EMailTone::kMUTED, this);
       };
 
       detail(tr("Fingerprint"), result.fingerprint);
@@ -230,14 +389,14 @@ void EMailSecurityView::add_signature_section(
         warn->setText(kColValue,
                       tr("the message declares %1 but the signature used %2")
                           .arg(region.declared_micalg, result.hash_algo));
-        warn->setForeground(kColValue, EMailWarningColor(this));
+        EMailSetCellTone(warn, kColValue, EMailTone::kWARN, this);
       }
 
       for (const auto& warning : result.warnings) {
         auto* warn = new QTreeWidgetItem(item);
         warn->setText(kColItem, tr("Warning"));
         warn->setText(kColValue, warning);
-        warn->setForeground(kColValue, EMailWarningColor(this));
+        EMailSetCellTone(warn, kColValue, EMailTone::kWARN, this);
       }
     }
   }
@@ -247,9 +406,7 @@ void EMailSecurityView::add_recipient_section(
     const QList<EMailRecipientRow>& recipients) {
   if (recipients.isEmpty()) return;
 
-  auto* group = add_group(tr("Recipients"));
-  const auto muted = EMailMutedColor(this);
-
+  auto* group = add_group(tr("Recipients"), kSectionRecipients);
   for (const auto& row : recipients) {
     auto* item = new QTreeWidgetItem(group);
 
@@ -257,7 +414,7 @@ void EMailSecurityView::add_recipient_section(
       case RecipientMatch::kMATCHED:
         item->setText(kColItem, row.address);
         item->setText(kColValue, tr("addressed and encrypted to"));
-        item->setForeground(kColValue, EMailAccentColor(this, true));
+        EMailSetCellTone(item, kColValue, EMailTone::kGOOD, this);
         break;
 
       case RecipientMatch::kADDRESSED_NOT_ENCRYPTED:
@@ -267,7 +424,7 @@ void EMailSecurityView::add_recipient_section(
         item->setText(kColValue,
                       tr("in %1, but NOT encrypted to - they cannot read this")
                           .arg(row.header_field));
-        item->setForeground(kColValue, EMailWarningColor(this));
+        EMailSetCellTone(item, kColValue, EMailTone::kWARN, this);
         break;
 
       case RecipientMatch::kENCRYPTED_NOT_ADDRESSED:
@@ -278,14 +435,14 @@ void EMailSecurityView::add_recipient_section(
                                     : row.info.uid);
         item->setText(kColValue,
                       tr("encrypted to, but not in the visible headers"));
-        item->setForeground(kColValue, muted);
+        EMailSetCellTone(item, kColValue, EMailTone::kMUTED, this);
         break;
 
       case RecipientMatch::kHIDDEN_RECIPIENT:
         item->setText(kColItem, tr("Hidden recipient"));
         item->setText(kColValue,
                       tr("the sender chose not to record who this is"));
-        item->setForeground(kColValue, muted);
+        EMailSetCellTone(item, kColValue, EMailTone::kMUTED, this);
         break;
     }
 
@@ -293,7 +450,7 @@ void EMailSecurityView::add_recipient_section(
       auto* fpr = new QTreeWidgetItem(item);
       fpr->setText(kColItem, tr("Fingerprint"));
       fpr->setText(kColValue, row.info.fingerprint);
-      fpr->setForeground(kColItem, muted);
+      EMailSetCellTone(fpr, kColItem, EMailTone::kMUTED, this);
     }
 
     if (row.info.algo_is_primary_key) {
@@ -302,7 +459,7 @@ void EMailSecurityView::add_recipient_section(
       note->setText(kColValue,
                     tr("the engine reported the primary key rather than the "
                        "encryption subkey actually used"));
-      note->setForeground(kColValue, muted);
+      EMailSetCellTone(note, kColValue, EMailTone::kMUTED, this);
     }
   }
 }
@@ -311,9 +468,7 @@ void EMailSecurityView::add_key_section(const QStringList& addresses,
                                         int channel) {
   if (addresses.isEmpty()) return;
 
-  auto* group = add_group(tr("Keys for these addresses"));
-  const auto muted = EMailMutedColor(this);
-
+  auto* group = add_group(tr("Keys for these addresses"), kSectionKeys);
   QStringList seen;
   for (const auto& address : addresses) {
     const auto email = AddressOfUid(address);
@@ -329,7 +484,10 @@ void EMailSecurityView::add_key_section(const QStringList& addresses,
 
     if (count == 0) {
       item->setText(kColValue, tr("no key found"));
-      item->setForeground(kColValue, EMailWarningColor(this));
+      EMailSetCellTone(item, kColValue, EMailTone::kWARN, this);
+      // Recorded on the row so the menu knows this is an address with nothing
+      // behind it, which is the one case where importing is worth offering.
+      item->setData(kColItem, kRoleMissingKey, true);
       GFGpgFreeKeyBriefs(briefs, count);
       continue;
     }
@@ -347,14 +505,15 @@ void EMailSecurityView::add_key_section(const QStringList& addresses,
       // whatsoever about whose key it is.
       key_item->setText(
           kColValue, tr("key is %1").arg(DescribeUsability(brief.usability)));
-      key_item->setForeground(kColValue, brief.usability == kUSABLE
-                                             ? EMailAccentColor(this, true)
-                                             : EMailWarningColor(this));
+      EMailSetCellTone(
+          key_item, kColValue,
+          brief.usability == kUSABLE ? EMailTone::kGOOD : EMailTone::kWARN,
+          this);
 
       auto* fpr = new QTreeWidgetItem(key_item);
       fpr->setText(kColItem, tr("Fingerprint"));
       fpr->setText(kColValue, QString::fromUtf8(brief.fingerprint));
-      fpr->setForeground(kColItem, muted);
+      EMailSetCellTone(fpr, kColItem, EMailTone::kMUTED, this);
 
       // Identity binding, kept as its own row. A usable key carrying this
       // address only on a secondary or revoked UID is exactly the case a
@@ -364,22 +523,22 @@ void EMailSecurityView::add_key_section(const QStringList& addresses,
       if (brief.matched_uid_revoked != 0) {
         identity->setText(
             kColValue, tr("this address is on a REVOKED user ID of the key"));
-        identity->setForeground(kColValue, EMailWarningColor(this));
+        EMailSetCellTone(identity, kColValue, EMailTone::kWARN, this);
       } else if (brief.matched_uid_is_primary != 0) {
         identity->setText(kColValue, tr("this address is the key's primary "
                                         "user ID"));
-        identity->setForeground(kColValue, EMailAccentColor(this, true));
+        EMailSetCellTone(identity, kColValue, EMailTone::kGOOD, this);
       } else {
         identity->setText(kColValue,
                           tr("this address is a secondary user ID of the key"));
-        identity->setForeground(kColValue, muted);
+        EMailSetCellTone(identity, kColValue, EMailTone::kMUTED, this);
       }
 
       if (brief.can_encrypt == 0) {
         auto* note = new QTreeWidgetItem(key_item);
         note->setText(kColItem, tr("Note"));
         note->setText(kColValue, tr("this key cannot be used for encryption"));
-        note->setForeground(kColValue, EMailWarningColor(this));
+        EMailSetCellTone(note, kColValue, EMailTone::kWARN, this);
       }
     }
 
@@ -391,7 +550,7 @@ void EMailSecurityView::add_findings_section(
     const QList<EMailFinding>& findings) {
   if (findings.isEmpty()) return;
 
-  auto* group = add_group(tr("What stands out"));
+  auto* group = add_group(tr("What stands out"), kSectionFindings);
 
   for (const auto& finding : findings) {
     auto* item = new QTreeWidgetItem(group);
@@ -402,13 +561,13 @@ void EMailSecurityView::add_findings_section(
       case EMailFindingLevel::kRISK:
         // The only level painted as danger. Reserved for things that are
         // actually wrong or built to deceive.
-        item->setForeground(kColItem, EMailThemeColor(this, &GFUIDangerColor));
+        EMailSetCellTone(item, kColItem, EMailTone::kDANGER, this);
         break;
       case EMailFindingLevel::kWARN:
-        item->setForeground(kColItem, EMailWarningColor(this));
+        EMailSetCellTone(item, kColItem, EMailTone::kWARN, this);
         break;
       case EMailFindingLevel::kNOTE:
-        item->setForeground(kColItem, EMailMutedColor(this));
+        EMailSetCellTone(item, kColItem, EMailTone::kMUTED, this);
         break;
     }
   }
@@ -419,7 +578,15 @@ void EMailSecurityView::SetMessage(EMailSecurityState state,
                                    const QList<EMailSignatureResult>& results,
                                    const QList<EMailRecipientRow>& recipients,
                                    const QStringList& addresses, int channel,
-                                   const QList<EMailFinding>& findings) {
+                                   const QList<EMailFinding>& findings,
+                                   EMailVerifyState verify_state,
+                                   bool message_carries_key) {
+  verify_state_ = verify_state;
+  message_carries_key_ = message_carries_key;
+  has_regions_ = !regions.isEmpty();
+  // Kept because the headline's colour depends on it and these arguments are
+  // gone by the time a theme change arrives.
+  state_ = state;
   tree_->clear();
 
   switch (state) {
@@ -444,17 +611,12 @@ void EMailSecurityView::SetMessage(EMailSecurityState state,
       break;
   }
 
-  auto palette = headline_->palette();
-  palette.setColor(QPalette::WindowText,
-                   state == EMailSecurityState::kMALFORMED_PGP
-                       ? EMailWarningColor(this)
-                       : EMailMutedColor(this));
-  headline_->setPalette(palette);
+  apply_colors();
 
   // Findings first: if something about this message is deceptive, that is the
   // thing to read before any of the detail below it.
   add_findings_section(findings);
-  add_signature_section(regions, results);
+  add_signature_section(regions, results, verify_state);
   add_recipient_section(recipients);
   add_key_section(addresses, channel);
 
@@ -476,4 +638,16 @@ void EMailSecurityView::SetMessage(EMailSecurityState state,
   }
 
   tree_->expandAll();
+
+  // A message can be perfectly well formed and still give this tab nothing to
+  // list -- no signature, no encryption, no findings. That is an answer, and
+  // it reads better as one sentence than as an empty ruled box.
+  const bool has_rows = tree_->topLevelItemCount() > 0;
+  headline_->setVisible(true);
+  tree_->setVisible(has_rows);
+  empty_notice_->setVisible(!has_rows);
+  if (!has_rows) {
+    empty_notice_->setText(
+        tr("There is nothing further to report about this message."));
+  }
 }
