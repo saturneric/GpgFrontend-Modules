@@ -34,6 +34,7 @@
 #include <QString>
 
 #include "EMailAccountModel.h"
+#include "EMailSecret.h"
 #include "EMailCancelToken.h"
 #include "EMailNetError.h"
 #include "EMailOutgoing.h"
@@ -83,12 +84,18 @@ class EMailSmtpWorker : public QObject {
 
  public slots:
   /**
-   * @brief Connect, authenticate and submit. @p password is wiped by the call.
+   * @brief Connect, authenticate and submit.
+   *
+   * @p password is shared, not copied: the bytes are erased when the last
+   * holder releases them. The previous wording here said the call wiped it,
+   * which was never true -- it was a QString, and filling one that anything
+   * else still references zeroes a fresh copy. See EMailSecret.
    *
    * Always emits SignalFinished exactly once, including on failure -- a send
    * that vanished silently would be the worst possible outcome here.
    */
-  void Submit(quint64 seq, const MailAccountConfig& account, QString password,
+  void Submit(quint64 seq, const MailAccountConfig& account,
+              EMailSecretPtr password,
               const EMailOutgoingMessage& message);
 
   /**
@@ -102,7 +109,7 @@ class EMailSmtpWorker : public QObject {
    * Emits SignalFinished with an empty receipt whose error says what happened.
    */
   void TestConnection(quint64 seq, const MailAccountConfig& account,
-                      QString password);
+                      EMailSecretPtr password);
 
  signals:
   void SignalFinished(quint64 seq, const EMailSendReceipt& receipt);

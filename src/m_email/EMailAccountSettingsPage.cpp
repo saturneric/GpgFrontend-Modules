@@ -1079,10 +1079,15 @@ void EMailAccountSettingsPage::test_transport(bool imap, QLabel* status) {
     return;
   }
 
-  auto password = password_edit_->text();
-  if (password.isEmpty()) password = pending_passwords_.value(account.id);
-  if (password.isEmpty()) password = EMailCredentialStore::Load(account.id);
-  if (password.isEmpty()) {
+  // Typed field first, then anything staged but not yet applied, then what is
+  // already stored. Whichever it is, it ends up in an EMailSecret so the copy
+  // this function holds can actually be erased.
+  auto password = EMailSecret::CopyFrom(password_edit_->text());
+  if (password->IsEmpty()) {
+    password = EMailSecret::CopyFrom(pending_passwords_.value(account.id));
+  }
+  if (password->IsEmpty()) password = EMailCredentialStore::Load(account.id);
+  if (password->IsEmpty()) {
     set_status(status, tr("Enter a password first."), StatusTone::kPLAIN);
     return;
   }

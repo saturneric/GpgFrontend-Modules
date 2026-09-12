@@ -471,11 +471,9 @@ void EMailSendDialog::refresh_account_state() {
 
   const auto account = accounts_.at(index);
 
-  // Loaded only to learn whether there is one, and wiped immediately. The
-  // password itself is not this function's business.
-  auto password = EMailCredentialStore::Load(account.id);
-  const bool has_password = !password.isEmpty();
-  password.fill(QChar('\0'));
+  // Only whether there is one; the password itself is not this function's
+  // business, and the secret is erased as the shared_ptr goes out of scope.
+  const bool has_password = EMailCredentialStore::Has(account.id);
 
   if (!has_password) {
     // No prompt here: the password is set in Settings and nowhere else.
@@ -507,7 +505,7 @@ void EMailSendDialog::slot_send() {
   const auto account = accounts_.at(index);
 
   auto password = EMailCredentialStore::Load(account.id);
-  if (password.isEmpty()) {
+  if (password->IsEmpty()) {
     // Already reported inline by refresh_account_state(), which also disables
     // the button; reaching here means it changed underneath us.
     refresh_account_state();
@@ -524,9 +522,11 @@ void EMailSendDialog::slot_send() {
   ++seq_;
   QMetaObject::invokeMethod(
       smtp_worker_, "Submit", Qt::QueuedConnection, Q_ARG(quint64, seq_),
-      Q_ARG(MailAccountConfig, account), Q_ARG(QString, password),
+      Q_ARG(MailAccountConfig, account), Q_ARG(EMailSecretPtr, password),
       Q_ARG(EMailOutgoingMessage, message_));
-  password.fill(QChar('\0'));
+  // Released here; the worker holds the only remaining reference and the bytes
+  // are erased when it drops it. Nothing is copied along the way.
+  password.reset();
 
   // The summary above stays exactly where it is, and so does the result block:
   // its first line simply stops saying "not sent yet".
@@ -577,7 +577,7 @@ void EMailSendDialog::begin_sent_copy() {
   }
 
   auto password = EMailCredentialStore::Load(account.id);
-  if (password.isEmpty()) {
+  if (password->IsEmpty()) {
     confirm_note_ = tr(
         "No password is stored for this account, so its mailbox could not be "
         "opened.");
@@ -609,8 +609,8 @@ void EMailSendDialog::begin_sent_copy() {
 
   QMetaObject::invokeMethod(
       imap_worker_, "Connect", Qt::QueuedConnection, Q_ARG(quint64, seq_),
-      Q_ARG(MailAccountConfig, account), Q_ARG(QString, password));
-  password.fill(QChar('\0'));
+      Q_ARG(MailAccountConfig, account), Q_ARG(EMailSecretPtr, password));
+  password.reset();
 }
 
 void EMailSendDialog::handle_sent_saved(quint64 seq,

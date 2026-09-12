@@ -692,7 +692,7 @@ void EMailImapController::connect_to_selected_account() {
   // live", rather than a dialog that holds one for a session and then forgets
   // it. An account without one is already greyed out in the list above.
   auto password = EMailCredentialStore::Load(account.id);
-  if (password.isEmpty()) {
+  if (password->IsEmpty()) {
     disable_account(account.id, tr("no password is stored"));
     status_label_->setText(
         tr("No password is stored for this account. Set one in Settings, "
@@ -717,8 +717,8 @@ void EMailImapController::connect_to_selected_account() {
   const auto seq = next_seq();
   QMetaObject::invokeMethod(
       worker_, "Connect", Qt::QueuedConnection, Q_ARG(quint64, seq),
-      Q_ARG(MailAccountConfig, account), Q_ARG(QString, password));
-  password.fill(QChar('\0'));
+      Q_ARG(MailAccountConfig, account), Q_ARG(EMailSecretPtr, password));
+  password.reset();
 }
 
 void EMailImapController::slot_account_changed() {

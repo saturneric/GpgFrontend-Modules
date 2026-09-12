@@ -36,6 +36,7 @@
 #include <QString>
 
 #include "EMailAccountModel.h"
+#include "EMailSecret.h"
 #include "EMailCancelToken.h"
 #include "EMailNetError.h"
 
@@ -134,7 +135,7 @@ class EMailImapWorker : public QObject {
    *
    * Emits SignalConnected or SignalFailed.
    */
-  void Connect(quint64 seq, const MailAccountConfig& account, QString password);
+  void Connect(quint64 seq, const MailAccountConfig& account, EMailSecretPtr password);
 
   /// List every selectable folder. Emits SignalFolders or SignalFailed.
   void ListFolders(quint64 seq);

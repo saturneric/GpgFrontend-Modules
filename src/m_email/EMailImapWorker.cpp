@@ -53,12 +53,16 @@ namespace {
  */
 class SecureAuthenticator : public vmime::security::defaultAuthenticator {
  public:
-  SecureAuthenticator(QString username, QString password, bool allow_cleartext)
+  SecureAuthenticator(QString username, EMailSecretPtr password,
+                      bool allow_cleartext)
       : username_(std::move(username)),
         password_(std::move(password)),
         allow_cleartext_(allow_cleartext) {}
 
-  ~SecureAuthenticator() override { password_.fill(QChar('\0')); }
+  // No wipe here: the bytes belong to EMailSecret and are erased when the
+  // last holder releases them. Wiping a local copy was the old mistake -- it
+  // detached and zeroed a fresh buffer, leaving the original intact.
+  ~SecureAuthenticator() override = default;
 
   auto getUsername() const -> const vmime::string override {
     return username_.toStdString();
@@ -73,12 +77,14 @@ class SecureAuthenticator : public vmime::security::defaultAuthenticator {
             "refusing to authenticate over an unencrypted connection");
       }
     }
-    return password_.toStdString();
+    // A copy vmime owns and goes on to copy again while encoding AUTH.
+    // Neither is ours to erase; see EMailSecret.
+    return password_ ? password_->StdStringCopy() : std::string();
   }
 
  private:
   QString username_;
-  mutable QString password_;
+  EMailSecretPtr password_;
   bool allow_cleartext_;
 };
 
@@ -312,7 +318,7 @@ EMailImapWorker::~EMailImapWorker() {
 }
 
 void EMailImapWorker::Connect(quint64 seq, const MailAccountConfig& account,
-                              QString password) {
+                              EMailSecretPtr password) {
   impl_->Close();
 
   // Reset on the way in AND cleared on the way out, like every other slot
@@ -341,7 +347,6 @@ void EMailImapWorker::Connect(quint64 seq, const MailAccountConfig& account,
   // Belt and braces over the settings page: even a hand-edited configuration
   // cannot produce a cleartext session to a remote host.
   if (cleartext && !MailHostAllowsCleartext(config.host)) {
-    password.fill(QChar('\0'));
     emit SignalFailed(seq, MailTlsRequiredError(config.host));
     return;
   }
@@ -363,7 +368,6 @@ void EMailImapWorker::Connect(quint64 seq, const MailAccountConfig& account,
 
     impl_->store->setAuthenticator(vmime::make_shared<SecureAuthenticator>(
         config.username, password, cleartext));
-    password.fill(QChar('\0'));
 
     impl_->store->connect();
 
@@ -377,14 +381,12 @@ void EMailImapWorker::Connect(quint64 seq, const MailAccountConfig& account,
 
     emit SignalConnected(seq);
   } catch (const vmime::exception& e) {
-    password.fill(QChar('\0'));
     const auto cancelled =
         impl_->timeouts && impl_->timeouts->LastWasCancelled();
     auto error = ClassifyVmimeException(e, MailStage::kCONNECT, cancelled);
     impl_->Close();
     emit SignalFailed(seq, error);
   } catch (const std::exception& e) {
-    password.fill(QChar('\0'));
     impl_->Close();
     emit SignalFailed(seq, MailInternalError(QString::fromUtf8(e.what())));
   }
