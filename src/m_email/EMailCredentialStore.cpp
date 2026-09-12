@@ -73,10 +73,12 @@ auto Save(const QString& account_id, const QString& password) -> bool {
   // it is told; deciding whether to call it is the caller's job, because only
   // the caller knows whether the user was asked. Refusing here would mean an
   // informed user could not opt in at all.
-  auto utf8 = password.toUtf8();
+  //
+  // Both arguments are handed over owned, from the allocators the SDK will
+  // release them through: the key ordinary, the secret secure. Passing a
+  // QByteArray's internal pointer here would have the SDK free memory Qt owns.
   const auto result =
-      GFSecDurableCacheSave(QDUP(CredentialKey(account_id)), utf8.constData());
-  utf8.fill('\0');
+      GFSecDurableCacheSave(QDUP(CredentialKey(account_id)), QSECDUP(password));
 
   if (result != 0) LOG_ERROR("failed to store mail credential");
   return result == 0;
