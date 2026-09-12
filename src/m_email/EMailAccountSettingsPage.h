@@ -30,13 +30,19 @@
 
 #include <QList>
 #include <QWidget>
+#include <memory>
+#include <mutex>
 
 #include "EMailAccountModel.h"
+#include "EMailAccountStore.h"
+#include "EMailCancelToken.h"
+#include "EMailNetError.h"
 
 class QCheckBox;
 class QComboBox;
 class QGroupBox;
 class QLabel;
+class QScrollArea;
 class QLineEdit;
 class QListWidget;
 class QPushButton;
@@ -74,6 +80,9 @@ class EMailAccountSettingsPage : public QWidget {
   void slot_test_imap();
   void slot_test_smtp();
 
+ protected:
+  void changeEvent(QEvent* event) override;
+
  private:
   void build_ui();
   auto build_identity_group() -> QGroupBox*;
@@ -87,11 +96,22 @@ class EMailAccountSettingsPage : public QWidget {
   /// Update only the selected row's text. Used while typing, because
   /// rebuilding the list mid-edit takes focus away from the field.
   void refresh_current_label();
+  /// What one row of the account list says, marker included.
+  [[nodiscard]] auto row_text_for(const MailAccountConfig& account) const
+      -> QString;
   static auto label_for(const MailAccountConfig& account) -> QString;
   /// Enable, disable and relabel everything that depends on current state.
   void refresh_enabled_state();
   /// Updates the read-only port labels from the connection choices.
   void refresh_port_hints();
+  /// Rebuilds the connection choices from the host each transport now names.
+  void refresh_security_choices();
+  /// Says what is missing or wrong about the selected account, if anything.
+  void refresh_validation();
+  /// The single place this page's colours are decided. Must not touch fonts.
+  void apply_colors();
+  /// Makes the selected account the one used when nothing else is chosen.
+  void slot_set_default();
 
   /// Run one connection test and report it in @p status.
   void test_transport(bool imap, QLabel* status);
@@ -104,7 +124,62 @@ class EMailAccountSettingsPage : public QWidget {
   QString default_id_;
   /// Passwords the user typed this session, by account id. Only written to the
   /// credential store on Apply, and only when remembering is on.
+  /// How a status line reads: neutral, an outcome to be glad of, or a problem.
+  enum class StatusTone : uint8_t { kPLAIN, kGOOD, kBAD };
+
+  /**
+   * @brief One connection test in flight.
+   *
+   * Heap-allocated and shared with the thread doing the work, because the
+   * function that starts a test now returns immediately -- its stack is gone
+   * long before the answer arrives.
+   */
+  struct Probe {
+    quint64 seq{0};
+    /// Which transport this test was for; the two are configured separately
+    /// and may be different machines, so an answer belongs to one of them.
+    bool imap{false};
+    bool connected{false};
+    bool cancelled{false};
+    MailError error;
+    /// Published by the worker thread once its worker exists, so Stop can
+    /// reach it. Guarded because the GUI thread reads it concurrently.
+    std::mutex mutex;
+    EMailCancelTokenPtr token;
+  };
+
+  /// Reports @p probe's outcome, unless it has been superseded.
+  void finish_probe(const std::shared_ptr<Probe>& probe, quint64 seq,
+                    QLabel* status);
+  /// Cancels the running test, if there is one.
+  void slot_stop_test();
+  /// Locks down the controls a running test must not have changed under it.
+  void set_testing(bool testing);
+  /// Writes @p text into @p status in the colour @p tone calls for.
+  void set_status(QLabel* status, const QString& text, StatusTone tone);
+  /// Says what @p error means and what can be done about it.
+  void report_probe_error(const MailError& error, bool imap, QLabel* status);
+  /// Offers to trust the certificate the last test was refused over.
+  void offer_certificate_pin(bool imap, QLabel* status);
+  /// Shows, per transport, whether a certificate is pinned.
+  void refresh_pin_state();
+  /// Drops the pinned certificate for one transport.
+  void forget_pin(bool imap);
+
+  std::shared_ptr<Probe> probe_;
+  quint64 probe_seq_{0};
+
   QMap<QString, QString> pending_passwords_;
+  /// Accounts removed from the list but whose stored password is only
+  /// forgotten on Apply, so Cancel really does put everything back.
+  QStringList pending_removals_;
+  /// Whether the list that was read may be written back. False when the stored
+  /// accounts were refused -- see EMailAccountStore::LoadResult.
+  /// Whether anything has been edited since the page was loaded.
+  bool dirty_{false};
+  bool may_store_{true};
+  EMailAccountStore::LoadOutcome load_outcome_{
+      EMailAccountStore::LoadOutcome::kOK};
   bool loading_{false};
 
   QListWidget* account_list_{};
@@ -121,7 +196,18 @@ class EMailAccountSettingsPage : public QWidget {
   QLineEdit* imap_user_{};
   QLabel* imap_port_hint_{};
   QLineEdit* sent_folder_{};
+  /// Says what is wrong with the selected account, above the transports.
+  QLabel* validation_{};
+  /// Shown instead of the form when there are no accounts at all.
+  QLabel* empty_notice_{};
+  QWidget* empty_panel_{};
+  QWidget* left_panel_{};
+  QPushButton* empty_add_button_{};
+  QScrollArea* editor_scroll_{};
+  QPushButton* default_button_{};
   QPushButton* imap_test_{};
+  QPushButton* imap_stop_{};
+  QLabel* imap_pin_{};
   QLabel* imap_status_{};
 
   QCheckBox* smtp_enabled_{};
@@ -130,6 +216,8 @@ class EMailAccountSettingsPage : public QWidget {
   QLineEdit* smtp_user_{};
   QLabel* smtp_port_hint_{};
   QPushButton* smtp_test_{};
+  QPushButton* smtp_stop_{};
+  QLabel* smtp_pin_{};
   QLabel* smtp_status_{};
 
   QLineEdit* password_edit_{};
