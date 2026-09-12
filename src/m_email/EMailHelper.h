@@ -578,6 +578,20 @@ auto SanitizeAttachmentFileName(const QString& raw,
                                 const QString& mime_type = {}) -> QString;
 
 /**
+ * @brief A file name for a message with subject @p subject.
+ *
+ * The subject is the only thing a message calls itself, so it is what a save
+ * dialog should offer -- but it is written by the sender and may contain path
+ * separators, reserved device names or nothing at all. Sanitized through
+ * SanitizeAttachmentFileName() for that reason, and capped well short of any
+ * filesystem limit so a long subject stays a usable name.
+ *
+ * @param subject the message's subject, which may be empty
+ * @return a safe single-component name ending in ".eml", never empty
+ */
+auto SuggestedEMailFileName(const QString& subject) -> QString;
+
+/**
  * @brief Whether this program may hand @p att straight to the desktop to open.
  *
  * Opening an attachment means giving a file that arrived from a stranger to

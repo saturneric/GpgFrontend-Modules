@@ -480,6 +480,10 @@ namespace {
 /// an installer or an archive -- an archive because what comes out of it is
 /// unknown until it is out, and by then nobody has been asked anything. See
 /// IsSafeToOpenAttachment for why this is an allow-list and not a blocklist.
+/// How much of a subject becomes a file name. Long enough to tell two messages
+/// apart, short enough that the dialog shows the whole thing.
+constexpr int kSuggestedNameLength = 60;
+
 const QStringList kOpenableExtensions = {
     // documents
     "pdf", "txt", "text", "log", "md", "markdown", "csv", "tsv", "rtf", "odt",
@@ -523,6 +527,24 @@ auto SplitExtension(const QString& name) -> QPair<QString, QString> {
 }
 
 }  // namespace
+
+auto SuggestedEMailFileName(const QString& subject) -> QString {
+  const auto trimmed = subject.trimmed();
+  if (trimmed.isEmpty()) return QStringLiteral("untitled.eml");
+
+  // Capped before sanitizing rather than after: the sanitizer's own length cap
+  // is a filesystem limit, and a name that long is unusable as a suggestion
+  // long before it is illegal.
+  auto name = SanitizeAttachmentFileName(trimmed.left(kSuggestedNameLength),
+                                         QStringLiteral("message/rfc822"));
+
+  // The sanitizer guarantees a non-empty name but not this extension -- a
+  // subject that was entirely path separators comes back as "attachment".
+  if (!name.endsWith(QStringLiteral(".eml"), Qt::CaseInsensitive)) {
+    name += QStringLiteral(".eml");
+  }
+  return name;
+}
 
 auto IsSafeToOpenAttachment(const EMailAttachment& att) -> bool {
   // The name as it will actually reach the desktop, so the decision is made
