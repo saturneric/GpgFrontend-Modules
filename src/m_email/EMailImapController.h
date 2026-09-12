@@ -31,6 +31,7 @@
 #include <QDialog>
 #include <QHash>
 #include <QList>
+#include <QSet>
 
 #include "EMailAccountModel.h"
 #include "EMailImapWorker.h"
@@ -81,6 +82,7 @@ class EMailImapController : public QDialog {
 
  protected:
   void closeEvent(QCloseEvent* event) override;
+  void changeEvent(QEvent* event) override;
   /// Watches the Message-ID label so its elision follows the pane's width.
   auto eventFilter(QObject* watched, QEvent* event) -> bool override;
 
@@ -92,6 +94,8 @@ class EMailImapController : public QDialog {
   void slot_previous_page();
   void slot_open_selected();
   void slot_selection_changed();
+  /// The message list's own menu, for the row at @p pos.
+  void slot_message_menu(const QPoint& pos);
   void slot_refresh();
   void slot_cancel_busy();
 
@@ -154,6 +158,12 @@ class EMailImapController : public QDialog {
   auto restore_cached_account(const QString& account_id) -> bool;
 
   void refresh_detail();
+  /// Shows the list or the sentence standing in for it.
+  void refresh_empty_notice();
+  /// The single place this dialog's colours are decided. Must not touch fonts.
+  void apply_colors();
+  /// Redraws the empty-pane glyph in the current theme's muted colour.
+  void paint_placeholder_icon();
   /// Re-elides the Message-ID to whatever width its label currently has.
   void refresh_message_id();
   /// Updates the page position, its label, and the two page buttons.
@@ -170,7 +180,17 @@ class EMailImapController : public QDialog {
   QHash<QString, AccountViewState> cache_;
   QString current_account_id_;
   /// Accounts that cannot be browsed, and why. Keyed by account id.
+  /// The empty-state widgets, kept so a theme change can recolour them.
+  QLabel* placeholder_icon_{};
+  QLabel* placeholder_label_{};
+  QLabel* empty_notice_{};
+  QFrame* detail_rule_{};
+
   QHash<QString, QString> unusable_;
+  /// Accounts whose reason came from an attempt that failed rather than from
+  /// a configuration that is incomplete. Those are worth offering to retry;
+  /// a missing server address is not.
+  QSet<QString> failed_;
 
   EMailImapWorker* worker_{};
   QThread* thread_{};

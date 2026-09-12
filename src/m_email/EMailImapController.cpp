@@ -39,11 +39,13 @@
 #include <QLineEdit>
 #include <QListWidget>
 #include <QLocale>
+#include <QMenu>
 #include <QMessageBox>
 #include <QPainter>
 #include <QProgressBar>
 #include <QPushButton>
 #include <QScrollArea>
+#include <QShortcut>
 #include <QSplitter>
 #include <QStackedWidget>
 #include <QStandardItemModel>
@@ -224,10 +226,11 @@ void EMailImapController::refresh_account_availability() {
       reason = tr("no server is configured");
     } else if (account.imap.username.isEmpty()) {
       reason = tr("no username is configured");
-    } else {
-      auto password = EMailCredentialStore::Load(account.id);
-      if (password.isEmpty()) reason = tr("no password is stored");
-      password.fill(QChar('\0'));
+    } else if (!EMailCredentialStore::Has(account.id)) {
+      // Asked whether one exists, not for its value. Loading it decrypts a
+      // secret this function has no use for, once per account, every time
+      // anything refreshes the list -- including every failure.
+      reason = tr("no password is stored");
     }
 
     // A reason recorded earlier by a real failure outranks these, since it
@@ -245,13 +248,24 @@ void EMailImapController::refresh_account_availability() {
     account_combo_->setItemText(
         i, usable ? label : QString("%1  —  %2").arg(label, reason));
 
+    // A configuration problem cannot be retried from here and the entry is
+    // closed off. A recorded FAILURE can: the password may have been set in
+    // Settings since, or the network may have come back. Leaving those
+    // selectable is what makes Refresh a way back -- previously nothing ever
+    // cleared a recorded failure, so one bad attempt disabled the account for
+    // the whole session.
+    const auto retryable = !usable && failed_.contains(account.id);
+
     if (model != nullptr && model->item(i) != nullptr) {
-      model->item(i)->setEnabled(usable);
+      model->item(i)->setEnabled(usable || retryable);
     }
     account_combo_->setItemData(
         i,
-        usable ? QString()
-               : tr("This account cannot be opened: %1.").arg(reason),
+        usable      ? QString()
+        : retryable ? tr("This account could not be opened: %1.\n\nUse "
+                         "Refresh to try again.")
+                          .arg(reason)
+                    : tr("This account cannot be opened: %1.").arg(reason),
         Qt::ToolTipRole);
   }
 }
@@ -260,6 +274,11 @@ void EMailImapController::disable_account(const QString& account_id,
                                           const QString& reason) {
   if (account_id.isEmpty()) return;
   unusable_.insert(account_id, reason);
+
+  // Recorded as an attempt that failed, as opposed to a configuration that is
+  // incomplete. Only the first kind is worth offering to retry.
+  failed_.insert(account_id);
+
   refresh_account_availability();
 }
 
@@ -292,9 +311,11 @@ void EMailImapController::build_ui() {
   refresh_button_->setAutoRaise(true);
   refresh_button_->setToolTip(tr("Reload this folder from the server"));
 
-  top->addWidget(new QLabel(tr("Account"), this));
+  auto* account_label = new QLabel(tr("&Account"), this);
+  top->addWidget(account_label);
   top->addWidget(account_combo_, 1);
-  top->addWidget(new QLabel(tr("Folder"), this));
+  auto* folder_label = new QLabel(tr("F&older"), this);
+  top->addWidget(folder_label);
   top->addWidget(folder_combo_, 1);
   top->addWidget(search_edit_, 2);
   top->addWidget(refresh_button_);
@@ -329,7 +350,24 @@ void EMailImapController::build_ui() {
   list_->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
   list_->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
   list_->setMinimumWidth(260);
-  splitter_->addWidget(list_);
+  // The pane around it is already a bordered surface; a frame here draws the
+  // same edge twice a few pixels apart.
+  list_->setFrameShape(QFrame::NoFrame);
+
+  // An empty folder used to be a blank box whose only explanation sat in the
+  // button row at the bottom of the window. The sentence takes the list's
+  // place instead, which is where someone looking at the emptiness is looking.
+  auto* list_side = new QWidget(splitter_);
+  auto* list_layout = new QVBoxLayout(list_side);
+  list_layout->setContentsMargins(0, 0, 0, 0);
+  list_layout->setSpacing(0);
+  list_layout->addWidget(list_, 1);
+
+  empty_notice_ = EMailEmptyNotice(list_side);
+  empty_notice_->setVisible(false);
+  list_layout->addWidget(empty_notice_, 1);
+
+  splitter_->addWidget(list_side);
 
   auto* detail_pane = build_detail_pane();
   // Wide enough for a sender address and a useful amount of a Message-ID. The
@@ -386,6 +424,31 @@ void EMailImapController::build_ui() {
   connect(open_button_, &QPushButton::clicked, this,
           &EMailImapController::slot_open_selected);
   connect(cancel_button_, &QPushButton::clicked, this, &QDialog::reject);
+
+  // Everything a list of messages is expected to answer to. There was not one
+  // shortcut or context menu in this window before.
+  list_->setContextMenuPolicy(Qt::CustomContextMenu);
+  connect(list_, &QListWidget::customContextMenuRequested, this,
+          &EMailImapController::slot_message_menu);
+
+  auto* refresh_key = new QShortcut(QKeySequence::Refresh, this);
+  refresh_key->setContext(Qt::WidgetWithChildrenShortcut);
+  connect(refresh_key, &QShortcut::activated, this,
+          &EMailImapController::slot_refresh);
+
+  auto* find_key = new QShortcut(QKeySequence::Find, this);
+  find_key->setContext(Qt::WidgetWithChildrenShortcut);
+  connect(find_key, &QShortcut::activated, this, [this]() {
+    search_edit_->setFocus(Qt::ShortcutFocusReason);
+    search_edit_->selectAll();
+  });
+
+  // Named for the control they operate, so the underlined letter matches what
+  // the user is looking at.
+  account_label->setBuddy(account_combo_);
+  folder_label->setBuddy(folder_combo_);
+
+  apply_colors();
 }
 
 /**
@@ -404,27 +467,16 @@ auto EMailImapController::build_detail_pane() -> QWidget* {
 
   auto* placeholder_icon = new QLabel(detail_placeholder_);
   placeholder_icon->setAlignment(Qt::AlignCenter);
-  {
-    // Drawn muted rather than at full strength: an empty state should read as
-    // waiting for the user, not as something demanding their attention.
-    auto pixmap = QIcon::fromTheme("mail-unread", QIcon(":/icons/email.png"))
-                      .pixmap(48, 48);
-    QPainter painter(&pixmap);
-    painter.setCompositionMode(QPainter::CompositionMode_SourceIn);
-    auto tint = EMailMutedColor(placeholder_icon);
-    tint.setAlpha(120);
-    painter.fillRect(pixmap.rect(), tint);
-    painter.end();
-    placeholder_icon->setPixmap(pixmap);
-  }
+  placeholder_icon_ = placeholder_icon;
+  paint_placeholder_icon();
   placeholder_layout->addWidget(placeholder_icon);
 
-  auto* placeholder_label = new QLabel(
-      tr("Select a message to see its details."), detail_placeholder_);
-  placeholder_label->setAlignment(Qt::AlignCenter);
-  placeholder_label->setWordWrap(true);
-  EMailMakeMuted(placeholder_label);
-  placeholder_layout->addWidget(placeholder_label);
+  placeholder_label_ = new QLabel(tr("Select a message to see its details."),
+                                  detail_placeholder_);
+  placeholder_label_->setAlignment(Qt::AlignCenter);
+  placeholder_label_->setWordWrap(true);
+  EMailMakeMuted(placeholder_label_);
+  placeholder_layout->addWidget(placeholder_label_);
   placeholder_layout->addStretch();
   detail_stack_->addWidget(detail_placeholder_);
 
@@ -463,15 +515,10 @@ auto EMailImapController::build_detail_pane() -> QWidget* {
   EMailMakeSecondary(detail_stamp_);
   card_layout->addWidget(detail_stamp_);
 
-  auto* rule = new QFrame(card);
-  rule->setFrameShape(QFrame::HLine);
-  rule->setFrameShadow(QFrame::Plain);
-  {
-    auto palette = rule->palette();
-    palette.setColor(QPalette::WindowText, EMailBorderColor(rule));
-    rule->setPalette(palette);
-  }
-  card_layout->addWidget(rule);
+  // One pixel, like every other divider in this module. Hand-rolled, this was
+  // a two-pixel bevel.
+  detail_rule_ = EMailRule(card);
+  card_layout->addWidget(detail_rule_);
 
   // --- handles, for anyone who needs them ---------------------------------
   //
@@ -621,13 +668,21 @@ void EMailImapController::closeEvent(QCloseEvent* event) {
 
 void EMailImapController::connect_to_selected_account() {
   const auto index = account_combo_->currentIndex();
-  if (index < 0 || index >= accounts_.size()) return;
+  if (index < 0 || index >= accounts_.size()) {
+    // Said, and the controls put back. A silent return here left the folder
+    // list and search enabled over a session that had already been told to
+    // disconnect.
+    status_label_->setText(tr("Choose an account to open."));
+    refresh_idle_state();
+    return;
+  }
 
   const auto account = accounts_.at(index);
 
   if (unusable_.contains(account.id)) {
     status_label_->setText(tr("This account cannot be opened: %1.")
                                .arg(unusable_.value(account.id)));
+    refresh_idle_state();
     return;
   }
 
@@ -640,7 +695,8 @@ void EMailImapController::connect_to_selected_account() {
     disable_account(account.id, tr("no password is stored"));
     status_label_->setText(
         tr("No password is stored for this account. Set one in Settings, "
-           "under Mail Accounts."));
+           "under Mail Accounts, then use Try Again."));
+    refresh_idle_state();
     return;
   }
 
@@ -687,6 +743,23 @@ void EMailImapController::slot_account_changed() {
 }
 
 void EMailImapController::slot_refresh() {
+  // Refresh is also how an account that was taken out of the list comes back.
+  // The reason it was disabled described one attempt, not the account: a
+  // password set in Settings since, or a network that has come back, makes it
+  // wrong. Without this the only way back was to close and reopen the window.
+  const auto index = account_combo_->currentIndex();
+  if (index >= 0 && index < accounts_.size()) {
+    const auto id = accounts_.at(index).id;
+    if (unusable_.contains(id)) {
+      unusable_.remove(id);
+      failed_.remove(id);
+      refresh_account_availability();
+      account_combo_->setCurrentIndex(index);
+      connect_to_selected_account();
+      return;
+    }
+  }
+
   if (current_folder_.isEmpty()) {
     connect_to_selected_account();
     return;
@@ -765,9 +838,95 @@ auto EMailImapController::current_summary() const
   return &rows_.at(row);
 }
 
+void EMailImapController::slot_message_menu(const QPoint& pos) {
+  auto* item = list_->itemAt(pos);
+  if (item == nullptr) return;
+
+  list_->setCurrentItem(item);
+
+  const auto row = list_->currentRow();
+  if (row < 0 || row >= rows_.size()) return;
+  const auto& summary = rows_.at(row);
+
+  QMenu menu(this);
+  auto* open = menu.addAction(tr("Open"));
+  open->setEnabled(open_button_->isEnabled());
+
+  menu.addSeparator();
+  auto* copy_subject = menu.addAction(tr("Copy Subject"));
+  copy_subject->setEnabled(!summary.subject.isEmpty());
+  auto* copy_sender = menu.addAction(tr("Copy Sender"));
+  copy_sender->setEnabled(!summary.from.isEmpty());
+  auto* copy_id = menu.addAction(tr("Copy Message-ID"));
+  copy_id->setEnabled(!summary.message_id.isEmpty());
+
+  auto* chosen = menu.exec(list_->viewport()->mapToGlobal(pos));
+  if (chosen == nullptr) return;
+
+  auto* clipboard = QApplication::clipboard();
+  if (chosen == open) {
+    slot_open_selected();
+  } else if (chosen == copy_subject) {
+    clipboard->setText(summary.subject);
+  } else if (chosen == copy_sender) {
+    clipboard->setText(summary.from);
+  } else if (chosen == copy_id) {
+    clipboard->setText(summary.message_id);
+  }
+}
+
 void EMailImapController::slot_selection_changed() {
   refresh_detail();
   refresh_idle_state();
+}
+
+void EMailImapController::paint_placeholder_icon() {
+  if (placeholder_icon_ == nullptr) return;
+
+  // Repainted rather than tinted once. The tint is baked into the pixmap's
+  // own pixels, so after a light/dark switch a pixmap coloured for the old
+  // theme stays exactly as it was -- a pale glyph on a dark ground.
+  auto pixmap = QIcon::fromTheme("mail-unread", QIcon(":/icons/email.png"))
+                    .pixmap(48, 48);
+
+  QPainter painter(&pixmap);
+  painter.setCompositionMode(QPainter::CompositionMode_SourceIn);
+
+  // Muted rather than at full strength: an empty state should read as waiting
+  // for the user, not as something demanding their attention.
+  auto tint = EMailMutedColor(placeholder_icon_);
+  tint.setAlpha(120);
+  painter.fillRect(pixmap.rect(), tint);
+  painter.end();
+
+  placeholder_icon_->setPixmap(pixmap);
+}
+
+void EMailImapController::apply_colors() {
+  // The single place this dialog's colours are decided, so a theme change has
+  // one thing to call. Every colour here used to be captured once at
+  // construction and kept whatever the theme did afterwards.
+  paint_placeholder_icon();
+
+  if (placeholder_label_ != nullptr) {
+    EMailSetLabelColor(placeholder_label_, EMailMutedColor(this));
+  }
+  if (detail_rule_ != nullptr) EMailPaintRule(detail_rule_);
+  if (detail_note_frame_ != nullptr) {
+    EMailTintBanner(detail_note_frame_, EMailMutedColor(this));
+  }
+  if (empty_notice_ != nullptr) {
+    EMailSetLabelColor(empty_notice_, EMailMutedColor(this));
+  }
+
+  // These two say what they say in a colour that depends on the message being
+  // shown, so they are asked to decide again rather than recoloured here.
+  refresh_detail();
+}
+
+void EMailImapController::changeEvent(QEvent* event) {
+  QDialog::changeEvent(event);
+  if (EMailIsRestyle(event)) apply_colors();
 }
 
 void EMailImapController::refresh_detail() {
@@ -1106,7 +1265,16 @@ void EMailImapController::handle_fetch_progress(quint64 seq, qint64 current,
 void EMailImapController::handle_failed(quint64 seq, const MailError& error) {
   if (!is_current(seq)) return;
   set_busy(false, {});
-  if (error.category == MailErrorCategory::kCANCELLED) return;
+
+  // Stopping is not a failure, but it is an outcome, and it used to produce
+  // nothing at all -- set_busy() had just blanked the status line, so the
+  // window simply went quiet and left the user wondering whether the Stop had
+  // even registered.
+  if (error.category == MailErrorCategory::kCANCELLED) {
+    status_label_->setText(tr("Stopped."));
+    refresh_idle_state();
+    return;
+  }
 
   // A failure that retrying cannot fix takes the account out of the list, so
   // the user is not invited to try it again and again. A transient one --
@@ -1119,8 +1287,14 @@ void EMailImapController::handle_failed(quint64 seq, const MailError& error) {
     case MailErrorCategory::kDNS:
       disable_account(current_account_id_, tr("the server was not found"));
       break;
-    case MailErrorCategory::kTLS_HANDSHAKE:
     case MailErrorCategory::kTLS_UNTRUSTED:
+      // Not disabled. This is the one TLS failure with a legitimate answer --
+      // a server whose certificate nobody vouches for is the normal case for
+      // one you run yourself -- and the answer lives in Settings, where the
+      // certificate can be looked at and trusted. Taking the account out of
+      // the list here would hide the only route to fixing it.
+      break;
+    case MailErrorCategory::kTLS_HANDSHAKE:
     case MailErrorCategory::kTLS_EXPIRED:
     case MailErrorCategory::kTLS_HOSTNAME:
     case MailErrorCategory::kTLS_REQUIRED:
@@ -1184,7 +1358,26 @@ void EMailImapController::refresh_table() {
   if (previous >= 0 && previous < list_->count()) {
     list_->setCurrentRow(previous);
   }
+
+  refresh_empty_notice();
   refresh_detail();
+}
+
+void EMailImapController::refresh_empty_notice() {
+  if (empty_notice_ == nullptr) return;
+
+  const bool empty = rows_.isEmpty();
+  list_->setVisible(!empty);
+  empty_notice_->setVisible(empty);
+  if (!empty) return;
+
+  // Which kind of empty this is. "No results" and "nothing here" are different
+  // answers, and a folder that has not been opened yet is a third.
+  empty_notice_->setText(
+      searching_ ? tr("No message in this folder matches that search.")
+      : current_folder_.isEmpty()
+          ? tr("Choose a folder to see the messages in it.")
+          : tr("This folder is empty."));
 }
 
 void EMailImapController::set_busy(bool busy, const QString& what) {
