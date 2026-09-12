@@ -852,3 +852,222 @@ TEST(EMailMimeTest, UnwrapNeedsASignatureAsTheSecondPart) {
   EXPECT_EQ(UnwrapProtectedLayer(root, QByteArray("hello"), out),
             EMailUnwrapResult::kMALFORMED);
 }
+
+namespace {
+
+// One layer of exactly what SignEMLData() writes: a multipart/signed wrapping a
+// multipart/mixed that holds the original body beside the signer's own key.
+auto SignedLayer(const QString& inner, const QString& key_id,
+                 const QString& outer_boundary, const QString& inner_boundary)
+    -> QString {
+  return QString(
+             "Content-Type: multipart/signed; "
+             "protocol=\"application/pgp-signature\"; micalg=pgp-sha256; "
+             "boundary=\"%1\"\n"
+             "\n"
+             "--%1\n"
+             "Content-Type: multipart/mixed; boundary=\"%2\"\n"
+             "\n"
+             "--%2\n"
+             "%3"
+             "--%2\n"
+             "Content-Type: application/pgp-keys; name=\"OpenPGP_0x%4.asc\"\n"
+             "Content-Description: OpenPGP public key\n"
+             "Content-Disposition: attachment; "
+             "filename=\"OpenPGP_0x%4.asc\"\n"
+             "\n"
+             "KEY-%4\n"
+             "--%2--\n"
+             "\n"
+             "--%1\n"
+             "Content-Type: application/pgp-signature; "
+             "name=\"OpenPGP_signature.asc\"\n"
+             "\n"
+             "SIGNATURE-%4\n"
+             "--%1--\n")
+      .arg(outer_boundary, inner_boundary, inner, key_id);
+}
+
+auto Headers() -> QString {
+  return "From: a@example.com\n"
+         "To: b@example.com\n"
+         "Subject: s\n"
+         "MIME-Version: 1.0\n";
+}
+
+// What the message looks like after being written back out and read again --
+// the only view that says what a recipient would actually get.
+auto Reparse(const vmime::shared_ptr<vmime::message>& message, EMailPart& root)
+    -> bool {
+  const auto raw =
+      Q_SC(message->generate(vmime::lineLengthLimits::convenient)).toUtf8();
+
+  vmime::shared_ptr<vmime::message> reparsed;
+  if (!CheckIfEMLMessage(raw, reparsed)) return false;
+
+  QList<EMailSignatureRegion> regions;
+  return ParseMimeTree(reparsed, raw, root, regions) == 0;
+}
+
+}  // namespace
+
+// Signing takes the message as it stands, so signing an already-signed message
+// would cover the old signature rather than replace it.
+TEST(EMailMimeTest, StrippingASignatureLeavesExactlyTheMessageThatWasSigned) {
+  vmime::shared_ptr<vmime::message> message;
+  ASSERT_TRUE(ParseLiteral(
+      Headers() + SignedLayer("Content-Type: text/plain; charset=UTF-8\n"
+                              "\n"
+                              "hello\n",
+                              "AAA", "OUTER", "INNER"),
+      message));
+
+  ASSERT_TRUE(StripPreviousSignature(message));
+
+  EMailPart root;
+  ASSERT_TRUE(Reparse(message, root));
+  EXPECT_EQ(root.content_type, "text/plain");
+  EXPECT_TRUE(root.children.isEmpty());
+  EXPECT_TRUE(root.data.contains("hello"));
+}
+
+// The envelope is not part of what was signed and must survive untouched --
+// stripping a signature must not turn the message into a different message.
+TEST(EMailMimeTest, StrippingASignatureKeepsTheEnvelopeHeaders) {
+  vmime::shared_ptr<vmime::message> message;
+  ASSERT_TRUE(ParseLiteral(
+      Headers() + SignedLayer("Content-Type: text/plain; charset=UTF-8\n"
+                              "\n"
+                              "hello\n",
+                              "AAA", "OUTER", "INNER"),
+      message));
+
+  ASSERT_TRUE(StripPreviousSignature(message));
+
+  EMailMetaData meta;
+  ASSERT_EQ(GetEMLMetaData(message, meta), 0);
+  EXPECT_EQ(meta.subject, "s");
+  EXPECT_EQ(meta.to, QStringList{"b@example.com"});
+}
+
+// The signer's key is attached unconditionally, so every re-sign left another
+// one behind: the user saw every key they had ever signed with, oldest first.
+TEST(EMailMimeTest, StrippingRemovesTheKeySignAttachedItself) {
+  vmime::shared_ptr<vmime::message> message;
+  ASSERT_TRUE(ParseLiteral(
+      Headers() + SignedLayer("Content-Type: text/plain; charset=UTF-8\n"
+                              "\n"
+                              "hello\n",
+                              "AAA", "OUTER", "INNER"),
+      message));
+
+  ASSERT_TRUE(StripPreviousSignature(message));
+
+  const auto out = Q_SC(message->generate(vmime::lineLengthLimits::convenient));
+  EXPECT_FALSE(out.contains("KEY-AAA"));
+  EXPECT_FALSE(out.contains("pgp-keys"));
+  EXPECT_FALSE(out.contains("SIGNATURE-AAA"));
+}
+
+// Signatures stacked by repeated re-signing all have to come off, and they
+// alternate with the key parts as the layers are peeled.
+TEST(EMailMimeTest, StrippingUnwindsEverySignatureEverStacked) {
+  const auto once = SignedLayer(
+      "Content-Type: text/plain; charset=UTF-8\n\nhello\n", "AAA", "O1", "I1");
+
+  // The second sign wrapped whatever the first one produced, headers and all.
+  const auto twice = SignedLayer(once, "BBB", "O2", "I2");
+  const auto thrice = SignedLayer(twice, "CCC", "O3", "I3");
+
+  vmime::shared_ptr<vmime::message> message;
+  ASSERT_TRUE(ParseLiteral(Headers() + thrice, message));
+
+  ASSERT_TRUE(StripPreviousSignature(message));
+
+  EMailPart root;
+  ASSERT_TRUE(Reparse(message, root));
+  EXPECT_EQ(root.content_type, "text/plain");
+  EXPECT_TRUE(root.data.contains("hello"));
+
+  const auto out = Q_SC(message->generate(vmime::lineLengthLimits::convenient));
+  for (const auto& key : {"AAA", "BBB", "CCC"}) {
+    EXPECT_FALSE(out.contains(QString("KEY-%1").arg(key))) << key;
+    EXPECT_FALSE(out.contains(QString("SIGNATURE-%1").arg(key))) << key;
+  }
+}
+
+// A key the user deliberately attached is theirs. Only the part Sign writes on
+// its own initiative is taken back off, and the two are told apart by the
+// Content-Description Sign puts on its own.
+TEST(EMailMimeTest, StrippingKeepsAPublicKeyTheUserAttached) {
+  vmime::shared_ptr<vmime::message> message;
+  ASSERT_TRUE(ParseLiteral(
+      Headers() +
+          SignedLayer("Content-Type: multipart/mixed; boundary=\"USER\"\n"
+                      "\n"
+                      "--USER\n"
+                      "Content-Type: text/plain; charset=UTF-8\n"
+                      "\n"
+                      "hello\n"
+                      "--USER\n"
+                      "Content-Type: application/pgp-keys; name=\"1234.asc\"\n"
+                      "Content-Disposition: attachment; "
+                      "filename=\"1234.asc\"\n"
+                      "\n"
+                      "USER-CHOSE-THIS\n"
+                      "--USER--\n",
+                      "AAA", "OUTER", "INNER"),
+      message));
+
+  ASSERT_TRUE(StripPreviousSignature(message));
+
+  const auto out = Q_SC(message->generate(vmime::lineLengthLimits::convenient));
+  EXPECT_TRUE(out.contains("USER-CHOSE-THIS"));
+  EXPECT_FALSE(out.contains("KEY-AAA"));
+}
+
+// Nothing to take off is the ordinary case -- the first signature of a draft --
+// and it must not disturb the message on the way through.
+TEST(EMailMimeTest, StrippingAnUnsignedMessageChangesNothing) {
+  const auto literal = Headers() +
+                       "Content-Type: text/plain; charset=UTF-8\n"
+                       "\n"
+                       "hello\n";
+
+  vmime::shared_ptr<vmime::message> message;
+  ASSERT_TRUE(ParseLiteral(literal, message));
+
+  const auto before =
+      Q_SC(message->generate(vmime::lineLengthLimits::convenient));
+  EXPECT_FALSE(StripPreviousSignature(message));
+  EXPECT_EQ(Q_SC(message->generate(vmime::lineLengthLimits::convenient)),
+            before);
+}
+
+// multipart/signed is not OpenPGP's alone. A signature under some other
+// protocol is not ours to remove, and removing it would destroy a message we
+// cannot rebuild.
+TEST(EMailMimeTest, StrippingLeavesASignatureOfAnotherProtocolAlone) {
+  vmime::shared_ptr<vmime::message> message;
+  ASSERT_TRUE(ParseLiteral(
+      Headers() + "Content-Type: multipart/signed; "
+                  "protocol=\"application/pkcs7-signature\"; micalg=sha-256; "
+                  "boundary=\"B\"\n"
+                  "\n"
+                  "--B\n"
+                  "Content-Type: text/plain; charset=UTF-8\n"
+                  "\n"
+                  "hello\n"
+                  "--B\n"
+                  "Content-Type: application/pkcs7-signature\n"
+                  "\n"
+                  "SMIME\n"
+                  "--B--\n",
+      message));
+
+  EXPECT_FALSE(StripPreviousSignature(message));
+
+  EMailPart root;
+  ASSERT_TRUE(Reparse(message, root));
+  EXPECT_EQ(root.content_type, "multipart/signed");
+}

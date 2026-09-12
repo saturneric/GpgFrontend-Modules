@@ -73,6 +73,49 @@ target_compile_definitions(gf_mod_email_test PRIVATE
 set_target_properties(gf_mod_email_test PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
 
+# --- transport tests that need a server -------------------------------------
+#
+# Separate from gf_mod_email_test on purpose. That target is strictly
+# SDK-free; the workers are not, because they log. So this one supplies small
+# stand-in SDK symbols, and in return it can drive the REAL IMAP and SMTP
+# workers against fake servers on loopback.
+#
+# What it buys is the class of guarantee nothing else can check: that folders
+# are opened read-only, that bodies are peeked, and that a wrong SMTP password
+# is refused. Those are properties of what goes on the wire, and a return
+# value cannot show them -- which is exactly how SMTP came to skip
+# authentication entirely without any test noticing.
+
+add_executable(gf_mod_email_net_test
+  EMailNetTest.cpp
+  EMailSdkStubs.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/../EMailAccountModel.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/../EMailNetError.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/../EMailCancelToken.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/../EMailTlsSetup.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/../EMailImapWorker.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/../EMailSmtpWorker.cpp)
+
+target_include_directories(gf_mod_email_net_test PRIVATE
+  "${CMAKE_CURRENT_SOURCE_DIR}/.."
+  "${CMAKE_CURRENT_SOURCE_DIR}/../vmime/src"
+  "${CMAKE_SOURCE_DIR}/../include"
+  "${CMAKE_BINARY_DIR}/src/vmime"
+  "${CMAKE_BINARY_DIR}/src"
+  "${CMAKE_BINARY_DIR}/src/sdk")
+
+target_link_libraries(gf_mod_email_net_test PRIVATE
+  GTest::gtest GTest::gtest_main Qt::Core Qt::Network vmime-static
+  OpenSSL::SSL OpenSSL::Crypto)
+
+# The stubs stand in for the SDK, so the real export macros must expand to
+# nothing rather than to a visibility attribute on a symbol we define here.
+target_compile_definitions(gf_mod_email_net_test PRIVATE
+  VMIME_STATIC "GF_SDK_EXPORT=" "GF_MODULE_EXPORT=")
+
+set_target_properties(gf_mod_email_net_test PROPERTIES
+  RUNTIME_OUTPUT_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
+
 # --- fuzzing (opt-in, clang only) -------------------------------------------
 #
 # The MIME parsers run on unauthenticated input -- a message has to be parsed

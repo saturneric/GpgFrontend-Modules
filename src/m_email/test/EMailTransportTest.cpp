@@ -53,13 +53,33 @@ TEST(EMailAccountModelTest, SecurityChoiceImpliesTheWellKnownPort) {
   EXPECT_EQ(MailDefaultPort(false, MailTlsMode::kSTARTTLS), 587);
 }
 
-TEST(EMailAccountModelTest, AnExplicitPortOverridesTheDefault) {
+TEST(EMailAccountModelTest, ThePortFollowsTheSecurityChoiceAndNothingElse) {
+  // There is no port field any more: a port is policy. What matters is that
+  // changing the connection kind changes the port, so a port number can never
+  // be the thing that decides whether a session is encrypted.
   MailTransportConfig config;
   config.tls = MailTlsMode::kSTARTTLS;
   EXPECT_EQ(config.EffectivePort(true), 143);
+  EXPECT_EQ(config.EffectivePort(false), 587);
 
-  config.port = 1143;
-  EXPECT_EQ(config.EffectivePort(true), 1143);
+  config.tls = MailTlsMode::kIMPLICIT;
+  EXPECT_EQ(config.EffectivePort(true), 993);
+  EXPECT_EQ(config.EffectivePort(false), 465);
+}
+
+TEST(EMailAccountModelTest, AStoredPortOverrideIsIgnoredAndNeverWrittenBack) {
+  // Accounts written by an earlier build may still carry one. Reading it back
+  // must retire it rather than keep a hidden override alive that no part of
+  // the interface can show or change.
+  const QJsonObject json{{"enabled", true},
+                         {"host", "mail.example.org"},
+                         {"tls", "starttls"},
+                         {"port", 1143},
+                         {"username", "someone"}};
+
+  const auto config = MailTransportConfig::FromJson(json);
+  EXPECT_EQ(config.EffectivePort(true), 143);
+  EXPECT_FALSE(config.ToJson().contains("port"));
 }
 
 TEST(EMailAccountModelTest, OnlyLoopbackMayBeSpokenToInTheClear) {
@@ -108,6 +128,8 @@ TEST(EMailAccountModelTest, AnUnrecognisedSecurityValueReadsAsTheSafestOne) {
 }
 
 TEST(EMailAccountModelTest, PageSizesAreClampedToTheOfferedSet) {
+  // No longer configurable either, but the worker still clamps whatever it is
+  // handed, so a caller cannot ask a server for an unbounded page.
   EXPECT_EQ(MailClampPageSize(25), 25);
   EXPECT_EQ(MailClampPageSize(200), 200);
 
@@ -115,6 +137,16 @@ TEST(EMailAccountModelTest, PageSizesAreClampedToTheOfferedSet) {
   EXPECT_EQ(MailClampPageSize(1), 25);
   EXPECT_EQ(MailClampPageSize(100000), 200);
   EXPECT_EQ(MailClampPageSize(-5), 25);
+}
+
+TEST(EMailAccountModelTest, AStoredPageSizeIsIgnored) {
+  const QJsonObject json{
+      {"address", "someone@example.org"},
+      {"page_size", 175},
+      {"imap", QJsonObject{{"enabled", true}, {"host", "mail.example.org"}}}};
+
+  EXPECT_FALSE(
+      MailAccountConfig::FromJson(json).ToJson().contains("page_size"));
 }
 
 TEST(EMailAccountModelTest, SerializedAccountsNeverCarryASecret) {
