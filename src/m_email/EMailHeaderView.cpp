@@ -36,6 +36,7 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QMenu>
+#include <QShortcut>
 #include <QTreeWidget>
 #include <QVBoxLayout>
 
@@ -69,6 +70,7 @@ void EMailHeaderView::build_ui() {
 
   auto* row = new QHBoxLayout();
   row->setContentsMargins(0, 0, 0, 0);
+  row->setSpacing(6);
 
   filter_ = new QLineEdit(this);
   filter_->setClearButtonEnabled(true);
@@ -90,32 +92,69 @@ void EMailHeaderView::build_ui() {
                                         QHeaderView::ResizeToContents);
   tree_->header()->setSectionResizeMode(kCOL_VALUE, QHeaderView::Stretch);
   tree_->setContextMenuPolicy(Qt::CustomContextMenu);
+  EMailPolishTree(tree_);
   layout->addWidget(tree_, 1);
 
-  empty_notice_ = new QLabel(this);
-  empty_notice_->setAlignment(Qt::AlignCenter);
+  // Takes the tree's place rather than a row under it, so an empty tab is one
+  // sentence instead of a sentence beneath a blank ruled box.
+  empty_notice_ = EMailEmptyNotice(this);
   empty_notice_->setVisible(false);
-  {
-    auto palette = empty_notice_->palette();
-    palette.setColor(QPalette::WindowText, EMailMutedColor(this));
-    empty_notice_->setPalette(palette);
-  }
-  layout->addWidget(empty_notice_);
+  layout->addWidget(empty_notice_, 1);
 
   connect(filter_, &QLineEdit::textChanged, this,
           [this](const QString&) { apply_filter(); });
+
+  // Where a reader's hand goes for "find" on a long list of headers. Scoped to
+  // this widget and its children: several message tabs can be open, and the
+  // key must reach the filter of the one being looked at.
+  auto* find = new QShortcut(QKeySequence::Find, this);
+  find->setContext(Qt::WidgetWithChildrenShortcut);
+  connect(find, &QShortcut::activated, this, [this]() {
+    filter_->setFocus(Qt::ShortcutFocusReason);
+    filter_->selectAll();
+  });
+
+  // Escape clears the filter rather than closing anything, and only while it
+  // has something in it -- otherwise the key is swallowed here instead of
+  // reaching whatever would normally answer it.
+  auto* clear = new QShortcut(QKeySequence(Qt::Key_Escape), filter_);
+  clear->setContext(Qt::WidgetShortcut);
+  connect(clear, &QShortcut::activated, this, [this]() {
+    if (!filter_->text().isEmpty()) filter_->clear();
+  });
 
   connect(tree_, &QTreeWidget::customContextMenuRequested, this,
           [this](const QPoint& pos) {
             if (tree_->itemAt(pos) == nullptr) return;
 
+            // The row under the cursor, not the current one. Qt makes them
+            // agree for a right-click, but a context menu raised from the
+            // keyboard has no cursor over a row at all, and then the two
+            // differ.
+            auto* item = tree_->itemAt(pos);
+
             QMenu menu(this);
             auto* copy_value = menu.addAction(tr("Copy Value"));
             auto* copy_field = menu.addAction(tr("Copy Whole Field"));
             auto* chosen = menu.exec(tree_->viewport()->mapToGlobal(pos));
-            if (chosen == copy_value) copy_selected(false);
-            if (chosen == copy_field) copy_selected(true);
+            if (chosen == copy_value) copy_item(item, false);
+            if (chosen == copy_field) copy_item(item, true);
           });
+
+  apply_colors();
+}
+
+void EMailHeaderView::apply_colors() {
+  // The single place this view's colours are decided; see EMailIsRestyle.
+  // Fonts are set at build time and must not be touched here.
+  EMailSetLabelColor(empty_notice_, EMailMutedColor(this));
+  EMailPaintTreeHeader(tree_);
+  EMailRepaintTree(tree_);
+}
+
+void EMailHeaderView::changeEvent(QEvent* event) {
+  QWidget::changeEvent(event);
+  if (EMailIsRestyle(event)) apply_colors();
 }
 
 void EMailHeaderView::Clear() {
@@ -172,7 +211,7 @@ void EMailHeaderView::refresh() {
     item->setToolTip(kCOL_VALUE, AsExactText(field.raw_line));
 
     if (malformed) {
-      item->setForeground(kCOL_NAME, EMailWarningColor(this));
+      EMailSetCellTone(item, kCOL_NAME, EMailTone::kWARN, this);
     } else {
       item->setFont(kCOL_NAME,
                     QFontDatabase::systemFont(QFontDatabase::FixedFont));
@@ -205,18 +244,33 @@ void EMailHeaderView::apply_filter() {
     if (match) shown++;
   }
 
+  // A message with no headers is a fact about the message, and the table is
+  // replaced by the sentence saying so. A filter that matches nothing is a
+  // fact about what was typed: the table stays where it is, empty, because
+  // swapping it for a label on every keystroke flickers, and because the
+  // filter box directly above is self-evidently the reason it is empty.
   const bool empty = tree_->topLevelItemCount() == 0;
-  tree_->setVisible(!empty && shown > 0);
-  empty_notice_->setVisible(empty || shown == 0);
+  tree_->setVisible(!empty);
+  empty_notice_->setVisible(empty);
   if (empty) {
     empty_notice_->setText(tr("This message has no headers to show."));
-  } else if (shown == 0) {
-    empty_notice_->setText(tr("No headers match."));
   }
 }
 
+void EMailHeaderView::ShowNotice(const QString& text) {
+  loaded_ = false;
+  tree_->clear();
+  tree_->setVisible(false);
+  filter_->setEnabled(false);
+  empty_notice_->setText(text);
+  empty_notice_->setVisible(true);
+}
+
 void EMailHeaderView::copy_selected(bool whole_field) {
-  auto* item = tree_->currentItem();
+  copy_item(tree_->currentItem(), whole_field);
+}
+
+void EMailHeaderView::copy_item(QTreeWidgetItem* item, bool whole_field) {
   if (item == nullptr) return;
 
   const auto role = whole_field ? kCOL_NAME : kCOL_VALUE;

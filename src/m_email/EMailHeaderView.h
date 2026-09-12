@@ -34,6 +34,7 @@
 
 class QLineEdit;
 class QTreeWidget;
+class QTreeWidgetItem;
 class QLabel;
 
 /**
@@ -68,14 +69,25 @@ class EMailHeaderView : public QWidget {
   /// Drops everything shown.
   void Clear();
 
+  /// Replaces the table with @p text, for when there is nothing to tabulate.
+  /// Passing an empty string is not a way to clear the view; use Clear().
+  void ShowNotice(const QString& text);
+
+ protected:
+  void changeEvent(QEvent* event) override;
+
  private:
   void build_ui();
+  /// The single place this view's colours are decided. Must not touch fonts.
+  void apply_colors();
   void refresh();
   /// Hides the rows that do not match the filter, and shows the placeholder
   /// when that leaves nothing. Never rebuilds: filtering is a view choice and
   /// must not be able to change what is in the list.
   void apply_filter();
   void copy_selected(bool whole_field);
+  /// Copies out of @p item, which may be nullptr.
+  void copy_item(QTreeWidgetItem* item, bool whole_field);
 
   QLineEdit* filter_{};
   QTreeWidget* tree_{};
