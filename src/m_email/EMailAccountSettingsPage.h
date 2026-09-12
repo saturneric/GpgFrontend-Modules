@@ -90,6 +90,8 @@ class EMailAccountSettingsPage : public QWidget {
   static auto label_for(const MailAccountConfig& account) -> QString;
   /// Enable, disable and relabel everything that depends on current state.
   void refresh_enabled_state();
+  /// Updates the read-only port labels from the connection choices.
+  void refresh_port_hints();
 
   /// Run one connection test and report it in @p status.
   void test_transport(bool imap, QLabel* status);
@@ -117,9 +119,8 @@ class EMailAccountSettingsPage : public QWidget {
   QLineEdit* imap_host_{};
   QComboBox* imap_security_{};
   QLineEdit* imap_user_{};
-  QSpinBox* imap_port_{};
+  QLabel* imap_port_hint_{};
   QLineEdit* sent_folder_{};
-  QSpinBox* page_size_{};
   QPushButton* imap_test_{};
   QLabel* imap_status_{};
 
@@ -127,7 +128,7 @@ class EMailAccountSettingsPage : public QWidget {
   QLineEdit* smtp_host_{};
   QComboBox* smtp_security_{};
   QLineEdit* smtp_user_{};
-  QSpinBox* smtp_port_{};
+  QLabel* smtp_port_hint_{};
   QPushButton* smtp_test_{};
   QLabel* smtp_status_{};
 

@@ -83,8 +83,11 @@ auto MailDefaultPort(bool imap, MailTlsMode mode) -> quint16;
 struct MailTransportConfig {
   bool enabled{false};
   QString host;
-  /// 0 means "whatever MailDefaultPort says", which is the normal case. A
-  /// non-zero value is an Advanced override and is preserved verbatim.
+  /// Not configurable and not persisted. The port follows from @ref tls as a
+  /// matter of policy, which is what MailDefaultPort expresses: a port number
+  /// must never be able to imply a security level. This field exists only so
+  /// a test can reach a fake server on an ephemeral loopback port; 0, its
+  /// value everywhere else, means "use the policy port".
   quint16 port{0};
   MailTlsMode tls{MailTlsMode::kIMPLICIT};
   QString username;
@@ -132,8 +135,6 @@ struct MailAccountConfig {
   QString sent_folder_override;
 
   /// Rows per page in the message picker. Clamped to the allowed set on read,
-  /// so a hand-edited settings file cannot ask for an unbounded page.
-  int page_size{50};
 
   [[nodiscard]] auto Label() const -> QString;
 

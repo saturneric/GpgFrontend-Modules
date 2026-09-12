@@ -119,17 +119,22 @@ auto EMailAccountSettingsPage::build_transport_group(bool imap) -> QGroupBox* {
   FillSecurityCombo(security);
   auto* user = new QLineEdit(group);
 
-  form->addRow(Tr("Server"), host);
-  form->addRow(Tr("Security"), security);
-  form->addRow(Tr("Username"), user);
+  // The port is policy, not configuration: it follows from the connection
+  // choice and there is no field for it. Showing which port that means keeps
+  // the policy visible without turning it back into a decision -- and a port
+  // number must never be able to imply a security level, which is exactly
+  // what an editable port next to a security combo invites.
+  auto* port_hint = new QLabel(group);
+  port_hint->setEnabled(false);
 
-  // Advanced: a port that is not the well-known one for the chosen security,
-  // and -- for IMAP -- the two listing knobs. 0 means "use the default", which
-  // is what the placeholder says.
-  auto* port = new QSpinBox(group);
-  port->setRange(0, 65535);
-  port->setSpecialValueText(Tr("Automatic"));
-  form->addRow(Tr("Port (advanced)"), port);
+  auto* security_row = new QHBoxLayout;
+  security_row->setContentsMargins(0, 0, 0, 0);
+  security_row->addWidget(security, 1);
+  security_row->addWidget(port_hint);
+
+  form->addRow(Tr("Server"), host);
+  form->addRow(Tr("Connection"), security_row);
+  form->addRow(Tr("Username"), user);
 
   auto* test = new QPushButton(Tr("Test Connection"), group);
   auto* status = new QLabel(group);
@@ -143,22 +148,18 @@ auto EMailAccountSettingsPage::build_transport_group(bool imap) -> QGroupBox* {
     imap_host_ = host;
     imap_security_ = security;
     imap_user_ = user;
-    imap_port_ = port;
+    imap_port_hint_ = port_hint;
     imap_test_ = test;
     imap_status_ = status;
 
+    // The one remaining override, and it earns its place: a server that does
+    // not advertise RFC 6154 SPECIAL-USE cannot have its Sent folder
+    // discovered, and guessing the name would be worse than asking.
     sent_folder_ = new QLineEdit(group);
     sent_folder_->setPlaceholderText(Tr("Discovered automatically"));
-    form->addRow(Tr("Sent folder (advanced)"), sent_folder_);
-
-    page_size_ = new QSpinBox(group);
-    page_size_->setRange(25, 200);
-    page_size_->setSingleStep(25);
-    form->addRow(Tr("Messages per page (advanced)"), page_size_);
+    form->addRow(Tr("Sent folder"), sent_folder_);
 
     connect(sent_folder_, &QLineEdit::textEdited, this,
-            &EMailAccountSettingsPage::slot_field_edited);
-    connect(page_size_, &QSpinBox::valueChanged, this,
             &EMailAccountSettingsPage::slot_field_edited);
     connect(test, &QPushButton::clicked, this,
             &EMailAccountSettingsPage::slot_test_imap);
@@ -167,7 +168,7 @@ auto EMailAccountSettingsPage::build_transport_group(bool imap) -> QGroupBox* {
     smtp_host_ = host;
     smtp_security_ = security;
     smtp_user_ = user;
-    smtp_port_ = port;
+    smtp_port_hint_ = port_hint;
     smtp_test_ = test;
     smtp_status_ = status;
     connect(test, &QPushButton::clicked, this,
@@ -183,8 +184,6 @@ auto EMailAccountSettingsPage::build_transport_group(bool imap) -> QGroupBox* {
   connect(enabled, &QCheckBox::toggled, this,
           &EMailAccountSettingsPage::slot_field_edited);
   connect(security, &QComboBox::currentIndexChanged, this,
-          &EMailAccountSettingsPage::slot_field_edited);
-  connect(port, &QSpinBox::valueChanged, this,
           &EMailAccountSettingsPage::slot_field_edited);
   for (auto* edit : {host, user}) {
     connect(edit, &QLineEdit::textEdited, this,
@@ -332,7 +331,6 @@ void EMailAccountSettingsPage::slot_add_account() {
   account.id = EMailAccountStore::NewAccountId();
   account.imap.enabled = true;
   account.smtp.enabled = true;
-  account.page_size = kMailDefaultPageSize;
   accounts_.append(account);
 
   if (default_id_.isEmpty()) default_id_ = account.id;
@@ -371,7 +369,23 @@ void EMailAccountSettingsPage::slot_field_edited() {
   if (loading_) return;
   store_selected();
   refresh_current_label();
+  refresh_port_hints();
   refresh_enabled_state();
+}
+
+/// Keeps the "Port 993" hints beside the connection combos truthful. They are
+/// labels, never inputs: the number is derived from the choice, so it can only
+/// ever be read.
+void EMailAccountSettingsPage::refresh_port_hints() {
+  const auto describe = [](QComboBox* combo, bool imap) {
+    return Tr("Port %1").arg(MailDefaultPort(imap, SecurityOf(combo)));
+  };
+  if (imap_port_hint_ != nullptr) {
+    imap_port_hint_->setText(describe(imap_security_, true));
+  }
+  if (smtp_port_hint_ != nullptr) {
+    smtp_port_hint_->setText(describe(smtp_security_, false));
+  }
 }
 
 void EMailAccountSettingsPage::load_selected() {
@@ -388,17 +402,16 @@ void EMailAccountSettingsPage::load_selected() {
   imap_host_->setText(account.imap.host);
   SelectSecurity(imap_security_, account.imap.tls);
   imap_user_->setText(account.imap.username);
-  imap_port_->setValue(account.imap.port);
   sent_folder_->setText(account.sent_folder_override);
-  page_size_->setValue(MailClampPageSize(account.page_size));
 
   smtp_enabled_->setChecked(account.smtp.enabled);
   smtp_host_->setText(account.smtp.host);
   SelectSecurity(smtp_security_, account.smtp.tls);
   smtp_user_->setText(account.smtp.username);
-  smtp_port_->setValue(account.smtp.port);
 
   password_edit_->setText(pending_passwords_.value(account.id));
+
+  refresh_port_hints();
 
   imap_status_->clear();
   smtp_status_->clear();
@@ -419,16 +432,13 @@ void EMailAccountSettingsPage::store_selected() {
   account.imap.host = imap_host_->text().trimmed();
   account.imap.tls = SecurityOf(imap_security_);
   account.imap.username = imap_user_->text().trimmed();
-  account.imap.port = static_cast<quint16>(imap_port_->value());
 
   account.smtp.enabled = smtp_enabled_->isChecked();
   account.smtp.host = smtp_host_->text().trimmed();
   account.smtp.tls = SecurityOf(smtp_security_);
   account.smtp.username = smtp_user_->text().trimmed();
-  account.smtp.port = static_cast<quint16>(smtp_port_->value());
 
   account.sent_folder_override = sent_folder_->text().trimmed();
-  account.page_size = MailClampPageSize(page_size_->value());
 
   const auto password = password_edit_->text();
   if (!password.isEmpty()) pending_passwords_[account.id] = password;
@@ -442,8 +452,7 @@ void EMailAccountSettingsPage::refresh_enabled_state() {
   for (auto* widget :
        {static_cast<QWidget*>(imap_host_),
         static_cast<QWidget*>(imap_security_),
-        static_cast<QWidget*>(imap_user_), static_cast<QWidget*>(imap_port_),
-        static_cast<QWidget*>(sent_folder_), static_cast<QWidget*>(page_size_),
+        static_cast<QWidget*>(imap_user_), static_cast<QWidget*>(sent_folder_),
         static_cast<QWidget*>(imap_test_)}) {
     widget->setEnabled(imap_enabled_->isChecked());
   }
@@ -451,8 +460,7 @@ void EMailAccountSettingsPage::refresh_enabled_state() {
   for (auto* widget :
        {static_cast<QWidget*>(smtp_host_),
         static_cast<QWidget*>(smtp_security_),
-        static_cast<QWidget*>(smtp_user_), static_cast<QWidget*>(smtp_port_),
-        static_cast<QWidget*>(smtp_test_)}) {
+        static_cast<QWidget*>(smtp_user_), static_cast<QWidget*>(smtp_test_)}) {
     widget->setEnabled(smtp_enabled_->isChecked());
   }
 }

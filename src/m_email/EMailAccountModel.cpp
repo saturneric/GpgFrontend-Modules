@@ -106,7 +106,6 @@ auto MailTransportConfig::ToJson() const -> QJsonObject {
   return QJsonObject{
       {"enabled", enabled},
       {"host", host},
-      {"port", static_cast<int>(port)},
       {"tls", MailTlsModeToString(tls)},
       {"username", username},
       {"pinned_cert_sha256", pinned_cert_sha256},
@@ -123,8 +122,9 @@ auto MailTransportConfig::FromJson(const QJsonObject& json)
   config.pinned_cert_sha256 =
       json.value("pinned_cert_sha256").toString().toLower();
 
-  const auto port = json.value("port").toInt();
-  config.port = port > 0 && port <= 65535 ? static_cast<quint16>(port) : 0;
+  // A port is deliberately neither written nor read back: it is policy, not
+  // configuration. An account stored by an earlier build may still carry one,
+  // and ignoring it here is what retires the override.
 
   // A stored cleartext mode is re-checked against the host rather than
   // trusted. The file may predate the policy, or have been edited by hand;
@@ -167,7 +167,6 @@ auto MailAccountConfig::ToJson() const -> QJsonObject {
       {"imap", imap.ToJson()},
       {"smtp", smtp.ToJson()},
       {"sent_folder_override", sent_folder_override},
-      {"page_size", page_size},
   };
 }
 
@@ -182,7 +181,5 @@ auto MailAccountConfig::FromJson(const QJsonObject& json) -> MailAccountConfig {
   config.smtp = MailTransportConfig::FromJson(json.value("smtp").toObject());
   config.sent_folder_override =
       json.value("sent_folder_override").toString().trimmed();
-  config.page_size =
-      MailClampPageSize(json.value("page_size").toInt(kMailDefaultPageSize));
   return config;
 }
