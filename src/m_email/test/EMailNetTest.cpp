@@ -198,7 +198,9 @@ auto Submit(FakeSmtpServer::AfterBody after_body, bool cancel_at_body = false,
                      attempt.receipt = receipt;
                    });
 
-  if (cancel_immediately) worker.Token()->Cancel();
+  // Aimed at the very operation about to be submitted, and issued BEFORE it
+  // starts -- the case a token that cleared itself at slot entry used to lose.
+  if (cancel_immediately) worker.Token()->Cancel(1);
 
   // Watches for the body to land and cancels at that instant. A thread rather
   // than a timer because Submit() blocks this one inside vmime.
@@ -208,7 +210,7 @@ auto Submit(FakeSmtpServer::AfterBody after_body, bool cancel_at_body = false,
     canceller = std::thread([&server, &worker, &stop_watching]() {
       while (!stop_watching.load()) {
         if (server.BodyComplete()) {
-          worker.Token()->Cancel();
+          worker.Token()->Cancel(1);
           return;
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(5));
@@ -412,7 +414,8 @@ class EMailImapNetTest : public ::testing::Test {
 // module was in Connect() -- so every later request failed as kCANCELLED and
 // the browser silently went dead until the account was switched.
 TEST_F(EMailImapNetTest, ACancelledOperationDoesNotPoisonTheSession) {
-  worker_.Token()->Cancel();
+  // Aimed at request 2 specifically, and issued before it runs.
+  worker_.Token()->Cancel(2);
   worker_.ListMessages(2, "INBOX", 0, 50, 0);
   EXPECT_EQ(last_error_.category, MailErrorCategory::kCANCELLED);
 
@@ -421,6 +424,39 @@ TEST_F(EMailImapNetTest, ACancelledOperationDoesNotPoisonTheSession) {
   worker_.ListMessages(3, "INBOX", 0, 50, 0);
 
   EXPECT_NE(last_error_.category, MailErrorCategory::kCANCELLED);
+  EXPECT_FALSE(page_.rows.isEmpty());
+}
+
+TEST_F(EMailImapNetTest, AStopBeforeARequestStartsStillStopsIt) {
+  // The request is cancelled while it is still queued -- nothing has begun.
+  // The old token cleared itself at slot entry, so this stop was silently
+  // discarded and the request ran to its full timeout.
+  worker_.Token()->Cancel(5);
+  worker_.ListMessages(5, "INBOX", 0, 50, 0);
+
+  EXPECT_EQ(last_error_.category, MailErrorCategory::kCANCELLED);
+  EXPECT_TRUE(page_.rows.isEmpty()) << "a stopped request still fetched rows";
+}
+
+TEST_F(EMailImapNetTest, AStopDoesNotReachPastTheRequestItNamed) {
+  worker_.Token()->Cancel(5);
+
+  // A LATER request is untouched, even though the stop has never been cleared
+  // by anything.
+  worker_.ListMessages(6, "INBOX", 0, 50, 0);
+
+  EXPECT_NE(last_error_.category, MailErrorCategory::kCANCELLED);
+  EXPECT_FALSE(page_.rows.isEmpty());
+}
+
+TEST_F(EMailImapNetTest, AStopWhileIdleDoesNotCostTheNextRequest) {
+  // Nothing is running, so this names an operation that has already finished.
+  worker_.Token()->Cancel(1);
+
+  worker_.ListMessages(2, "INBOX", 0, 50, 0);
+
+  EXPECT_NE(last_error_.category, MailErrorCategory::kCANCELLED)
+      << "a stop pressed while idle was charged to the next request";
   EXPECT_FALSE(page_.rows.isEmpty());
 }
 
