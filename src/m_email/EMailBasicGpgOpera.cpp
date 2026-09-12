@@ -61,7 +61,6 @@ auto EncryptPlainText(int channel, const QStringList& keys,
   auto from = meta_data.from;
   auto recipient_list = meta_data.to;
   auto cc_list = meta_data.cc;
-  auto bcc_list = meta_data.bcc;
   auto subject = meta_data.subject;
 
   QString name;
@@ -122,17 +121,11 @@ auto EncryptPlainText(int channel, const QStringList& keys,
       }
     }
 
-    for (const QString& recipient : bcc_list) {
-      auto trimmed_recipient = recipient.trimmed();
-      if (ParseEmailString(trimmed_recipient, name, email)) {
-        msg_builder.getBlindCopyRecipients().appendAddress(
-            vmime::make_shared<vmime::mailbox>(email.toStdString()));
-      } else {
-        msg_builder.getBlindCopyRecipients().appendAddress(
-            vmime::make_shared<vmime::mailbox>(
-                trimmed_recipient.toStdString()));
-      }
-    }
+    // No blind recipients are given to the builder: it would write them into
+    // a Bcc: header, and these are the bytes that get sent. A blind recipient
+    // named in the message is not a blind recipient. They belong to
+    // EMailComposeState, where they select encryption recipients without ever
+    // becoming part of the message.
 
     msg_builder.setSubject(vmime::text("..."));
 
@@ -361,7 +354,6 @@ auto SignPlainText(int channel, const QString& key,
   auto from = meta_data.from;
   auto recipient_list = meta_data.to;
   auto cc_list = meta_data.cc;
-  auto bcc_list = meta_data.bcc;
   auto subject = meta_data.subject;
 
   QString name;
@@ -404,18 +396,11 @@ auto SignPlainText(int channel, const QString& key,
       }
     }
 
-    for (const QString& recipient : bcc_list) {
-      auto trimmed_recipient = recipient.trimmed();
-      if (ParseEmailString(trimmed_recipient, name, email)) {
-        msg_builder.getBlindCopyRecipients().appendAddress(
-            vmime::make_shared<vmime::mailbox>(Q_TEXT(name),
-                                               email.toStdString()));
-      } else {
-        msg_builder.getBlindCopyRecipients().appendAddress(
-            vmime::make_shared<vmime::mailbox>(
-                trimmed_recipient.toStdString()));
-      }
-    }
+    // No blind recipients are given to the builder: it would write them into
+    // a Bcc: header, and these are the bytes that get sent. A blind recipient
+    // named in the message is not a blind recipient. They belong to
+    // EMailComposeState, where they select encryption recipients without ever
+    // becoming part of the message.
 
     if (!subject.isEmpty()) {
       msg_builder.setSubject(Q_TEXT(subject));
@@ -960,8 +945,11 @@ auto VerifyEMLData(int channel, const QByteArray& data,
   FLOG_DEBUG("mime part info, raw offset: %1, length: %2",
              part_mime_parse_offset, part_mime_parse_length);
 
+  // A digest WE compute over the exact bytes the signature covers, so the user
+  // can confirm what was signed. It is not the signature's own hash algorithm:
+  // that is what micalg declares and what the verify result actually reports.
   auto part_mime_content_hash = QCryptographicHash::hash(
-      part_mime_content_text, QCryptographicHash::Sha1);
+      part_mime_content_text, QCryptographicHash::Sha256);
   FLOG_DEBUG("mime part of raw content hash: %1",
              part_mime_content_hash.toHex());
 
@@ -1039,7 +1027,7 @@ auto VerifyEMLData(int channel, const QByteArray& data,
   meta_data.from = from_field_value_text;
   meta_data.to = to_field_value_text;
   meta_data.cc = cc_field_value_text;
-  meta_data.bcc = bcc_field_value_text;
+  meta_data.bcc_header = bcc_field_value_text;
   meta_data.reply_to = reply_to_field_value_text;
   meta_data.organization = organization_text;
   meta_data.subject = subject_field_value_text;
@@ -1047,7 +1035,8 @@ auto VerifyEMLData(int channel, const QByteArray& data,
   meta_data.micalg = prm_micalg_value;
   meta_data.public_keys = public_keys_buffer.join("\n");
   meta_data.mime = {};
-  meta_data.mime_hash = part_mime_content_hash.toHex();
+  meta_data.signed_entity_digest = part_mime_content_hash.toHex();
+  meta_data.signed_entity_digest_algo = "SHA-256";
   meta_data.signature = {};
   return 0;
 }
@@ -1222,7 +1211,7 @@ auto DecryptEMLData(int channel, const QByteArray& data,
   meta_data.from = from_field_value_text;
   meta_data.to = to_field_value_text;
   meta_data.cc = cc_field_value_text;
-  meta_data.bcc = bcc_field_value_text;
+  meta_data.bcc_header = bcc_field_value_text;
   meta_data.reply_to = reply_to_field_value_text;
   meta_data.organization = organization_text;
   meta_data.subject = subject_field_value_text;
@@ -1240,4 +1229,57 @@ auto DecryptEMLData(int channel, const QByteArray& data,
   }
 
   return kSUCCESS;
+}
+auto VerifyEMLRegions(int channel, const QByteArray& raw, const EMailPart& root,
+                      const QList<EMailSignatureRegion>& regions,
+                      QList<EMailSignatureResult>& results) -> int {
+  if (raw.isEmpty() || regions.isEmpty()) return 0;
+
+  const auto flat = FlattenMimeTree(root);
+  int verified = 0;
+
+  for (const auto& region : regions) {
+    if (region.raw_offset < 0 || region.raw_length <= 0) continue;
+    if (region.raw_offset + region.raw_length > raw.size()) continue;
+    if (region.signature_part_index < 0 ||
+        region.signature_part_index >= flat.size()) {
+      // A signed container with no signature beside it. The structure view
+      // already says so; there is nothing here to hand an engine.
+      continue;
+    }
+
+    const auto signed_bytes = raw.mid(static_cast<int>(region.raw_offset),
+                                      static_cast<int>(region.raw_length));
+    const auto signature_bytes = flat[region.signature_part_index]->data;
+    if (signature_bytes.trimmed().isEmpty()) continue;
+
+    GFGpgVerifyResult* s = nullptr;
+    auto ret =
+        GFGpgVerifyData(channel, QDUP(signed_bytes), QDUP(signature_bytes), &s);
+    if (ret != 0 || s == nullptr) continue;
+
+    const auto err = s->gpgme_error;
+    const auto capsule_id = UDUP(s->capsule_id);
+
+    GFGpgFreeResult(s->gpgme_verify_result);
+    GFFreeMemory(s);
+
+    // The structured form, not the report: a per-signature view cannot be
+    // rebuilt by re-reading prose. The capsule is consumed here, so everything
+    // needed has to come out of this one call.
+    const char* analyse = nullptr;
+    const char* info_json = nullptr;
+    GFAnalyseVerifyResultInfoByCapsule(channel, err, QDUP(capsule_id), &analyse,
+                                       nullptr, &info_json);
+
+    auto region_results =
+        ParseSignatureResults(UnStrDup(info_json).toUtf8(), region.region_id);
+    CheckMicalgAgreement(region_results, region);
+    results.append(region_results);
+
+    GFFreeMemory(const_cast<char*>(analyse));
+    ++verified;
+  }
+
+  return verified;
 }

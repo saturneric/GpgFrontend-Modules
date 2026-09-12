@@ -99,6 +99,33 @@ auto SignEMLData(int channel, const QString& key,
     -> int;
 
 /**
+ * @brief Verifies every signature region in a parsed message.
+ *
+ * VerifyEMLData() checks the message against RFC 3156 and verifies its
+ * outermost signature; that stays the primary path and the source of the
+ * operation's status. This walks the regions the tree found and verifies each
+ * one on ITS OWN bytes, which is the only way a nested or countersigned
+ * message reports more than its outer signature.
+ *
+ * Each result is stamped with the region_id whose bytes produced it, at the
+ * call site that passed those bytes in -- results are never matched to regions
+ * by position, since one region can yield several signatures or none.
+ *
+ * Results whose hash algorithm disagrees with the region's declared micalg are
+ * flagged rather than reconciled.
+ *
+ * @param channel GPG context channel
+ * @param raw the ORIGINAL message bytes the tree was parsed from
+ * @param root the parsed tree
+ * @param regions the regions found in @p root
+ * @param results receives every signature reported, across all regions
+ * @return the number of regions that could be verified, or -1 on a bad argument
+ */
+auto VerifyEMLRegions(int channel, const QByteArray& raw, const EMailPart& root,
+                      const QList<EMailSignatureRegion>& regions,
+                      QList<EMailSignatureResult>& results) -> int;
+
+/**
  * @brief
  *
  * @param data
