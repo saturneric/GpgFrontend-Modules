@@ -76,6 +76,28 @@ class FakeSmtpServer : public QTcpServer {
 
   bool authenticated{false};
 
+  /// What the server does once the message body has been fully received --
+  /// i.e. after the terminating ".", at the exact moment the client is waiting
+  /// for the 250 that says the message was accepted.
+  ///
+  /// This is the only interesting moment in an SMTP submission. Everything
+  /// before it is safe to report as "not sent"; after it, whether the message
+  /// was delivered is genuinely unknown, and every one of these behaviours has
+  /// to end up saying so rather than claiming a clean failure.
+  enum class AfterBody {
+    kAccept,     ///< answer 250: the ordinary success
+    kDropConnection,  ///< close the socket without answering
+    kStall,      ///< read the body, then never answer at all
+  };
+  AfterBody after_body{AfterBody::kAccept};
+
+  /// True once the terminating "." has been seen, so a test can wait for the
+  /// body to be fully on the wire before doing anything else.
+  auto BodyComplete() const -> bool {
+    QMutexLocker locker(&mutex_);
+    return body_complete_;
+  }
+
   static auto CertificatePem() -> QByteArray {
     return
       "-----BEGIN CERTIFICATE-----\n"
@@ -177,8 +199,9 @@ class FakeSmtpServer : public QTcpServer {
 
   /// What a bare base64 line arriving next should be read as. AUTH LOGIN is a
   /// three-round-trip conversation, so the line alone does not say.
-  enum class Expect { kCommand, kLoginUser, kLoginPassword };
+  enum class Expect { kCommand, kLoginUser, kLoginPassword, kBody };
   Expect expect_{Expect::kCommand};
+  bool body_complete_{false};
 
   void handle(QTcpSocket* socket) {
     while (socket->canReadLine()) {
@@ -190,6 +213,30 @@ class FakeSmtpServer : public QTcpServer {
       }
 
       QByteArray out;
+
+      if (expect_ == Expect::kBody) {
+        // In DATA mode every line is body content until the lone ".".
+        if (line != ".") continue;
+
+        {
+          QMutexLocker locker(&mutex_);
+          body_complete_ = true;
+        }
+        expect_ = Expect::kCommand;
+
+        if (after_body == AfterBody::kDropConnection) {
+          socket->abort();
+          return;
+        }
+        if (after_body == AfterBody::kStall) {
+          // Deliberately no reply and no close: the client sits waiting for a
+          // 250 that never comes, which is what a hung server looks like.
+          continue;
+        }
+        socket->write("250 2.0.0 Ok: queued\r\n");
+        socket->flush();
+        continue;
+      }
 
       if (expect_ == Expect::kLoginUser) {
         seen_username = QString::fromUtf8(QByteArray::fromBase64(line.toUtf8()));
@@ -258,6 +305,7 @@ class FakeSmtpServer : public QTcpServer {
     }
     if (verb == "DATA") {
       if (!authenticated) return "530 5.7.0 Authentication required\r\n";
+      expect_ = Expect::kBody;
       return "354 End data with <CR><LF>.<CR><LF>\r\n";
     }
     if (verb == "QUIT") return "221 2.0.0 Bye\r\n";

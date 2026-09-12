@@ -47,6 +47,9 @@
 
 #include <QCoreApplication>
 #include <QThread>
+#include <atomic>
+#include <chrono>
+#include <thread>
 
 #include "EMailFakeImapServer.h"
 #include "EMailFakeSmtpServer.h"
@@ -142,6 +145,87 @@ auto TrySmtp(const QStringList& mechanisms, const QString& password,
   return attempt;
 }
 
+
+/// The outcome of a real submission against the fake server.
+struct SubmitAttempt {
+  bool finished{false};
+  EMailSendReceipt receipt;
+  QStringList commands;
+  bool body_complete{false};
+};
+
+/// Submits a small message and returns what the worker reported.
+///
+/// @param after_body what the server does at the one moment that matters --
+///        once the body is fully received and the client is waiting for 250
+/// @param cancel_at_body cancel the operation as soon as the body is on the
+///        wire, i.e. exactly when the outcome stops being knowable
+auto Submit(FakeSmtpServer::AfterBody after_body, bool cancel_at_body = false,
+            bool cancel_immediately = false) -> SubmitAttempt {
+  FakeSmtpServer server;
+  server.after_body = after_body;
+  if (!server.listen(QHostAddress::LocalHost, 0)) return {};
+
+  ServerThread<FakeSmtpServer> running(&server);
+
+  MailAccountConfig account;
+  account.id = "test";
+  account.address = "me@example.org";
+  account.smtp.enabled = true;
+  account.smtp.host = "127.0.0.1";
+  account.smtp.port = server.serverPort();
+  account.smtp.tls = MailTlsMode::kIMPLICIT;
+  account.smtp.username = "user";
+  account.smtp.pinned_cert_sha256 = FakeSmtpServer::Fingerprint();
+
+  EMailOutgoingMessage message;
+  message.envelope_from = "me@example.org";
+  message.envelope_rcpt = QStringList{"you@example.org"};
+  message.message_id = "test-message-id@example.org";
+  message.eml =
+      "From: me@example.org\r\n"
+      "To: you@example.org\r\n"
+      "Subject: submission\r\n"
+      "Message-ID: <test-message-id@example.org>\r\n"
+      "\r\n"
+      "body\r\n";
+
+  EMailSmtpWorker worker;
+  SubmitAttempt attempt;
+  QObject::connect(&worker, &EMailSmtpWorker::SignalFinished, &worker,
+                   [&attempt](quint64, const EMailSendReceipt& receipt) {
+                     attempt.finished = true;
+                     attempt.receipt = receipt;
+                   });
+
+  if (cancel_immediately) worker.Token()->Cancel();
+
+  // Watches for the body to land and cancels at that instant. A thread rather
+  // than a timer because Submit() blocks this one inside vmime.
+  std::thread canceller;
+  std::atomic<bool> stop_watching{false};
+  if (cancel_at_body) {
+    canceller = std::thread([&server, &worker, &stop_watching]() {
+      while (!stop_watching.load()) {
+        if (server.BodyComplete()) {
+          worker.Token()->Cancel();
+          return;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+      }
+    });
+  }
+
+  worker.Submit(1, account, "correct-horse", message);
+
+  stop_watching.store(true);
+  if (canceller.joinable()) canceller.join();
+
+  attempt.commands = server.Commands();
+  attempt.body_complete = server.BodyComplete();
+  return attempt;
+}
+
 }  // namespace
 
 // ---------------------------------------------------------------------------
@@ -191,6 +275,95 @@ TEST(EMailSmtpNetTest, NoCredentialIsSentOverACleartextLink) {
   ASSERT_FALSE(attempt.commands.isEmpty());
   EXPECT_TRUE(attempt.seen_password.isEmpty());
   EXPECT_TRUE(attempt.seen_username.isEmpty());
+}
+
+// ---------------------------------------------------------------------------
+// SMTP submission: what may be claimed about a message, and when
+//
+// There is exactly one moment that matters. Before the body is fully written
+// nothing was delivered and saying so is safe. After it, the server may
+// already have queued the message, and NOTHING -- not a timeout, not a dropped
+// socket, not the user pressing Stop -- can tell the difference. Reporting any
+// of those as a clean failure is what produces a duplicate, because the user
+// sends again.
+// ---------------------------------------------------------------------------
+
+TEST(EMailSmtpNetTest, AnAcceptedSubmissionIsReportedAsAccepted) {
+  const auto attempt = Submit(FakeSmtpServer::AfterBody::kAccept);
+
+  ASSERT_TRUE(attempt.finished);
+  EXPECT_TRUE(attempt.receipt.accepted);
+  EXPECT_FALSE(attempt.receipt.ambiguous)
+      << "a clean 250 is not an ambiguous outcome";
+  EXPECT_TRUE(attempt.body_complete);
+}
+
+TEST(EMailSmtpNetTest, ADroppedConnectionAfterTheBodyIsAmbiguous) {
+  const auto attempt = Submit(FakeSmtpServer::AfterBody::kDropConnection);
+
+  ASSERT_TRUE(attempt.finished);
+  ASSERT_TRUE(attempt.body_complete) << "the body never reached the server";
+  EXPECT_FALSE(attempt.receipt.accepted);
+  EXPECT_TRUE(attempt.receipt.ambiguous)
+      << "the message may have been queued; claiming failure invites a "
+         "duplicate";
+  EXPECT_EQ(attempt.receipt.error.category, MailErrorCategory::kSMTP_AMBIGUOUS);
+}
+
+TEST(EMailSmtpNetTest, ACancelAfterTheBodyIsAmbiguousNotACleanStop) {
+  // The case the classifier used to get wrong: cancellation was checked before
+  // the stage was, so stopping a submission whose body was already on the wire
+  // was reported as "Stopped" -- a clean not-sent -- and the user resent it.
+  const auto attempt =
+      Submit(FakeSmtpServer::AfterBody::kStall, /*cancel_at_body=*/true);
+
+  ASSERT_TRUE(attempt.finished);
+  ASSERT_TRUE(attempt.body_complete);
+  EXPECT_FALSE(attempt.receipt.accepted);
+  EXPECT_TRUE(attempt.receipt.ambiguous)
+      << "a user cancel after DATA was written was reported as a clean stop";
+  EXPECT_NE(attempt.receipt.error.category, MailErrorCategory::kCANCELLED);
+}
+
+TEST(EMailSmtpNetTest, AStalledServerAfterTheBodyIsAmbiguous) {
+  // Same instant, reached by a hung server rather than by the user. Cancelled
+  // here only to keep the test bounded -- the 60 s timeout would say the same.
+  const auto attempt =
+      Submit(FakeSmtpServer::AfterBody::kStall, /*cancel_at_body=*/true);
+
+  ASSERT_TRUE(attempt.finished);
+  EXPECT_EQ(attempt.receipt.error.category, MailErrorCategory::kSMTP_AMBIGUOUS);
+}
+
+TEST(EMailSmtpNetTest, ACancelBeforeAnythingIsSentIsACleanStop) {
+  // The other side of the rule. Nothing was written, so there is nothing to be
+  // ambiguous about, and the user is told plainly that it stopped.
+  const auto attempt = Submit(FakeSmtpServer::AfterBody::kAccept,
+                              /*cancel_at_body=*/false,
+                              /*cancel_immediately=*/true);
+
+  ASSERT_TRUE(attempt.finished);
+  EXPECT_FALSE(attempt.receipt.accepted);
+  EXPECT_FALSE(attempt.receipt.ambiguous)
+      << "nothing was on the wire, so the outcome is not in doubt";
+  EXPECT_FALSE(attempt.body_complete);
+}
+
+TEST(EMailSmtpNetTest, AnAmbiguousOutcomeIsNeverMarkedRetryable) {
+  // Whatever else happens, nothing may invite an automatic resend after the
+  // body is on the wire.
+  for (const auto after :
+       {FakeSmtpServer::AfterBody::kDropConnection,
+        FakeSmtpServer::AfterBody::kStall}) {
+    const auto attempt =
+        Submit(after, /*cancel_at_body=*/after ==
+                          FakeSmtpServer::AfterBody::kStall);
+    ASSERT_TRUE(attempt.finished);
+    if (attempt.receipt.ambiguous) {
+      EXPECT_FALSE(attempt.receipt.error.transient)
+          << "an ambiguous outcome was marked retryable";
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------

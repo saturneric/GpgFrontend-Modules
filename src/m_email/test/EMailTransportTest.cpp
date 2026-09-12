@@ -766,6 +766,64 @@ TEST(EMailNetErrorTest, ALostConnectionAfterTheBodyIsAmbiguousNotAFailure) {
             MailErrorCategory::kSMTP_AMBIGUOUS);
 }
 
+// --- cancellation after the body is on the wire -----------------------------
+//
+// Stopping a submission is a request, not a fact about what the server did.
+// Once DATA has been fully written the outcome is unknown no matter WHY the
+// connection ended -- a timeout, a dropped socket, or the user pressing Esc
+// are all the same to the server, which may already have queued the message.
+// Reporting a deliberate stop as a clean "not sent" invites a resend that
+// delivers twice, which is the one outcome the ambiguity machinery exists to
+// prevent.
+
+TEST(EMailNetErrorTest, ACancelBeforeTheBodyIsCommittedIsACleanStop) {
+  vmime::exceptions::operation_timed_out e;
+
+  for (const auto stage : {MailStage::kCONNECT, MailStage::kTLS,
+                           MailStage::kAUTH, MailStage::kSUBMIT_ENVELOPE,
+                           MailStage::kSUBMIT_BODY}) {
+    const auto error = ClassifyVmimeException(e, stage, true);
+    EXPECT_EQ(error.category, MailErrorCategory::kCANCELLED)
+        << "stage " << static_cast<int>(stage);
+  }
+}
+
+TEST(EMailNetErrorTest, ACancelAfterTheBodyIsWrittenIsAmbiguousNotAStop) {
+  vmime::exceptions::operation_timed_out e;
+
+  const auto error = ClassifyVmimeException(e, MailStage::kSUBMIT_FINAL, true);
+  EXPECT_EQ(error.category, MailErrorCategory::kSMTP_AMBIGUOUS)
+      << "a cancel after DATA was written was reported as a clean stop";
+  EXPECT_FALSE(error.transient)
+      << "an ambiguous outcome must never invite an automatic resend";
+}
+
+TEST(EMailNetErrorTest, ADroppedSocketAfterTheBodyIsAmbiguousEvenWhenCancelled) {
+  // The same rule, reached by the other exception type: what ended the
+  // connection does not change what the server may already have done.
+  vmime::exceptions::socket_exception e;
+
+  EXPECT_EQ(ClassifyVmimeException(e, MailStage::kSUBMIT_FINAL, true).category,
+            MailErrorCategory::kSMTP_AMBIGUOUS);
+}
+
+TEST(EMailNetErrorTest, AmbiguityOutranksCancellationForEveryExceptionType) {
+  // Whatever vmime throws, the stage decides. A future edit that adds a new
+  // exception branch above the ambiguity check has to fail here.
+  vmime::exceptions::operation_timed_out timed_out;
+  vmime::exceptions::socket_exception socket;
+  vmime::exceptions::connection_error connection;
+
+  for (const vmime::exception* e :
+       {static_cast<const vmime::exception*>(&timed_out),
+        static_cast<const vmime::exception*>(&socket),
+        static_cast<const vmime::exception*>(&connection)}) {
+    EXPECT_EQ(
+        ClassifyVmimeException(*e, MailStage::kSUBMIT_FINAL, true).category,
+        MailErrorCategory::kSMTP_AMBIGUOUS);
+  }
+}
+
 TEST(EMailNetErrorTest, AnAmbiguousOutcomeIsNotMarkedRetryable) {
   vmime::exceptions::socket_exception e;
   const auto error = ClassifyVmimeException(e, MailStage::kSUBMIT_FINAL, false);
