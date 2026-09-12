@@ -245,6 +245,48 @@ struct EMailImapWorker::Impl {
   }
 };
 
+/// Consumes a cancellation when the operation it was aimed at ends.
+///
+/// A stop applies to the request in flight, not to the session. The only
+/// Reset() used to be in Connect(), so one press of Stop left the token set
+/// for the life of the connection and every later request failed as
+/// kCANCELLED -- the browser went silently dead until the account was
+/// switched. Resetting on the way out still honours a cancellation queued
+/// before the slot ran: the slot observes it first, this only clears it after.
+class CancelScope {
+ public:
+  CancelScope(EMailCancelTokenPtr token,
+              vmime::shared_ptr<EMailTimeoutHandlerFactory> timeouts)
+      : token_(std::move(token)), timeouts_(std::move(timeouts)) {}
+
+  /// For a slot that REPLACES the timeout factory while it runs -- Connect
+  /// closes the old session, which drops it, and installs a new one. Taking
+  /// the factory by value there would capture the one being thrown away and
+  /// leave the new one's cancelled flag set for the next operation to trip
+  /// over, so this form reads the member at destruction instead.
+  CancelScope(EMailCancelTokenPtr token,
+              vmime::shared_ptr<EMailTimeoutHandlerFactory>* timeouts)
+      : token_(std::move(token)), timeouts_slot_(timeouts) {}
+
+  ~CancelScope() {
+    if (token_) token_->Reset();
+
+    const auto& timeouts =
+        timeouts_slot_ != nullptr ? *timeouts_slot_ : timeouts_;
+    if (timeouts) timeouts->ClearLastCancelled();
+  }
+
+  CancelScope(const CancelScope&) = delete;
+  CancelScope(CancelScope&&) = delete;
+  auto operator=(const CancelScope&) -> CancelScope& = delete;
+  auto operator=(CancelScope&&) -> CancelScope& = delete;
+
+ private:
+  EMailCancelTokenPtr token_;
+  vmime::shared_ptr<EMailTimeoutHandlerFactory> timeouts_;
+  vmime::shared_ptr<EMailTimeoutHandlerFactory>* timeouts_slot_{nullptr};
+};
+
 EMailImapWorker::EMailImapWorker(QObject* parent)
     : QObject(parent),
       impl_(new Impl),
@@ -259,6 +301,17 @@ void EMailImapWorker::Connect(quint64 seq, const MailAccountConfig& account,
                               QString password) {
   impl_->Close();
   token_->Reset();
+
+  // Reset on the way in AND cleared on the way out, like every other slot
+  // here. Without the scope, a Stop pressed during a connect left the token
+  // SET after this returned: the connect could still succeed, and the folder
+  // listing that follows it would then fail immediately as cancelled, leaving
+  // a connected session with an empty window and nothing said about why.
+  //
+  // By address, because the factory this slot ends up owning is not the one it
+  // starts with.
+  const CancelScope cancel_scope(token_, &impl_->timeouts);
+
   EMailTlsSetup::ClearLastSeen();
   impl_->account = account;
 
@@ -317,38 +370,7 @@ void EMailImapWorker::Connect(quint64 seq, const MailAccountConfig& account,
   }
 }
 
-namespace {
-
-/// Consumes a cancellation when the operation it was aimed at ends.
-///
-/// A stop applies to the request in flight, not to the session. The only
-/// Reset() used to be in Connect(), so one press of Stop left the token set
-/// for the life of the connection and every later request failed as
-/// kCANCELLED -- the browser went silently dead until the account was
-/// switched. Resetting on the way out still honours a cancellation queued
-/// before the slot ran: the slot observes it first, this only clears it after.
-class CancelScope {
- public:
-  CancelScope(EMailCancelTokenPtr token,
-              vmime::shared_ptr<EMailTimeoutHandlerFactory> timeouts)
-      : token_(std::move(token)), timeouts_(std::move(timeouts)) {}
-
-  ~CancelScope() {
-    if (token_) token_->Reset();
-    if (timeouts_) timeouts_->ClearLastCancelled();
-  }
-
-  CancelScope(const CancelScope&) = delete;
-  CancelScope(CancelScope&&) = delete;
-  auto operator=(const CancelScope&) -> CancelScope& = delete;
-  auto operator=(CancelScope&&) -> CancelScope& = delete;
-
- private:
-  EMailCancelTokenPtr token_;
-  vmime::shared_ptr<EMailTimeoutHandlerFactory> timeouts_;
-};
-
-}  // namespace
+namespace {}  // namespace
 
 void EMailImapWorker::ListFolders(quint64 seq) {
   const CancelScope cancel_scope(token_, impl_->timeouts);
@@ -561,13 +583,32 @@ void EMailImapWorker::SearchMessages(quint64 seq, const QString& folder_path,
       wanted.push_back(*it);
     }
 
-    for (const auto& uid : wanted) {
-      auto messages = folder->getMessages(vmime::net::messageSet::byUID(uid));
-      if (messages.empty()) continue;
+    // One set, one fetch. Asking per UID meant a full server round trip for
+    // every row -- fifty of them for a full page -- where the listing path
+    // beside this one has always fetched its whole range at once. On anything
+    // but a local server that was the difference between a search feeling
+    // instant and feeling broken.
+    auto set = vmime::net::messageSet::empty();
+    for (const auto& uid : wanted)
+      set.addRange(vmime::net::UIDMessageRange(uid));
+
+    auto messages = folder->getMessages(set);
+    if (!messages.empty()) {
       folder->fetchMessages(messages, ListingAttributes());
-      auto row = SummarizeMessage(messages.front());
-      row.uid = static_cast<quint64>(messages.front()->getNumber());
-      page.rows.append(row);
+
+      // The server may return these in its own order; the search asked for
+      // newest first, so the order is restored rather than assumed.
+      QHash<QString, EMailMessageSummary> by_uid;
+      for (const auto& message : messages) {
+        auto row = SummarizeMessage(message);
+        row.uid = static_cast<quint64>(message->getNumber());
+        by_uid.insert(QString::fromStdString(message->getUID()), row);
+      }
+
+      for (const auto& uid : wanted) {
+        const auto key = QString::fromStdString(uid);
+        if (by_uid.contains(key)) page.rows.append(by_uid.value(key));
+      }
     }
 
     page.remaining = std::max(0, static_cast<int>(uids.size()) - size);
