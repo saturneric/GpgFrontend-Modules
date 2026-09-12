@@ -1244,10 +1244,43 @@ auto LooksLikeSpoofedAddress(const QString& address) -> bool {
   return !ace.isEmpty() && ace.compare(domain, Qt::CaseInsensitive) != 0;
 }
 
+auto HasBareLineFeeds(const QByteArray& bytes) -> bool {
+  for (qsizetype i = 0; i < bytes.size(); ++i) {
+    if (bytes[i] != '\n') continue;
+    if (i == 0 || bytes[i - 1] != '\r') return true;
+  }
+  return false;
+}
+
 auto InspectMessage(const EMailMetaData& meta, const EMailPart& root,
-                    const QList<EMailSignatureRegion>& regions)
-    -> QList<EMailFinding> {
+                    const QList<EMailSignatureRegion>& regions,
+                    const QByteArray& raw) -> QList<EMailFinding> {
   QList<EMailFinding> findings;
+
+  // --- the signed bytes are still the signed bytes -------------------------
+
+  for (const auto& region : regions) {
+    if (raw.isEmpty() || region.raw_offset < 0 || region.raw_length <= 0) {
+      continue;
+    }
+    if (region.raw_offset + region.raw_length > raw.size()) continue;
+
+    if (!HasBareLineFeeds(raw.mid(region.raw_offset, region.raw_length))) {
+      continue;
+    }
+
+    findings.append(
+        {EMailFindingLevel::kWARN,
+         QObject::tr("Signed part no longer in canonical form"),
+         QObject::tr(
+             "The signed part contains line endings that are not CRLF, which "
+             "is not the form a signature is computed over. Something rewrote "
+             "this message after it was signed, normally a program that "
+             "changed line endings while saving or copying it rather than an "
+             "attack. The signature cannot verify against these bytes, and "
+             "importing the sender's key will not change that. Checking it "
+             "needs the original, unmodified message.")});
+  }
 
   // --- header integrity ----------------------------------------------------
 

@@ -346,10 +346,27 @@ auto RawHeaderBlock(const EMailPart& part, const QByteArray& raw) -> QByteArray;
  * @param meta parsed headers
  * @param root the parsed tree
  * @param regions signature regions found in @p root
+ * @param raw the original document, needed to read the signed bytes
+ *            themselves; omit it to skip the checks that require them
  */
 auto InspectMessage(const EMailMetaData& meta, const EMailPart& root,
-                    const QList<EMailSignatureRegion>& regions)
-    -> QList<EMailFinding>;
+                    const QList<EMailSignatureRegion>& regions,
+                    const QByteArray& raw = {}) -> QList<EMailFinding>;
+
+/**
+ * @brief Whether @p bytes contain a line feed that is not part of a CRLF pair.
+ *
+ * RFC 3156 signs the entity in MIME canonical form, in which every line ends
+ * CRLF. A bare LF inside bytes that are supposed to be signed therefore means
+ * they are no longer the bytes that were signed: something rewrote them
+ * afterwards, and saving or copying a message through a tool that normalises
+ * line endings is the everyday way that happens.
+ *
+ * Worth detecting on its own, because the resulting verification failure is
+ * indistinguishable from a forgery to anyone reading the verdict, and no
+ * amount of importing the sender's key will ever change it.
+ */
+auto HasBareLineFeeds(const QByteArray& bytes) -> bool;
 
 /**
  * @brief Whether @p address is built to be read as a different one.
