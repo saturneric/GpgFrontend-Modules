@@ -529,3 +529,62 @@ auto main(int argc, char** argv) -> int {
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }
+
+// A search used to fetch its results one UID at a time -- a full server round
+// trip per row, fifty of them for a full page -- while the plain listing
+// beside it had always fetched its whole range in one go. On anything but a
+// local server that is the difference between a search feeling instant and
+// feeling broken.
+//
+// Asserted as "the cost does not grow with the answer" rather than as an exact
+// command count: how many round trips a batched fetch takes is vmime's
+// business, but it must be the same number for one result as for five.
+TEST_F(EMailImapNetTest, ASearchCostsTheSameWhateverItFinds) {
+  const auto fetches_for = [this](const QList<int>& uids) {
+    server_.ResetCommands();
+    server_.search_uids = uids;
+    worker_.SearchMessages(2, "INBOX", "report", 50);
+
+    int fetches = 0;
+    for (const auto& command : server_.Commands()) {
+      auto verb = command.section(' ', 1, 1).toUpper();
+      if (verb == "UID") verb = command.section(' ', 2, 2).toUpper();
+      if (verb == "FETCH") fetches++;
+    }
+    return fetches;
+  };
+
+  const auto one = fetches_for({1});
+  const auto five = fetches_for({1, 2, 3, 4, 5});
+
+  EXPECT_GT(one, 0);
+  EXPECT_EQ(one, five) << "round trips must not grow with the result count";
+}
+
+// Every match comes back, not just the first.
+TEST_F(EMailImapNetTest, ASearchReturnsEveryMatchItFetched) {
+  server_.search_uids = {1, 2, 3, 4, 5};
+
+  worker_.SearchMessages(2, "INBOX", "report", 50);
+
+  ASSERT_TRUE(last_error_.title.isEmpty()) << last_error_.title.toStdString();
+  EXPECT_EQ(page_.rows.size(), 5);
+}
+
+// The order the search asked for is the order the user sees. A server is free
+// to answer a batched fetch in whatever order suits it, so the rows are put
+// back into the requested order rather than taken as they arrive.
+TEST_F(EMailImapNetTest, SearchResultsAreNewestFirst) {
+  server_.search_uids = {1, 2, 3, 4, 5};
+
+  worker_.SearchMessages(2, "INBOX", "report", 50);
+  ASSERT_EQ(page_.rows.size(), 5);
+
+  QList<quint64> seen;
+  seen.reserve(page_.rows.size());
+  for (const auto& row : page_.rows) seen.append(row.uid);
+
+  auto sorted = seen;
+  std::sort(sorted.begin(), sorted.end(), std::greater<>());
+  EXPECT_EQ(seen, sorted);
+}

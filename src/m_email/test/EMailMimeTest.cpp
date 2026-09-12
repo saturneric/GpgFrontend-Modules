@@ -1152,3 +1152,59 @@ TEST(EMailMimeTest, OpenableIgnoresTheSendersContentType) {
   EXPECT_TRUE(IsSafeToOpenAttachment(
       AttachmentNamed("report.pdf", "application/octet-stream")));
 }
+
+// ---------------------------------------------------------------------------
+// SuggestedEMailFileName
+//
+// The name a save dialog offers for a message. Built from the subject, which
+// is written by whoever sent the message, so it is treated as hostile.
+// ---------------------------------------------------------------------------
+
+TEST(EMailMimeTest, SuggestedNameComesFromTheSubject) {
+  EXPECT_EQ(SuggestedEMailFileName("Quarterly report"),
+            QString("Quarterly report.eml"));
+}
+
+TEST(EMailMimeTest, SuggestedNameFallsBackWhenThereIsNoSubject) {
+  for (const auto* subject : {"", "   ", "\t\n"}) {
+    EXPECT_EQ(SuggestedEMailFileName(subject), QString("untitled.eml"))
+        << subject;
+  }
+}
+
+TEST(EMailMimeTest, SuggestedNameAlwaysEndsInEml) {
+  for (const auto* subject : {"Report", "Report.eml", "Report.pdf",
+                              "../../etc/passwd", "///", "..."}) {
+    EXPECT_TRUE(SuggestedEMailFileName(subject).endsWith(".eml")) << subject;
+  }
+}
+
+TEST(EMailMimeTest, SuggestedNameCannotEscapeTheChosenFolder) {
+  // A subject is attacker-chosen. Whatever it contains, the result has to stay
+  // one path component.
+  for (const auto* subject :
+       {"../../etc/passwd", "/etc/shadow", "C:\\Windows\\evil", "a/b/c",
+        "..\\..\\x", "re: \"quoted\" <thing>"}) {
+    const auto name = SuggestedEMailFileName(subject);
+
+    EXPECT_FALSE(name.contains('/')) << subject;
+    EXPECT_FALSE(name.contains('\\')) << subject;
+    EXPECT_FALSE(name.startsWith('.')) << subject;
+    EXPECT_NE(name, QString("..")) << subject;
+  }
+}
+
+TEST(EMailMimeTest, SuggestedNameIsShortEnoughToRead) {
+  const QString long_subject(500, QChar('x'));
+  const auto name = SuggestedEMailFileName(long_subject);
+
+  EXPECT_LE(name.size(), 70);
+  EXPECT_TRUE(name.endsWith(".eml"));
+}
+
+TEST(EMailMimeTest, SuggestedNameAvoidsReservedDeviceNames) {
+  // "NUL.eml" is still NUL on Windows. The sanitizer handles this; this test
+  // pins that the suggestion path actually goes through it.
+  EXPECT_NE(SuggestedEMailFileName("NUL").toUpper(), QString("NUL.EML"));
+  EXPECT_NE(SuggestedEMailFileName("CON").toUpper(), QString("CON.EML"));
+}

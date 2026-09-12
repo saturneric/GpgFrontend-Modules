@@ -828,3 +828,68 @@ TEST(EMailAccountModelTest, TheSizeCeilingIsOneSharedPolicyValue) {
   EXPECT_GT(kMailMaxMessageSize, 0);
   EXPECT_GE(kMailMaxMessageSize, 32LL * 1024 * 1024);
 }
+
+// The list label. Empty for an account with neither a name nor an address,
+// which the settings page shows as "Untitled account" -- so all four branches
+// matter to what the user reads.
+TEST(EMailAccountModelTest, AnAccountsLabelPrefersBothNameAndAddress) {
+  MailAccountConfig account;
+
+  account.display_name = "Eric";
+  account.address = "eric@example.org";
+  EXPECT_EQ(account.Label(), QString("Eric <eric@example.org>"));
+
+  account.display_name.clear();
+  EXPECT_EQ(account.Label(), QString("eric@example.org"));
+
+  account.display_name = "Eric";
+  account.address.clear();
+  EXPECT_EQ(account.Label(), QString("Eric"));
+
+  account.display_name.clear();
+  EXPECT_TRUE(account.Label().isEmpty());
+}
+
+TEST(EMailAccountModelTest, AnAccountsLabelIgnoresSurroundingSpace) {
+  MailAccountConfig account;
+  account.display_name = "  Eric  ";
+  account.address = "  eric@example.org  ";
+  EXPECT_EQ(account.Label(), QString("Eric <eric@example.org>"));
+}
+
+// A pinned certificate is the one piece of trust configuration a user can
+// establish by hand, so it has to survive being written and read back. It was
+// persisted and honoured long before anything could set it; these pin the
+// round trip now that the settings page can.
+TEST(EMailAccountModelTest, APinnedCertificateSurvivesARoundTrip) {
+  MailTransportConfig config;
+  config.enabled = true;
+  config.host = "mail.example.org";
+  config.tls = MailTlsMode::kIMPLICIT;
+  config.pinned_cert_sha256 =
+      "aabbccddeeff00112233445566778899aabbccddeeff001122334455667788990";
+
+  const auto back = MailTransportConfig::FromJson(config.ToJson());
+  EXPECT_EQ(back.pinned_cert_sha256, config.pinned_cert_sha256);
+}
+
+TEST(EMailAccountModelTest, APinnedCertificateIsComparedInOneCase) {
+  // A fingerprint read back in a different case than it was compared against
+  // would silently never match, and the account would stay unreachable with
+  // the pin apparently set.
+  MailTransportConfig config;
+  config.host = "mail.example.org";
+  config.pinned_cert_sha256 = "AABBCCDDEEFF00112233445566778899";
+
+  const auto back = MailTransportConfig::FromJson(config.ToJson());
+  EXPECT_EQ(back.pinned_cert_sha256,
+            QString("aabbccddeeff00112233445566778899"));
+}
+
+TEST(EMailAccountModelTest, AnAccountWithNoPinSaysSoRatherThanGuessing) {
+  MailTransportConfig config;
+  config.host = "mail.example.org";
+
+  const auto back = MailTransportConfig::FromJson(config.ToJson());
+  EXPECT_TRUE(back.pinned_cert_sha256.isEmpty());
+}

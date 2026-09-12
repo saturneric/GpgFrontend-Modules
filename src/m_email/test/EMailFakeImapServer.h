@@ -28,11 +28,13 @@
 #pragma once
 
 #include <QByteArray>
+#include <QList>
 #include <QMutex>
 #include <QMutexLocker>
 #include <QStringList>
 #include <QTcpServer>
 #include <QTcpSocket>
+#include <algorithm>
 
 /**
  * @brief A cleartext IMAP server that speaks just enough to be browsed.
@@ -48,15 +50,57 @@ class FakeImapServer : public QTcpServer {
 
   /// Every tagged command line the client sent, in order. Written on the
   /// server's thread and read from the test's, so it is guarded.
+  /// The message numbers a FETCH line asks about.
+  ///
+  /// Only the forms this application actually sends: a single number, a
+  /// comma-separated list, and a "first:last" range. Anything unrecognised
+  /// falls back to message 1, which is what every test that predates
+  /// multi-message fetches expects.
+  static QList<int> FetchNumbersFor(const QString& line) {
+    // "<tag> [UID] FETCH <set> (<attributes>)"
+    auto set = line.section(' ', 2, 2);
+    if (set.compare("FETCH", Qt::CaseInsensitive) == 0) {
+      set = line.section(' ', 3, 3);
+    }
+
+    QList<int> numbers;
+    for (const auto& part : set.split(',', Qt::SkipEmptyParts)) {
+      if (part.contains(':')) {
+        const auto first = part.section(':', 0, 0).toInt();
+        const auto last = part.section(':', 1, 1).toInt();
+        if (first <= 0 || last < first) continue;
+        for (int i = first; i <= last; ++i) numbers.append(i);
+        continue;
+      }
+      const auto one = part.toInt();
+      if (one > 0) numbers.append(one);
+    }
+
+    if (numbers.isEmpty()) numbers.append(1);
+    return numbers;
+  }
+
   QStringList Commands() const {
     QMutexLocker locker(&mutex_);
     return commands_;
+  }
+
+  /// Forgets what has been asked so far, so one test can compare two exchanges
+  /// against each other rather than against the whole session.
+  void ResetCommands() {
+    QMutexLocker locker(&mutex_);
+    commands_.clear();
   }
 
   /// What SEARCH reports. Real servers answer "nothing matched" for a message
   /// that is not filed yet, which is the case the Sent-copy path turns on:
   /// answering "found" unconditionally would hide the append entirely.
   bool search_finds = true;
+
+  /// Which UIDs SEARCH reports when it finds anything. More than one is what
+  /// lets a test see whether the caller fetches them in one go or one at a
+  /// time.
+  QList<int> search_uids = {1};
 
   /// Set to true by an APPEND, so a test can tell a copy was actually written
   /// rather than only that the command was sent.
@@ -153,7 +197,10 @@ class FakeImapServer : public QTcpServer {
         out += "* LIST (\\HasNoChildren \\Sent) \"/\" \"Sent Mail\"\r\n";
         out += (tag + " OK done\r\n").toUtf8();
       } else if (verb == "SELECT" || verb == "EXAMINE") {
-        out += "* 1 EXISTS\r\n* 0 RECENT\r\n";
+        int exists = 1;
+        for (const auto uid : search_uids) exists = std::max(exists, uid);
+        out +=
+            ("* " + QByteArray::number(exists) + " EXISTS\r\n* 0 RECENT\r\n");
         out += "* FLAGS (\\Seen \\Answered)\r\n";
         out += "* OK [UIDVALIDITY 1] ok\r\n";
         out += "* OK [UIDNEXT 2] ok\r\n";
@@ -185,7 +232,12 @@ class FakeImapServer : public QTcpServer {
         socket->flush();
         continue;
       } else if (verb == "SEARCH") {
-        if (search_finds) out += "* SEARCH 1\r\n";
+        if (search_finds && !search_uids.isEmpty()) {
+          QStringList ids;
+          ids.reserve(search_uids.size());
+          for (const auto uid : search_uids) ids.append(QString::number(uid));
+          out += ("* SEARCH " + ids.join(' ') + "\r\n").toUtf8();
+        }
         out += (tag + " OK done\r\n").toUtf8();
       } else if (verb == "FETCH") {
         // A whole-body fetch asks for an empty section, "[]"; anything else is
@@ -202,26 +254,36 @@ class FakeImapServer : public QTcpServer {
           out += message_body;
           out += ")\r\n";
         } else {
-          const QByteArray header_fields =
-              "Message-ID: <abc123@example.org>\r\n\r\n";
-          out += "* 1 FETCH (UID 1 RFC822.SIZE 120 FLAGS () ";
-          out +=
-              // Deliberately an RFC 2047 encoded-word, and a display name
-              // that is one too: this is what real mail looks like, and
-              // showing it raw is a bug a plain-ASCII fixture cannot catch.
-              "ENVELOPE (\"Mon, 1 Jan 2026 00:00:00 +0000\" "
-              "\"=?utf-8?Q?Caf=C3=A9_r=C3=A9sum=C3=A9?=\" "
-              "((\"=?utf-8?Q?Bj=C3=B6rn?=\" NIL \"someone\" "
-              "\"example.org\")) "
-              "((\"S\" NIL \"someone\" \"example.org\")) "
-              "((\"S\" NIL \"someone\" \"example.org\")) "
-              "((\"M\" NIL \"me\" \"example.org\")) NIL NIL NIL "
-              "\"<abc123@example.org>\") ";
-          out += QString("BODY[HEADER.FIELDS (MESSAGE-ID)] {%1}\r\n")
-                     .arg(header_fields.size())
-                     .toUtf8();
-          out += header_fields;
-          out += ")\r\n";
+          // One untagged FETCH per message the request covers. Answering only
+          // for message 1 would make every multi-message fetch look like it
+          // returned one row, which is exactly the shape a test about
+          // batching needs to be able to tell apart.
+          for (const auto number : FetchNumbersFor(line)) {
+            const auto id = QString("<abc%1@example.org>").arg(number);
+            const QByteArray header_fields =
+                ("Message-ID: " + id + "\r\n\r\n").toUtf8();
+
+            out += QString("* %1 FETCH (UID %1 RFC822.SIZE 120 FLAGS () ")
+                       .arg(number)
+                       .toUtf8();
+            out +=
+                // Deliberately an RFC 2047 encoded-word, and a display name
+                // that is one too: this is what real mail looks like, and
+                // showing it raw is a bug a plain-ASCII fixture cannot catch.
+                "ENVELOPE (\"Mon, 1 Jan 2026 00:00:00 +0000\" "
+                "\"=?utf-8?Q?Caf=C3=A9_r=C3=A9sum=C3=A9?=\" "
+                "((\"=?utf-8?Q?Bj=C3=B6rn?=\" NIL \"someone\" "
+                "\"example.org\")) "
+                "((\"S\" NIL \"someone\" \"example.org\")) "
+                "((\"S\" NIL \"someone\" \"example.org\")) "
+                "((\"M\" NIL \"me\" \"example.org\")) NIL NIL NIL ";
+            out += ("\"" + id + "\") ").toUtf8();
+            out += QString("BODY[HEADER.FIELDS (MESSAGE-ID)] {%1}\r\n")
+                       .arg(header_fields.size())
+                       .toUtf8();
+            out += header_fields;
+            out += ")\r\n";
+          }
         }
         out += (tag + " OK done\r\n").toUtf8();
       } else if (verb == "LOGOUT") {
