@@ -46,13 +46,23 @@ namespace {
 
 auto CorpusDir() -> QString { return QString(GF_EMAIL_TEST_CORPUS_DIR); }
 
-auto CorpusNames() -> QStringList {
-  QDir dir(CorpusDir());
-  auto names = dir.entryList({"*.eml"}, QDir::Files, QDir::Name);
+// Names are relative to corpus/, so they always carry their bucket:
+// "golden/04-pgpmime-signed.eml", "public/p07-cte-matrix.eml". The two buckets
+// are held to different standards -- see corpus/public/MANIFEST.txt -- so no
+// sweep may quietly mix them.
+auto BucketNames(const QString& bucket) -> QStringList {
+  QDir dir(CorpusDir() + "/" + bucket);
+  QStringList names;
+  for (const auto& name : dir.entryList({"*.eml"}, QDir::Files, QDir::Name)) {
+    names.append(bucket + "/" + name);
+  }
   EXPECT_FALSE(names.isEmpty())
-      << "corpus is empty at " << CorpusDir().toStdString();
+      << "corpus bucket is empty: " << bucket.toStdString();
   return names;
 }
+
+// The GpgFrontend-owned fixtures: well-formed, CRLF, byte-level contracts.
+auto CorpusNames() -> QStringList { return BucketNames("golden"); }
 
 auto LoadCorpus(const QString& name) -> QByteArray {
   QFile file(CorpusDir() + "/" + name);
@@ -222,6 +232,36 @@ auto FindByFileName(const EMailPart& root, const QString& name)
 
 }  // namespace
 
+// --- the corpus is intact --------------------------------------------------
+//
+// Line endings in the golden bucket are load-bearing: raw header slices,
+// signature region offsets and HasBareLineFeeds() all read them directly. A
+// checkout with core.autocrlf on, or an editor that "helpfully" normalises,
+// rewrites them and every one of those assertions goes on passing while
+// testing something else. .gitattributes marks the corpus binary; this is the
+// test that notices when that protection is missing or has been undone.
+
+TEST(EMailCorpusTest, GoldenFixturesKeepTheirCrlfLineEndings) {
+  for (const auto& name : CorpusNames()) {
+    const auto raw = LoadCorpus(name);
+    ASSERT_FALSE(raw.isEmpty()) << name.toStdString();
+
+    EXPECT_TRUE(raw.contains("\r\n"))
+        << name.toStdString()
+        << " has no CRLF at all -- the checkout converted the corpus";
+
+    // 16 is the one fixture whose whole point is bare LF inside the signed
+    // entity. Everywhere else a lone LF means conversion damage.
+    if (name.endsWith("16-signed-lf-mangled.eml")) {
+      EXPECT_TRUE(HasBareLineFeeds(raw))
+          << name.toStdString() << " lost the damage it exists to carry";
+      continue;
+    }
+    EXPECT_FALSE(HasBareLineFeeds(raw))
+        << name.toStdString() << " has bare LFs -- line endings were rewritten";
+  }
+}
+
 // --- differential compatibility --------------------------------------------
 //
 // The 35 hand-written cases pin specific behaviours; they do not prove the
@@ -315,7 +355,7 @@ TEST(EMailCorpusTest, InspectionDoesNotTouchTheSourceBytes) {
 TEST(EMailCorpusTest, RawHeaderBlockComesFromTheOriginalBytes) {
   QByteArray raw;
   vmime::shared_ptr<vmime::message> message;
-  ASSERT_TRUE(ParseCorpus("12-odd-headers.eml", raw, message));
+  ASSERT_TRUE(ParseCorpus("golden/12-odd-headers.eml", raw, message));
 
   EMailPart root;
   QList<EMailSignatureRegion> regions;
@@ -361,22 +401,97 @@ auto ClassifyCorpus(const QString& name) -> EMailSecurityState {
 }  // namespace
 
 TEST(EMailCorpusTest, StructureClassificationMatchesTheManifest) {
-  EXPECT_EQ(ClassifyCorpus("01-plain-text.eml"), EMailSecurityState::kPLAIN);
-  EXPECT_EQ(ClassifyCorpus("02-alternative.eml"), EMailSecurityState::kPLAIN);
-  EXPECT_EQ(ClassifyCorpus("03-mixed-attachments.eml"),
+  EXPECT_EQ(ClassifyCorpus("golden/01-plain-text.eml"),
             EMailSecurityState::kPLAIN);
-  EXPECT_EQ(ClassifyCorpus("04-pgpmime-signed.eml"),
+  EXPECT_EQ(ClassifyCorpus("golden/02-alternative.eml"),
+            EMailSecurityState::kPLAIN);
+  EXPECT_EQ(ClassifyCorpus("golden/03-mixed-attachments.eml"),
+            EMailSecurityState::kPLAIN);
+  EXPECT_EQ(ClassifyCorpus("golden/04-pgpmime-signed.eml"),
             EMailSecurityState::kSIGNED);
-  EXPECT_EQ(ClassifyCorpus("05-pgpmime-encrypted.eml"),
+  EXPECT_EQ(ClassifyCorpus("golden/05-pgpmime-encrypted.eml"),
             EMailSecurityState::kENCRYPTED);
-  EXPECT_EQ(ClassifyCorpus("06-signed-inside-encrypted.eml"),
+  EXPECT_EQ(ClassifyCorpus("golden/06-signed-inside-encrypted.eml"),
             EMailSecurityState::kSIGNED_ENCRYPTED);
-  EXPECT_EQ(ClassifyCorpus("10-pgp-keys-attachment.eml"),
+  EXPECT_EQ(ClassifyCorpus("golden/10-pgp-keys-attachment.eml"),
             EMailSecurityState::kPLAIN);
-  EXPECT_EQ(ClassifyCorpus("11-nested-signatures.eml"),
+  EXPECT_EQ(ClassifyCorpus("golden/11-nested-signatures.eml"),
             EMailSecurityState::kSIGNED);
-  EXPECT_EQ(ClassifyCorpus("14-signed-with-attachment.eml"),
+  EXPECT_EQ(ClassifyCorpus("golden/14-signed-with-attachment.eml"),
             EMailSecurityState::kSIGNED);
+  EXPECT_EQ(ClassifyCorpus("golden/17-encrypted-inside-signed.eml"),
+            EMailSecurityState::kSIGNED_ENCRYPTED);
+}
+
+// --- structural containment is not authentication --------------------------
+//
+// The whole point of this group. A part can be structurally inside a signed
+// subtree and still be authenticated by nothing at all. Everything below runs
+// without a GPG engine and therefore asserts SHAPE only: no test here may be
+// read as saying a signature verified. That claim needs the crypto path and
+// belongs in the future gpgme-enabled target.
+
+TEST(EMailCorpusTest, ASignatureOverCiphertextIsMarkedAsCoveringCiphertext) {
+  // Encrypt-then-sign. The signature is over the encrypted block, so it says
+  // who forwarded the ciphertext and nothing about who wrote the plaintext --
+  // signing a copy of someone else's encrypted blob requires nothing of
+  // theirs. Presenting this as "signed by X" would be a lie about provenance.
+  QByteArray raw;
+  vmime::shared_ptr<vmime::message> message;
+  ASSERT_TRUE(
+      ParseCorpus("golden/17-encrypted-inside-signed.eml", raw, message));
+
+  EMailPart root;
+  QList<EMailSignatureRegion> regions;
+  ASSERT_EQ(ParseMimeTree(message, raw, root, regions), 0);
+
+  ASSERT_EQ(regions.size(), 1);
+  EXPECT_TRUE(regions[0].covers_ciphertext_only);
+
+  // Structurally the ciphertext IS inside the region. That is exactly the
+  // containment that must not be reported as authentication of the plaintext.
+  const auto* blob = FindByFileName(root, "encrypted.asc");
+  ASSERT_NE(blob, nullptr);
+  EXPECT_EQ(blob->covered_by_regions, QList<int>({regions[0].region_id}));
+
+  const auto findings = InspectMessage({}, root, regions, raw);
+  bool warned = false;
+  for (const auto& f : findings) {
+    if (f.title.contains("encrypted data only")) warned = true;
+  }
+  EXPECT_TRUE(warned)
+      << "a signature over ciphertext was reported like any other signature";
+}
+
+TEST(EMailCorpusTest, OrdinarySignaturesAreNotMarkedAsCoveringCiphertext) {
+  // The flag must be specific, or the warning becomes noise and stops being
+  // read. Every other signed fixture is a signature over content.
+  for (const auto& name : {QString("golden/04-pgpmime-signed.eml"),
+                           QString("golden/06-signed-inside-encrypted.eml"),
+                           QString("golden/11-nested-signatures.eml"),
+                           QString("golden/14-signed-with-attachment.eml")}) {
+    QByteArray raw;
+    vmime::shared_ptr<vmime::message> message;
+    ASSERT_TRUE(ParseCorpus(name, raw, message)) << name.toStdString();
+
+    EMailPart root;
+    QList<EMailSignatureRegion> regions;
+    ASSERT_EQ(ParseMimeTree(message, raw, root, regions), 0)
+        << name.toStdString();
+    ASSERT_FALSE(regions.isEmpty()) << name.toStdString();
+    for (const auto& region : regions) {
+      EXPECT_FALSE(region.covers_ciphertext_only) << name.toStdString();
+    }
+  }
+}
+
+TEST(EMailCorpusTest, ClassificationAloneCannotTellTheTwoOrderingsApart) {
+  // 06 places an encrypted and a signed section side by side; 17 signs the
+  // encrypted section itself. Both are kSIGNED_ENCRYPTED, which is why the
+  // state enum must never be the thing a security claim is built on -- the
+  // regions carry what actually differs.
+  EXPECT_EQ(ClassifyCorpus("golden/06-signed-inside-encrypted.eml"),
+            ClassifyCorpus("golden/17-encrypted-inside-signed.eml"));
 }
 
 TEST(EMailCorpusTest, AMalformedSignedStructureIsCalledOut) {
@@ -412,7 +527,7 @@ TEST(EMailCorpusTest, AMalformedSignedStructureIsCalledOut) {
 TEST(EMailCorpusTest, ASignedMessageHasOneRegionOverItsFirstPart) {
   QByteArray raw;
   vmime::shared_ptr<vmime::message> message;
-  ASSERT_TRUE(ParseCorpus("04-pgpmime-signed.eml", raw, message));
+  ASSERT_TRUE(ParseCorpus("golden/04-pgpmime-signed.eml", raw, message));
 
   EMailPart root;
   QList<EMailSignatureRegion> regions;
@@ -443,7 +558,7 @@ TEST(EMailCorpusTest, ASignedMessageHasOneRegionOverItsFirstPart) {
 TEST(EMailCorpusTest, NestedSignaturesProduceTwoRegionsAndDoubleCoverage) {
   QByteArray raw;
   vmime::shared_ptr<vmime::message> message;
-  ASSERT_TRUE(ParseCorpus("11-nested-signatures.eml", raw, message));
+  ASSERT_TRUE(ParseCorpus("golden/11-nested-signatures.eml", raw, message));
 
   EMailPart root;
   QList<EMailSignatureRegion> regions;
@@ -473,7 +588,8 @@ TEST(EMailCorpusTest, NestedSignaturesProduceTwoRegionsAndDoubleCoverage) {
 TEST(EMailCorpusTest, CoverageDistinguishesInsideFromOutsideTheSignature) {
   QByteArray raw;
   vmime::shared_ptr<vmime::message> message;
-  ASSERT_TRUE(ParseCorpus("14-signed-with-attachment.eml", raw, message));
+  ASSERT_TRUE(
+      ParseCorpus("golden/14-signed-with-attachment.eml", raw, message));
 
   EMailPart root;
   QList<EMailSignatureRegion> regions;
@@ -495,7 +611,8 @@ TEST(EMailCorpusTest, RegionsRecordTheDeclaredMicalgOnly) {
   // inferred from the header.
   QByteArray raw;
   vmime::shared_ptr<vmime::message> message;
-  ASSERT_TRUE(ParseCorpus("13-signed-micalg-mismatch.eml", raw, message));
+  ASSERT_TRUE(
+      ParseCorpus("golden/13-signed-micalg-mismatch.eml", raw, message));
 
   EMailPart root;
   QList<EMailSignatureRegion> regions;
@@ -510,7 +627,7 @@ TEST(EMailCorpusTest, RegionsRecordTheDeclaredMicalgOnly) {
 TEST(EMailCorpusTest, AlternativeMembersShareAGroupAndOnlyOneIsTheBody) {
   QByteArray raw;
   vmime::shared_ptr<vmime::message> message;
-  ASSERT_TRUE(ParseCorpus("02-alternative.eml", raw, message));
+  ASSERT_TRUE(ParseCorpus("golden/02-alternative.eml", raw, message));
 
   EMailPart root;
   QList<EMailSignatureRegion> regions;
@@ -532,7 +649,7 @@ TEST(EMailCorpusTest, AlternativeMembersShareAGroupAndOnlyOneIsTheBody) {
 TEST(EMailCorpusTest, BodySelectionFallsBackWhenThePreferredFormIsAbsent) {
   QByteArray raw;
   vmime::shared_ptr<vmime::message> message;
-  ASSERT_TRUE(ParseCorpus("01-plain-text.eml", raw, message));
+  ASSERT_TRUE(ParseCorpus("golden/01-plain-text.eml", raw, message));
 
   EMailPart root;
   QList<EMailSignatureRegion> regions;
@@ -546,7 +663,7 @@ TEST(EMailCorpusTest, BodySelectionFallsBackWhenThePreferredFormIsAbsent) {
 TEST(EMailCorpusTest, AttachmentsAreNeverChosenAsTheBody) {
   QByteArray raw;
   vmime::shared_ptr<vmime::message> message;
-  ASSERT_TRUE(ParseCorpus("03-mixed-attachments.eml", raw, message));
+  ASSERT_TRUE(ParseCorpus("golden/03-mixed-attachments.eml", raw, message));
 
   EMailPart root;
   QList<EMailSignatureRegion> regions;
@@ -563,7 +680,7 @@ TEST(EMailCorpusTest, AttachmentsAreNeverChosenAsTheBody) {
 TEST(EMailCorpusTest, ContentIdIsExposedWithoutAngleBrackets) {
   QByteArray raw;
   vmime::shared_ptr<vmime::message> message;
-  ASSERT_TRUE(ParseCorpus("07-inline-cid-image.eml", raw, message));
+  ASSERT_TRUE(ParseCorpus("golden/07-inline-cid-image.eml", raw, message));
 
   EMailPart root;
   QList<EMailSignatureRegion> regions;
@@ -586,7 +703,7 @@ TEST(EMailCorpusTest, ContentIdIsExposedWithoutAngleBrackets) {
 TEST(EMailCorpusTest, EncodedWordsAreDecodedInHeadersAndFileNames) {
   QByteArray raw;
   vmime::shared_ptr<vmime::message> message;
-  ASSERT_TRUE(ParseCorpus("08-encoded-words.eml", raw, message));
+  ASSERT_TRUE(ParseCorpus("golden/08-encoded-words.eml", raw, message));
 
   EMailPart root;
   QList<EMailSignatureRegion> regions;
@@ -611,7 +728,7 @@ TEST(EMailCorpusTest, EncodedWordsAreDecodedInHeadersAndFileNames) {
 TEST(EMailCorpusTest, OpenPgpKeyAttachmentsAreFlaggedInTheTree) {
   QByteArray raw;
   vmime::shared_ptr<vmime::message> message;
-  ASSERT_TRUE(ParseCorpus("10-pgp-keys-attachment.eml", raw, message));
+  ASSERT_TRUE(ParseCorpus("golden/10-pgp-keys-attachment.eml", raw, message));
 
   EMailPart root;
   QList<EMailSignatureRegion> regions;
@@ -626,7 +743,7 @@ TEST(EMailCorpusTest, OpenPgpKeyAttachmentsAreFlaggedInTheTree) {
 TEST(EMailCorpusTest, HostileFileNamesSurviveParsingAndAreSanitizedOnSave) {
   QByteArray raw;
   vmime::shared_ptr<vmime::message> message;
-  ASSERT_TRUE(ParseCorpus("09-hostile-filenames.eml", raw, message));
+  ASSERT_TRUE(ParseCorpus("golden/09-hostile-filenames.eml", raw, message));
 
   EMailMetaData meta;
   ASSERT_EQ(ExtractParts(message, meta), 0);
@@ -674,7 +791,7 @@ TEST(EMailCorpusTest, TreeIndicesArePreOrderAndUnique) {
 TEST(EMailCorpusTest, EmptyLeadingTextPartDoesNotBecomeTheBody) {
   QByteArray raw;
   vmime::shared_ptr<vmime::message> message;
-  ASSERT_TRUE(ParseCorpus("15-empty-body-parts.eml", raw, message));
+  ASSERT_TRUE(ParseCorpus("golden/15-empty-body-parts.eml", raw, message));
 
   EMailMetaData meta;
   ASSERT_EQ(ExtractParts(message, meta), 0);
@@ -1185,11 +1302,11 @@ auto WorstLevel(const QList<EMailFinding>& findings) -> EMailFindingLevel {
 TEST(EMailCorpusTest, AnOrdinaryMessageProducesNoAlarms) {
   // The most important case. If a plain, correct message raises anything, the
   // findings stop being read at all.
-  const auto findings = InspectCorpus("01-plain-text.eml");
+  const auto findings = InspectCorpus("golden/01-plain-text.eml");
   EXPECT_TRUE(findings.isEmpty()) << findings.size();
 
-  EXPECT_TRUE(InspectCorpus("02-alternative.eml").isEmpty());
-  EXPECT_TRUE(InspectCorpus("03-mixed-attachments.eml").isEmpty());
+  EXPECT_TRUE(InspectCorpus("golden/02-alternative.eml").isEmpty());
+  EXPECT_TRUE(InspectCorpus("golden/03-mixed-attachments.eml").isEmpty());
 }
 
 TEST(EMailCorpusTest, DuplicateSingletonHeadersAreFlagged) {
@@ -1221,7 +1338,7 @@ TEST(EMailCorpusTest, DuplicateSingletonHeadersAreFlagged) {
 }
 
 TEST(EMailCorpusTest, AReplyToOnAnotherDomainIsNotedNotAccused) {
-  const auto findings = InspectCorpus("12-odd-headers.eml");
+  const auto findings = InspectCorpus("golden/12-odd-headers.eml");
 
   EXPECT_TRUE(HasFinding(findings, "Replies go somewhere else"));
 
@@ -1247,12 +1364,12 @@ TEST(EMailCorpusTest, HomographDomainsAreRecognised) {
 }
 
 TEST(EMailCorpusTest, UnsignedPartsBesideASignatureAreReported) {
-  const auto findings = InspectCorpus("14-signed-with-attachment.eml");
+  const auto findings = InspectCorpus("golden/14-signed-with-attachment.eml");
   EXPECT_TRUE(HasFinding(findings, "Not everything is signed"));
 }
 
 TEST(EMailCorpusTest, AFullySignedMessageIsNotReportedAsPartlyUnsigned) {
-  const auto findings = InspectCorpus("04-pgpmime-signed.eml");
+  const auto findings = InspectCorpus("golden/04-pgpmime-signed.eml");
   EXPECT_FALSE(HasFinding(findings, "Not everything is signed"));
 }
 
@@ -1351,7 +1468,7 @@ TEST(EMailCorpusTest, ReplyToIsActuallyParsed) {
   // noticed at all.
   QByteArray raw;
   vmime::shared_ptr<vmime::message> message;
-  ASSERT_TRUE(ParseCorpus("12-odd-headers.eml", raw, message));
+  ASSERT_TRUE(ParseCorpus("golden/12-odd-headers.eml", raw, message));
 
   EMailMetaData meta;
   ASSERT_EQ(GetEMLMetaData(message, meta), 0);
@@ -1363,7 +1480,7 @@ TEST(EMailCorpusTest, ReplyToIsActuallyParsed) {
 TEST(EMailCorpusTest, ARepliedMessageUsesTheParsedReplyTo) {
   QByteArray raw;
   vmime::shared_ptr<vmime::message> message;
-  ASSERT_TRUE(ParseCorpus("12-odd-headers.eml", raw, message));
+  ASSERT_TRUE(ParseCorpus("golden/12-odd-headers.eml", raw, message));
 
   EMailMetaData meta;
   ASSERT_EQ(GetEMLMetaData(message, meta), 0);
@@ -1376,7 +1493,7 @@ TEST(EMailCorpusTest, ARepliedMessageUsesTheParsedReplyTo) {
 }
 
 TEST(EMailCorpusTest, AnAttachedPublicKeyIsNotedWithoutImplyingTrust) {
-  const auto findings = InspectCorpus("10-pgp-keys-attachment.eml");
+  const auto findings = InspectCorpus("golden/10-pgp-keys-attachment.eml");
   EXPECT_TRUE(HasFinding(findings, "Public key attached"));
 
   for (const auto& finding : findings) {
@@ -1391,7 +1508,7 @@ TEST(EMailCorpusTest, AnAttachedPublicKeyIsNotedWithoutImplyingTrust) {
 TEST(EMailCorpusTest, ASignaturePartOfTheStructureIsNotCalledDetached) {
   // The pgp-signature inside a multipart/signed is the message's own
   // signature, not a file that happens to be a signature.
-  const auto findings = InspectCorpus("04-pgpmime-signed.eml");
+  const auto findings = InspectCorpus("golden/04-pgpmime-signed.eml");
   EXPECT_FALSE(HasFinding(findings, "Detached signature"));
 }
 
@@ -1413,7 +1530,7 @@ TEST(EMailCorpusTest, BareLineFeedsAreDetectedInSignedBytes) {
 }
 
 TEST(EMailCorpusTest, ASignedPartRewrittenToLfIsReported) {
-  const auto findings = InspectCorpus("16-signed-lf-mangled.eml");
+  const auto findings = InspectCorpus("golden/16-signed-lf-mangled.eml");
 
   EXPECT_TRUE(HasFinding(findings, "canonical form"));
 
@@ -1432,9 +1549,10 @@ TEST(EMailCorpusTest, IntactSignedMessagesAreNotAccusedOfBeingRewritten) {
   // The check has to stay silent on every well-formed message, or it becomes
   // noise on exactly the messages that are fine.
   for (const auto& name :
-       {"04-pgpmime-signed.eml", "06-signed-inside-encrypted.eml",
-        "11-nested-signatures.eml", "13-signed-micalg-mismatch.eml",
-        "14-signed-with-attachment.eml"}) {
+       {"golden/04-pgpmime-signed.eml", "golden/06-signed-inside-encrypted.eml",
+        "golden/11-nested-signatures.eml",
+        "golden/13-signed-micalg-mismatch.eml",
+        "golden/14-signed-with-attachment.eml"}) {
     EXPECT_FALSE(HasFinding(InspectCorpus(name), "canonical form")) << name;
   }
 }
@@ -1444,7 +1562,7 @@ TEST(EMailCorpusTest, TheCheckNeedsTheOriginalBytesToSayAnything) {
   // the signed bytes are the only thing that can answer the question.
   QByteArray raw;
   vmime::shared_ptr<vmime::message> message;
-  ASSERT_TRUE(ParseCorpus("16-signed-lf-mangled.eml", raw, message));
+  ASSERT_TRUE(ParseCorpus("golden/16-signed-lf-mangled.eml", raw, message));
 
   EMailPart root;
   QList<EMailSignatureRegion> regions;

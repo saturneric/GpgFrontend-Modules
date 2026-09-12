@@ -1,0 +1,6 @@
+# The e-mail MIME corpus is test input, not source. Line endings are part of
+# the fixture: the golden messages are CRLF because real messages are, and the
+# imported public messages must stay byte-identical to what upstream shipped.
+# Without this, a checkout with core.autocrlf on rewrites them and the corpus
+# silently stops testing what it says it tests.
+src/m_email/test/corpus/**    -text

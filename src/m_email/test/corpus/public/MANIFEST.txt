@@ -1,0 +1,114 @@
+Public MIME corpus for the e-mail module
+========================================
+
+Messages taken verbatim from third-party test suites. Where they came from,
+under what licence, and with what hashes: ../PROVENANCE.md. Nothing here was
+edited on the way in; nothing here is GpgFrontend's to define.
+
+What these are for
+------------------
+The golden bucket is a specification: every message there is well-formed
+because we wrote it that way. That makes it a good spec and a poor adversary.
+These are the messages real mail actually arrives as -- sloppy boundaries,
+missing separators, legacy charsets, bare LF, text where a header should be.
+
+Rules
+-----
+* No byte-for-byte assertions. We did not author these bytes and do not
+  promise to reproduce them. The exceptions are the paths that explicitly
+  promise byte fidelity: RawHeaderBlock() and decoded attachment payloads.
+* Line endings are whatever upstream shipped, mostly bare LF. Nothing here may
+  assume CRLF; anything that needs CRLF belongs in golden/.
+* Parsing is NOT required to succeed. Each message declares one of three
+  outcomes in EMailPublicCorpusTest.cpp, and the test enforces that one:
+      ACCEPT                            parsed, and the structure is the one
+                                        the sender plainly meant
+      ACCEPT_WITH_DEGRADED_STRUCTURE    parsed, but the damage cost us
+                                        structure; safe and useful, not
+                                        faithful
+      REJECT                            refused outright -- never a crash, a
+                                        hang, or a half-built tree returned as
+                                        if it were good
+  Alongside the outcome, every message must parse deterministically (same
+  bytes, same tree, twice) and stay inside EMailParseLimits.
+* One primary property per file. Product policy -- which security state the UI
+  shows, which alternative is preferred -- is a contract we own, so it is
+  pinned in golden/, not here.
+* The differential test against the pre-tree walker runs over golden/ only.
+  Malformed input legitimately diverges between two implementations; making
+  them agree on garbage is not a goal.
+
+Messages
+--------
+p01-boundary-name-clash.eml            ACCEPT
+    Nested multipart where the child boundary is the parent boundary plus
+    "-1", and the boundary value itself starts with "--". A parser that treats
+    "line starts with the parent delimiter" as a match closes the inner
+    multipart early and reparents the PDF attachment. Pins: the alternative
+    keeps its two children and the attachment stays a child of the root.
+
+p02-ending-boundaries.eml              ACCEPT_WITH_DEGRADED_STRUCTURE
+    Trailing text on the delimiter lines ("--boundary This should be
+    ignored"). RFC 2046 allows only transport padding there, so vmime finds no
+    delimiter and the whole body becomes preamble: zero parts.
+    mime4j, whose message this is, recovers the part instead. We do not, and
+    that is deliberate -- recovering means guessing which bytes the sender
+    meant to delimit, and an ambiguously framed message is exactly the one
+    where a wrong guess decides what appears to be signed. Pins: no part is
+    invented from the preamble.
+
+p03-boundary-text-in-body.eml          ACCEPT
+    The string "--boundary" appears inside a body, mid-sentence. Pins: it does
+    not split the part, and both lines survive in the body.
+
+p04-no-header-separator.eml            ACCEPT_WITH_DEGRADED_STRUCTURE
+    A bare non-header line sits in the middle of the header block. Pins: the
+    Subject before the damage is still parsed and the body does not vanish.
+
+p05-base64-rfc822-bare-lf.eml          ACCEPT
+    A message/rfc822 that is itself base64-encoded, and whose inner message
+    uses bare LF throughout. Two decoding layers before any structure is
+    visible. Pins: the inner payload decodes.
+
+p06-complex-multipart.eml              ACCEPT
+    A realistic four-part message with binary attachments -- the everyday
+    complex case, NOT a size test. Real size and depth stress is generated in
+    the test at run time rather than checked in as a blob. Pins: attachment
+    payloads decode non-empty.
+
+p07-cte-matrix.eml                     ACCEPT
+    7bit, quoted-printable, base64, base64-with-trailing-newline, and a fifth
+    part with no Content-Transfer-Encoding header at all, across us-ascii and
+    iso-8859-1. Pins: all five decode, the CTE-less part included.
+
+p08-nested-charsets.eml                ACCEPT
+    Five root children, one of them a nested multipart/mixed, spanning
+    us-ascii, iso-8859-1, iso-8859-2, iso-8859-3 and koi8-r. Every body is
+    empty. Pins: empty bodies are still parts, so the nesting survives.
+
+p09-duplicate-attachment-names.eml     ACCEPT
+    Two attachments both claiming name="msg.txt", neither with a
+    Content-Disposition. Pins: UniqueAttachmentFileNames() separates them, and
+    does so the same way every time.
+
+p10-iso2022jp-encoded-subject.eml      ACCEPT
+    RFC 2047 B-encoded Subject split across two adjacent encoded-words in
+    ISO-2022-JP. Pins: no encoded-word syntax survives into the decoded value,
+    and the two words are joined before decoding rather than separately.
+
+p11-empty-multipart.eml                ACCEPT
+    A multipart/alternative whose own boundary never appears, followed by a
+    text/plain at the PARENT's level. A parser that keeps consuming until it
+    finds the child boundary adopts that sibling. Pins: it does not -- which
+    under a multipart/signed is the difference between signed and unsigned.
+
+p12-preamble-epilogue.eml              ACCEPT
+    Text before the first boundary and after the closing one. Pins: neither
+    becomes a part or leaks into one.
+
+Adding to this corpus
+---------------------
+Only when a candidate covers a parser behaviour nothing here reaches. A second
+message with the same shape costs run time and review attention and buys
+nothing. Effort is better spent on the golden OpenPGP fixtures, which define
+security semantics no public corpus can define for us.

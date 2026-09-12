@@ -1,0 +1,42 @@
+From: Alice <alice@example.com>
+To: Bob <bob@example.com>
+Subject: ...
+Date: Tue, 12 Nov 2024 09:12:42 +0000
+MIME-Version: 1.0
+Content-Type: multipart/signed; protocol="application/pgp-signature";
+ micalg=pgp-sha256; boundary="outer"
+
+--outer
+Content-Type: multipart/encrypted; protocol="application/pgp-encrypted";
+ boundary="inner"
+
+--inner
+Content-Type: application/pgp-encrypted
+Content-Description: PGP/MIME version identification
+
+Version: 1
+
+--inner
+Content-Type: application/octet-stream; name="encrypted.asc"
+Content-Disposition: inline; filename="encrypted.asc"
+
+-----BEGIN PGP MESSAGE-----
+
+PLACEHOLDER-CIPHERTEXT-NOT-REAL-CRYPTOGRAPHY
+=AAAA
+-----END PGP MESSAGE-----
+
+--inner--
+
+--outer
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: OpenPGP digital signature
+Content-Disposition: attachment; filename="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+
+PLACEHOLDER-SIGNATURE-OVER-THE-CIPHERTEXT-ONLY
+=BBBB
+-----END PGP SIGNATURE-----
+
+--outer--

@@ -36,13 +36,15 @@
  * the module, and the one place where "it did not crash on the corpus" is not
  * good enough.
  *
- * The corpus under test/corpus is the seed set. Build with:
+ * The corpus under test/corpus/public is the seed set -- those messages are
+ * malformed on purpose, so they are the interesting starting points. Build
+ * with:
  *
  *   -DGPGFRONTEND_MODULES_BUILD_FUZZERS=ON
  *   -DCMAKE_CXX_COMPILER=clang++
  *   -DCMAKE_CXX_FLAGS="-fsanitize=fuzzer-no-link,address,undefined"
  *
- * and run: gf_mod_email_fuzz test/corpus -max_len=1048576
+ * and run: gf_mod_email_fuzz test/corpus/public -max_len=1048576
  *
  * Nothing here asserts on content. The properties being fuzzed are that the
  * parsers terminate, stay inside their buffers, and respect EMailParseLimits

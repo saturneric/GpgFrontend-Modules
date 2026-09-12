@@ -42,6 +42,7 @@ endif()
 add_executable(gf_mod_email_test
   EMailMimeTest.cpp
   EMailCorpusTest.cpp
+  EMailPublicCorpusTest.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../EMAilHelper.cpp)
 
 target_include_directories(gf_mod_email_test PRIVATE
@@ -74,7 +75,11 @@ set_target_properties(gf_mod_email_test PROPERTIES
 #         -DCMAKE_CXX_COMPILER=clang++ \
 #         -DCMAKE_CXX_FLAGS="-fsanitize=fuzzer-no-link,address,undefined"
 #   build-fuzz/artifacts/modules/gf_mod_email_fuzz \
-#         modules/src/m_email/test/corpus -max_len=1048576
+#         modules/src/m_email/test/corpus/public -max_len=1048576
+#
+# corpus/public is the seed set: those messages are malformed on purpose, so
+# they are the interesting starting points. corpus/golden works too, but it is
+# well-formed by construction and explores less.
 option(GPGFRONTEND_MODULES_BUILD_FUZZERS
   "Build libFuzzer harnesses for the modules (requires clang)" OFF)
 
