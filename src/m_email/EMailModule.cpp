@@ -76,7 +76,7 @@
 #include "EMailBasicGpgOpera.h"
 #include "EMailHelper.h"
 
-GF_MODULE_API_DEFINE_V2("com.bktus.gpgfrontend.module.email", "Email", "1.2.3",
+GF_MODULE_API_DEFINE_V2("com.bktus.gpgfrontend.module.email", "Email", "2.0.0",
                         "Everything related to E-Mails.", "Saturneric")
 
 DEFINE_TRANSLATIONS_STRUCTURE(ModuleEMail);
