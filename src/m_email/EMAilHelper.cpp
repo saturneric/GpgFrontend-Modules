@@ -236,11 +236,32 @@ auto EncodeBase64WithLineBreaks(const QByteArray& data, int line_length)
 
 auto CheckIfEMLMessage(const QByteArray& data,
                        vmime::shared_ptr<vmime::message>& message) -> bool {
+  if (data.size() > kMaxParseInputBytes) {
+    MimeLog(QString("refusing to parse %1 bytes: over the input ceiling")
+                .arg(data.size()));
+    return false;
+  }
+
   vmime::string vmime_data(data.constData(), data.size());
 
   message = vmime::make_shared<vmime::message>();
   try {
-    message->parse(vmime_data);
+    // A parsing context of our own rather than the shared default, with the
+    // nesting depth held far below what vmime would otherwise allow.
+    //
+    // Two things are bounded by this, and the second is the reason it is this
+    // low. Descending is recursion, so depth is stack depth, and a few
+    // thousand levels -- a message well under 1 MB -- terminates the process.
+    // And each level rescans the buffer for its boundary, so the work is
+    // depth x size: at vmime's own default a 3 MB message took over a minute.
+    //
+    // EMailParseLimits::max_depth is 8, so nothing legitimate comes close;
+    // this only has to be generous enough that the module's own limit is
+    // always the one that reports the refusal.
+    vmime::parsingContext ctx;
+    ctx.setMaxNestingDepth(kMaxParseNestingDepth);
+
+    message->parse(ctx, vmime_data);
     return message->getParsedLength() != 0 && !message->getHeader()->isEmpty();
   } catch (const vmime::exception& e) {
     MimeLog(QString("error parsing vmime data: %1").arg(e.what()));

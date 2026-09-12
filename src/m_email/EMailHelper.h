@@ -244,6 +244,29 @@ auto GetEMLMetaData(vmime::shared_ptr<vmime::message>& message,
                     EMailMetaData& meta_data) -> int;
 
 /**
+ * @brief Largest message CheckIfEMLMessage() will hand to the parser.
+ *
+ * Enforced at the parse itself, not only where a message enters, so that every
+ * route in is covered by one rule -- a file, an IMAP fetch, pasted text, and
+ * the plaintext that comes back out of a decrypt, which is the one the size of
+ * the ciphertext says nothing about. An OpenPGP compressed packet a few
+ * megabytes long expands to gigabytes, and before this the expansion was
+ * copied three times over before any limit was consulted.
+ */
+constexpr qint64 kMaxParseInputBytes = 64LL * 1024 * 1024;
+
+/**
+ * @brief Deepest MIME nesting the parser will descend.
+ *
+ * vmime parses multiparts by recursion and imposes no bound of its own, so
+ * this is the bound. Set far above EMailParseLimits::max_depth so that a
+ * legitimate message is never refused here -- this catches only the shapes
+ * that exist to exhaust the stack, and keeps the depth x size cost of boundary
+ * scanning down. See CheckIfEMLMessage().
+ */
+constexpr size_t kMaxParseNestingDepth = 64;
+
+/**
  * @brief Limits applied when walking an untrusted message tree.
  *
  * Parsing runs synchronously on input that arrived from outside, so a message
