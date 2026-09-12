@@ -681,10 +681,15 @@ REGISTER_EVENT_HANDLER(MAINWINDOW_MENU_MOUNTED, [](const MEvent& event) -> int {
 
         // Import from IMAP. Shown only when an account could actually be
         // browsed: an entry that always fails teaches people to ignore it.
+        // Named and dressed like its neighbours in this menu ("Open Smart
+        // Card Controller", "Open Module Controller"): it opens a controller
+        // rather than prompting for anything, so it takes no ellipsis.
         auto* import_action = new QAction(
-            QCoreApplication::translate("GTrC", "Import from IMAP..."), parent);
-        import_action->setToolTip(QCoreApplication::translate(
-            "GTrC", "Open a message from a configured mail account."));
+            QCoreApplication::translate("GTrC", "Open IMAP Controller"),
+            parent);
+        import_action->setIcon(QIcon(":/icons/receive_email.png"));
+        import_action->setToolTip(
+            QCoreApplication::translate("GTrC", "Open IMAP Controller Dialog"));
         QObject::connect(
             import_action, &QAction::triggered, parent, [parent]() {
               if (!EMailImapController::HasUsableAccount()) {
