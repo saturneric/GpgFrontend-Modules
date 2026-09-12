@@ -33,17 +33,26 @@ register_module(mod_email MODULE_TARGET ${INTEGRATED_MODULE_SOURCE})
 
 set(VMIME_INSTALL OFF CACHE BOOL "Don't Install")
 set(VMIME_BUILD_TESTS OFF CACHE BOOL "No Unit Test")
-set(VMIME_HAVE_TLS_SUPPORT OFF CACHE BOOL "No TLS")
+set(VMIME_HAVE_TLS_SUPPORT ON CACHE BOOL "TLS for IMAP/SMTP")
+set(VMIME_TLS_SUPPORT_LIB "openssl" CACHE STRING "Use OpenSSL, already a dependency")
 set(VMIME_HAVE_SASL_SUPPORT OFF CACHE BOOL "No SASL")
 set(VMIME_BUILD_DOCUMENTATION OFF CACHE BOOL "Document IS Not Necessary HERE")
 set(VMIME_BUILD_STATIC_LIBRARY ON CACHE BOOL "Need Static Library")
 set(VMIME_BUILD_SHARED_LIBRARY OFF CACHE BOOL "No Shared Library")
 set(VMIME_HAVE_MESSAGING_PROTO_POP3 OFF CACHE BOOL "No POP3 protocol")
-set(VMIME_HAVE_MESSAGING_PROTO_SMTP OFF CACHE BOOL "No SMTP protocol")
-set(VMIME_HAVE_MESSAGING_PROTO_IMAP OFF CACHE BOOL "No IMAP protocol")
+set(VMIME_HAVE_MESSAGING_PROTO_SMTP ON CACHE BOOL "SMTP submission")
+set(VMIME_HAVE_MESSAGING_PROTO_IMAP ON CACHE BOOL "IMAP import")
 set(VMIME_HAVE_MESSAGING_PROTO_MAILDIR OFF CACHE BOOL "No Maildir protocol")
 set(VMIME_HAVE_MESSAGING_PROTO_SENDMAIL OFF CACHE BOOL "No Sendmail protocol")
+find_package(OpenSSL REQUIRED)
+
 add_subdirectory(vmime "vmime" EXCLUDE_FROM_ALL)
+
+# vmime wraps every TARGET_LINK_LIBRARIES for its TLS backend in
+# IF(VMIME_BUILD_SHARED_LIBRARY). We build vmime-static, so OpenSSL never
+# reaches consumers on its own and both this module and the gtest target
+# would fail to link with undefined symbols. Attach it here instead.
+target_link_libraries(vmime-static OpenSSL::SSL OpenSSL::Crypto)
 
 if(MINGW)
   target_link_libraries(vmime-static ws2_32 mlang)
@@ -58,7 +67,7 @@ target_include_directories(${MODULE_TARGET} PRIVATE
 message(STATUS "CMAKE_BINARY_DIR of module email: ${CMAKE_BINARY_DIR}")
 
 # link qt
-target_link_libraries(${MODULE_TARGET} PRIVATE Qt::Core Qt::Widgets Qt::Concurrent)
+target_link_libraries(${MODULE_TARGET} PRIVATE Qt::Core Qt::Widgets Qt::Concurrent Qt::Network)
 
 # link vmime
 target_link_libraries(${MODULE_TARGET} PRIVATE vmime-static)
