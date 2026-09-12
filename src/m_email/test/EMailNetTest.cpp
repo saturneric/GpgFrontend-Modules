@@ -137,7 +137,7 @@ auto TrySmtp(const QStringList& mechanisms, const QString& password,
                      attempt.error = receipt.error;
                    });
 
-  worker.TestConnection(1, account, password);
+  worker.TestConnection(1, account, EMailSecret::CopyFrom(password));
 
   attempt.commands = server.Commands();
   attempt.seen_username = server.seen_username;
@@ -218,7 +218,8 @@ auto Submit(FakeSmtpServer::AfterBody after_body, bool cancel_at_body = false,
     });
   }
 
-  worker.Submit(1, account, "correct-horse", message);
+  worker.Submit(1, account, EMailSecret::CopyFrom("correct-horse"),
+                message);
 
   stop_watching.store(true);
   if (canceller.joinable()) canceller.join();
@@ -391,7 +392,8 @@ class EMailImapNetTest : public ::testing::Test {
         &worker_, &EMailImapWorker::SignalMessages, &worker_,
         [this](quint64, const EMailMessagePage& page) { page_ = page; });
 
-    worker_.Connect(1, ImapAccount(server_.serverPort()), "password");
+    worker_.Connect(1, ImapAccount(server_.serverPort()),
+                    EMailSecret::CopyFrom("password"));
     ASSERT_TRUE(connected_) << last_error_.title.toStdString();
   }
 

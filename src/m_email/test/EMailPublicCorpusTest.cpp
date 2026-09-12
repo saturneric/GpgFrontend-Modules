@@ -47,6 +47,7 @@
 
 #include <QDir>
 #include <QFile>
+#include <QElapsedTimer>
 #include <QSet>
 #include <array>
 
@@ -526,4 +527,143 @@ TEST(EMailPublicCorpusTest, PreambleAndEpilogueAreNotParts) {
     EXPECT_FALSE(part->data.contains("epilogue"))
         << "epilogue text leaked into part " << part->index;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Hostile shapes: what must be survivable, not merely refused
+//
+// A message has to be parsed before anything can say whether it is signed, let
+// alone trustworthy, so the parser runs on wholly unauthenticated input. The
+// bar is therefore not "is it rejected" but "does the process survive it".
+// ---------------------------------------------------------------------------
+
+namespace {
+
+/// A message nested @p depth multiparts deep. Roughly 60 bytes per level, so
+/// even a very deep one is a small file -- which is the point.
+auto DeeplyNested(int depth) -> QByteArray {
+  QByteArray head =
+      "From: a@example.com\r\nTo: b@example.com\r\nSubject: s\r\n"
+      "MIME-Version: 1.0\r\n";
+  QByteArray body;
+  for (int i = 0; i < depth; ++i) {
+    const auto boundary = QByteArray("b") + QByteArray::number(i);
+    const auto ct =
+        "Content-Type: multipart/mixed; boundary=\"" + boundary + "\"\r\n\r\n";
+    if (i == 0) {
+      head += ct;
+    } else {
+      body += ct;
+    }
+    body += "--" + boundary + "\r\n";
+  }
+  body += "Content-Type: text/plain\r\n\r\ndeep\r\n";
+  return head + body;
+}
+
+}  // namespace
+
+TEST(EMailHostileShapeTest, NestingFarPastTheLimitDoesNotCrashTheProcess) {
+  // 4000 levels is about 240 KB -- nothing by the size ceiling, and it used to
+  // terminate the process with SIGSEGV before any limit was consulted, because
+  // vmime descends by recursion and had no bound of its own. The measured
+  // crash threshold on an 8 MB stack was between 3000 and 3500 levels.
+  //
+  // Reaching the end of this test at all is the assertion.
+  const auto raw = DeeplyNested(4000);
+  ASSERT_LT(raw.size(), 1024 * 1024) << "the fixture itself must stay small";
+
+  vmime::shared_ptr<vmime::message> message;
+  CheckIfEMLMessage(raw, message);
+
+  SUCCEED() << "parsed without exhausting the stack";
+}
+
+TEST(EMailHostileShapeTest, VeryDeepNestingStaysCheap) {
+  // Depth also multiplies work: every level rescans the buffer for its
+  // boundary, so an unbounded descent is depth x size even when it does not
+  // crash. At vmime's own default this shape took over a minute.
+  const auto raw = DeeplyNested(20000);
+
+  QElapsedTimer timer;
+  timer.start();
+
+  vmime::shared_ptr<vmime::message> message;
+  CheckIfEMLMessage(raw, message);
+
+  EXPECT_LT(timer.elapsed(), 10000)
+      << "parsing " << raw.size() << " bytes took " << timer.elapsed() << "ms";
+}
+
+TEST(EMailHostileShapeTest, DeepNestingIsStillRefusedByTheTreeLimits) {
+  // Surviving is not the same as accepting: the module's own walk must still
+  // refuse the shape, so nothing downstream ever sees a 4000-deep tree.
+  const auto raw = DeeplyNested(4000);
+
+  vmime::shared_ptr<vmime::message> message;
+  if (!CheckIfEMLMessage(raw, message)) SUCCEED() << "refused at the parse";
+
+  if (message != nullptr) {
+    EMailPart root;
+    QList<EMailSignatureRegion> regions;
+    EXPECT_EQ(ParseMimeTree(message, raw, root, regions), -1);
+  }
+}
+
+TEST(EMailHostileShapeTest, AnInputOverTheCeilingIsRefusedBeforeParsing) {
+  // The ceiling lives at the parse rather than at each entry point, so every
+  // route in is covered -- including the decrypted plaintext, whose size the
+  // ciphertext says nothing about.
+  QByteArray raw = "From: a@example.com\r\nSubject: s\r\n\r\n";
+  raw += QByteArray(kMaxParseInputBytes + 1 - raw.size(), 'x');
+  ASSERT_GT(raw.size(), kMaxParseInputBytes);
+
+  vmime::shared_ptr<vmime::message> message;
+  EXPECT_FALSE(CheckIfEMLMessage(raw, message));
+}
+
+TEST(EMailHostileShapeTest, AMessageJustUnderTheCeilingIsStillAccepted) {
+  // The limit must not be so eager that ordinary large mail stops working.
+  QByteArray raw =
+      "From: a@example.com\r\nTo: b@example.com\r\nSubject: s\r\n"
+      "MIME-Version: 1.0\r\nContent-Type: text/plain\r\n\r\n";
+  raw += QByteArray(1024 * 1024, 'x');
+
+  vmime::shared_ptr<vmime::message> message;
+  EXPECT_TRUE(CheckIfEMLMessage(raw, message));
+}
+
+TEST(EMailHostileShapeTest, ManyTinyPartsAreRefusedRatherThanWalked) {
+  QByteArray raw =
+      "From: a@example.com\r\nTo: b@example.com\r\nSubject: s\r\n"
+      "MIME-Version: 1.0\r\n"
+      "Content-Type: multipart/mixed; boundary=\"bb\"\r\n\r\n";
+  for (int i = 0; i < 5000; ++i) {
+    raw += "--bb\r\nContent-Type: text/plain\r\n\r\nx\r\n";
+  }
+  raw += "--bb--\r\n";
+
+  vmime::shared_ptr<vmime::message> message;
+  ASSERT_TRUE(CheckIfEMLMessage(raw, message));
+
+  EMailPart root;
+  QList<EMailSignatureRegion> regions;
+  EXPECT_EQ(ParseMimeTree(message, raw, root, regions), -1)
+      << "5000 parts passed a limit of " << EMailParseLimits{}.max_parts;
+}
+
+TEST(EMailHostileShapeTest, PathologicalBoundariesDoNotHang) {
+  // Boundary-like lines that never actually close anything.
+  QByteArray raw =
+      "From: a@example.com\r\nSubject: s\r\nMIME-Version: 1.0\r\n"
+      "Content-Type: multipart/mixed; boundary=\"x\"\r\n\r\n";
+  for (int i = 0; i < 20000; ++i) raw += "--x\r\n";
+
+  QElapsedTimer timer;
+  timer.start();
+
+  vmime::shared_ptr<vmime::message> message;
+  CheckIfEMLMessage(raw, message);
+
+  EXPECT_LT(timer.elapsed(), 10000);
 }

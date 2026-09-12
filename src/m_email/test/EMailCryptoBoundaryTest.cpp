@@ -337,4 +337,136 @@ TEST_F(CryptoBoundaryTest, EncryptingPassesTheBodyOctetsWhole) {
       << "the plaintext was cut at the embedded NUL before encryption";
 }
 
+
+TEST_F(CryptoBoundaryTest, AnOversizedDecryptedPlaintextIsRefused) {
+  // The ceiling on the way in bounds the CIPHERTEXT. An OpenPGP compressed
+  // packet a few megabytes long expands to gigabytes, so the expansion has to
+  // be refused on its own terms rather than trusted because its input was
+  // small.
+  QByteArray eml;
+  eml += "From: Alice <alice@example.com>\r\n";
+  eml += "To: Bob <bob@example.com>\r\n";
+  eml += "MIME-Version: 1.0\r\n";
+  eml +=
+      "Content-Type: multipart/encrypted; "
+      "protocol=\"application/pgp-encrypted\"; boundary=\"encb\"\r\n";
+  eml += "\r\n--encb\r\n";
+  eml += "Content-Type: application/pgp-encrypted\r\n\r\nVersion: 1\r\n";
+  eml += "\r\n--encb\r\n";
+  eml += "Content-Type: application/octet-stream\r\n\r\n";
+  eml +=
+      "-----BEGIN PGP MESSAGE-----\r\nc3R1Yg==\r\n"
+      "-----END PGP MESSAGE-----\r\n";
+  eml += "\r\n--encb--\r\n";
+
+  // A small ciphertext that "decrypts" to more than the ceiling allows.
+  Get().decrypt_output = QByteArray(kMaxParseInputBytes + 1, 'x');
+
+  EMailMetaData meta;
+  QByteArray out;
+  gpgme_error_t err = 0;
+  QString capsule;
+  const auto ret = DecryptEMLData(0, eml, meta, out, err, capsule);
+
+  EXPECT_EQ(ret, kEML_FAILED);
+  EXPECT_LT(out.size(), kMaxParseInputBytes)
+      << "the oversized plaintext was carried forward anyway";
+}
+
+
+// --- bounded verification work ----------------------------------------------
+
+namespace {
+
+/// A message carrying @p count sibling multipart/signed regions.
+auto ManySignedRegions(int count) -> QByteArray {
+  QByteArray eml;
+  eml += "From: Alice <alice@example.com>\r\n";
+  eml += "To: Bob <bob@example.com>\r\n";
+  eml += "Subject: many\r\n";
+  eml += "MIME-Version: 1.0\r\n";
+  eml += "Content-Type: multipart/mixed; boundary=\"outer\"\r\n\r\n";
+
+  for (int i = 0; i < count; ++i) {
+    const auto b = QByteArray("sig") + QByteArray::number(i);
+    eml += "--outer\r\n";
+    eml += "Content-Type: multipart/signed; micalg=pgp-sha256; "
+           "protocol=\"application/pgp-signature\"; boundary=\"" + b +
+           "\"\r\n\r\n";
+    eml += "--" + b + "\r\n";
+    eml += "Content-Type: text/plain\r\n\r\npart\r\n";
+    eml += "--" + b + "\r\n";
+    eml += "Content-Type: application/pgp-signature\r\n\r\n";
+    eml += "-----BEGIN PGP SIGNATURE-----\r\naGVsbG8=\r\n"
+           "-----END PGP SIGNATURE-----\r\n";
+    eml += "--" + b + "--\r\n";
+  }
+  eml += "--outer--\r\n";
+  return eml;
+}
+
+}  // namespace
+
+TEST_F(CryptoBoundaryTest, VerificationStopsAtTheRegionBudget) {
+  // Every region costs a blocking GPG call on the GUI thread, with no timeout
+  // and no cancel. Without a cap, a message decides how long the application
+  // stops responding for.
+  const auto raw = ManySignedRegions(kMaxVerifiedRegions + 12);
+
+  EMailPart root;
+  QList<EMailSignatureRegion> regions;
+  vmime::shared_ptr<vmime::message> message;
+  ASSERT_TRUE(CheckIfEMLMessage(raw, message));
+  ASSERT_EQ(ParseMimeTree(message, raw, root, regions), 0);
+  ASSERT_GT(regions.size(), kMaxVerifiedRegions)
+      << "the fixture did not produce enough regions to test the cap";
+
+  QList<EMailSignatureResult> results;
+  const auto verified = VerifyEMLRegions(0, raw, root, regions, results);
+
+  EXPECT_LE(verified, kMaxVerifiedRegions);
+  EXPECT_LE(Get().verify.size(), kMaxVerifiedRegions)
+      << "more GPG calls were made than the budget allows";
+}
+
+TEST_F(CryptoBoundaryTest, AnOrdinaryMessageIsNotAffectedByTheBudget) {
+  // The cap must be well clear of anything real: the worst legitimate case in
+  // the corpus is a nested signature, i.e. two regions.
+  const auto raw = ManySignedRegions(2);
+
+  EMailPart root;
+  QList<EMailSignatureRegion> regions;
+  vmime::shared_ptr<vmime::message> message;
+  ASSERT_TRUE(CheckIfEMLMessage(raw, message));
+  ASSERT_EQ(ParseMimeTree(message, raw, root, regions), 0);
+
+  QList<EMailSignatureResult> results;
+  const auto verified = VerifyEMLRegions(0, raw, root, regions, results);
+
+  EXPECT_EQ(verified, regions.size()) << "a normal message was cut short";
+}
+
+TEST_F(CryptoBoundaryTest, EachRegionIsVerifiedOnItsOwnExactBytes) {
+  // The cap must not disturb which bytes go with which region.
+  const auto raw = ManySignedRegions(3);
+
+  EMailPart root;
+  QList<EMailSignatureRegion> regions;
+  vmime::shared_ptr<vmime::message> message;
+  ASSERT_TRUE(CheckIfEMLMessage(raw, message));
+  ASSERT_EQ(ParseMimeTree(message, raw, root, regions), 0);
+
+  QList<EMailSignatureResult> results;
+  VerifyEMLRegions(0, raw, root, regions, results);
+
+  ASSERT_EQ(Get().verify.size(), regions.size());
+  for (int i = 0; i < regions.size(); ++i) {
+    const auto expected =
+        raw.mid(static_cast<int>(regions[i].raw_offset),
+                static_cast<int>(regions[i].raw_length));
+    EXPECT_EQ(Get().verify[i].data, expected)
+        << "region " << i << " was verified on the wrong bytes";
+  }
+}
+
 }  // namespace
