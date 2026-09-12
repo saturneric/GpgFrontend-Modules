@@ -213,7 +213,8 @@ auto CheckIfEMLMessage(const QByteArray& data,
  * @return int
  */
 auto BuildPlainTextEML(const EMailMetaData& meta_data,
-                       const QByteArray& body_data, QString& eml_data) -> int;
+                       const QByteArray& body_data, QByteArray& eml_data)
+    -> int;
 
 /**
  * @brief Builds an EML with an optional set of attachments.
@@ -229,8 +230,8 @@ auto BuildPlainTextEML(const EMailMetaData& meta_data,
  * @return 0 on success, -1 on a vmime error
  */
 auto BuildMimeEML(const EMailMetaData& meta_data, const QByteArray& body_data,
-                  const QList<EMailAttachment>& attachments, QString& eml_data)
-    -> int;
+                  const QList<EMailAttachment>& attachments,
+                  QByteArray& eml_data) -> int;
 
 /**
  * @brief
@@ -641,7 +642,7 @@ auto UniqueAttachmentFileNames(const QList<EMailAttachment>& attachments,
  * @return the generated header block
  */
 auto BuildInnerPartHeader(const vmime::shared_ptr<vmime::header>& source)
-    -> QString;
+    -> QByteArray;
 
 /**
  * @brief Removes from @p message, in place, everything a previous Sign added.

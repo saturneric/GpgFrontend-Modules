@@ -225,12 +225,12 @@ auto FreezeOutgoing(const EMailMetaData& meta, const EMailComposeState& compose,
     pinned.message_id = MailGenerateMessageId(out.envelope_from);
   }
 
-  QString eml;
+  QByteArray eml;
   if (BuildMimeEML(pinned, body, attachments, eml) != 0) {
     return EMailFreezeResult::kSERIALIZE_FAILED;
   }
 
-  out.eml = eml.toUtf8();
+  out.eml = eml;
   out.subject = pinned.subject;
   out.attachment_count = static_cast<int>(attachments.size());
 

@@ -1339,13 +1339,14 @@ void EMailPageView::sync_inspection() {
 
   collect_fields();
 
-  QString eml;
+  QByteArray eml;
   // Re-encodes every attachment, on this thread. Long enough on a message with
   // a few large parts that the window would otherwise sit there looking dead.
   const EMailBusyCursor busy;
 
   if (BuildMimeEML(message_, message_.body, message_.attachments, eml) != 0) {
-    MLogWarn("failed to serialize the edited message for inspection: " + eml);
+    MLogWarn("failed to serialize the edited message for inspection: " +
+             QString::fromUtf8(eml));
     // Show nothing rather than the previous document's structure: a stale tree
     // presented as the current one is worse than an empty tab. The flag stays
     // set, so the next visit tries again.
@@ -1366,7 +1367,7 @@ void EMailPageView::sync_inspection() {
   // The inspection views read raw byte ranges out of this, so it has to be the
   // document they are describing. Still dirty: the host has yet to be given
   // these bytes, and only SaveToSource() settles that.
-  last_source_ = eml.toUtf8();
+  last_source_ = eml;
   source_is_original_ = false;
 
   refresh_structure();
@@ -1461,7 +1462,7 @@ void EMailPageView::slot_derive_message(int mode) {
   const auto quoted =
       BuildQuotedBody(message_, static_cast<EMailReplyMode>(mode));
 
-  QString eml;
+  QByteArray eml;
   if (BuildMimeEML(derived, quoted, derived.attachments, eml) != 0) {
     MLogWarn("failed to build the derived message");
     QMessageBox::warning(
@@ -1501,7 +1502,7 @@ void EMailPageView::slot_derive_message(int mode) {
     return;
   }
 
-  view->LoadFromSource(eml.toUtf8());
+  view->LoadFromSource(eml);
   // It is a draft the user has not saved, and the tab should say so.
   view->mark_dirty();
 }
@@ -2467,9 +2468,9 @@ auto EMailPageView::SaveToSource() -> QByteArray {
 
   collect_fields();
 
-  QString eml;
+  QByteArray eml;
   if (BuildMimeEML(message_, message_.body, message_.attachments, eml) != 0) {
-    MLogWarn("failed to serialize message: " + eml);
+    MLogWarn("failed to serialize message: " + QString::fromUtf8(eml));
     // Hand back exactly what was loaded. Returning the body alone -- which an
     // earlier version did -- replaces the document with the message text and
     // silently drops every header the user typed and every attachment they
@@ -2479,7 +2480,7 @@ auto EMailPageView::SaveToSource() -> QByteArray {
   }
 
   dirty_ = false;
-  last_source_ = eml.toUtf8();
+  last_source_ = eml;
   // Built here, from the user's own fields. There is nothing in these bytes
   // to preserve, which is what lets the send path rebuild them and give the
   // message the Message-ID a draft has not got yet.

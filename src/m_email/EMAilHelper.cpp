@@ -249,8 +249,8 @@ auto CheckIfEMLMessage(const QByteArray& data,
 }
 
 auto BuildMimeEML(const EMailMetaData& meta_data, const QByteArray& body_data,
-                  const QList<EMailAttachment>& attachments, QString& eml_data)
-    -> int {
+                  const QList<EMailAttachment>& attachments,
+                  QByteArray& eml_data) -> int {
   auto from = meta_data.from;
   auto recipient_list = meta_data.to;
   auto cc_list = meta_data.cc;
@@ -421,18 +421,21 @@ auto BuildMimeEML(const EMailMetaData& meta_data, const QByteArray& body_data,
           vmime::word(name.toStdString(), vmime::charsets::UTF_8));
     }
 
-    eml_data =
-        Q_SC(plaintext_msg->generate(vmime::lineLengthLimits::convenient));
+    // Bytes, not text: the generated message is what will be signed or sent,
+    // and a UTF-8 round trip here would not survive an 8bit part.
+    eml_data = QByteArray::fromStdString(
+        plaintext_msg->generate(vmime::lineLengthLimits::convenient));
     return 0;
 
   } catch (const vmime::exception& e) {
-    eml_data = QString("VMIME Error: %1").arg(e.what());
+    eml_data = QByteArray("VMIME Error: ") + e.what();
     return -1;
   }
 }
 
 auto BuildPlainTextEML(const EMailMetaData& meta_data,
-                       const QByteArray& body_data, QString& eml_data) -> int {
+                       const QByteArray& body_data, QByteArray& eml_data)
+    -> int {
   return BuildMimeEML(meta_data, body_data, {}, eml_data);
 }
 
@@ -1795,7 +1798,7 @@ auto ExtractParts(const vmime::shared_ptr<vmime::message>& message,
 }
 
 auto BuildInnerPartHeader(const vmime::shared_ptr<vmime::header>& source)
-    -> QString {
+    -> QByteArray {
   // Copied rather than hand-picked field by field. The old code listed five
   // headers explicitly and rebuilt the part from them, which silently dropped
   // Content-Transfer-Encoding -- and since the body is carried over as a raw,
@@ -1827,7 +1830,10 @@ auto BuildInnerPartHeader(const vmime::shared_ptr<vmime::header>& source)
     header->appendField(vmime::dynamicCast<vmime::headerField>(field->clone()));
   }
 
-  return Q_SC(header->generate(vmime::lineLengthLimits::convenient));
+  // Bytes: this is concatenated with a raw body slice to form the octets a
+  // signature will cover, so it must not go through a text round trip.
+  return QByteArray::fromStdString(
+      header->generate(vmime::lineLengthLimits::convenient));
 }
 
 namespace {

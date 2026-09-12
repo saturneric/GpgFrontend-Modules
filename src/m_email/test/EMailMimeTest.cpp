@@ -42,11 +42,11 @@ namespace {
 // it started from.
 auto RoundTrip(const EMailMetaData& meta, const QByteArray& body,
                EMailMetaData& out) -> bool {
-  QString eml;
+  QByteArray eml;
   if (BuildPlainTextEML(meta, body, eml) != 0) return false;
 
   vmime::shared_ptr<vmime::message> message;
-  if (!CheckIfEMLMessage(eml.toUtf8(), message)) return false;
+  if (!CheckIfEMLMessage(eml, message)) return false;
 
   return GetEMLMetaData(message, out) == 0;
 }
@@ -229,8 +229,8 @@ auto MakeAttachment(const QString& name, const QString& type,
 // With nothing attached the wire format must not change at all: existing
 // messages, and the signatures over them, depend on it.
 TEST(EMailMimeTest, NoAttachmentsProducesTheSameBytesAsBefore) {
-  QString via_plain;
-  QString via_mime;
+  QByteArray via_plain;
+  QByteArray via_mime;
 
   ASSERT_EQ(BuildPlainTextEML(BasicMeta(), "body", via_plain), 0);
   ASSERT_EQ(BuildMimeEML(BasicMeta(), "body", {}, via_mime), 0);
@@ -248,12 +248,12 @@ TEST(EMailMimeTest, AttachmentsRoundTripThroughMultipartMixed) {
   const QList<EMailAttachment> attachments{
       MakeAttachment("report.pdf", "application/pdf", pdf)};
 
-  QString eml;
+  QByteArray eml;
   ASSERT_EQ(BuildMimeEML(BasicMeta(), "see attached", attachments, eml), 0);
   EXPECT_TRUE(eml.contains("multipart/mixed"));
 
   vmime::shared_ptr<vmime::message> message;
-  ASSERT_TRUE(CheckIfEMLMessage(eml.toUtf8(), message));
+  ASSERT_TRUE(CheckIfEMLMessage(eml, message));
 
   EMailMetaData parsed;
   ASSERT_EQ(ExtractParts(message, parsed), 0);
@@ -271,7 +271,7 @@ TEST(EMailMimeTest, BinaryAttachmentSurvivesByteForByte) {
   QByteArray binary;
   for (int i = 0; i < 256; ++i) binary.append(static_cast<char>(i));
 
-  QString eml;
+  QByteArray eml;
   ASSERT_EQ(BuildMimeEML(BasicMeta(), "b",
                          {MakeAttachment("blob.bin", "application/octet-stream",
                                          binary)},
@@ -279,7 +279,7 @@ TEST(EMailMimeTest, BinaryAttachmentSurvivesByteForByte) {
             0);
 
   vmime::shared_ptr<vmime::message> message;
-  ASSERT_TRUE(CheckIfEMLMessage(eml.toUtf8(), message));
+  ASSERT_TRUE(CheckIfEMLMessage(eml, message));
 
   EMailMetaData parsed;
   ASSERT_EQ(ExtractParts(message, parsed), 0);
@@ -293,11 +293,11 @@ TEST(EMailMimeTest, SeveralAttachmentsKeepTheirOrderAndNames) {
       MakeAttachment("b.png", "image/png", "bbb"),
       MakeAttachment("c.pdf", "application/pdf", "ccc")};
 
-  QString eml;
+  QByteArray eml;
   ASSERT_EQ(BuildMimeEML(BasicMeta(), "body", attachments, eml), 0);
 
   vmime::shared_ptr<vmime::message> message;
-  ASSERT_TRUE(CheckIfEMLMessage(eml.toUtf8(), message));
+  ASSERT_TRUE(CheckIfEMLMessage(eml, message));
 
   EMailMetaData parsed;
   ASSERT_EQ(ExtractParts(message, parsed), 0);
@@ -310,13 +310,13 @@ TEST(EMailMimeTest, SeveralAttachmentsKeepTheirOrderAndNames) {
 TEST(EMailMimeTest, NonAsciiAttachmentNameSurvives) {
   const auto name = QString::fromUtf8("Jahresbericht Grüße 报告.pdf");
 
-  QString eml;
+  QByteArray eml;
   ASSERT_EQ(BuildMimeEML(BasicMeta(), "b",
                          {MakeAttachment(name, "application/pdf", "x")}, eml),
             0);
 
   vmime::shared_ptr<vmime::message> message;
-  ASSERT_TRUE(CheckIfEMLMessage(eml.toUtf8(), message));
+  ASSERT_TRUE(CheckIfEMLMessage(eml, message));
 
   EMailMetaData parsed;
   ASSERT_EQ(ExtractParts(message, parsed), 0);
@@ -480,11 +480,11 @@ TEST(EMailMimeTest, TooManyPartsIsRefused) {
                                       QByteArray("x")));
   }
 
-  QString eml;
+  QByteArray eml;
   ASSERT_EQ(BuildMimeEML(BasicMeta(), "body", attachments, eml), 0);
 
   vmime::shared_ptr<vmime::message> message;
-  ASSERT_TRUE(CheckIfEMLMessage(eml.toUtf8(), message));
+  ASSERT_TRUE(CheckIfEMLMessage(eml, message));
 
   EMailMetaData parsed;
   EMailParseLimits limits;
@@ -496,7 +496,7 @@ TEST(EMailMimeTest, TooManyPartsIsRefused) {
 TEST(EMailMimeTest, OversizedDecodedContentIsRefused) {
   const QByteArray big(200 * 1024, 'x');
 
-  QString eml;
+  QByteArray eml;
   ASSERT_EQ(
       BuildMimeEML(BasicMeta(), "body",
                    {MakeAttachment("big.bin", "application/octet-stream", big)},
@@ -504,7 +504,7 @@ TEST(EMailMimeTest, OversizedDecodedContentIsRefused) {
       0);
 
   vmime::shared_ptr<vmime::message> message;
-  ASSERT_TRUE(CheckIfEMLMessage(eml.toUtf8(), message));
+  ASSERT_TRUE(CheckIfEMLMessage(eml, message));
 
   EMailMetaData parsed;
   EMailParseLimits limits;
@@ -514,13 +514,13 @@ TEST(EMailMimeTest, OversizedDecodedContentIsRefused) {
 }
 
 TEST(EMailMimeTest, AMessageWithinTheLimitsIsAccepted) {
-  QString eml;
+  QByteArray eml;
   ASSERT_EQ(BuildMimeEML(BasicMeta(), "body",
                          {MakeAttachment("a.txt", "text/plain", "hello")}, eml),
             0);
 
   vmime::shared_ptr<vmime::message> message;
-  ASSERT_TRUE(CheckIfEMLMessage(eml.toUtf8(), message));
+  ASSERT_TRUE(CheckIfEMLMessage(eml, message));
 
   EMailMetaData parsed;
   EXPECT_EQ(ExtractParts(message, parsed), 0);
@@ -626,7 +626,7 @@ TEST(EMailMimeTest, SiblingOfTheSignedEntityIsNotCovered) {
 }
 
 TEST(EMailMimeTest, OpenPgpKeyPartsAreClassified) {
-  QString eml;
+  QByteArray eml;
   ASSERT_EQ(
       BuildMimeEML(BasicMeta(), "body",
                    {MakeAttachment("key.asc", "application/pgp-keys",
@@ -635,7 +635,7 @@ TEST(EMailMimeTest, OpenPgpKeyPartsAreClassified) {
       0);
 
   vmime::shared_ptr<vmime::message> message;
-  ASSERT_TRUE(CheckIfEMLMessage(eml.toUtf8(), message));
+  ASSERT_TRUE(CheckIfEMLMessage(eml, message));
 
   EMailMetaData parsed;
   ASSERT_EQ(ExtractParts(message, parsed), 0);
@@ -679,14 +679,14 @@ TEST(EMailMimeTest, InnerPartHeaderKeepsContentTransferEncoding) {
 }
 
 TEST(EMailMimeTest, InnerPartHeaderKeepsMultipartBoundary) {
-  QString eml;
+  QByteArray eml;
   ASSERT_EQ(
       BuildMimeEML(BasicMeta(), "body",
                    {MakeAttachment("a.pdf", "application/pdf", "x")}, eml),
       0);
 
   vmime::shared_ptr<vmime::message> message;
-  ASSERT_TRUE(CheckIfEMLMessage(eml.toUtf8(), message));
+  ASSERT_TRUE(CheckIfEMLMessage(eml, message));
 
   const auto header = BuildInnerPartHeader(message->getHeader());
 
@@ -730,11 +730,11 @@ TEST(EMailMimeTest, ViewOutputAlwaysParsesAsAMessage) {
   // re-derives them from their keys instead.
   EMailMetaData blank;
 
-  QString eml;
+  QByteArray eml;
   ASSERT_EQ(BuildMimeEML(blank, QByteArray(), {}, eml), 0);
 
   vmime::shared_ptr<vmime::message> message;
-  EXPECT_TRUE(CheckIfEMLMessage(eml.toUtf8(), message));
+  EXPECT_TRUE(CheckIfEMLMessage(eml, message));
 }
 
 TEST(EMailMimeTest, BareBodyTextDoesNotParseAsAMessage) {
@@ -753,14 +753,14 @@ TEST(EMailMimeTest, UnaddressedDraftKeepsItsHeadersAndAttachments) {
   draft.from = "Alice <alice@example.com>";
   draft.subject = "Still writing this";
 
-  QString eml;
+  QByteArray eml;
   ASSERT_EQ(
       BuildMimeEML(draft, "half a thought",
                    {MakeAttachment("notes.txt", "text/plain", "abc")}, eml),
       0);
 
   vmime::shared_ptr<vmime::message> message;
-  ASSERT_TRUE(CheckIfEMLMessage(eml.toUtf8(), message));
+  ASSERT_TRUE(CheckIfEMLMessage(eml, message));
 
   EMailMetaData parsed;
   ASSERT_EQ(GetEMLMetaData(message, parsed), 0);

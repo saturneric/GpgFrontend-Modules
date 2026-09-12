@@ -936,7 +936,7 @@ namespace {
 
 auto DoDecryptEMLData(int channel, const QByteArray& data, const MEvent& event,
                       int& result_status, QString& result_detail,
-                      QString& result_cards, QString& eml_data,
+                      QString& result_cards, QByteArray& eml_data,
                       EMailMetaData& meta_data, QByteArray& decrypt_info_json)
     -> int {
   gpgme_error_t err;
@@ -950,7 +950,7 @@ auto DoDecryptEMLData(int channel, const QByteArray& data, const MEvent& event,
            {"ret", QString::number(0)},
            {"data", data},
            {"result_status", QString::number(-1)},
-           {"result", ErrorHelper(ret, eml_data)},
+           {"result", ErrorHelper(ret, QString::fromUtf8(eml_data))},
        });
     return ret;
   }
@@ -990,7 +990,7 @@ auto DoDecryptEMLData(int channel, const QByteArray& data, const MEvent& event,
            {"ret", QString::number(0)},
            {"data", data},
            {"result_status", QString::number(-1)},
-           {"result", ErrorHelper(ret, eml_data)},
+           {"result", ErrorHelper(ret, QString::fromUtf8(eml_data))},
        });
     return ret;
   }
@@ -1008,7 +1008,7 @@ REGISTER_EVENT_HANDLER(
       auto channel = event.value("channel", "0").toInt();
       auto data = QByteArray::fromBase64(QString(event["data"]).toLatin1());
 
-      QString eml_data;
+      QByteArray eml_data;
       int result_status = 0;
       QString result_detail;
       QString result_cards;
@@ -1074,7 +1074,7 @@ auto DoSignEMLData(int channel, const QString& sign_key,
                    vmime::shared_ptr<vmime::message>& message,
                    const QByteArray& body_data, const MEvent& event,
                    int& result_status, QString& result_detail,
-                   QString& result_cards, QString& eml_data) -> int {
+                   QString& result_cards, QByteArray& eml_data) -> int {
   EMailMetaData meta_data;
   auto ret = GetEMLMetaData(message, meta_data);
 
@@ -1092,7 +1092,7 @@ auto DoSignEMLData(int channel, const QString& sign_key,
            {"ret", QString::number(0)},
            {"data", body_data},
            {"result_status", QString::number(-1)},
-           {"result", ErrorHelper(ret, eml_data)},
+           {"result", ErrorHelper(ret, QString::fromUtf8(eml_data))},
        });
     return ret;
   }
@@ -1133,7 +1133,7 @@ auto DoSignEMLData(int channel, const QString& sign_key,
            {"ret", QString::number(0)},
            {"data", body_data},
            {"result_status", QString::number(-1)},
-           {"result", ErrorHelper(ret, eml_data)},
+           {"result", ErrorHelper(ret, QString::fromUtf8(eml_data))},
        });
     return ret;
   }
@@ -1145,7 +1145,7 @@ auto DoSignPlainText(int channel, const QString& sign_key,
                      const EMailMetaData& meta_data,
                      const QByteArray& body_data, const MEvent& event,
                      int& result_status, QString& result_detail,
-                     QString& result_cards, QString& eml_data) -> int {
+                     QString& result_cards, QByteArray& eml_data) -> int {
   gpg_error_t err;
   QString capsule_id;
 
@@ -1157,7 +1157,7 @@ auto DoSignPlainText(int channel, const QString& sign_key,
            {"ret", QString::number(0)},
            {"data", body_data},
            {"result_status", QString::number(-1)},
-           {"result", ErrorHelper(ret, eml_data)},
+           {"result", ErrorHelper(ret, QString::fromUtf8(eml_data))},
        });
     return ret;
   }
@@ -1198,7 +1198,7 @@ auto DoSignPlainText(int channel, const QString& sign_key,
            {"ret", QString::number(0)},
            {"data", body_data},
            {"result_status", QString::number(-1)},
-           {"result", ErrorHelper(ret, eml_data)},
+           {"result", ErrorHelper(ret, QString::fromUtf8(eml_data))},
        });
     return ret;
   }
@@ -1227,7 +1227,7 @@ REGISTER_EVENT_HANDLER(
         int result_status = 0;
         QString result_detail;
         QString result_cards;
-        QString eml_data;
+        QByteArray eml_data;
         if (DoSignEMLData(channel, sign_key, message, body_data, event,
                           result_status, result_detail, result_cards,
                           eml_data) != kSUCCESS) {
@@ -1255,7 +1255,7 @@ REGISTER_EVENT_HANDLER(
       int result_status = 0;
       QString result_detail;
       QString result_cards;
-      QString eml_data;
+      QByteArray eml_data;
       if (DoSignPlainText(channel, sign_key, meta_data, body_data, event,
                           result_status, result_detail, result_cards,
                           eml_data) != kSUCCESS) {
@@ -1282,7 +1282,7 @@ auto DoEncryptEMLData(int channel, const QStringList& encrypt_keys,
                       const vmime::shared_ptr<vmime::message>& message,
                       const QByteArray& body_data, const MEvent& event,
                       int& result_status, QString& result_detail,
-                      QString& result_cards, QString& eml_data) -> int {
+                      QString& result_cards, QByteArray& eml_data) -> int {
   gpgme_error_t err;
   QString capsule_id;
   auto ret = EncryptEMLData(channel, encrypt_keys, message, body_data, eml_data,
@@ -1294,7 +1294,7 @@ auto DoEncryptEMLData(int channel, const QStringList& encrypt_keys,
            {"ret", QString::number(0)},
            {"data", QString::fromLatin1(body_data.toBase64())},
            {"result_status", QString::number(-1)},
-           {"result", ErrorHelper(ret, eml_data)},
+           {"result", ErrorHelper(ret, QString::fromUtf8(eml_data))},
        });
     return ret;
   }
@@ -1336,10 +1336,10 @@ auto DoEncryptPlainText(int channel, const QStringList& encrypt_keys,
                         const EMailMetaData& meta_data,
                         const QByteArray& body_data, const MEvent& event,
                         int& result_status, QString& result_detail,
-                        QString& result_cards, QString& eml_data) -> int {
+                        QString& result_cards, QByteArray& eml_data) -> int {
   gpgme_error_t err;
   QString capsule_id;
-  QString plain_text_eml_data;
+  QByteArray plain_text_eml_data;
   auto ret = BuildPlainTextEML(meta_data, body_data, plain_text_eml_data);
 
   if (ret != kSUCCESS) {
@@ -1348,14 +1348,13 @@ auto DoEncryptPlainText(int channel, const QStringList& encrypt_keys,
            {"ret", QString::number(0)},
            {"data", QString::fromLatin1(body_data.toBase64())},
            {"result_status", QString::number(-1)},
-           {"result", ErrorHelper(ret, eml_data)},
+           {"result", ErrorHelper(ret, QString::fromUtf8(eml_data))},
        });
     return ret;
   }
 
-  ret =
-      EncryptPlainText(channel, encrypt_keys, meta_data,
-                       plain_text_eml_data.toUtf8(), eml_data, err, capsule_id);
+  ret = EncryptPlainText(channel, encrypt_keys, meta_data, plain_text_eml_data,
+                         eml_data, err, capsule_id);
 
   if (ret == kFAILED || ret == kEML_FAILED) {
     CB(event, GFGetModuleID(),
@@ -1363,7 +1362,7 @@ auto DoEncryptPlainText(int channel, const QStringList& encrypt_keys,
            {"ret", QString::number(0)},
            {"data", QString::fromLatin1(body_data.toBase64())},
            {"result_status", QString::number(-1)},
-           {"result", ErrorHelper(ret, eml_data)},
+           {"result", ErrorHelper(ret, QString::fromUtf8(eml_data))},
        });
     return ret;
   }
@@ -1419,7 +1418,7 @@ REGISTER_EVENT_HANDLER(
 
       vmime::shared_ptr<vmime::message> message;
       if (CheckIfEMLMessage(body_data, message)) {
-        QString eml_data;
+        QByteArray eml_data;
         int result_status = 0;
         QString result_detail;
         QString result_cards;
@@ -1447,7 +1446,7 @@ REGISTER_EVENT_HANDLER(
       // to, rather than stopping to ask for addresses they have just chosen.
       const auto meta_data = EnvelopeFromKeys(channel, {}, encrypt_keys);
 
-      QString eml_data;
+      QByteArray eml_data;
       int result_status = 0;
       QString result_detail;
       QString result_cards;
@@ -1480,7 +1479,7 @@ auto DoEncryptSignEMLData(int channel, const QStringList& encrypt_keys,
                           vmime::shared_ptr<vmime::message>& message,
                           QByteArray& body_data, const MEvent& event,
                           int& result_status, QString& result_detail,
-                          QString& result_cards, QString& eml_data) -> int {
+                          QString& result_cards, QByteArray& eml_data) -> int {
   QString sign_cards;
   if (DoSignEMLData(channel, sign_key, message, body_data, event, result_status,
                     result_detail, sign_cards, eml_data) != kSUCCESS) {
@@ -1493,7 +1492,7 @@ auto DoEncryptSignEMLData(int channel, const QStringList& encrypt_keys,
   // the recipient would verify a different message than the one that was
   // signed. The module converts through UTF-8 everywhere else -- Q_SC, QDUP
   // and UDUP are all UTF-8 -- and corpus fixture 18 pins it.
-  body_data = eml_data.toUtf8();
+  body_data = eml_data;
   eml_data.clear();
 
   int t_result_status = 0;
@@ -1527,7 +1526,8 @@ auto DoEncryptSignPlainText(int channel, const QStringList& encrypt_keys,
                             const EMailMetaData& meta_data,
                             QByteArray& body_data, const MEvent& event,
                             int& result_status, QString& result_detail,
-                            QString& result_cards, QString& eml_data) -> int {
+                            QString& result_cards, QByteArray& eml_data)
+    -> int {
   QString sign_cards;
   if (DoSignPlainText(channel, sign_key, meta_data, body_data, event,
                       result_status, result_detail, sign_cards,
@@ -1541,7 +1541,7 @@ auto DoEncryptSignPlainText(int channel, const QStringList& encrypt_keys,
   // the recipient would verify a different message than the one that was
   // signed. The module converts through UTF-8 everywhere else -- Q_SC, QDUP
   // and UDUP are all UTF-8 -- and corpus fixture 18 pins it.
-  body_data = eml_data.toUtf8();
+  body_data = eml_data;
   eml_data.clear();
 
   int t_result_status = 0;
@@ -1591,7 +1591,7 @@ REGISTER_EVENT_HANDLER(
 
       vmime::shared_ptr<vmime::message> message;
       if (CheckIfEMLMessage(body_data, message)) {
-        QString eml_data;
+        QByteArray eml_data;
         int result_status = 0;
         QString result_detail;
         QString result_cards;
@@ -1619,7 +1619,7 @@ REGISTER_EVENT_HANDLER(
       // keys, rather than stopping to ask for what the key list already says.
       const auto meta_data = EnvelopeFromKeys(channel, sign_key, encrypt_keys);
 
-      QString eml_data;
+      QByteArray eml_data;
       int result_status = 0;
       QString result_detail;
       QString result_cards;
@@ -1653,7 +1653,7 @@ namespace {
 auto DoDecryptVerifyEMLData(int channel, const QByteArray& data,
                             const MEvent& event, int& result_status,
                             QString& result_detail, QString& result_cards,
-                            QString& eml_data, QString& error_string,
+                            QByteArray& eml_data, QString& error_string,
                             EMailMetaData& meta_data,
                             QByteArray& decrypt_info_json) -> int {
   QString decrypt_cards;
@@ -1669,7 +1669,7 @@ auto DoDecryptVerifyEMLData(int channel, const QByteArray& data,
 
   // UTF-8, not Latin-1: this is the decrypted plaintext and the signature
   // inside it is checked against these exact bytes. See DoEncryptSignEMLData.
-  if (DoVerifyEMLData(channel, eml_data.toUtf8(), event, t_result_status,
+  if (DoVerifyEMLData(channel, eml_data, event, t_result_status,
                       t_result_detail, verify_cards, error_string,
                       meta_data) != kSUCCESS) {
     return -1;
@@ -1694,7 +1694,7 @@ REGISTER_EVENT_HANDLER(
       auto body_data =
           QByteArray::fromBase64(QString(event["body_data"]).toLatin1());
 
-      QString eml_data;
+      QByteArray eml_data;
       EMailMetaData meta_data;
       QString error_string;
       int result_status = 0;

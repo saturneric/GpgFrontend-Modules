@@ -56,7 +56,7 @@ auto Elide(const QString& data) -> QString { return Elide(data.toUtf8()); }
 
 auto EncryptPlainText(int channel, const QStringList& keys,
                       const EMailMetaData& meta_data,
-                      const QByteArray& body_data, QString& eml_data,
+                      const QByteArray& body_data, QByteArray& eml_data,
                       gpgme_error_t& err, QString& capsule_id) -> int {
   auto from = meta_data.from;
   auto recipient_list = meta_data.to;
@@ -71,14 +71,15 @@ auto EncryptPlainText(int channel, const QStringList& keys,
     // allocate the result, so both must be checked before the first
     // dereference below -- not after it, as this used to.
     GFGpgEncryptionResult* s = nullptr;
-    auto ret = GFGpgEncryptData(channel, QStringListToCharArray(keys),
-                                keys.size(), QDUP(body_data), 1, &s);
+    auto ret =
+        GFGpgEncryptDataN(channel, QStringListToCharArray(keys), keys.size(),
+                          body_data.constData(), body_data.size(), 1, &s);
     if (ret != 0 || s == nullptr) {
       eml_data = "Operation Failed.";
       return kFAILED;
     }
 
-    auto encrypted_data = UDUP(s->encrypted_data);
+    auto encrypted_data = UDUPN(s->encrypted_data, s->encrypted_data_size);
     err = s->gpgme_error;
     capsule_id = UDUP(s->capsule_id);
     auto gpg_error_string = UDUP(s->error_string);
@@ -87,7 +88,7 @@ auto EncryptPlainText(int channel, const QStringList& keys,
     GFFreeMemory(s);
 
     if (err != GPG_ERR_NO_ERROR) {
-      eml_data = "Gpg Encryption Failed: " + gpg_error_string;
+      eml_data = "Gpg Encryption Failed: " + gpg_error_string.toUtf8();
       return kGPG_FAILED;
     }
 
@@ -202,23 +203,24 @@ auto EncryptPlainText(int channel, const QStringList& keys,
             encrypted_data.toStdString());
     encrypted_data_body->setContents(encrypted_data_content);
 
-    eml_data = Q_SC(msg->generate(vmime::lineLengthLimits::convenient));
+    eml_data = QByteArray::fromStdString(
+        msg->generate(vmime::lineLengthLimits::convenient));
     FLOG_DEBUG("eml data: %1", Elide(eml_data));
 
     return kSUCCESS;
 
   } catch (const vmime::exception& e) {
-    eml_data = QString("VMIME Error: %1").arg(e.what());
+    eml_data = QByteArray("VMIME Error: ") + e.what();
     return kEML_FAILED;
   }
 
-  eml_data = QString("Unknown Error: %1");
+  eml_data = QByteArray("Unknown Error");
   return kFAILED;
 }
 
 auto EncryptEMLData(int channel, const QStringList& keys,
                     const vmime::shared_ptr<vmime::message>& message,
-                    const QByteArray& body_data, QString& eml_data,
+                    const QByteArray& body_data, QByteArray& eml_data,
                     gpgme_error_t& err, QString& capsule_id) -> int {
   try {
     auto header = message->getHeader();
@@ -247,14 +249,15 @@ auto EncryptEMLData(int channel, const QStringList& keys,
     // allocate the result, so both must be checked before the first
     // dereference below -- not after it, as this used to.
     GFGpgEncryptionResult* s = nullptr;
-    auto ret = GFGpgEncryptData(channel, QStringListToCharArray(keys),
-                                keys.size(), QDUP(plain_raw_data), 1, &s);
+    auto ret = GFGpgEncryptDataN(channel, QStringListToCharArray(keys),
+                                 keys.size(), plain_raw_data.constData(),
+                                 plain_raw_data.size(), 1, &s);
     if (ret != 0 || s == nullptr) {
       eml_data = "Operation Failed.";
       return kFAILED;
     }
 
-    auto encrypted_data = UDUP(s->encrypted_data);
+    auto encrypted_data = UDUPN(s->encrypted_data, s->encrypted_data_size);
     err = s->gpgme_error;
     capsule_id = UDUP(s->capsule_id);
     auto gpg_error_string = UDUP(s->error_string);
@@ -263,7 +266,7 @@ auto EncryptEMLData(int channel, const QStringList& keys,
     GFFreeMemory(s);
 
     if (err != GPG_ERR_NO_ERROR) {
-      eml_data = "Encryption Failed: " + gpg_error_string;
+      eml_data = "Encryption Failed: " + gpg_error_string.toUtf8();
       return kGPG_FAILED;
     }
 
@@ -337,24 +340,25 @@ auto EncryptEMLData(int channel, const QStringList& keys,
             encrypted_data.toStdString());
     encrypted_data_body->setContents(encrypted_data_content);
 
-    eml_data = Q_SC(message->generate(vmime::lineLengthLimits::convenient));
+    eml_data = QByteArray::fromStdString(
+        message->generate(vmime::lineLengthLimits::convenient));
     FLOG_DEBUG("eml data: %1", Elide(eml_data));
 
     return kSUCCESS;
 
   } catch (const vmime::exception& e) {
-    eml_data = QString("VMIME Error: %1").arg(e.what());
+    eml_data = QByteArray("VMIME Error: ") + e.what();
     return kEML_FAILED;
   }
 
-  eml_data = QString("Unknown Error: %1");
+  eml_data = QByteArray("Unknown Error");
   return kFAILED;
 }
 
 auto SignPlainText(int channel, const QString& key,
                    const EMailMetaData& meta_data, const QByteArray& body_data,
-                   QString& eml_data, gpgme_error_t& err, QString& capsule_id)
-    -> int {
+                   QByteArray& eml_data, gpgme_error_t& err,
+                   QString& capsule_id) -> int {
   auto from = meta_data.from;
   auto recipient_list = meta_data.to;
   auto cc_list = meta_data.cc;
@@ -539,11 +543,11 @@ auto SignPlainText(int channel, const QString& key,
     mime_part_body_content->setData(body_data.toStdString());
     mime_part_part_body->setContents(mime_part_body_content);
 
-    auto container_raw_data =
-        Q_SC(container_part->generate(vmime::lineLengthLimits::convenient));
+    auto container_raw_data = QByteArray::fromStdString(
+        container_part->generate(vmime::lineLengthLimits::convenient));
 
-    auto container_raw_data_hash = QCryptographicHash::hash(
-        container_raw_data.toLatin1(), QCryptographicHash::Sha1);
+    auto container_raw_data_hash =
+        QCryptographicHash::hash(container_raw_data, QCryptographicHash::Sha1);
     FLOG_DEBUG("raw content of signature hash: %1",
                container_raw_data_hash.toHex());
 
@@ -554,14 +558,15 @@ auto SignPlainText(int channel, const QString& key,
     // allocate the result, so both must be checked before the first
     // dereference below -- not after it, as this used to.
     GFGpgSignResult* s = nullptr;
-    auto ret = GFGpgSignData(channel, QStringListToCharArray({key}), 1,
-                             QDUP(container_raw_data), 1, 1, &s);
+    auto ret = GFGpgSignDataN(channel, QStringListToCharArray({key}), 1,
+                              container_raw_data.constData(),
+                              container_raw_data.size(), 1, 1, &s);
     if (ret != 0 || s == nullptr) {
       eml_data = "Operation Failed";
       return kFAILED;
     }
 
-    auto signature = UDUP(s->signature);
+    auto signature = UDUPN(s->signature, s->signature_size);
     auto hash_algo = UDUP(s->hash_algo);
     err = s->gpgme_error;
     capsule_id = UDUP(s->capsule_id);
@@ -571,7 +576,7 @@ auto SignPlainText(int channel, const QString& key,
     GFFreeMemory(s);
 
     if (err != GPG_ERR_NO_ERROR) {
-      eml_data = "Sign Failed: " + gpg_error_string;
+      eml_data = "Sign Failed: " + gpg_error_string.toUtf8();
       return kGPG_FAILED;
     }
 
@@ -587,24 +592,25 @@ auto SignPlainText(int channel, const QString& key,
             signature.toStdString());
     signature_part_body->setContents(signature_part_body_content);
 
-    eml_data = Q_SC(msg->generate(vmime::lineLengthLimits::convenient));
+    eml_data = QByteArray::fromStdString(
+        msg->generate(vmime::lineLengthLimits::convenient));
 
     FLOG_DEBUG("eml data: %1", Elide(eml_data));
 
     return kSUCCESS;
 
   } catch (const vmime::exception& e) {
-    eml_data = QString("VMIME Error: %1").arg(e.what());
+    eml_data = QByteArray("VMIME Error: ") + e.what();
     return kEML_FAILED;
   }
 
-  eml_data = QString("Unknown Error: %1");
+  eml_data = QByteArray("Unknown Error");
   return kFAILED;
 }
 
 auto SignEMLData(int channel, const QString& key,
                  const vmime::shared_ptr<vmime::message>& message,
-                 QString& eml_data, gpgme_error_t& err, QString& capsule_id)
+                 QByteArray& eml_data, gpgme_error_t& err, QString& capsule_id)
     -> int {
   try {
     // Re-signing replaces the previous signature; it does not pile a new one on
@@ -770,14 +776,14 @@ auto SignEMLData(int channel, const QString& key,
 
     mime_part->setBody(backup_body);
 
-    auto container_raw_data =
-        Q_SC(container_part->generate(vmime::lineLengthLimits::convenient));
+    auto container_raw_data = QByteArray::fromStdString(
+        container_part->generate(vmime::lineLengthLimits::convenient));
 
     container_raw_data.replace("\r\n", "\n");
     container_raw_data.replace("\n", "\r\n");
 
-    auto container_raw_data_hash = QCryptographicHash::hash(
-        container_raw_data.toLatin1(), QCryptographicHash::Sha1);
+    auto container_raw_data_hash =
+        QCryptographicHash::hash(container_raw_data, QCryptographicHash::Sha1);
     FLOG_DEBUG("raw content of signature hash: %1",
                container_raw_data_hash.toHex());
 
@@ -788,14 +794,15 @@ auto SignEMLData(int channel, const QString& key,
     // allocate the result, so both must be checked before the first
     // dereference below -- not after it, as this used to.
     GFGpgSignResult* s = nullptr;
-    auto ret = GFGpgSignData(channel, QStringListToCharArray({key}), 1,
-                             QDUP(container_raw_data), 1, 1, &s);
+    auto ret = GFGpgSignDataN(channel, QStringListToCharArray({key}), 1,
+                              container_raw_data.constData(),
+                              container_raw_data.size(), 1, 1, &s);
     if (ret != 0 || s == nullptr) {
       eml_data = "Operation Failed";
       return kFAILED;
     }
 
-    auto signature = UDUP(s->signature);
+    auto signature = UDUPN(s->signature, s->signature_size);
     auto hash_algo = UDUP(s->hash_algo);
     auto gpg_error_string = UDUP(s->error_string);
     err = s->gpgme_error;
@@ -805,7 +812,7 @@ auto SignEMLData(int channel, const QString& key,
     GFFreeMemory(s);
 
     if (err != GPG_ERR_NO_ERROR) {
-      eml_data = "Sign Failed: " + gpg_error_string;
+      eml_data = "Sign Failed: " + gpg_error_string.toUtf8();
       return kGPG_FAILED;
     }
 
@@ -821,18 +828,19 @@ auto SignEMLData(int channel, const QString& key,
             signature.toStdString());
     signature_part_body->setContents(signature_part_body_content);
 
-    eml_data = Q_SC(message->generate(vmime::lineLengthLimits::convenient));
+    eml_data = QByteArray::fromStdString(
+        message->generate(vmime::lineLengthLimits::convenient));
 
     FLOG_DEBUG("eml data: %1", Elide(eml_data));
 
     return kSUCCESS;
 
   } catch (const vmime::exception& e) {
-    eml_data = QString("VMIME Error: %1").arg(e.what());
+    eml_data = QByteArray("VMIME Error: ") + e.what();
     return kEML_FAILED;
   }
 
-  eml_data = QString("Unknown Error: %1");
+  eml_data = QByteArray("Unknown Error");
   return kFAILED;
 }
 
@@ -1020,8 +1028,10 @@ auto VerifyEMLData(int channel, const QByteArray& data,
   // allocate the result, so both must be checked before the first
   // dereference below -- not after it, as this used to.
   GFGpgVerifyResult* s = nullptr;
-  auto ret = GFGpgVerifyData(channel, QDUP(part_mime_content_text),
-                             QDUP(part_sign_body_content), &s);
+  auto ret = GFGpgVerifyDataN(channel, part_mime_content_text.constData(),
+                              part_mime_content_text.size(),
+                              part_sign_body_content.constData(),
+                              part_sign_body_content.size(), &s);
   if (ret != 0 || s == nullptr) {
     error_string = "Operation Failed.";
     return kFAILED;
@@ -1059,7 +1069,7 @@ auto VerifyEMLData(int channel, const QByteArray& data,
 }
 
 auto DecryptEMLData(int channel, const QByteArray& data,
-                    EMailMetaData& meta_data, QString& eml_data,
+                    EMailMetaData& meta_data, QByteArray& eml_data,
                     gpgme_error_t& err, QString& capsule_id) -> int {
   vmime::string vmime_data(data.constData(), data.size());
   auto message = vmime::make_shared<vmime::message>();
@@ -1207,13 +1217,14 @@ auto DecryptEMLData(int channel, const QByteArray& data,
   // allocate the result, so both must be checked before the first
   // dereference below -- not after it, as this used to.
   GFGpgDecryptResult* s = nullptr;
-  auto ret = GFGpgDecryptData(channel, QDUP(part_encr_body_content), &s);
+  auto ret = GFGpgDecryptDataN(channel, part_encr_body_content.constData(),
+                               part_encr_body_content.size(), &s);
   if (ret != 0 || s == nullptr) {
     eml_data = "Operation Failed.";
     return kFAILED;
   }
 
-  eml_data = UDUP(s->decrypted_data);
+  eml_data = UDUPN(s->decrypted_data, s->decrypted_data_size);
   err = s->gpgme_error;
   capsule_id = UDUP(s->capsule_id);
   auto gpg_error_string = UDUP(s->error_string);
@@ -1222,7 +1233,7 @@ auto DecryptEMLData(int channel, const QByteArray& data,
   GFFreeMemory(s);
 
   if (err != GPG_ERR_NO_ERROR) {
-    eml_data = "Decrypt Failed: " + gpg_error_string;
+    eml_data = "Decrypt Failed: " + gpg_error_string.toUtf8();
     return kGPG_FAILED;
   }
 
@@ -1241,7 +1252,7 @@ auto DecryptEMLData(int channel, const QByteArray& data,
   // attachments. Nothing in the decrypted content reaches the user otherwise:
   // it used to be handed back as raw source and nothing more.
   vmime::shared_ptr<vmime::message> inner;
-  if (CheckIfEMLMessage(eml_data.toUtf8(), inner)) {
+  if (CheckIfEMLMessage(eml_data, inner)) {
     if (ExtractParts(inner, meta_data) != 0) {
       MLogDebug("decrypted message exceeds the supported parsing limits");
     }
@@ -1273,8 +1284,9 @@ auto VerifyEMLRegions(int channel, const QByteArray& raw, const EMailPart& root,
     if (signature_bytes.trimmed().isEmpty()) continue;
 
     GFGpgVerifyResult* s = nullptr;
-    auto ret =
-        GFGpgVerifyData(channel, QDUP(signed_bytes), QDUP(signature_bytes), &s);
+    auto ret = GFGpgVerifyDataN(
+        channel, signed_bytes.constData(), signed_bytes.size(),
+        signature_bytes.constData(), signature_bytes.size(), &s);
     if (ret != 0 || s == nullptr) continue;
 
     const auto err = s->gpgme_error;

@@ -1061,11 +1061,11 @@ TEST(EMailCorpusTest, BlindRecipientsNeverReachTheMessage) {
   // source that carried one -- serializing must not write it back out.
   meta.bcc_header = {"secret@example.com"};
 
-  QString eml;
+  QByteArray eml;
   ASSERT_EQ(BuildPlainTextEML(meta, "body", eml), 0);
 
   EXPECT_FALSE(eml.contains("secret@example.com"));
-  EXPECT_FALSE(eml.contains(QRegularExpression(
+  EXPECT_FALSE(QString::fromUtf8(eml).contains(QRegularExpression(
       "^Bcc:", QRegularExpression::MultilineOption |
                    QRegularExpression::CaseInsensitiveOption)));
 
@@ -1080,14 +1080,14 @@ TEST(EMailCorpusTest, AMessageAddressedOnlyBlindlyStillRoundTrips) {
   meta.subject = "blind only";
   meta.bcc_header = {"secret@example.com"};
 
-  QString eml;
+  QByteArray eml;
   ASSERT_EQ(BuildPlainTextEML(meta, "body", eml), 0);
   EXPECT_FALSE(eml.contains("secret@example.com"));
 
   // With no visible addressee it takes the draft path rather than failing, so
   // the subject and body the user wrote are not lost.
   vmime::shared_ptr<vmime::message> parsed;
-  ASSERT_TRUE(CheckIfEMLMessage(eml.toUtf8(), parsed));
+  ASSERT_TRUE(CheckIfEMLMessage(eml, parsed));
 
   EMailMetaData reparsed;
   ASSERT_EQ(GetEMLMetaData(parsed, reparsed), 0);
@@ -1291,7 +1291,7 @@ TEST(EMailCorpusTest, ThreadingHeadersReachTheGeneratedMessage) {
   BuildDerivedMetaData(SourceForReply(), EMailReplyMode::kREPLY,
                        "me@example.com", out);
 
-  QString eml;
+  QByteArray eml;
   ASSERT_EQ(BuildPlainTextEML(out, "reply body", eml), 0);
 
   EXPECT_TRUE(eml.contains("In-Reply-To:"));
@@ -1305,7 +1305,7 @@ TEST(EMailCorpusTest, AnOrdinaryMessageGainsNoThreadingHeaders) {
   meta.to = {"b@example.com"};
   meta.subject = "fresh";
 
-  QString eml;
+  QByteArray eml;
   ASSERT_EQ(BuildPlainTextEML(meta, "body", eml), 0);
 
   EXPECT_FALSE(eml.contains("In-Reply-To:"));

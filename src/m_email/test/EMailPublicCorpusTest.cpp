@@ -304,10 +304,10 @@ TEST(EMailPublicCorpusTest, ALargeAttachmentSurvivesBase64RoundTrip) {
   att.disposition = "attachment";
   att.data = payload;
 
-  QString eml;
+  QByteArray eml;
   ASSERT_EQ(BuildMimeEML(meta, QByteArray("body"), {att}, eml), 0);
 
-  QByteArray raw = eml.toUtf8();
+  QByteArray raw = eml;
   vmime::shared_ptr<vmime::message> message;
   ASSERT_TRUE(CheckIfEMLMessage(raw, message));
 

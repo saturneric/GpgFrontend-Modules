@@ -382,9 +382,9 @@ TEST(EMailOutgoingTest, BuildMimeEmlMintsNoIdentityOfItsOwn) {
 
   // Called for every draft save and reserialization, so inventing an
   // identifier here would give one message many identities.
-  QString eml;
+  QByteArray eml;
   ASSERT_EQ(BuildMimeEML(meta, "body", {}, eml), 0);
-  EXPECT_TRUE(MailExtractMessageId(eml.toUtf8()).isEmpty());
+  EXPECT_TRUE(MailExtractMessageId(eml).isEmpty());
 }
 
 TEST(EMailOutgoingTest, ASuppliedMessageIdIsWrittenIntoTheBytes) {
@@ -397,9 +397,9 @@ TEST(EMailOutgoingTest, ASuppliedMessageIdIsWrittenIntoTheBytes) {
   meta.to = {"to@example.org"};
   meta.message_id = "composed-early@example.org";
 
-  QString eml;
+  QByteArray eml;
   ASSERT_EQ(BuildMimeEML(meta, "body", {}, eml), 0);
-  EXPECT_EQ(MailExtractMessageId(eml.toUtf8()), "composed-early@example.org");
+  EXPECT_EQ(MailExtractMessageId(eml), "composed-early@example.org");
 }
 
 TEST(EMailOutgoingTest, AProtectedMessageKeepsTheIdentityItWasBuiltWith) {

@@ -116,6 +116,44 @@ target_compile_definitions(gf_mod_email_net_test PRIVATE
 set_target_properties(gf_mod_email_net_test PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
 
+# --- crypto boundary tests --------------------------------------------------
+#
+# What octets actually reach GPG.
+#
+# EMailBasicGpgOpera.cpp is the only file in the module that calls the crypto
+# SDK, and everything it passes is a claim about a byte range: the signature
+# covers THESE bytes, the digest shown to the user describes THESE bytes. A
+# conversion anywhere in that path that drops or rewrites an octet turns a
+# correct-looking GOOD verdict into a statement about data the user never saw.
+#
+# So this target links the real opera against a recording fake SDK and asserts
+# byte equality between the slice the module says it verified and what the fake
+# was handed. The stubs mirror the shipping GFModuleStrDup, NUL truncation
+# included -- weakening them would hide exactly the bug they exist to catch.
+
+add_executable(gf_mod_email_crypto_test
+  EMailCryptoBoundaryTest.cpp
+  EMailCryptoSdkStubs.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/../EMailBasicGpgOpera.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/../EMAilHelper.cpp)
+
+target_include_directories(gf_mod_email_crypto_test PRIVATE
+  "${CMAKE_CURRENT_SOURCE_DIR}/.."
+  "${CMAKE_CURRENT_SOURCE_DIR}/../vmime/src"
+  "${CMAKE_SOURCE_DIR}/../include"
+  "${CMAKE_BINARY_DIR}/src/vmime"
+  "${CMAKE_BINARY_DIR}/src"
+  "${CMAKE_BINARY_DIR}/src/sdk")
+
+target_link_libraries(gf_mod_email_crypto_test PRIVATE
+  GTest::gtest GTest::gtest_main Qt::Core Qt::Network vmime-static)
+
+target_compile_definitions(gf_mod_email_crypto_test PRIVATE
+  VMIME_STATIC "GF_SDK_EXPORT=" "GF_MODULE_EXPORT=")
+
+set_target_properties(gf_mod_email_crypto_test PROPERTIES
+  RUNTIME_OUTPUT_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
+
 # --- fuzzing (opt-in, clang only) -------------------------------------------
 #
 # The MIME parsers run on unauthenticated input -- a message has to be parsed

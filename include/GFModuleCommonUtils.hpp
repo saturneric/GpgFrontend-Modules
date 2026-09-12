@@ -34,6 +34,7 @@
 #include <GFSDKUI.h>
 #include <GFSDKUIModel.h>
 
+#include <QByteArray>
 #include <QMap>
 #include <QSharedPointer>
 #include <QString>
@@ -46,6 +47,7 @@
 #define USECDUP(v) UnSecStrDup(v)
 #define QDUP(v) QStrDup(v)
 #define QSECDUP(v) QSecStrDup(v)
+#define UDUPN(v, n) UnBytesDup(v, n)
 
 #define LISTEN(event) GFModuleListenEvent(GFGetModuleID(), DUP(event))
 
@@ -150,6 +152,20 @@ inline auto QStrDup(const QString& str) -> char* { return DUP(str.toUtf8()); }
 
 inline auto QSecStrDup(const QString& str) -> char* {
   return SECDUP(str.toUtf8());
+}
+
+/// Takes ownership of a sized SDK buffer and returns its octets verbatim.
+///
+/// The QString forms below decode UTF-8 and stop at the first NUL, which is
+/// right for identifiers and error strings and wrong for message data: a MIME
+/// entity may be 8bit or binary, and a signature covers exact octets. Anything
+/// that crosses the crypto boundary must use this and the matching @c *N SDK
+/// entry points instead.
+inline auto UnBytesDup(const char* s, size_t size) -> QByteArray {
+  if (s == nullptr) return {};
+  QByteArray bytes(s, static_cast<qsizetype>(size));
+  GFFreeMemory(static_cast<void*>(const_cast<char*>(s)));
+  return bytes;
 }
 
 inline auto UnStrDup(const char* s) -> QString {
