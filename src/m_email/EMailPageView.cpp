@@ -1447,9 +1447,30 @@ void EMailPageView::refresh_body_view() {
   forensic_toggle_->setVisible(true);
   if (action_separator_ != nullptr) action_separator_->setVisible(true);
 
-  for (auto* button :
-       {reply_button_, reply_all_button_, forward_button_, forensic_toggle_}) {
+  for (auto* button : {reply_button_, reply_all_button_, forward_button_}) {
     set_action_available(button, is_message, not_a_message);
+  }
+
+  // Read-only is offered only where it CHANGES something. A signed or
+  // encrypted message is already locked by content_lock(), so on those -- the
+  // common case in this program -- the toggle appeared to do nothing at all,
+  // which is how a real protection came to look like a dead control.
+  //
+  // What it uniquely does, and only on a plain received message: it locks the
+  // Raw Source tab outright, and it stops SaveToSource() rebuilding the
+  // message. That second one is the point. A rebuild rewrites header order and
+  // encodings, and for a message whose HEADERS are the evidence -- a forged
+  // Received chain, say -- one stray keystroke and a save would destroy the
+  // very thing the message was opened to examine.
+  if (!is_message) {
+    set_action_available(forensic_toggle_, false, not_a_message);
+  } else if (security_state_ != EMailSecurityState::kPLAIN && !forensic_) {
+    set_action_available(
+        forensic_toggle_, false,
+        tr("This message cannot be edited anyway: it is signed or encrypted, "
+           "so it is already protected from being rewritten."));
+  } else {
+    set_action_available(forensic_toggle_, true, {});
   }
 
   // Ciphertext is not text the user can read or edit, so it is not offered as

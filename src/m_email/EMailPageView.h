@@ -201,7 +201,6 @@ class EMailPageView : public QWidget {
   void SetForensicMode(bool on);  // NOLINT
 
   /// Whether this view is locked against modifying its document.
-  [[nodiscard]] auto IsForensicMode() const -> bool { return forensic_; }
 
   /**
    * @brief The message as the user has it now, serialized.
