@@ -450,7 +450,7 @@ auto EMailPageView::build_message_tab() -> QWidget* {
       QStringLiteral("document-save"), ":/icons/filesave.png", tr("Save…"),
       tr("Write the selected attachments to a folder."));
   save_all_button_ = make_attachment_action(
-      QStringLiteral("document-save-all"), ":/icons/filesaveas.png",
+      QStringLiteral("document-save-all"), ":/icons/save-all.png",
       tr("Save All…"), tr("Write every attachment to a folder."));
 
   buttons->addWidget(add_button_);
