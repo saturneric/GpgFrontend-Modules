@@ -267,6 +267,22 @@ constexpr qint64 kMaxParseInputBytes = 64LL * 1024 * 1024;
 constexpr size_t kMaxParseNestingDepth = 64;
 
 /**
+ * @brief Most signature regions one message may have verified.
+ *
+ * Each region costs a blocking call into GPG, which spawns a process, may
+ * search the keyring, and -- if the user has auto-key-retrieve configured --
+ * may go to the network, all with no timeout and no way to cancel. That work
+ * runs on the GUI thread, so the count of regions is a multiplier on how long
+ * the application can be made to stop responding.
+ *
+ * The part-count limit already caps this implicitly at about twenty; this says
+ * so directly and far lower, because nothing legitimate needs more. The worst
+ * real case in the corpus is two. Regions past this are reported as
+ * unverified rather than silently ignored.
+ */
+constexpr int kMaxVerifiedRegions = 8;
+
+/**
  * @brief Limits applied when walking an untrusted message tree.
  *
  * Parsing runs synchronously on input that arrived from outside, so a message

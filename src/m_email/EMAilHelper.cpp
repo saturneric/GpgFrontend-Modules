@@ -1533,7 +1533,12 @@ auto InspectMessage(const EMailMetaData& meta, const EMailPart& root,
     }
     if (region.raw_offset + region.raw_length > raw.size()) continue;
 
-    if (!HasBareLineFeeds(raw.mid(region.raw_offset, region.raw_length))) {
+    // A view, not a copy. HasBareLineFeeds only reads, and nested regions
+    // overlap, so copying each one made this a multiple of the message size --
+    // on every load, tab switch, keyring change and re-verify.
+    if (!HasBareLineFeeds(QByteArray::fromRawData(
+            raw.constData() + region.raw_offset,
+            static_cast<qsizetype>(region.raw_length)))) {
       continue;
     }
 

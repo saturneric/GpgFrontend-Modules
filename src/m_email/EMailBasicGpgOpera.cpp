@@ -1237,6 +1237,18 @@ auto DecryptEMLData(int channel, const QByteArray& data,
     return kGPG_FAILED;
   }
 
+  // The ciphertext was bounded on the way in; the plaintext is not bounded by
+  // it. An OpenPGP compressed packet a few megabytes long expands to
+  // gigabytes, so the expansion is refused here -- before it is handed on to
+  // be parsed and copied -- rather than only at the parse.
+  if (eml_data.size() > kMaxParseInputBytes) {
+    MLogWarn("decrypted plaintext exceeds the parse ceiling; refusing it");
+    eml_data.clear();
+    eml_data.squeeze();
+    eml_data = "Decrypted message is too large to display.";
+    return kEML_FAILED;
+  }
+
   // callback
   meta_data.from = from_field_value_text;
   meta_data.to = to_field_value_text;
@@ -1269,6 +1281,18 @@ auto VerifyEMLRegions(int channel, const QByteArray& raw, const EMailPart& root,
   int verified = 0;
 
   for (const auto& region : regions) {
+    // Each region below costs a blocking GPG call on the GUI thread, so the
+    // number of them is a multiplier on how long this window can be made to
+    // stop responding. Stopping here leaves the rest reported as unverified,
+    // which is honest; verifying them would not be, because nothing would
+    // still be watching by then.
+    if (verified >= kMaxVerifiedRegions) {
+      MimeLog(QString("stopping after %1 signature regions; %2 were offered")
+                  .arg(kMaxVerifiedRegions)
+                  .arg(regions.size()));
+      break;
+    }
+
     if (region.raw_offset < 0 || region.raw_length <= 0) continue;
     if (region.raw_offset + region.raw_length > raw.size()) continue;
     if (region.signature_part_index < 0 ||
@@ -1278,8 +1302,12 @@ auto VerifyEMLRegions(int channel, const QByteArray& raw, const EMailPart& root,
       continue;
     }
 
-    const auto signed_bytes = raw.mid(static_cast<int>(region.raw_offset),
-                                      static_cast<int>(region.raw_length));
+    // A view, not a copy: nothing below mutates it, and the SDK copies what it
+    // is given. Nested regions overlap, so copying each one made the work a
+    // multiple of the message size for no benefit.
+    const auto signed_bytes =
+        QByteArray::fromRawData(raw.constData() + region.raw_offset,
+                                static_cast<qsizetype>(region.raw_length));
     const auto signature_bytes = flat[region.signature_part_index]->data;
     if (signature_bytes.trimmed().isEmpty()) continue;
 
