@@ -32,6 +32,11 @@
 #include <GFSDKBuildInfo.h>
 #include <GFSDKLog.h>
 
+#include "EMailAccountSettingsPage.h"
+#include "EMailAccountStore.h"
+#include "EMailImapController.h"
+#include "EMailSendDialog.h"
+
 // qt
 #include <QApplication>
 #include <QCoreApplication>
@@ -321,6 +326,10 @@ auto BuildResultCardsParam(const QString& operation,
 
 }  // namespace
 
+/// Identifier of the settings page this module owns.
+constexpr auto kMailSettingsPageId =
+    "com.bktus.gpgfrontend.module.email.accounts";
+
 auto GFRegisterModule() -> int {
   MLogDebug("email module registering...");
 
@@ -353,6 +362,31 @@ auto GFRegisterModule() -> int {
 
   LISTEN("FILE_EXT_EMAIL_OP_OPEN_FILE");
 
+  // These cross thread boundaries as queued signal arguments, so Qt has to
+  // know how to copy them before the first connection is made.
+  qRegisterMetaType<MailAccountConfig>("MailAccountConfig");
+  qRegisterMetaType<MailError>("MailError");
+  qRegisterMetaType<EMailFolderInfo>("EMailFolderInfo");
+  qRegisterMetaType<QList<EMailFolderInfo>>("QList<EMailFolderInfo>");
+  qRegisterMetaType<EMailMessageSummary>("EMailMessageSummary");
+  qRegisterMetaType<EMailMessagePage>("EMailMessagePage");
+  qRegisterMetaType<EMailOutgoingMessage>("EMailOutgoingMessage");
+  qRegisterMetaType<EMailSendReceipt>("EMailSendReceipt");
+
+  // vmime's platform handler is assigned lazily with no synchronisation, so
+  // two worker threads racing their first connection could construct it twice.
+  // Touching it once here, on the thread that loads the module, settles it
+  // before any worker exists.
+  vmime::platform::getHandler();
+
+  const auto keywords =
+      QStringList{GC_TR("mail"), GC_TR("email"),   GC_TR("imap"),
+                  GC_TR("smtp"), GC_TR("account"), GC_TR("send")}
+          .join('\n');
+  GFUIRegisterSettingsPage(DUP(kMailSettingsPageId), DUP("features"),
+                           DUP(GC_TR("Mail Accounts")), QDUP(keywords),
+                           EMailAccountSettingsPageFactory, nullptr);
+
   // An imported key changes what an already-open message can be told about
   // itself, so the views have to hear about it.
   LISTEN("KEY_DATABASE_REFRESH_DONE");
@@ -365,6 +399,7 @@ auto GFDeactivateModule() -> int {
   // A factory pointing into an unloaded shared object would crash the next
   // time an e-mail tab is opened.
   GFUIUnregisterTabPageView(DUP("EMAIL"));
+  GFUIUnregisterSettingsPage(DUP(kMailSettingsPageId));
   return 0;
 }
 
@@ -434,7 +469,11 @@ auto default_save_dir() -> QString {
 // Ceiling on the size of an .eml this module will open. Generous, because a
 // message with attachments is legitimately large; the protection against a
 // hostile *shape* is EMailParseLimits, not this number.
-constexpr qint64 kMaxEMLFileSize = 32LL * 1024 * 1024;
+constexpr qint64 kMaxEMLFileSize = kMailMaxMessageSize;
+
+/// Identifier of the settings page this module owns.
+constexpr auto kMailSettingsPageId =
+    "com.bktus.gpgfrontend.module.email.accounts";
 
 auto ErrorHelper(int ret, const QString& err) -> QString {
   if (ret == -2) {
@@ -504,6 +543,64 @@ REGISTER_EVENT_HANDLER(KEY_DATABASE_REFRESH_DONE,
                          CB_SUCC(event);
                        });
 
+namespace {
+
+/**
+ * @brief Open @p raw as a new e-mail tab, exactly as a file would be.
+ *
+ * The only thing the IMAP side is allowed to do with what it fetched. Nothing
+ * about the account, folder or UID comes with it, so an imported message is
+ * indistinguishable from the same bytes opened from disk -- which is the whole
+ * point of treating IMAP as a file picker.
+ *
+ * Must run on the GUI thread.
+ */
+auto OpenRawAsEMailTab(const QByteArray& raw, const QString& title) -> bool {
+  auto* edit = GFUIGetGUIObjectAs<QWidget>("main_window_edit");
+  if (edit == nullptr) {
+    LOG_ERROR("main_window_edit handle invalid or not QWidget");
+    return false;
+  }
+
+  QWidget* page = nullptr;
+  auto ok = QMetaObject::invokeMethod(
+      edit, "SlotNewCustomTab", Qt::DirectConnection,
+      Q_RETURN_ARG(QWidget*, page), Q_ARG(QString, "email"),
+      Q_ARG(QString, title), Q_ARG(QIcon, QIcon(":/icons/email.png")),
+      Q_ARG(QString, ":/icons/email.png"));
+
+  if (!ok || page == nullptr) {
+    LOG_ERROR("create new email tab page failed");
+    return false;
+  }
+
+  // Bytes, not text: the page records which line endings the message arrived
+  // with, and a PGP/MIME signature covers the exact octets. Going through
+  // setPlainText would destroy every signature before anything could check
+  // one.
+  if (!QMetaObject::invokeMethod(page, "SetContentFromBytes",
+                                 Qt::DirectConnection,
+                                 Q_ARG(QByteArray, raw))) {
+    LOG_ERROR("host does not support SetContentFromBytes");
+    return false;
+  }
+  return true;
+}
+
+/// A tab title for an imported message: its subject, or a neutral fallback.
+auto TitleForImported(const QByteArray& raw) -> QString {
+  vmime::shared_ptr<vmime::message> parsed;
+  if (CheckIfEMLMessage(raw, parsed)) {
+    EMailMetaData meta;
+    GetEMLMetaData(parsed, meta);
+    const auto subject = meta.subject.trimmed();
+    if (!subject.isEmpty()) return subject.left(60) + ".eml";
+  }
+  return "imported.eml";
+}
+
+}  // namespace
+
 REGISTER_EVENT_HANDLER(MAINWINDOW_MENU_MOUNTED, [](const MEvent& event) -> int {
   LOG_DEBUG("main window menu mounted event: processing");
 
@@ -569,6 +666,39 @@ REGISTER_EVENT_HANDLER(MAINWINDOW_MENU_MOUNTED, [](const MEvent& event) -> int {
         }
 
         workspace_menu->addAction(action);
+
+        // Import from IMAP. Shown only when an account could actually be
+        // browsed: an entry that always fails teaches people to ignore it.
+        auto* import_action = new QAction(
+            QCoreApplication::translate("GTrC", "Import from IMAP..."), parent);
+        import_action->setToolTip(QCoreApplication::translate(
+            "GTrC", "Open a message from a configured mail account."));
+        QObject::connect(
+            import_action, &QAction::triggered, parent, [parent]() {
+              if (!EMailImapController::HasUsableAccount()) {
+                QMessageBox::information(
+                    parent,
+                    QCoreApplication::translate("GTrC", "No mail account"),
+                    QCoreApplication::translate(
+                        "GTrC",
+                        "Configure a mail account with IMAP enabled in "
+                        "Settings first."));
+                return;
+              }
+
+              auto* controller = new EMailImapController(parent);
+              controller->setAttribute(Qt::WA_DeleteOnClose);
+
+              // The narrow boundary: raw bytes in, a tab out. The controller
+              // never touches the tab widget itself.
+              QObject::connect(controller,
+                               &EMailImapController::SignalMessageChosen,
+                               parent, [](const QByteArray& raw) {
+                                 OpenRawAsEMailTab(raw, TitleForImported(raw));
+                               });
+              controller->show();
+            });
+        workspace_menu->addAction(import_action);
       },
       Qt::BlockingQueuedConnection);
   CB_SUCC(event);

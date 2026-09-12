@@ -346,6 +346,24 @@ auto BuildMimeEML(const EMailMetaData& meta_data, const QByteArray& body_data,
           meta_data.references.join(" ").toStdString());
     }
 
+    // Message-ID, and only when one was supplied. This function is called for
+    // every draft save and every reserialization, so minting an identifier
+    // here would give the message a different identity each time it was
+    // written -- which would in turn make it impossible to look the sent copy
+    // up afterwards. Whoever is about to send decides the identity; this just
+    // renders it. See FreezeOutgoing().
+    if (!meta_data.message_id.trimmed().isEmpty()) {
+      auto id = meta_data.message_id.trimmed();
+      if (id.startsWith('<')) id.remove(0, 1);
+      if (id.endsWith('>')) id.chop(1);
+
+      const auto at = id.indexOf('@');
+      if (at > 0) {
+        plaintext_msg_header->MessageId()->setValue(vmime::messageId(
+            id.left(at).toStdString(), id.mid(at + 1).toStdString()));
+      }
+    }
+
     auto plaintext_msg_content_type_header_field =
         plaintext_msg_header->getField<vmime::contentTypeField>(
             vmime::fields::CONTENT_TYPE);
