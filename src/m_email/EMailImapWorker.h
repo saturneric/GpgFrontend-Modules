@@ -160,6 +160,20 @@ class EMailImapWorker : public QObject {
   void SignalMessageFetched(quint64 seq, const QByteArray& raw_eml);
 
   /**
+   * @brief How much of a message body has arrived.
+   *
+   * Emitted only while fetching one message, which is the one operation here
+   * whose length is known in advance: the listing already reported the size.
+   * Everything else IMAP does reports completion and nothing in between, so
+   * this is deliberately not a general progress channel.
+   *
+   * @param total may be 0 if the server never said, in which case the caller
+   *   should fall back to an indeterminate indicator rather than inventing a
+   *   denominator.
+   */
+  void SignalFetchProgress(quint64 seq, qint64 current, qint64 total);
+
+  /**
    * @brief Result of a Sent-folder lookup.
    *
    * @param found whether a copy carrying the Message-ID was there

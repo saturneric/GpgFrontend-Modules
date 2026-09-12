@@ -605,3 +605,27 @@ auto UniqueAttachmentFileNames(const QList<EMailAttachment>& attachments,
  */
 auto BuildInnerPartHeader(const vmime::shared_ptr<vmime::header>& source)
     -> QString;
+
+/**
+ * @brief Removes from @p message, in place, everything a previous Sign added.
+ *
+ * Signing takes the message exactly as it stands, so signing a message that is
+ * already signed produces a second signature OVER the first one and its
+ * wrapper, and attaches a second copy of the signer's public key. Do it a few
+ * times and the message is a stack of wrappers with every key ever used still
+ * in it, the oldest sitting ahead of the newest. "Sign it with this key
+ * instead" is what a user means by re-signing, so the previous layer comes off
+ * before the new one goes on.
+ *
+ * The signed entity is taken from the parsed message rather than the original
+ * octets, which would normally break byte-exactness. It is safe here and only
+ * here: the sign path reserializes the whole message anyway, and the signature
+ * being discarded is the one that covered those bytes.
+ *
+ * A public key part the USER attached is never removed -- only the one Sign
+ * writes itself, which it marks with its own Content-Description.
+ *
+ * @return whether anything was removed
+ */
+auto StripPreviousSignature(const vmime::shared_ptr<vmime::message>& message)
+    -> bool;

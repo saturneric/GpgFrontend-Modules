@@ -147,9 +147,8 @@ auto HeaderMailbox(const vmime::shared_ptr<const vmime::header>& header,
     }
 
     if (box) {
-      const auto name = QString::fromStdString(
-                            box->getName().getConvertedText(
-                                vmime::charsets::UTF_8))
+      const auto name = QString::fromStdString(box->getName().getConvertedText(
+                                                   vmime::charsets::UTF_8))
                             .trimmed();
       const auto address =
           QString::fromStdString(box->getEmail().toString()).trimmed();
@@ -160,6 +159,43 @@ auto HeaderMailbox(const vmime::shared_ptr<const vmime::header>& header,
   }
   return HeaderText(header, field);
 }
+
+/**
+ * @brief Reports body-download progress as it arrives.
+ *
+ * vmime drives this from the stream copy that pulls the message down, which
+ * makes a download the one IMAP operation that can honestly show a fraction:
+ * everything else reports completion and nothing in between. Cancellation is
+ * NOT expressed here -- this interface has no say in it -- and continues to
+ * ride on the timeout handler, which is polled inside the blocking socket
+ * reads that this progress is measuring.
+ */
+class FetchProgress : public vmime::utility::progressListener {
+ public:
+  FetchProgress(EMailImapWorker* worker, quint64 seq)
+      : worker_(worker), seq_(seq) {}
+
+  void start(const size_t predicted_total) override {
+    total_ = static_cast<qint64>(predicted_total);
+    emit worker_->SignalFetchProgress(seq_, 0, total_);
+  }
+
+  void progress(const size_t current, const size_t current_total) override {
+    total_ = static_cast<qint64>(current_total);
+    emit worker_->SignalFetchProgress(seq_, static_cast<qint64>(current),
+                                      total_);
+  }
+
+  void stop(const size_t current) override {
+    emit worker_->SignalFetchProgress(seq_, static_cast<qint64>(current),
+                                      total_);
+  }
+
+ private:
+  EMailImapWorker* worker_;
+  quint64 seq_;
+  qint64 total_{0};
+};
 
 /// Message-ID with the angle brackets stripped, for comparison.
 auto NormalizeMessageId(const QString& raw) -> QString {
@@ -525,7 +561,8 @@ void EMailImapWorker::FetchMessage(quint64 seq, const QString& folder_path,
     // peek = true is the whole point: opening a message here must not be a
     // change to the mailbox, and the folder being read-only means the server
     // could not honour a \Seen write even if one were attempted.
-    message->extract(out, nullptr, 0, static_cast<size_t>(-1), true);
+    FetchProgress listener(this, seq);
+    message->extract(out, &listener, 0, static_cast<size_t>(-1), true);
 
     const auto data = stream.str();
     emit SignalMessageFetched(

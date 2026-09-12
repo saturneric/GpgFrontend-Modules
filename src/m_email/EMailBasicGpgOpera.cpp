@@ -601,6 +601,11 @@ auto SignEMLData(int channel, const QString& key,
                  QString& eml_data, gpgme_error_t& err, QString& capsule_id)
     -> int {
   try {
+    // Re-signing replaces the previous signature; it does not pile a new one on
+    // top of it. Without this the old wrapper and the old signer's key both
+    // survive into the new message, and every re-sign adds another pair.
+    StripPreviousSignature(message);
+
     auto header = message->getHeader();
 
     auto backup_body_component = message->getBody()->clone();

@@ -1769,3 +1769,117 @@ auto BuildInnerPartHeader(const vmime::shared_ptr<vmime::header>& source)
 
   return Q_SC(header->generate(vmime::lineLengthLimits::convenient));
 }
+
+namespace {
+
+/// The Content-Description that SignEMLData() writes on the key part it
+/// attaches on its own initiative. It is the only thing distinguishing that
+/// part from a key the USER chose to attach, and silently removing the user's
+/// attachment would be worse than leaving a stale one behind.
+constexpr auto kSignerKeyDescription = "OpenPGP public key";
+
+auto PartDescription(const vmime::shared_ptr<const vmime::bodyPart>& part)
+    -> QString {
+  auto field = part->getHeader()->findField(vmime::fields::CONTENT_DESCRIPTION);
+  if (!field) return {};
+  auto value = field->getValue();
+  if (!value) return {};
+  return Q_SC(value->generate()).trimmed();
+}
+
+/// Whether @p part is the signer's key as Sign attached it, rather than a key
+/// the user attached themselves.
+auto IsSignerPublicKeyPart(const vmime::shared_ptr<vmime::bodyPart>& part)
+    -> bool {
+  return PartContentType(part) == "application/pgp-keys" &&
+         PartDescription(part) == QLatin1String(kSignerKeyDescription);
+}
+
+/// Replaces every Content-* field of @p dst with the ones @p src carries.
+void AdoptContentFields(const vmime::shared_ptr<vmime::header>& dst,
+                        const vmime::shared_ptr<vmime::header>& src) {
+  const auto is_content = [](const vmime::shared_ptr<vmime::headerField>& f) {
+    return Q_SC(f->getName()).startsWith("Content-", Qt::CaseInsensitive);
+  };
+
+  // Collected before removing any: removeField() mutates the list being walked.
+  QList<vmime::shared_ptr<vmime::headerField>> stale;
+  for (const auto& field : dst->getFieldList()) {
+    if (is_content(field)) stale.append(field);
+  }
+  for (const auto& field : stale) dst->removeField(field);
+
+  for (const auto& field : src->getFieldList()) {
+    if (!is_content(field)) continue;
+    dst->appendField(vmime::dynamicCast<vmime::headerField>(field->clone()));
+  }
+}
+
+/// Makes @p part the whole message: its content headers and its body become
+/// the message's, and everything else about the message is left alone.
+void PromotePartToMessage(const vmime::shared_ptr<vmime::message>& message,
+                          const vmime::shared_ptr<vmime::bodyPart>& part) {
+  // Cloned, and the fields adopted, while @p part is still owned by the body
+  // that is about to be replaced.
+  auto body = vmime::dynamicCast<vmime::body>(part->getBody()->clone());
+  AdoptContentFields(message->getHeader(), part->getHeader());
+  message->setBody(body);
+}
+
+/// Takes one layer of a previous Sign off @p message. Returns whether it found
+/// one; see StripPreviousSignature() for why this runs to a fixpoint.
+auto StripOneSignatureLayer(const vmime::shared_ptr<vmime::message>& message)
+    -> bool {
+  if (PartContentType(message) == "multipart/signed" &&
+      ContentTypeParam(message, "protocol") == "application/pgp-signature" &&
+      message->getBody()->getPartCount() == 2) {
+    PromotePartToMessage(message, message->getBody()->getPartAt(0));
+    return true;
+  }
+
+  if (!PartContentType(message).startsWith("multipart/")) return false;
+
+  auto body = message->getBody();
+  QList<vmime::shared_ptr<vmime::bodyPart>> stale;
+  for (size_t i = 0; i < body->getPartCount(); ++i) {
+    auto part = body->getPartAt(i);
+    if (IsSignerPublicKeyPart(part)) stale.append(part);
+  }
+  if (stale.isEmpty()) return false;
+
+  for (const auto& part : stale) body->removePart(part);
+
+  // A container that existed only to hold the body beside the key Sign
+  // attached is not a container any more. Only collapsed when one of those
+  // keys really was just removed: a single-part multipart/mixed the user built
+  // themselves is theirs to keep.
+  if (body->getPartCount() == 1 &&
+      PartContentType(message) == "multipart/mixed") {
+    PromotePartToMessage(message, body->getPartAt(0));
+  }
+
+  return true;
+}
+
+}  // namespace
+
+auto StripPreviousSignature(const vmime::shared_ptr<vmime::message>& message)
+    -> bool {
+  if (!message) return false;
+
+  // Run to a fixpoint rather than once. Each re-sign left a wrapper AND a key
+  // part behind, and they alternate as the layers come off: unwrapping a
+  // signature exposes the container holding the previous signer's key, and
+  // collapsing that container exposes the signature under it.
+  //
+  // Bounded so that a message built to nest forever cannot spin here. Eight
+  // layers is four re-signs deep, well past anything that arrives by accident.
+  constexpr int kMaxLayers = 16;
+
+  bool changed = false;
+  for (int i = 0; i < kMaxLayers; ++i) {
+    if (!StripOneSignatureLayer(message)) break;
+    changed = true;
+  }
+  return changed;
+}
