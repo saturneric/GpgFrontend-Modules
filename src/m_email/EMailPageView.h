@@ -28,6 +28,7 @@
 
 #pragma once
 
+#include <QStringList>
 #include <QWidget>
 
 #include "EMailModel.h"
@@ -47,6 +48,8 @@ class EMailHeaderView;
 class EMailSecurityView;
 class EMailBodyView;
 class QStackedWidget;
+class QMenu;
+class QPushButton;
 
 /**
  * @brief The message view of an e-mail tab.
@@ -70,6 +73,28 @@ class QStackedWidget;
  * than kept in a registry, which keeps a closed tab from ever being notified.
  */
 void EMailNotifyKeyringChanged();
+
+/**
+ * @brief Why an e-mail document cannot be modified, when it cannot.
+ */
+enum class EMailLockReason : uint8_t {
+  kNONE = 0,
+  kFORENSIC,   ///< the user locked this tab for inspection
+  kPROTECTED,  ///< a signature covers the content, or it is ciphertext
+};
+
+/**
+ * @brief What came of a host request to add content to the view.
+ *
+ * kNOT_HANDLED is the answer that lets the host fall back to what it would
+ * have done anyway; kREFUSED means the view handled the request and said no,
+ * and the host must NOT go on to do it itself.
+ */
+enum EMailAddContentResult : int {
+  kEMAIL_ADD_NOT_HANDLED = 0,
+  kEMAIL_ADD_DONE = 1,
+  kEMAIL_ADD_REFUSED = 2,
+};
 
 class EMailPageView : public QWidget {
   Q_OBJECT
@@ -121,6 +146,43 @@ class EMailPageView : public QWidget {
    *
    * Parsing only; nothing is written back, and the widget comes out clean.
    */
+  /**
+   * @brief Attaches an exported public key as an application/pgp-keys part.
+   *
+   * Optional half of the page/view contract. The host's "Append Public Key"
+   * pastes armor into the document, which for a structured document means
+   * pasting it into the middle of raw MIME. A view that declares this member
+   * is handed the key instead and decides where it belongs.
+   *
+   * @return one of EMailAddContentResult
+   */
+  int AttachPublicKey(const QByteArray& key_data,  // NOLINT
+                      const QString& suggested_name);
+
+  /**
+   * @brief Appends text to the message the view is presenting.
+   *
+   * For the host actions that append a fingerprint or a date: they mean "put
+   * this in what I am writing", which for a structured document is the body,
+   * not the document.
+   *
+   * @return one of EMailAddContentResult
+   */
+  int AppendBodyText(const QString& text);  // NOLINT
+
+  /**
+   * @brief Which crypto operations apply to this message AS IT IS NOW.
+   *
+   * Optional half of the page/view contract. The host knows which operations
+   * a tab TYPE supports; only the view knows which of them mean anything for
+   * the message actually open -- there is nothing to decrypt in a plain one,
+   * and nothing to verify in an unsigned one.
+   *
+   * Names are the ones SignalCryptoOperationRequested() uses. An empty list
+   * means nothing applies, not "no opinion".
+   */
+  QStringList AvailableCryptoOperations();  // NOLINT
+
   void LoadFromSource(const QByteArray& source);  // NOLINT
 
   /**
@@ -194,6 +256,27 @@ class EMailPageView : public QWidget {
    */
   void SignalSourceViewRequested();
 
+  /**
+   * @brief Asks the host to run a crypto operation on this tab's document.
+   *
+   * Optional half of the page/view contract. @p operation is one of
+   * "encrypt", "decrypt", "sign", "verify", "encrypt_sign" or
+   * "decrypt_verify" -- the same six the host already routes per tab type.
+   * The view neither performs nor knows how to perform any of them; this only
+   * says which one the user asked for, from inside the message rather than
+   * from the menu bar.
+   */
+  void SignalCryptoOperationRequested(const QString& operation);
+
+  /**
+   * @brief Emitted when AvailableCryptoOperations() would answer differently.
+   *
+   * A decrypt turns a message nobody could read into an ordinary one, which
+   * changes what may be done to it. Without this the menu bar would keep
+   * describing the message as it was when the tab was last switched to.
+   */
+  void SignalCryptoOperationsChanged();
+
  protected:
   /// Accepts a drag only when it carries files and the document may change.
   void dragEnterEvent(QDragEnterEvent* event) override;
@@ -212,6 +295,10 @@ class EMailPageView : public QWidget {
   /// Opens a new tab holding a message derived from this one. The current
   /// document is only read: deriving never modifies what it derives from.
   void slot_derive_message(int mode);
+  /// Unlocks or re-locks the adopted raw editor.
+  void slot_toggle_raw_edit(bool on);
+  /// Lifts the outermost signature off the message, leaving an ordinary one.
+  void slot_remove_protection_layer();
   /// Freezes the message and opens the send dialog. Reads the document only.
   void slot_send_message();
 
@@ -228,6 +315,23 @@ class EMailPageView : public QWidget {
   auto write_attachment(const EMailAttachment& att, const QString& dir,
                         const QString& name) -> bool;
   void build_ui();
+  /// Why the document may not be modified, if it may not.
+  [[nodiscard]] auto content_lock() const -> EMailLockReason;
+  /// Applies content_lock() to every widget that can modify the document.
+  /// The single place that decides what is editable, so the two reasons a
+  /// message can be locked cannot drift apart.
+  void apply_content_lock();
+  /// True when the content may be changed. Otherwise explains why not, and
+  /// for a signed message offers to remove the signature, then returns false.
+  auto refuse_when_locked(const QString& what) -> bool;
+  /// Keeps the Raw Source tab's notice and unlock control in step.
+  void refresh_raw_lock_ui();
+  /// Builds the panel shown in place of a body that is still ciphertext.
+  auto build_locked_panel() -> QWidget*;
+  /// Writes that panel from what is knowable without decrypting.
+  void refresh_locked_panel();
+  /// Rebuilds the security button's menu for the current state.
+  void rebuild_security_menu();
   /// Builds the Message sub-tab, which holds the editable message itself.
   auto build_message_tab() -> QWidget*;
   /// Reparses `last_source_` into the tree the inspection tabs render.
@@ -242,11 +346,10 @@ class EMailPageView : public QWidget {
   /// Only ever does anything once the view is dirty, so a message that is
   /// merely being inspected is never reserialized.
   void sync_inspection();
-  /// Redraws the status text at whatever width the action row leaves it,
-  /// shortening it rather than pushing the buttons off the row.
-  void fit_status_banner();
-  /// Writes the banner that says what the message is and what to do with it.
-  void refresh_status_banner();
+  /// Writes what the message IS onto the security button, and rebuilds the
+  /// menu of what can be done about it. The button keeps itself fitted to
+  /// whatever room the action row leaves it.
+  void refresh_security_button();
   /// Refreshes the Security tab from what parsing and any completed operation
   /// have established. Read-only: it never writes the document, so opening the
   /// tab cannot change the bytes.
@@ -259,8 +362,6 @@ class EMailPageView : public QWidget {
   /// Chooses between the formatted and plain renderings of the body, and
   /// shows the toggle only when the message actually offers both.
   void refresh_body_view();
-  /// Keeps the status text fitted to whatever room the action row leaves it.
-  auto eventFilter(QObject* watched, QEvent* event) -> bool override;
   /// Shows or hides the Cc and Bcc rows. Never clears them: collapsing a row
   /// is a view choice, not a decision to discard what is in it.
   void set_cc_bcc_visible(bool visible);
@@ -289,6 +390,11 @@ class EMailPageView : public QWidget {
   /// The document as it was last loaded or written. Kept so a serialization
   /// that fails can hand back what was there rather than a lossy substitute.
   QByteArray last_source_;
+  /// Bytes produced by lifting a protected layer off the message, waiting to
+  /// be handed to the host verbatim. Kept apart from last_source_ so
+  /// SaveToSource() can tell "taken out of the original" from "built from the
+  /// fields" -- only the latter may go through BuildMimeEML.
+  QByteArray pending_replacement_;
   bool dirty_{false};
   bool loading_{false};
   /// When set, this document cannot be modified or reserialized at all.
@@ -323,11 +429,28 @@ class EMailPageView : public QWidget {
   QFrame* action_separator_{};
   QLabel* attachment_heading_{};
   QLabel* unsigned_notice_{};
-  QLabel* status_banner_{};
+  QToolButton* security_button_{};
+  QMenu* security_menu_{};
+  /// Says why the message cannot be edited, when it cannot.
+  QLabel* locked_notice_{};
+  /// Shown in place of the body while the message is still ciphertext.
+  QWidget* locked_panel_{};
+  QLabel* locked_heading_{};
+  QLabel* locked_recipients_{};
+  QPushButton* locked_decrypt_button_{};
   QTabWidget* tabs_{};
   /// The host's raw document editor, once adopted. Owned by the tab widget
   /// it was placed in; null when the host kept its own switcher instead.
   QWidget* source_view_{};
+  /// The Raw Source tab itself: the adopted editor plus the row that says
+  /// whether it may be written to. Never the editor alone, or the tab-change
+  /// handler would stop recognising it.
+  QWidget* raw_tab_{};
+  QLabel* raw_notice_{};
+  QToolButton* raw_unlock_button_{};
+  /// Whether the user has deliberately asked to edit the raw document.
+  /// Read-only is the default: these are the octets a signature covers.
+  bool raw_unlocked_{false};
   EMailStructureView* structure_view_{};
   EMailHeaderView* header_view_{};
   EMailSecurityView* security_view_{};

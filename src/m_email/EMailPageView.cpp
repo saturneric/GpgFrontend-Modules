@@ -45,11 +45,14 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QLocale>
+#include <QMenu>
 #include <QMessageBox>
 #include <QMimeData>
 #include <QPlainTextEdit>
+#include <QPushButton>
 #include <QSaveFile>
 #include <QStackedWidget>
+#include <QStyle>
 #include <QTabWidget>
 #include <QToolButton>
 #include <QTreeWidget>
@@ -73,6 +76,70 @@ const auto& ThemeColor = EMailThemeColor;
 const auto& MutedColor = EMailMutedColor;
 const auto& AccentColor = EMailAccentColor;
 const auto& HumanSize = EMailHumanSize;
+
+/**
+ * @brief A tool button sized by its full text, drawn with as much of it as
+ * fits.
+ *
+ * The two have to be separated. If the size came from what is drawn, then
+ * shortening the text would shrink the button, the layout would hand the
+ * reclaimed space to whatever else is in the row, and widening the window
+ * afterwards would never give it back -- the text would stay shortened for
+ * the rest of the session.
+ */
+class ElidingToolButton : public QToolButton {
+ public:
+  using QToolButton::QToolButton;
+
+  /// Sets the wording this button stands for, whatever it ends up drawing.
+  void SetFullText(const QString& text) {
+    if (full_ == text) return;
+    full_ = text;
+    // Always the whole thing, however little of it is on screen.
+    setToolTip(text);
+    updateGeometry();
+    fit();
+  }
+
+  [[nodiscard]] auto sizeHint() const -> QSize override {
+    auto hint = QToolButton::sizeHint();
+    if (full_.isEmpty()) return hint;
+
+    // Measured from the full wording rather than from what is currently
+    // drawn, which is the whole point of this class.
+    const QFontMetrics metrics(font());
+    hint.setWidth(hint.width() + metrics.horizontalAdvance(full_) -
+                  metrics.horizontalAdvance(text()));
+    return hint;
+  }
+
+ protected:
+  void resizeEvent(QResizeEvent* event) override {
+    QToolButton::resizeEvent(event);
+    fit();
+  }
+
+ private:
+  void fit() {
+    if (full_.isEmpty()) return;
+
+    // The icon and the spacing around it are not the text's to use, so they
+    // come off the width before anything is measured against it.
+    const int reserved =
+        iconSize().width() +
+        (style()->pixelMetric(QStyle::PM_ToolBarItemSpacing, nullptr, this) *
+         2);
+
+    const QFontMetrics metrics(font());
+    const int available = std::max(0, contentsRect().width() - reserved);
+    const auto elided = metrics.elidedText(full_, Qt::ElideRight, available);
+
+    // Guarded: setText re-runs the layout, which can resize this button again.
+    if (elided != text()) setText(elided);
+  }
+
+  QString full_;
+};
 
 constexpr int kColName = 0;
 constexpr int kColType = 1;
@@ -130,7 +197,7 @@ void EMailPageView::build_ui() {
     // The raw document is the host's, and it may be behind this view's edits.
     // Asking for it to be brought up to date is the whole reason the host
     // wants to hear about this switch.
-    if (page != nullptr && page == source_view_) {
+    if (page != nullptr && page == raw_tab_) {
       emit SignalSourceViewRequested();
       return;
     }
@@ -287,8 +354,8 @@ auto EMailPageView::build_message_tab() -> QWidget* {
     slot_derive_message(static_cast<int>(EMailReplyMode::kFORWARD));
   });
 
-  send_button_ = make_action(QStringLiteral("mail-send"), ":/icons/export-email.png",
-                             tr("Send..."),
+  send_button_ = make_action(QStringLiteral("mail-send"),
+                             ":/icons/export-email.png", tr("Send..."),
                              tr("Send this message through a configured "
                                 "mail account."));
   connect(send_button_, &QToolButton::clicked, this,
@@ -325,20 +392,28 @@ auto EMailPageView::build_message_tab() -> QWidget* {
   // What the message IS, and which action applies, on the same row as the
   // actions themselves rather than in a band of its own above the tabs. It is
   // the answer to "what do I do with this", so it belongs where the doing is.
-  status_banner_ = new QLabel(this);
-  status_banner_->setVisible(false);
-  status_banner_->setTextInteractionFlags(Qt::TextSelectableByMouse);
+  security_button_ = new ElidingToolButton(this);
+  security_button_->setVisible(false);
+  security_button_->setAutoRaise(true);
+  security_button_->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+  // The whole control opens the menu: what a message IS and what can be done
+  // about it are the same question, so there is no separate arrow to find.
+  security_button_->setPopupMode(QToolButton::InstantPopup);
+  security_menu_ = new QMenu(security_button_);
+  security_button_->setMenu(security_menu_);
   {
-    auto font = status_banner_->font();
+    auto font = security_button_->font();
     font.setPointSizeF(font.pointSizeF() * 0.92);
-    status_banner_->setFont(font);
+    security_button_->setFont(font);
   }
-  // Never the reason the row cannot fit: the buttons keep their size and the
-  // text gives way, with the full wording always in the tooltip.
-  status_banner_->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
-  status_banner_->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
-  status_banner_->installEventFilter(this);
-  body_row->addWidget(status_banner_, 1);
+  // Sized to what it says and no wider. Maximum rather than Preferred so it
+  // never grows into the empty middle of the row -- stretched across it, a
+  // button with a menu indicator reads as a drop-down list of the whole row's
+  // worth of nothing -- while still being allowed to SHRINK when the window
+  // gets narrow, which is what keeps it from pushing the other actions off.
+  // The text then gives way instead, with the full wording in the tooltip.
+  security_button_->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Preferred);
+  body_row->addWidget(security_button_);
 
   body_mode_toggle_ = new QToolButton(this);
   body_mode_toggle_->setText(tr("Plain text"));
@@ -356,9 +431,25 @@ auto EMailPageView::build_message_tab() -> QWidget* {
 
   body_view_ = new EMailBodyView(this);
 
+  locked_notice_ = new QLabel(this);
+  locked_notice_->setWordWrap(true);
+  locked_notice_->setVisible(false);
+  {
+    auto palette = locked_notice_->palette();
+    palette.setColor(QPalette::WindowText, MutedColor(this));
+    locked_notice_->setPalette(palette);
+    auto font = locked_notice_->font();
+    font.setPointSizeF(font.pointSizeF() * 0.92);
+    locked_notice_->setFont(font);
+  }
+  layout->addWidget(locked_notice_);
+
+  locked_panel_ = build_locked_panel();
+
   body_stack_ = new QStackedWidget(this);
   body_stack_->addWidget(body_edit_);
   body_stack_->addWidget(body_view_);
+  body_stack_->addWidget(locked_panel_);
   layout->addWidget(body_stack_, 1);
 
   remote_content_notice_ = new QLabel(this);
@@ -516,35 +607,104 @@ void EMailPageView::set_cc_bcc_visible(bool visible) {
   }
 }
 
-void EMailPageView::SetForensicMode(bool on) {
-  forensic_ = on;
+auto EMailPageView::content_lock() const -> EMailLockReason {
+  if (forensic_) return EMailLockReason::kFORENSIC;
+
+  // A signature covers exact octets. Editing the content it covers does not
+  // produce a message with a broken signature -- it produces one that is
+  // indistinguishable from a forgery to whoever verifies it next. So it is not
+  // offered at all; the signature comes off first, deliberately, and then the
+  // message is an ordinary one that can be edited.
+  //
+  // Encrypted content cannot be edited for the simpler reason that what is
+  // here is ciphertext, and typing into it would destroy the message.
+  if (security_state_ != EMailSecurityState::kPLAIN) {
+    return EMailLockReason::kPROTECTED;
+  }
+
+  return EMailLockReason::kNONE;
+}
+
+void EMailPageView::apply_content_lock() {
+  const auto reason = content_lock();
+  const bool locked = reason != EMailLockReason::kNONE;
 
   // Editing is disabled at the widget level as well as at the dirty flag:
   // a read-only field cannot produce an edit to refuse in the first place,
   // and the user can see the document is locked rather than discovering it.
   for (auto* edit :
        {from_edit_, to_edit_, cc_edit_, bcc_edit_, subject_edit_}) {
-    edit->setReadOnly(on);
+    edit->setReadOnly(locked);
   }
-  body_edit_->setReadOnly(on);
-
-  // The raw editor writes straight into the document, so leaving it writable
-  // would be a hole right through the lock.
-  if (source_view_ != nullptr) source_view_->setProperty("readOnly", on);
+  body_edit_->setReadOnly(locked);
 
   // Attaching and removing change the message; saving a part out does not.
-  add_button_->setEnabled(!on);
-  remove_button_->setEnabled(!on);
+  add_button_->setEnabled(!locked);
+  remove_button_->setEnabled(!locked);
 
-  if (on) {
-    dirty_ = false;
-    setToolTip(
-        tr("This message is open for inspection only. It cannot be edited or "
-           "rewritten; Reply and Forward still work, and produce new "
-           "messages."));
-  } else {
-    setToolTip({});
+  // The raw editor writes straight into the document, so leaving it writable
+  // would be a hole right through the lock. Forensic mode locks it outright;
+  // otherwise it follows the unlock the user asked for on the Raw Source tab.
+  if (source_view_ != nullptr) {
+    source_view_->setProperty("readOnly", forensic_ || !raw_unlocked_);
   }
+
+  QString notice;
+  switch (reason) {
+    case EMailLockReason::kNONE:
+      break;
+    case EMailLockReason::kFORENSIC:
+      notice =
+          tr("This message is open for inspection only. It cannot be edited or "
+             "rewritten; Reply and Forward still work, and produce new "
+             "messages.");
+      break;
+    case EMailLockReason::kPROTECTED:
+      switch (security_state_) {
+        case EMailSecurityState::kENCRYPTED:
+          notice =
+              tr("This message is encrypted. Decrypt it before editing it.");
+          break;
+        case EMailSecurityState::kSIGNED_ENCRYPTED:
+          notice = tr(
+              "This message is encrypted and signed. Decrypt it, then remove "
+              "the signature, before editing it.");
+          break;
+        default:
+          notice =
+              tr("This message is signed. Remove the signature before editing "
+                 "it -- an edit under a signature reads as a forgery.");
+          break;
+      }
+      break;
+  }
+
+  setToolTip(notice);
+  if (locked_notice_ != nullptr) {
+    locked_notice_->setText(notice);
+    locked_notice_->setVisible(locked && !notice.isEmpty());
+  }
+
+  refresh_raw_lock_ui();
+}
+
+void EMailPageView::SetForensicMode(bool on) {
+  forensic_ = on;
+
+  // Forensic mode revokes an unlock already in force. Leaving it does NOT
+  // unlock: the raw editor is locked by default either way, and has to be
+  // asked for deliberately each time.
+  if (on) {
+    raw_unlocked_ = false;
+    if (raw_unlock_button_ != nullptr) {
+      const QSignalBlocker blocker(raw_unlock_button_);
+      raw_unlock_button_->setChecked(false);
+    }
+  }
+
+  if (on) dirty_ = false;
+
+  apply_content_lock();
 }
 
 void EMailPageView::mark_dirty() {
@@ -590,8 +750,12 @@ void EMailPageView::LoadFromSource(const QByteArray& source) {
   refresh_attachments();
   refresh_structure();
   refresh_body_view();
-  refresh_status_banner();
+  refresh_security_button();
   refresh_security();
+
+  // Last, and after refresh_structure(): what may be edited follows from what
+  // the message turned out to BE, so the classification has to exist first.
+  apply_content_lock();
 
   loading_ = false;
 
@@ -638,14 +802,126 @@ void EMailPageView::AdoptSourceView(QWidget* source) {
   if (source == nullptr || source_view_ != nullptr) return;
 
   source_view_ = source;
+
+  // The editor does not go into the tab bare: it gets a row above it saying
+  // whether it may be written to, and the control that changes that.
+  raw_tab_ = new QWidget(this);
+  auto* layout = new QVBoxLayout(raw_tab_);
+  layout->setContentsMargins(0, 4, 0, 0);
+  layout->setSpacing(4);
+
+  auto* bar = new QHBoxLayout();
+  bar->setContentsMargins(0, 0, 0, 0);
+
+  raw_notice_ = new QLabel(raw_tab_);
+  raw_notice_->setWordWrap(true);
+  {
+    auto font = raw_notice_->font();
+    font.setPointSizeF(font.pointSizeF() * 0.92);
+    raw_notice_->setFont(font);
+  }
+  bar->addWidget(raw_notice_, 1);
+
+  raw_unlock_button_ = new QToolButton(raw_tab_);
+  raw_unlock_button_->setCheckable(true);
+  raw_unlock_button_->setAutoRaise(true);
+  raw_unlock_button_->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+  bar->addWidget(raw_unlock_button_);
+
+  layout->addLayout(bar);
+  layout->addWidget(source, 1);
+
+  connect(raw_unlock_button_, &QToolButton::toggled, this,
+          &EMailPageView::slot_toggle_raw_edit);
+
   // Last, after Headers: the tabs run from the most interpreted view of the
   // message to the least, ending at the bytes themselves.
-  tabs_->addTab(source, QIcon(":/icons/code.png"), tr("Raw Source"));
+  tabs_->addTab(raw_tab_, QIcon(":/icons/code.png"), tr("Raw Source"));
 
-  // A locked document cannot be edited here either. Set through the property
-  // system because the page hands over a plain QWidget; an editor that does
-  // not carry the property simply does not gain a way to be written to.
-  if (forensic_) source_view_->setProperty("readOnly", true);
+  // Read-only by default, and not only in forensic mode: these are the exact
+  // octets a signature covers, and an accidental keystroke here is
+  // indistinguishable from a forgery to whoever verifies the message next.
+  // Set through the property system because the page hands over a plain
+  // QWidget; an editor that does not carry the property simply does not gain a
+  // way to be written to.
+  raw_unlocked_ = false;
+  source_view_->setProperty("readOnly", true);
+  refresh_raw_lock_ui();
+}
+
+void EMailPageView::slot_toggle_raw_edit(bool on) {
+  if (!on) {
+    raw_unlocked_ = false;
+    if (source_view_ != nullptr) source_view_->setProperty("readOnly", true);
+    refresh_raw_lock_ui();
+    return;
+  }
+
+  // Should be unreachable -- the control is disabled -- but the document must
+  // not become writable through a path that skipped the check.
+  if (forensic_) {
+    const QSignalBlocker blocker(raw_unlock_button_);
+    raw_unlock_button_->setChecked(false);
+    return;
+  }
+
+  if (content_lock() == EMailLockReason::kPROTECTED) {
+    QMessageBox::information(
+        this, tr("Protected Message"),
+        tr("These bytes are covered by a signature, or are ciphertext. Remove "
+           "the signature, or decrypt the message, before editing its "
+           "source."));
+    const QSignalBlocker blocker(raw_unlock_button_);
+    raw_unlock_button_->setChecked(false);
+    return;
+  }
+
+  raw_unlocked_ = true;
+  if (source_view_ != nullptr) source_view_->setProperty("readOnly", false);
+  refresh_raw_lock_ui();
+}
+
+void EMailPageView::refresh_raw_lock_ui() {
+  if (raw_unlock_button_ == nullptr || raw_notice_ == nullptr) return;
+
+  const auto reason = content_lock();
+  const bool unlockable = reason == EMailLockReason::kNONE;
+
+  raw_unlock_button_->setEnabled(unlockable || raw_unlocked_);
+  raw_unlock_button_->setIcon(
+      QIcon(raw_unlocked_ ? ":/icons/unlock.png" : ":/icons/read-only.png"));
+  raw_unlock_button_->setText(raw_unlocked_ ? tr("Stop Editing")
+                                            : tr("Edit Raw Source"));
+
+  QString notice;
+  QColor colour = MutedColor(this);
+  if (raw_unlocked_) {
+    notice =
+        tr("You are editing the raw message source. What you type here is the "
+           "document.");
+    colour = EMailWarningColor(this);
+  } else {
+    switch (reason) {
+      case EMailLockReason::kFORENSIC:
+        notice =
+            tr("This message is locked for inspection. Its source cannot be "
+               "edited.");
+        break;
+      case EMailLockReason::kPROTECTED:
+        notice = tr(
+            "Read-only. These bytes are protected -- remove the signature, or "
+            "decrypt the message, to edit them.");
+        break;
+      case EMailLockReason::kNONE:
+        notice = tr("Read-only. Unlock to edit the message source directly.");
+        break;
+    }
+  }
+
+  raw_notice_->setText(notice);
+  auto palette = raw_notice_->palette();
+  palette.setColor(QPalette::WindowText, colour);
+  raw_notice_->setPalette(palette);
 }
 
 void EMailPageView::ApplyEditorFont(const QFont& font) {
@@ -713,8 +989,9 @@ void EMailPageView::sync_inspection() {
   last_source_ = eml.toUtf8();
 
   refresh_structure();
-  refresh_status_banner();
+  refresh_security_button();
   refresh_security();
+  apply_content_lock();
 }
 
 void EMailPageView::ensure_regions_verified() {
@@ -792,6 +1069,163 @@ void EMailPageView::slot_derive_message(int mode) {
   view->mark_dirty();
 }
 
+auto EMailPageView::build_locked_panel() -> QWidget* {
+  auto* panel = new QWidget(this);
+  auto* layout = new QVBoxLayout(panel);
+  layout->setAlignment(Qt::AlignCenter);
+  layout->setSpacing(10);
+
+  auto* icon = new QLabel(panel);
+  icon->setAlignment(Qt::AlignCenter);
+  icon->setPixmap(QIcon(":/icons/lock.png").pixmap(48, 48));
+  layout->addWidget(icon);
+
+  locked_heading_ = new QLabel(tr("This message is encrypted"), panel);
+  locked_heading_->setAlignment(Qt::AlignCenter);
+  {
+    auto font = locked_heading_->font();
+    font.setPointSizeF(font.pointSizeF() * 1.15);
+    font.setBold(true);
+    locked_heading_->setFont(font);
+  }
+  layout->addWidget(locked_heading_);
+
+  locked_recipients_ = new QLabel(panel);
+  locked_recipients_->setAlignment(Qt::AlignCenter);
+  locked_recipients_->setWordWrap(true);
+  locked_recipients_->setTextInteractionFlags(Qt::TextSelectableByMouse);
+  {
+    auto palette = locked_recipients_->palette();
+    palette.setColor(QPalette::WindowText, MutedColor(this));
+    locked_recipients_->setPalette(palette);
+  }
+  layout->addWidget(locked_recipients_);
+
+  auto* row = new QHBoxLayout();
+  row->addStretch();
+  locked_decrypt_button_ =
+      new QPushButton(QIcon(":/icons/unlock.png"), tr("Decrypt"), panel);
+  row->addWidget(locked_decrypt_button_);
+  row->addStretch();
+  layout->addLayout(row);
+
+  connect(locked_decrypt_button_, &QPushButton::clicked, this, [this]() {
+    // Verifying costs nothing extra once the message is open, and a signature
+    // inside the ciphertext is the only kind worth anything here.
+    emit SignalCryptoOperationRequested(
+        security_state_ == EMailSecurityState::kSIGNED_ENCRYPTED
+            ? QStringLiteral("decrypt_verify")
+            : QStringLiteral("decrypt"));
+  });
+
+  return panel;
+}
+
+void EMailPageView::refresh_locked_panel() {
+  locked_heading_->setText(security_state_ ==
+                                   EMailSecurityState::kSIGNED_ENCRYPTED
+                               ? tr("This message is encrypted and signed")
+                               : tr("This message is encrypted"));
+
+  // Who the message was ADDRESSED to is all that is knowable before it is
+  // opened. Once an operation has run, the engine can say who it was actually
+  // encrypted to, which is the better answer and not the same question.
+  QStringList named;
+  if (!recipient_rows_.isEmpty()) {
+    for (const auto& row : recipient_rows_) {
+      if (!row.address.isEmpty()) {
+        named.append(row.address);
+      } else if (!row.info.uid.isEmpty()) {
+        named.append(row.info.uid);
+      } else if (!row.info.key_id.isEmpty()) {
+        named.append(row.info.key_id);
+      }
+    }
+  } else {
+    named = message_.to + message_.cc;
+  }
+  named.removeAll({});
+  named.removeDuplicates();
+
+  locked_recipients_->setText(
+      named.isEmpty() ? tr("The recipients are not named in the headers.")
+                      : tr("Addressed to %1").arg(named.join(", ")));
+
+  locked_decrypt_button_->setEnabled(true);
+}
+
+auto EMailPageView::AttachPublicKey(const QByteArray& key_data,
+                                    const QString& suggested_name) -> int {
+  if (key_data.isEmpty()) return kEMAIL_ADD_NOT_HANDLED;
+
+  if (!refuse_when_locked(tr("attach a public key"))) {
+    return kEMAIL_ADD_REFUSED;
+  }
+
+  EMailAttachment attachment;
+  attachment.filename =
+      suggested_name.trimmed().isEmpty() ? "publickey.asc" : suggested_name;
+  attachment.mime_type = "application/pgp-keys";
+  attachment.disposition = "attachment";
+  attachment.is_openpgp_key = true;
+  attachment.data = key_data;
+
+  message_.attachments.append(attachment);
+  refresh_attachments();
+  mark_dirty();
+  return kEMAIL_ADD_DONE;
+}
+
+auto EMailPageView::AppendBodyText(const QString& text) -> int {
+  if (text.isEmpty()) return kEMAIL_ADD_NOT_HANDLED;
+
+  if (!refuse_when_locked(tr("add text to this message"))) {
+    return kEMAIL_ADD_REFUSED;
+  }
+
+  // The message being composed, not the document: for a structured message
+  // "put this in what I am writing" means the body and nothing else.
+  body_edit_->appendPlainText(text);
+  // No mark_dirty() here: the body editor's own textChanged already did it.
+  return kEMAIL_ADD_DONE;
+}
+
+auto EMailPageView::refuse_when_locked(const QString& what) -> bool {
+  const auto reason = content_lock();
+  if (reason == EMailLockReason::kNONE) return true;
+
+  if (reason == EMailLockReason::kFORENSIC) {
+    QMessageBox::information(
+        this, tr("Message Locked"),
+        tr("This message is open for inspection only, so it is not possible "
+           "to %1.")
+            .arg(what));
+    return false;
+  }
+
+  if (security_state_ == EMailSecurityState::kENCRYPTED ||
+      security_state_ == EMailSecurityState::kSIGNED_ENCRYPTED) {
+    QMessageBox::information(
+        this, tr("Message Is Encrypted"),
+        tr("Decrypt this message before trying to %1.").arg(what));
+    return false;
+  }
+
+  // Signed, and therefore editable only once the signature is gone. Offered
+  // rather than merely refused: the user asked to change the message, and
+  // removing the signature is how that becomes possible.
+  if (QMessageBox::question(
+          this, tr("Message Is Signed"),
+          tr("This message is signed, so it cannot be changed -- an edit "
+             "under a signature reads as a forgery.\n\nRemove the signature "
+             "and make it an ordinary message?"),
+          QMessageBox::Yes | QMessageBox::Cancel,
+          QMessageBox::Cancel) == QMessageBox::Yes) {
+    slot_remove_protection_layer();
+  }
+  return false;
+}
+
 void EMailPageView::refresh_body_view() {
   remote_content_notice_->setVisible(false);
 
@@ -815,6 +1249,20 @@ void EMailPageView::refresh_body_view() {
   forward_button_->setVisible(is_message);
   forensic_toggle_->setVisible(is_message);
   if (action_separator_ != nullptr) action_separator_->setVisible(is_message);
+
+  // Ciphertext is not text the user can read or edit, so it is not offered as
+  // either. Deliberately after the block above: Reply and Forward derive a new
+  // message and never touch this one, so they stay available on a message that
+  // cannot be read.
+  const bool locked = security_state_ == EMailSecurityState::kENCRYPTED ||
+                      security_state_ == EMailSecurityState::kSIGNED_ENCRYPTED;
+  if (locked) {
+    refresh_locked_panel();
+    body_mode_toggle_->setVisible(false);
+    body_view_->Clear();
+    body_stack_->setCurrentIndex(2);
+    return;
+  }
 
   if (!has_html) {
     body_view_->Clear();
@@ -849,73 +1297,247 @@ void EMailPageView::refresh_security() {
                              GFGpgCurrentGpgContextChannel(), findings);
 }
 
-void EMailPageView::refresh_status_banner() {
+void EMailPageView::refresh_security_button() {
   QString text;
+  QString icon;
   QColor colour = MutedColor(this);
 
   switch (security_state_) {
     case EMailSecurityState::kENCRYPTED:
-      text = tr("Encrypted message. Decrypt it to read the contents.");
+      text = tr("Encrypted");
+      icon = ":/icons/lock.png";
       colour = AccentColor(this, true);
       break;
     case EMailSecurityState::kSIGNED:
-      text = tr("Signed message. Verify it to check the signature.");
+      text = tr("Signed");
+      icon = ":/icons/signature.png";
       colour = AccentColor(this, true);
       break;
     case EMailSecurityState::kSIGNED_ENCRYPTED:
-      text = tr("Encrypted and signed. Decrypt it, then verify the signature.");
+      text = tr("Encrypted and signed");
+      icon = ":/icons/lock.png";
       colour = AccentColor(this, true);
       break;
     case EMailSecurityState::kMALFORMED_PGP:
-      text =
-          tr("This message claims to use OpenPGP but its structure does not "
-             "follow RFC 3156. It may not decrypt or verify.");
+      text = tr("Malformed OpenPGP structure");
+      icon = ":/icons/warning.png";
       colour = EMailWarningColor(this);
       break;
     case EMailSecurityState::kPLAIN:
       // Stated plainly and quietly. An unprotected message is the ordinary
       // case, not a fault, and painting it as a warning would train the user
-      // to ignore the banner that matters.
-      text = tr("Not signed or encrypted.");
+      // to ignore the one that matters.
+      text = tr("Not signed or encrypted");
+      icon = ":/icons/email.png";
       break;
   }
 
-  // Nothing to say about a tab the user is still composing.
-  const bool has_message =
-      !last_source_.isEmpty() && !tree_root_.content_type.isEmpty();
-  status_banner_->setVisible(has_message);
-  if (!has_message) return;
+  // Always shown, including on a tab the user is still composing. This is not
+  // only a statement about what the message IS -- it is also where Sign and
+  // Encrypt are reached from, and a new draft is exactly when someone wants
+  // them. An empty draft is honestly "not signed or encrypted", which is what
+  // the kPLAIN branch above already says.
+  security_button_->setVisible(true);
 
-  auto palette = status_banner_->palette();
-  palette.setColor(QPalette::WindowText, colour);
-  status_banner_->setPalette(palette);
+  security_button_->setIcon(QIcon(icon));
 
-  // Kept whole in the tooltip and on the property, so narrowing the window
-  // shortens what is drawn without ever losing the wording itself.
-  status_banner_->setProperty("gf_full_text", text);
-  status_banner_->setToolTip(text);
-  fit_status_banner();
+  auto palette = security_button_->palette();
+  palette.setColor(QPalette::ButtonText, colour);
+  security_button_->setPalette(palette);
+
+  // The button keeps the whole wording and draws as much of it as it was given
+  // room for, so narrowing the window never loses what the message is.
+  static_cast<ElidingToolButton*>(security_button_)->SetFullText(text);
+  rebuild_security_menu();
+
+  // What this message is has just been (re)decided, and with it what can be
+  // done to it. The menu bar is driven from the same answer.
+  emit SignalCryptoOperationsChanged();
 }
 
-void EMailPageView::fit_status_banner() {
-  if (status_banner_ == nullptr) return;
+auto EMailPageView::AvailableCryptoOperations() -> QStringList {
+  // Deliberately permissive. This decides what the menu bar ALLOWS, which is
+  // a different question from what the security button's menu SUGGESTS: the
+  // menu names the obvious next step, this rules out only what cannot work.
+  //
+  // In particular a message whose MIME structure is plain is not necessarily
+  // free of OpenPGP -- an inline armored block in the body is ordinary, and
+  // the module's decrypt and verify handle it. Structure alone cannot see
+  // that, so "plain" must not withdraw those operations.
+  static const QStringList kAll = {"sign",   "encrypt", "encrypt_sign",
+                                   "verify", "decrypt", "decrypt_verify"};
+  static const QStringList kReading = {"verify", "decrypt", "decrypt_verify"};
 
-  const auto full = status_banner_->property("gf_full_text").toString();
-  if (full.isEmpty()) return;
+  QStringList operations = kAll;
 
-  // contentsRect(), not width(): the label paints inside its margins, and
-  // measuring against the full width lets the last glyph fall off the edge
-  // without ever tripping the ellipsis.
-  const QFontMetrics metrics(status_banner_->font());
-  status_banner_->setText(metrics.elidedText(
-      full, Qt::ElideRight, status_banner_->contentsRect().width()));
-}
-
-auto EMailPageView::eventFilter(QObject* watched, QEvent* event) -> bool {
-  if (watched == status_banner_ && event->type() == QEvent::Resize) {
-    fit_status_banner();
+  if (security_state_ == EMailSecurityState::kENCRYPTED ||
+      security_state_ == EMailSecurityState::kSIGNED_ENCRYPTED) {
+    // The one case where the rest genuinely cannot apply: nobody has read this
+    // yet. Signing or re-encrypting ciphertext says nothing about what is
+    // inside it, so only opening it is on offer.
+    operations = {"decrypt", "decrypt_verify"};
   }
-  return QWidget::eventFilter(watched, event);
+
+  if (!forensic_) return operations;
+
+  // A document locked for inspection does not change, and every operation
+  // that PRODUCES a message rewrites this tab. Reading one does not, by the
+  // same rule that keeps Reply and Forward available on a forensic message.
+  QStringList reading;
+  for (const auto& operation : operations) {
+    if (kReading.contains(operation)) reading.append(operation);
+  }
+  return reading;
+}
+
+void EMailPageView::rebuild_security_menu() {
+  security_menu_->clear();
+
+  const auto show_details = [this]() {
+    if (tabs_ != nullptr && security_view_ != nullptr) {
+      tabs_->setCurrentWidget(security_view_);
+    }
+  };
+  const auto request = [this](const QString& op) {
+    emit SignalCryptoOperationRequested(op);
+  };
+
+  // Producing a new protected message is a modification; forensic mode
+  // forbids it, exactly as it forbids every other edit in place.
+  const bool may_modify = !forensic_;
+
+  const auto add_op = [&](const QString& label, const QString& op) {
+    auto* action = security_menu_->addAction(label);
+    action->setEnabled(may_modify);
+    if (!may_modify) {
+      action->setToolTip(tr("This message is locked for inspection."));
+    }
+    connect(action, &QAction::triggered, this,
+            [request, op]() { request(op); });
+    return action;
+  };
+  const auto add_read = [&](const QString& label, const QString& op) {
+    auto* action = security_menu_->addAction(label);
+    connect(action, &QAction::triggered, this,
+            [request, op]() { request(op); });
+    return action;
+  };
+
+  switch (security_state_) {
+    case EMailSecurityState::kPLAIN:
+      add_op(tr("Sign..."), "sign");
+      add_op(tr("Encrypt..."), "encrypt");
+      add_op(tr("Encrypt and Sign..."), "encrypt_sign");
+      break;
+
+    case EMailSecurityState::kSIGNED: {
+      add_read(tr("Verify Signature"), "verify");
+      auto* details = security_menu_->addAction(tr("Signature Details..."));
+      connect(details, &QAction::triggered, this, show_details);
+      security_menu_->addSeparator();
+      add_op(tr("Sign Again With Another Key..."), "sign");
+      auto* remove = security_menu_->addAction(tr("Remove Signature..."));
+      remove->setEnabled(may_modify);
+      connect(remove, &QAction::triggered, this,
+              &EMailPageView::slot_remove_protection_layer);
+      break;
+    }
+
+    case EMailSecurityState::kENCRYPTED: {
+      add_read(tr("Decrypt"), "decrypt");
+      add_read(tr("Decrypt and Verify"), "decrypt_verify");
+      security_menu_->addSeparator();
+      auto* details = security_menu_->addAction(tr("Encryption Details..."));
+      connect(details, &QAction::triggered, this, show_details);
+      break;
+    }
+
+    case EMailSecurityState::kSIGNED_ENCRYPTED: {
+      add_read(tr("Decrypt and Verify"), "decrypt_verify");
+      add_read(tr("Decrypt"), "decrypt");
+      security_menu_->addSeparator();
+      auto* details = security_menu_->addAction(tr("Details..."));
+      connect(details, &QAction::triggered, this, show_details);
+
+      auto* remove = security_menu_->addAction(tr("Remove Signature..."));
+      // Only a signature this view can actually see can be lifted off. When
+      // the signing is outside the ciphertext there is one; when it is inside,
+      // there is nothing here to remove until the message is decrypted.
+      QByteArray probe;
+      const bool removable =
+          UnwrapProtectedLayer(tree_root_, last_source_, probe) ==
+          EMailUnwrapResult::kOK;
+      remove->setEnabled(may_modify && removable);
+      if (!removable) {
+        remove->setToolTip(tr("Decrypt this message first."));
+      }
+      connect(remove, &QAction::triggered, this,
+              &EMailPageView::slot_remove_protection_layer);
+      break;
+    }
+
+    case EMailSecurityState::kMALFORMED_PGP: {
+      auto* details =
+          security_menu_->addAction(tr("What Is Wrong With This Message?"));
+      connect(details, &QAction::triggered, this, show_details);
+      security_menu_->addSeparator();
+      add_read(tr("Try to Verify Anyway"), "verify");
+      add_read(tr("Try to Decrypt Anyway"), "decrypt");
+      break;
+    }
+  }
+}
+
+void EMailPageView::slot_remove_protection_layer() {
+  if (forensic_) return;
+
+  QByteArray out;
+  const auto result = UnwrapProtectedLayer(tree_root_, last_source_, out);
+
+  switch (result) {
+    case EMailUnwrapResult::kNOT_SUPPORTED:
+      QMessageBox::information(
+          this, tr("Signature Not Reachable"),
+          tr("The signature is inside the encrypted part of this message. "
+             "Decrypt it first."));
+      return;
+    case EMailUnwrapResult::kNOT_PROTECTED:
+      QMessageBox::information(this, tr("Nothing to Remove"),
+                               tr("This message carries no signature."));
+      return;
+    case EMailUnwrapResult::kMALFORMED:
+      QMessageBox::warning(
+          this, tr("Cannot Remove the Signature"),
+          tr("This message does not follow RFC 3156 closely enough to take "
+             "its signature off safely. Edit the raw source instead."));
+      return;
+    case EMailUnwrapResult::kOK:
+      break;
+  }
+
+  if (QMessageBox::warning(
+          this, tr("Remove Signature"),
+          tr("Remove the signature from this message?\n\nThe signature is "
+             "discarded and the message becomes an ordinary, unsigned one. "
+             "The message itself is kept exactly as it is. This cannot be "
+             "undone."),
+          QMessageBox::Yes | QMessageBox::Cancel,
+          QMessageBox::Cancel) != QMessageBox::Yes) {
+    return;
+  }
+
+  // These bytes came out of the original document rather than being built from
+  // the fields, and they have to reach the host exactly as they are.
+  pending_replacement_ = out;
+
+  LoadFromSource(out);
+
+  // LoadFromSource() ends clean, but the host has not been given these bytes
+  // yet. Set directly rather than through mark_dirty(), which would also mark
+  // the inspection tabs stale -- they already describe exactly this document.
+  dirty_ = true;
+  inspection_stale_ = false;
+  emit SignalContentModified();
 }
 
 void EMailPageView::refresh_fields() {
@@ -1056,6 +1678,19 @@ auto EMailPageView::SaveToSource() -> QByteArray {
   // Handing back the bytes as loaded is the only answer that preserves them.
   if (forensic_) return last_source_;
 
+  // A message produced by lifting a protected layer off this one. These bytes
+  // were taken OUT of the original rather than built from the fields, and they
+  // must reach the document exactly as they are: a BuildMimeEML round trip
+  // here would rewrite the very entity whose octets a nested signature still
+  // covers. Deliberately before collect_fields(), which would start rebuilding
+  // from the widgets.
+  if (!pending_replacement_.isEmpty()) {
+    last_source_ = pending_replacement_;
+    pending_replacement_.clear();
+    dirty_ = false;
+    return last_source_;
+  }
+
   collect_fields();
 
   QString eml;
@@ -1147,6 +1782,11 @@ void EMailPageView::WipeContent() {
   if (!last_source_.isEmpty()) last_source_.fill('\0');
   last_source_.clear();
 
+  // An unwrapped message the host has not collected yet is plaintext just as
+  // much as the document is, so it is wiped with it.
+  if (!pending_replacement_.isEmpty()) pending_replacement_.fill('\0');
+  pending_replacement_.clear();
+
   loading_ = true;
   body_edit_->clear();
   from_edit_->clear();
@@ -1162,9 +1802,11 @@ void EMailPageView::WipeContent() {
   body_mode_toggle_->setVisible(false);
   remote_content_notice_->setVisible(false);
   body_stack_->setCurrentIndex(0);
-  status_banner_->clear();
-  status_banner_->setVisible(false);
   loading_ = false;
+
+  // Back to what a new, empty draft looks like -- including the security
+  // button, which is how signing and encrypting are reached.
+  refresh_security_button();
 
   dirty_ = false;
 }
@@ -1196,8 +1838,10 @@ void EMailPageView::slot_add_attachment() {
 void EMailPageView::attach_paths(const QStringList& paths) {
   if (paths.isEmpty()) return;
 
-  // Attaching changes the message, which a forensic document does not do.
-  if (forensic_) return;
+  // Attaching changes the message. A locked one -- signed, encrypted or open
+  // for inspection -- does not change, so this is the last line of defence
+  // behind the disabled button and the refused drag.
+  if (content_lock() != EMailLockReason::kNONE) return;
 
   for (const auto& path : paths) {
     // Directories arrive from a drop as readily as files do, and reading one
@@ -1233,11 +1877,11 @@ void EMailPageView::attach_paths(const QStringList& paths) {
 }
 
 void EMailPageView::dragEnterEvent(QDragEnterEvent* event) {
-  // Only files, and only when this document may change at all. A forensic
-  // message refuses the drag outright rather than accepting it and silently
-  // doing nothing.
-  if (!forensic_ && event->mimeData() != nullptr &&
-      event->mimeData()->hasUrls()) {
+  // Only files, and only when this document may change at all. A locked
+  // message -- signed, encrypted or open for inspection -- refuses the drag
+  // outright rather than accepting it and silently doing nothing.
+  if (content_lock() == EMailLockReason::kNONE &&
+      event->mimeData() != nullptr && event->mimeData()->hasUrls()) {
     event->acceptProposedAction();
     return;
   }
@@ -1245,8 +1889,8 @@ void EMailPageView::dragEnterEvent(QDragEnterEvent* event) {
 }
 
 void EMailPageView::dragMoveEvent(QDragMoveEvent* event) {
-  if (!forensic_ && event->mimeData() != nullptr &&
-      event->mimeData()->hasUrls()) {
+  if (content_lock() == EMailLockReason::kNONE &&
+      event->mimeData() != nullptr && event->mimeData()->hasUrls()) {
     event->acceptProposedAction();
     return;
   }
@@ -1254,7 +1898,8 @@ void EMailPageView::dragMoveEvent(QDragMoveEvent* event) {
 }
 
 void EMailPageView::dropEvent(QDropEvent* event) {
-  if (forensic_ || event->mimeData() == nullptr) {
+  if (content_lock() != EMailLockReason::kNONE ||
+      event->mimeData() == nullptr) {
     event->ignore();
     return;
   }
@@ -1278,6 +1923,10 @@ void EMailPageView::dropEvent(QDropEvent* event) {
 }
 
 void EMailPageView::slot_remove_attachment() {
+  // Removing a part changes the message, so it follows the same lock as
+  // adding one. The button is already disabled; this is the backstop.
+  if (content_lock() != EMailLockReason::kNONE) return;
+
   const auto selected = attachment_list_->selectedItems();
   if (selected.isEmpty()) return;
 

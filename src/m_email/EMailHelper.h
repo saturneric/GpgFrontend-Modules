@@ -83,6 +83,16 @@ void MimeLog(const QString& message);
 auto IsValidMicalgFormat(const QString& prm_micalg_value) -> bool;
 
 /**
+ * @brief The worse of two operation statuses.
+ *
+ * The host reads a status as one of three buckets: greater than zero is OK,
+ * zero is a warning, and negative is a failure. A composite operation is only
+ * as good as its worst leg, so the aggregate is the minimum -- the same rule
+ * GpgResultAnalyse::setStatus applies within a single operation.
+ */
+auto WorseStatus(int a, int b) -> int;
+
+/**
  * @brief
  *
  * @param header
@@ -330,6 +340,67 @@ auto FlattenMimeTree(const EMailPart& root) -> QList<const EMailPart*>;
  * @return the slice, or an empty array when the offsets are not usable
  */
 auto RawHeaderBlock(const EMailPart& part, const QByteArray& raw) -> QByteArray;
+
+/**
+ * @brief One header field exactly as it appeared.
+ *
+ * @ref name is the field name as written; @ref value keeps the bytes of the
+ * value, with folded continuation lines joined but otherwise untouched.
+ */
+struct EMailRawHeaderField {
+  QString name;
+  QByteArray value;
+  /// The whole field as it stood in the message, continuation lines included.
+  QByteArray raw_line;
+};
+
+/**
+ * @brief Splits a raw header block into its fields, in order.
+ *
+ * Duplicates are preserved rather than merged: a repeated header is itself
+ * worth seeing. Folding-aware -- a line starting with a space or a tab
+ * continues the field above it.
+ *
+ * A line that is neither a continuation nor `name: value` is returned with an
+ * empty @ref EMailRawHeaderField::name rather than dropped. A malformed header
+ * is exactly the kind of thing someone reading this view is looking for.
+ */
+auto SplitRawHeaderFields(const QByteArray& block)
+    -> QList<EMailRawHeaderField>;
+
+/**
+ * @brief Why a protected layer could not be lifted off a message.
+ */
+enum class EMailUnwrapResult : uint8_t {
+  kOK = 0,
+  kNOT_PROTECTED,  ///< nothing to lift out; @p out_eml is left untouched
+  kNOT_SUPPORTED,  ///< the outermost layer is encrypted -- decrypt it first
+  kMALFORMED,      ///< not an RFC 3156 shape, or the offsets are unusable
+};
+
+/**
+ * @brief Lifts the signed entity out of the outermost multipart/signed of
+ * @p root, discarding the signature part, and hands back what remains.
+ *
+ * Byte-copying, never reserializing. The signed entity's octets -- headers and
+ * body -- are taken verbatim out of @p raw, so a signature NESTED inside that
+ * entity still verifies over the result. Reserializing through vmime would
+ * rewrite boundaries, header order and encodings, and break exactly that.
+ *
+ * Only the outermost layer is removed, and only when it is a signature. An
+ * encrypted outermost layer yields kNOT_SUPPORTED rather than a guess: the
+ * signed entity inside it is ciphertext this function cannot see.
+ *
+ * The outer message's own headers are kept exactly as written, minus every
+ * Content-* field, which the inner entity supplies instead -- the mirror of
+ * BuildInnerPartHeader().
+ *
+ * @param root the parsed tree of @p raw
+ * @param raw the ORIGINAL bytes whose offsets @p root indexes
+ * @param out_eml receives the unwrapped message; only written on kOK
+ */
+auto UnwrapProtectedLayer(const EMailPart& root, const QByteArray& raw,
+                          QByteArray& out_eml) -> EMailUnwrapResult;
 
 /**
  * @brief Examines a message for deceptive or ambiguous structure.

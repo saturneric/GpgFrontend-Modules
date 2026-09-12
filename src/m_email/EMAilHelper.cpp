@@ -34,6 +34,7 @@
 #include <QRegularExpression>
 #include <QTimeZone>
 #include <QUrl>
+#include <algorithm>
 
 namespace {
 MimeLogFn g_mime_log_sink = nullptr;
@@ -53,6 +54,8 @@ auto IsValidMicalgFormat(const QString& prm_micalg_value) -> bool {
   QRegularExpressionMatch match = regex.match(prm_micalg_value);
   return match.hasMatch();
 }
+
+auto WorseStatus(int a, int b) -> int { return std::min(a, b); }
 
 auto FormatMailBox(const std::shared_ptr<vmime::mailbox>& m) -> QString {
   if (!m) return {"Unknown"};
@@ -870,6 +873,164 @@ auto RawHeaderBlock(const EMailPart& part, const QByteArray& raw)
   if (part.body_offset > raw.size()) return {};
   return raw.mid(static_cast<int>(part.raw_offset),
                  static_cast<int>(part.body_offset - part.raw_offset));
+}
+
+namespace {
+
+/// Whether @p line continues the header field above it (RFC 5322 folding).
+auto IsFoldedContinuation(const QByteArray& line) -> bool {
+  return !line.isEmpty() && (line.at(0) == ' ' || line.at(0) == '\t');
+}
+
+/// Splits @p block into lines, keeping each line's own terminator with it so a
+/// caller can rebuild the block byte-for-byte. CR LF and bare LF both end a
+/// line; neither is rewritten as the other.
+auto SplitKeepingEndings(const QByteArray& block) -> QList<QByteArray> {
+  QList<QByteArray> lines;
+  int start = 0;
+  for (int i = 0; i < block.size(); ++i) {
+    if (block.at(i) != '\n') continue;
+    lines.append(block.mid(start, i - start + 1));
+    start = i + 1;
+  }
+  if (start < block.size()) lines.append(block.mid(start));
+  return lines;
+}
+
+/// @p line without its trailing CR LF or LF.
+auto WithoutEnding(const QByteArray& line) -> QByteArray {
+  auto out = line;
+  while (!out.isEmpty() && (out.endsWith('\n') || out.endsWith('\r'))) {
+    out.chop(1);
+  }
+  return out;
+}
+
+}  // namespace
+
+auto SplitRawHeaderFields(const QByteArray& block)
+    -> QList<EMailRawHeaderField> {
+  QList<EMailRawHeaderField> fields;
+
+  for (const auto& line : SplitKeepingEndings(block)) {
+    const auto bare = WithoutEnding(line);
+
+    // The blank line that ends the header block. Nothing after it belongs to
+    // the headers, and a block handed in with its terminator still attached
+    // must not grow an empty trailing field.
+    if (bare.isEmpty()) break;
+
+    if (IsFoldedContinuation(line) && !fields.isEmpty()) {
+      // Joined with the fold left in: the value is being shown to someone
+      // looking for exactly this kind of detail, so it is not re-wrapped or
+      // collapsed.
+      fields.back().value += bare;
+      fields.back().raw_line += line;
+      continue;
+    }
+
+    const int colon = bare.indexOf(':');
+    EMailRawHeaderField field;
+    field.raw_line = line;
+    if (colon <= 0) {
+      // Neither a continuation nor `name: value`. Kept, nameless, because a
+      // malformed header is worth seeing rather than silently dropping.
+      field.value = bare;
+    } else {
+      field.name = QString::fromLatin1(bare.left(colon)).trimmed();
+      field.value = bare.mid(colon + 1).trimmed();
+    }
+    fields.append(field);
+  }
+
+  return fields;
+}
+
+auto UnwrapProtectedLayer(const EMailPart& root, const QByteArray& raw,
+                          QByteArray& out_eml) -> EMailUnwrapResult {
+  // The outermost signature is the one being removed, and it is not
+  // necessarily the message itself: the ordinary shape of a signed mail with
+  // an attachment is multipart/mixed wrapping the multipart/signed.
+  const auto flat = FlattenMimeTree(root);
+
+  const EMailPart* signed_part = nullptr;
+  bool has_encrypted = false;
+  for (const auto* part : flat) {
+    if (part->content_type == "multipart/encrypted") has_encrypted = true;
+    if (signed_part == nullptr && part->content_type == "multipart/signed") {
+      signed_part = part;
+    }
+  }
+
+  if (signed_part == nullptr) {
+    // A signature may well exist inside the ciphertext, but it is not visible
+    // from here and guessing would be worse than saying so.
+    return has_encrypted ? EMailUnwrapResult::kNOT_SUPPORTED
+                         : EMailUnwrapResult::kNOT_PROTECTED;
+  }
+
+  // RFC 3156: exactly the signed entity followed by its detached signature.
+  if (signed_part->children.size() != 2) return EMailUnwrapResult::kMALFORMED;
+
+  const auto& entity = signed_part->children.at(0);
+  const auto& signature = signed_part->children.at(1);
+  if (signature.content_type != "application/pgp-signature") {
+    return EMailUnwrapResult::kMALFORMED;
+  }
+  if (entity.raw_offset < 0 || entity.raw_length <= 0 ||
+      entity.raw_offset + entity.raw_length > raw.size()) {
+    return EMailUnwrapResult::kMALFORMED;
+  }
+
+  const auto entity_bytes = raw.mid(static_cast<int>(entity.raw_offset),
+                                    static_cast<int>(entity.raw_length));
+
+  if (signed_part != &root) {
+    // A nested part is headers plus body, and so is the entity inside it, so
+    // the entity simply takes its place: the entity's own Content-* fields
+    // become the part's, which is exactly what the wrapper was describing.
+    if (signed_part->raw_offset < 0 || signed_part->raw_length <= 0 ||
+        signed_part->raw_offset + signed_part->raw_length > raw.size()) {
+      return EMailUnwrapResult::kMALFORMED;
+    }
+
+    const auto tail_offset = signed_part->raw_offset + signed_part->raw_length;
+    out_eml = raw.left(static_cast<int>(signed_part->raw_offset)) +
+              entity_bytes + raw.mid(static_cast<int>(tail_offset));
+    return EMailUnwrapResult::kOK;
+  }
+
+  // At the top level the part's headers are the MESSAGE's headers. They say
+  // who sent this and about what, and have to survive; only the fields
+  // describing the wrapper are dropped.
+  const auto outer = RawHeaderBlock(*signed_part, raw);
+  if (outer.isEmpty()) return EMailUnwrapResult::kMALFORMED;
+
+  // Dropping a field means dropping its folded continuation lines with it --
+  // a surviving `boundary=` line would reparse as garbage.
+  QByteArray kept;
+  bool dropping = false;
+  for (const auto& line : SplitKeepingEndings(outer)) {
+    if (WithoutEnding(line).isEmpty()) break;  // the header terminator
+
+    if (IsFoldedContinuation(line)) {
+      if (!dropping) kept += line;
+      continue;
+    }
+
+    const auto bare = WithoutEnding(line);
+    const int colon = bare.indexOf(':');
+    const auto name = colon > 0 ? bare.left(colon) : bare;
+    dropping = name.toLower().startsWith("content-");
+    if (!dropping) kept += line;
+  }
+
+  if (kept.isEmpty()) return EMailUnwrapResult::kMALFORMED;
+
+  // The entity brings its own headers, so the two blocks are simply adjacent:
+  // the outer block's terminating blank line was never copied above.
+  out_eml = kept + entity_bytes;
+  return EMailUnwrapResult::kOK;
 }
 
 auto SelectBodyPart(const EMailPart& root, bool prefer_html)
