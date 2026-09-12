@@ -41,6 +41,11 @@ endif()
 
 add_executable(gf_mod_email_test
   EMailMimeTest.cpp
+  # The fuzz harness itself, replayed over the corpus. See
+  # EMailFuzzReplayTest.cpp: it is the only thing that runs gf_mod_email_fuzz
+  # code on an ordinary build, and keeps the harness from quietly rotting.
+  EMailFuzzReplayTest.cpp
+  EMailMimeFuzz.cpp
   EMailCorpusTest.cpp
   EMailPublicCorpusTest.cpp
   EMailTransportTest.cpp
@@ -50,7 +55,12 @@ add_executable(gf_mod_email_test
   # Kept SDK-free for exactly this reason.
   ${CMAKE_CURRENT_SOURCE_DIR}/../EMailAccountModel.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../EMailOutgoing.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/../EMailNetError.cpp)
+  ${CMAKE_CURRENT_SOURCE_DIR}/../EMailNetError.cpp
+  # The message view's layout rules. Kept out of the view itself so they can be
+  # checked at all: EMailPageView needs Qt Widgets and the SDK, and a widget
+  # built in one of these bodies would be built off the GUI thread.
+  EMailViewLayoutTest.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/../EMailViewLayout.cpp)
 
 target_include_directories(gf_mod_email_test PRIVATE
   "${CMAKE_CURRENT_SOURCE_DIR}/.."
@@ -88,10 +98,12 @@ set_target_properties(gf_mod_email_test PROPERTIES
 
 add_executable(gf_mod_email_net_test
   EMailNetTest.cpp
+  EMailSecretTest.cpp
   EMailSdkStubs.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../EMailAccountModel.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../EMailNetError.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../EMailCancelToken.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/../EMailSecret.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../EMailTlsSetup.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../EMailImapWorker.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../EMailSmtpWorker.cpp)
