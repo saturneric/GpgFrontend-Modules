@@ -404,7 +404,7 @@ void EMailAccountSettingsPage::SetSettings() {
   accounts_ = loaded.accounts;
   may_store_ = loaded.MayStore();
   load_outcome_ = loaded.outcome;
-  pending_passwords_.clear();
+  wipe_pending_passwords();
   pending_removals_.clear();
 
   const auto preferred = EMailAccountStore::DefaultAccount();
@@ -466,8 +466,7 @@ void EMailAccountSettingsPage::ApplySettings() {
     EMailCredentialStore::Save(account.id, password);
   }
 
-  for (auto& password : pending_passwords_) password.fill(QChar('\0'));
-  pending_passwords_.clear();
+  wipe_pending_passwords();
 }
 
 auto EMailAccountSettingsPage::selected_index() const -> int {
@@ -940,6 +939,18 @@ void EMailAccountSettingsPage::slot_stop_test() {
   if (probe->token != nullptr) probe->token->CancelAll();
 }
 
+void EMailAccountSettingsPage::wipe_pending_passwords() {
+  // Overwritten in place before the map lets go of them. QString cannot be
+  // erased once anything else shares it -- see EMailSecret -- but these are
+  // unshared while staged here, so this does reach the buffer. What matters is
+  // that it happens on EVERY path out: clear() alone freed the plaintext, and
+  // two of the three exits took that route.
+  for (auto& password : pending_passwords_) {
+    password.fill(QChar('\0'));
+  }
+  pending_passwords_.clear();
+}
+
 void EMailAccountSettingsPage::report_probe_error(const MailError& error,
                                                   bool imap, QLabel* status) {
   // The category is the part worth reading. This used to concatenate three
@@ -1109,7 +1120,7 @@ void EMailAccountSettingsPage::test_transport(bool imap, QLabel* status) {
   probe_ = probe;
 
   const auto seq = probe->seq;
-  auto* thread = QThread::create([probe, account, password, imap]() {
+  probe_thread_ = QThread::create([probe, account, password, imap]() {
     const auto publish = [&probe](const EMailCancelTokenPtr& token) {
       // Published so Stop can reach it. Under the mutex because the GUI thread
       // reads it the moment this function returns.
@@ -1146,18 +1157,52 @@ void EMailAccountSettingsPage::test_transport(bool imap, QLabel* status) {
   // never sees this run at all -- the settings dialog is modeless and deletes
   // itself on close, and the old code dereferenced its widgets after spinning
   // the event loop, which is exactly how that page got closed underneath it.
-  connect(thread, &QThread::finished, this,
+  // `this` as the context object, so a page closed while the probe is running
+  // never sees this run at all -- the settings dialog is modeless and deletes
+  // itself on close, and the old code dereferenced its widgets after spinning
+  // the event loop, which is exactly how that page got closed underneath it.
+  connect(probe_thread_, &QThread::finished, this,
           [this, probe, seq, status]() { finish_probe(probe, seq, status); });
-  connect(thread, &QThread::finished, thread, &QObject::deleteLater);
+  connect(probe_thread_, &QThread::finished, probe_thread_,
+          &QObject::deleteLater);
+  connect(probe_thread_, &QThread::finished, this,
+          [this]() { probe_thread_ = nullptr; });
 
   set_testing(true);
-  thread->start();
+  probe_thread_->start();
 
-  // Deliberately not wiped here. The probe captured this string by value, so
-  // the two share one buffer; filling this one detaches it and zeroes a fresh
-  // copy, leaving the buffer the probe is actually using intact. It would read
-  // as a wipe without being one. Giving these secrets a real lifetime means
-  // moving them off QString entirely, which is its own piece of work.
+  // Released rather than wiped, and that is now a real release: the probe
+  // holds the same EMailSecret, and the bytes are erased when the last holder
+  // drops them. This used to be a QString, where filling it would have
+  // detached and zeroed a fresh copy while leaving the probe's buffer intact.
+  password.reset();
+}
+
+EMailAccountSettingsPage::~EMailAccountSettingsPage() {
+  // A probe outliving this page is not a use-after-free -- everything it
+  // touches is held by value or by shared_ptr, and the result is delivered
+  // with `this` as context -- but it is a live socket and a live credential
+  // with nothing left that can stop it: slot_stop_test() goes away with the
+  // page, and the token is only reachable through probe_.
+  if (probe_ != nullptr) {
+    const std::lock_guard<std::mutex> guard(probe_->mutex);
+    probe_->cancelled = true;
+    if (probe_->token != nullptr) probe_->token->CancelAll();
+  }
+
+  if (probe_thread_ != nullptr) {
+    // Bounded, and deliberately not followed by terminate(): killing a thread
+    // inside OpenSSL or getaddrinfo corrupts process state. A thread that will
+    // not come back is left to finish and delete itself.
+    if (probe_thread_->wait(5000)) {
+      delete probe_thread_;
+    } else {
+      LOG_ERROR("mail account test thread did not stop; detaching it");
+      connect(probe_thread_, &QThread::finished, probe_thread_,
+              &QObject::deleteLater);
+    }
+    probe_thread_ = nullptr;
+  }
 }
 
 void EMailAccountSettingsPage::finish_probe(const std::shared_ptr<Probe>& probe,

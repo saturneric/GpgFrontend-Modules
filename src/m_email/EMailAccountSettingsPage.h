@@ -65,6 +65,7 @@ class EMailAccountSettingsPage : public QWidget {
 
  public:
   explicit EMailAccountSettingsPage(QWidget* parent = nullptr);
+  ~EMailAccountSettingsPage() override;
 
  public slots:
   /// Load the stored accounts, discarding anything staged.
@@ -159,6 +160,8 @@ class EMailAccountSettingsPage : public QWidget {
   void set_status(QLabel* status, const QString& text, StatusTone tone);
   /// Says what @p error means and what can be done about it.
   void report_probe_error(const MailError& error, bool imap, QLabel* status);
+  /// Overwrites every staged password before releasing it.
+  void wipe_pending_passwords();
   /// Offers to trust the certificate the last test was refused over.
   void offer_certificate_pin(bool imap, QLabel* status);
   /// Shows, per transport, whether a certificate is pinned.
@@ -167,6 +170,8 @@ class EMailAccountSettingsPage : public QWidget {
   void forget_pin(bool imap);
 
   std::shared_ptr<Probe> probe_;
+  /// The running test-connection thread, so the destructor can stop it.
+  QThread* probe_thread_{};
   quint64 probe_seq_{0};
 
   QMap<QString, QString> pending_passwords_;
