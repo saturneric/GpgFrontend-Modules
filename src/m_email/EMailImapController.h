@@ -36,6 +36,7 @@
 #include "EMailImapWorker.h"
 
 class QComboBox;
+class QFrame;
 class QLabel;
 class QLineEdit;
 class QListWidget;
@@ -80,6 +81,8 @@ class EMailImapController : public QDialog {
 
  protected:
   void closeEvent(QCloseEvent* event) override;
+  /// Watches the Message-ID label so its elision follows the pane's width.
+  auto eventFilter(QObject* watched, QEvent* event) -> bool override;
 
  private slots:
   void slot_account_changed();
@@ -151,6 +154,8 @@ class EMailImapController : public QDialog {
   auto restore_cached_account(const QString& account_id) -> bool;
 
   void refresh_detail();
+  /// Re-elides the Message-ID to whatever width its label currently has.
+  void refresh_message_id();
   /// Updates the page position, its label, and the two page buttons.
   void refresh_page_controls(bool capped);
   /// The selected message, or nullptr when none is selected or it is too big.
@@ -196,11 +201,16 @@ class EMailImapController : public QDialog {
   QWidget* detail_page_{};
   QLabel* detail_subject_{};
   QLabel* detail_from_{};
-  QLabel* detail_date_{};
-  QLabel* detail_size_{};
+  /// Date and size on one muted line: two facts of the same weight, neither
+  /// worth a row of its own beside the subject.
+  QLabel* detail_stamp_{};
   QLabel* detail_id_{};
   QLabel* detail_folder_{};
+  QFrame* detail_note_frame_{};
   QLabel* detail_note_{};
+  QToolButton* detail_copy_id_{};
+  /// The full Message-ID, kept because the label shows an elided form of it.
+  QString detail_id_full_;
   QProgressBar* progress_{};
   QTimer* progress_timer_{};
   QPushButton* previous_button_{};

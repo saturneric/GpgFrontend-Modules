@@ -29,9 +29,11 @@
 #include "EMailImapController.h"
 
 #include <QApplication>
+#include <QClipboard>
 #include <QCloseEvent>
 #include <QComboBox>
-#include <QFormLayout>
+#include <QEvent>
+#include <QFontDatabase>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
@@ -57,10 +59,6 @@
 #include "GFModuleCommonUtils.hpp"
 
 namespace {
-
-auto Tr(const char* text) -> QString {
-  return QCoreApplication::translate("EMailImapController", text);
-}
 
 /// Roles carrying the two lines a row draws, so the delegate needs no access
 /// to the model behind the list.
@@ -148,7 +146,7 @@ class MessageRowDelegate : public QStyledItemDelegate {
 }  // namespace
 
 EMailImapController::EMailImapController(QWidget* parent) : QDialog(parent) {
-  setWindowTitle(Tr("IMAP Controller"));
+  setWindowTitle(tr("IMAP Controller"));
   resize(960, 600);
   build_ui();
 
@@ -190,14 +188,14 @@ EMailImapController::EMailImapController(QWidget* parent) : QDialog(parent) {
   // purpose of the window.
   if (accounts_.isEmpty()) {
     status_label_->setText(
-        Tr("No mail account with IMAP enabled is configured yet."));
+        tr("No mail account with IMAP enabled is configured yet."));
   } else if (account_combo_->currentIndex() < 0 ||
              unusable_.contains(
                  accounts_.at(account_combo_->currentIndex()).id)) {
     // Every account is unusable, so there is nothing to reach out to. Saying
     // why beats connecting in order to fail.
     status_label_->setText(
-        Tr("No configured account can be opened. Check Settings, under Mail "
+        tr("No configured account can be opened. Check Settings, under Mail "
            "Accounts."));
   } else {
     connect_to_selected_account();
@@ -221,14 +219,14 @@ void EMailImapController::refresh_account_availability() {
 
     QString reason;
     if (!account.imap.enabled) {
-      reason = Tr("IMAP is turned off for this account");
+      reason = tr("IMAP is turned off for this account");
     } else if (account.imap.host.isEmpty()) {
-      reason = Tr("no server is configured");
+      reason = tr("no server is configured");
     } else if (account.imap.username.isEmpty()) {
-      reason = Tr("no username is configured");
+      reason = tr("no username is configured");
     } else {
       auto password = EMailCredentialStore::Load(account.id);
-      if (password.isEmpty()) reason = Tr("no password is stored");
+      if (password.isEmpty()) reason = tr("no password is stored");
       password.fill(QChar('\0'));
     }
 
@@ -253,7 +251,7 @@ void EMailImapController::refresh_account_availability() {
     account_combo_->setItemData(
         i,
         usable ? QString()
-               : Tr("This account cannot be opened: %1.").arg(reason),
+               : tr("This account cannot be opened: %1.").arg(reason),
         Qt::ToolTipRole);
   }
 }
@@ -283,7 +281,7 @@ void EMailImapController::build_ui() {
   folder_combo_->setMinimumWidth(160);
 
   search_edit_ = new QLineEdit(this);
-  search_edit_->setPlaceholderText(Tr("Search subject or sender"));
+  search_edit_->setPlaceholderText(tr("Search subject or sender"));
   search_edit_->setClearButtonEnabled(true);
   search_edit_->addAction(QIcon(":/icons/search.png"),
                           QLineEdit::LeadingPosition);
@@ -292,11 +290,11 @@ void EMailImapController::build_ui() {
   refresh_button_->setIcon(
       QIcon::fromTheme("view-refresh", QIcon(":/icons/refresh.png")));
   refresh_button_->setAutoRaise(true);
-  refresh_button_->setToolTip(Tr("Reload this folder from the server"));
+  refresh_button_->setToolTip(tr("Reload this folder from the server"));
 
-  top->addWidget(new QLabel(Tr("Account"), this));
+  top->addWidget(new QLabel(tr("Account"), this));
   top->addWidget(account_combo_, 1);
-  top->addWidget(new QLabel(Tr("Folder"), this));
+  top->addWidget(new QLabel(tr("Folder"), this));
   top->addWidget(folder_combo_, 1);
   top->addWidget(search_edit_, 2);
   top->addWidget(refresh_button_);
@@ -333,7 +331,12 @@ void EMailImapController::build_ui() {
   list_->setMinimumWidth(260);
   splitter_->addWidget(list_);
 
-  splitter_->addWidget(build_detail_pane());
+  auto* detail_pane = build_detail_pane();
+  // Wide enough for a sender address and a useful amount of a Message-ID. The
+  // listing can give the space up: its two lines elide gracefully, and this
+  // pane's content does not.
+  detail_pane->setMinimumWidth(300);
+  splitter_->addWidget(detail_pane);
   splitter_->setStretchFactor(0, 3);
   splitter_->setStretchFactor(1, 2);
   outer->addWidget(splitter_, 1);
@@ -348,13 +351,13 @@ void EMailImapController::build_ui() {
   // a UID, so this is a real position in the mailbox rather than a window onto
   // an accumulating buffer -- and it keeps the amount held in memory fixed
   // however deep the user goes.
-  previous_button_ = new QPushButton(Tr("Previous"), this);
-  next_button_ = new QPushButton(Tr("Next"), this);
+  previous_button_ = new QPushButton(tr("Previous"), this);
+  next_button_ = new QPushButton(tr("Next"), this);
   page_label_ = new QLabel(this);
 
-  open_button_ = new QPushButton(Tr("Open"), this);
+  open_button_ = new QPushButton(tr("Open"), this);
   open_button_->setDefault(true);
-  cancel_button_ = new QPushButton(Tr("Close"), this);
+  cancel_button_ = new QPushButton(tr("Close"), this);
 
   buttons->addWidget(previous_button_);
   buttons->addWidget(next_button_);
@@ -398,53 +401,146 @@ auto EMailImapController::build_detail_pane() -> QWidget* {
   detail_placeholder_ = new QWidget(detail_stack_);
   auto* placeholder_layout = new QVBoxLayout(detail_placeholder_);
   placeholder_layout->addStretch();
+
+  auto* placeholder_icon = new QLabel(detail_placeholder_);
+  placeholder_icon->setAlignment(Qt::AlignCenter);
+  {
+    // Drawn muted rather than at full strength: an empty state should read as
+    // waiting for the user, not as something demanding their attention.
+    auto pixmap = QIcon::fromTheme("mail-unread", QIcon(":/icons/email.png"))
+                      .pixmap(48, 48);
+    QPainter painter(&pixmap);
+    painter.setCompositionMode(QPainter::CompositionMode_SourceIn);
+    auto tint = EMailMutedColor(placeholder_icon);
+    tint.setAlpha(120);
+    painter.fillRect(pixmap.rect(), tint);
+    painter.end();
+    placeholder_icon->setPixmap(pixmap);
+  }
+  placeholder_layout->addWidget(placeholder_icon);
+
   auto* placeholder_label = new QLabel(
-      Tr("Select a message to see its details."), detail_placeholder_);
+      tr("Select a message to see its details."), detail_placeholder_);
   placeholder_label->setAlignment(Qt::AlignCenter);
   placeholder_label->setWordWrap(true);
-  {
-    auto muted = placeholder_label->palette();
-    muted.setColor(QPalette::WindowText, EMailMutedColor(placeholder_label));
-    placeholder_label->setPalette(muted);
-  }
+  EMailMakeMuted(placeholder_label);
   placeholder_layout->addWidget(placeholder_label);
   placeholder_layout->addStretch();
   detail_stack_->addWidget(detail_placeholder_);
 
   detail_page_ = new QWidget(detail_stack_);
-  auto* form = new QFormLayout(detail_page_);
-  form->setLabelAlignment(Qt::AlignRight | Qt::AlignTop);
-  form->setFieldGrowthPolicy(QFormLayout::ExpandingFieldsGrow);
+  auto* page_layout = new QVBoxLayout(detail_page_);
+  page_layout->setContentsMargins(6, 6, 6, 6);
+
+  auto* card = EMailCard(detail_page_);
+  auto* card_layout = qobject_cast<QVBoxLayout*>(card->layout());
 
   // Everything here is text the SERVER chose. It is rendered as plain,
   // selectable text and never as markup, and a folder name is never used as
   // a path.
-  const auto make_field = [this, form](const QString& label) {
-    auto* value = new QLabel(detail_page_);
+  const auto make_value = [card]() {
+    auto* value = new QLabel(card);
     value->setWordWrap(true);
     value->setTextInteractionFlags(Qt::TextSelectableByMouse |
                                    Qt::TextSelectableByKeyboard);
     value->setTextFormat(Qt::PlainText);
-    form->addRow(label, value);
     return value;
   };
 
-  detail_subject_ = make_field(Tr("Subject"));
-  {
-    auto bold = detail_subject_->font();
-    bold.setBold(true);
-    detail_subject_->setFont(bold);
-  }
-  detail_from_ = make_field(Tr("From"));
-  detail_date_ = make_field(Tr("Date"));
-  detail_size_ = make_field(Tr("Size"));
-  detail_id_ = make_field(Tr("Message-ID"));
-  detail_folder_ = make_field(Tr("Folder"));
+  // --- what the message IS ------------------------------------------------
+  //
+  // A subject that reads no louder than the folder name makes the pane a list
+  // of six equal facts. It is the one thing a person recognises a message by,
+  // so it is the one thing set apart.
+  detail_subject_ = make_value();
+  EMailMakeTitle(detail_subject_);
+  card_layout->addWidget(detail_subject_);
 
-  detail_note_ = new QLabel(detail_page_);
+  detail_from_ = make_value();
+  card_layout->addWidget(detail_from_);
+
+  detail_stamp_ = make_value();
+  EMailMakeSecondary(detail_stamp_);
+  card_layout->addWidget(detail_stamp_);
+
+  auto* rule = new QFrame(card);
+  rule->setFrameShape(QFrame::HLine);
+  rule->setFrameShadow(QFrame::Plain);
+  {
+    auto palette = rule->palette();
+    palette.setColor(QPalette::WindowText, EMailBorderColor(rule));
+    rule->setPalette(palette);
+  }
+  card_layout->addWidget(rule);
+
+  // --- handles, for anyone who needs them ---------------------------------
+  //
+  // Caption ABOVE the value rather than beside it. A label column costs the
+  // same ~90px whatever the pane is doing with it, and this pane is the narrow
+  // half of a splitter: side by side, a Message-ID had barely a dozen
+  // characters left to show. Stacked, the value gets the whole width.
+  auto* props = new QVBoxLayout;
+  props->setContentsMargins(0, 0, 0, 0);
+  props->setSpacing(2);
+
+  const auto add_row = [card, props](const QString& name, QWidget* value) {
+    auto* caption = new QLabel(name, card);
+    EMailMakeSecondary(caption);
+    props->addSpacing(4);
+    props->addWidget(caption);
+    props->addWidget(value);
+  };
+
+  // Elided rather than wrapped, because a Message-ID has no words to break
+  // at: wrapping one produces three ragged lines of noise. The whole value
+  // stays in the tooltip and on the clipboard, which is where it is useful.
+  auto* id_holder = new QWidget(card);
+  auto* id_row = new QHBoxLayout(id_holder);
+  id_row->setContentsMargins(0, 0, 0, 0);
+  id_row->setSpacing(4);
+
+  detail_id_ = make_value();
+  detail_id_->setWordWrap(false);
+  detail_id_->setFont(QFontDatabase::systemFont(QFontDatabase::FixedFont));
+  detail_id_->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
+  // Dragging the splitter changes how much of the identifier fits, so the
+  // elision has to follow the label rather than being decided once.
+  detail_id_->installEventFilter(this);
+  id_row->addWidget(detail_id_, 1);
+
+  detail_copy_id_ = new QToolButton(id_holder);
+  detail_copy_id_->setIcon(
+      QIcon::fromTheme("edit-copy", QIcon(":/icons/copy.png")));
+  detail_copy_id_->setAutoRaise(true);
+  detail_copy_id_->setToolTip(tr("Copy the whole Message-ID"));
+  detail_copy_id_->setVisible(false);
+  id_row->addWidget(detail_copy_id_);
+  add_row(tr("Message-ID"), id_holder);
+
+  detail_folder_ = make_value();
+  add_row(tr("Folder"), detail_folder_);
+  card_layout->addLayout(props);
+
+  // Said here, where there is room to say why, rather than hidden in a
+  // tooltip on a column that no longer exists. A tinted strip rather than a
+  // coloured label: the same convention the message workspace uses, and it
+  // costs the module its last two stylesheets.
+  detail_note_frame_ = EMailTintedBanner(card, EMailMutedColor(card));
+  auto* note_row = new QHBoxLayout(detail_note_frame_);
+  note_row->setContentsMargins(8, 6, 8, 6);
+  detail_note_ = new QLabel(detail_note_frame_);
   detail_note_->setWordWrap(true);
-  detail_note_->setVisible(false);
-  form->addRow(QString(), detail_note_);
+  detail_note_->setTextFormat(Qt::PlainText);
+  EMailMakeSecondary(detail_note_);
+  note_row->addWidget(detail_note_, 1);
+  detail_note_frame_->setVisible(false);
+  card_layout->addWidget(detail_note_frame_);
+
+  page_layout->addWidget(card);
+  page_layout->addStretch();
+
+  connect(detail_copy_id_, &QToolButton::clicked, this,
+          [this]() { QApplication::clipboard()->setText(detail_id_full_); });
 
   auto* scroll = new QScrollArea(detail_stack_);
   scroll->setWidgetResizable(true);
@@ -523,7 +619,7 @@ void EMailImapController::connect_to_selected_account() {
   const auto account = accounts_.at(index);
 
   if (unusable_.contains(account.id)) {
-    status_label_->setText(Tr("This account cannot be opened: %1.")
+    status_label_->setText(tr("This account cannot be opened: %1.")
                                .arg(unusable_.value(account.id)));
     return;
   }
@@ -534,9 +630,9 @@ void EMailImapController::connect_to_selected_account() {
   // it. An account without one is already greyed out in the list above.
   auto password = EMailCredentialStore::Load(account.id);
   if (password.isEmpty()) {
-    disable_account(account.id, Tr("no password is stored"));
+    disable_account(account.id, tr("no password is stored"));
     status_label_->setText(
-        Tr("No password is stored for this account. Set one in Settings, "
+        tr("No password is stored for this account. Set one in Settings, "
            "under Mail Accounts."));
     return;
   }
@@ -553,7 +649,7 @@ void EMailImapController::connect_to_selected_account() {
     refresh_table();
   }
 
-  set_busy(true, Tr("Connecting..."));
+  set_busy(true, tr("Connecting..."));
   const auto seq = next_seq();
   QMetaObject::invokeMethod(
       worker_, "Connect", Qt::QueuedConnection, Q_ARG(quint64, seq),
@@ -675,38 +771,72 @@ void EMailImapController::refresh_detail() {
   }
 
   const auto& summary = rows_.at(row);
-  detail_subject_->setText(summary.subject.isEmpty() ? Tr("(no subject)")
+  detail_subject_->setText(summary.subject.isEmpty() ? tr("(no subject)")
                                                      : summary.subject);
   detail_from_->setText(summary.from);
-  detail_date_->setText(
-      summary.date.isValid()
-          ? QLocale().toString(summary.date, QLocale::LongFormat)
-          : Tr("Not stated"));
-  detail_size_->setText(QLocale().formattedDataSize(summary.size));
-  detail_id_->setText(summary.message_id.isEmpty() ? Tr("None")
-                                                   : summary.message_id);
+
+  // Written the way the rest of the application writes a size, rather than
+  // with Qt's own formatter, so one mailbox listing and one attachment list
+  // never disagree about what a kilobyte is.
+  const auto when = summary.date.isValid()
+                        ? QLocale().toString(summary.date, QLocale::LongFormat)
+                        : tr("Date not stated");
+  detail_stamp_->setText(
+      QString("%1  -  %2").arg(when, EMailHumanSize(summary.size)));
+
+  detail_id_full_ = summary.message_id;
+  refresh_message_id();
+
   detail_folder_->setText(current_folder_);
 
-  // Said here, where there is room to say why, rather than hidden in a
-  // tooltip on a column that no longer exists.
   if (summary.TooLarge()) {
     detail_note_->setText(
-        Tr("This message is larger than this application will open, so it "
+        tr("This message is larger than this application will open, so it "
            "cannot be imported."));
-    detail_note_->setStyleSheet(
-        QString("color: %1;").arg(EMailWarningColor(detail_note_).name()));
-    detail_note_->setVisible(true);
+    EMailSetLabelColor(detail_note_, EMailWarningColor(detail_note_));
+    detail_note_frame_->setVisible(true);
   } else if (showing_cached_) {
     detail_note_->setText(
-        Tr("Shown from the previous visit to this account; refreshing."));
-    detail_note_->setStyleSheet(
-        QString("color: %1;").arg(EMailMutedColor(detail_note_).name()));
-    detail_note_->setVisible(true);
+        tr("Shown from the previous visit to this account; refreshing."));
+    EMailSetLabelColor(detail_note_, EMailMutedColor(detail_note_));
+    detail_note_frame_->setVisible(true);
   } else {
-    detail_note_->setVisible(false);
+    detail_note_frame_->setVisible(false);
   }
 
   detail_stack_->setCurrentIndex(1);
+}
+
+/**
+ * @brief The Message-ID, shortened to fit and whole where it is useful.
+ *
+ * Elided rather than wrapped: an identifier has no words to break at, so
+ * wrapping one produces three ragged lines of noise. The full value is always
+ * in the tooltip and always what the copy button writes, so nothing is lost
+ * by what is not drawn.
+ */
+void EMailImapController::refresh_message_id() {
+  detail_copy_id_->setVisible(!detail_id_full_.isEmpty());
+
+  if (detail_id_full_.isEmpty()) {
+    detail_id_->setText(tr("None"));
+    detail_id_->setToolTip({});
+    return;
+  }
+
+  // Measured against the width the label has right now, which is why this is
+  // redone on every resize rather than stored once in an elided form.
+  const QFontMetrics metrics(detail_id_->font());
+  detail_id_->setText(metrics.elidedText(detail_id_full_, Qt::ElideMiddle,
+                                         qMax(80, detail_id_->width())));
+  detail_id_->setToolTip(detail_id_full_);
+}
+
+auto EMailImapController::eventFilter(QObject* watched, QEvent* event) -> bool {
+  if (watched == detail_id_ && event->type() == QEvent::Resize) {
+    refresh_message_id();
+  }
+  return QDialog::eventFilter(watched, event);
 }
 
 void EMailImapController::set_progress_visible(bool visible) {
@@ -761,7 +891,7 @@ void EMailImapController::slot_search() {
   rows_.clear();
   refresh_table();
 
-  set_busy(true, Tr("Searching..."));
+  set_busy(true, tr("Searching..."));
   QMetaObject::invokeMethod(
       worker_, "SearchMessages", Qt::QueuedConnection,
       Q_ARG(quint64, next_seq()), Q_ARG(QString, current_folder_),
@@ -807,7 +937,7 @@ void EMailImapController::request_page(bool reset) {
   const auto start =
       page_index_ < page_starts_.size() ? page_starts_.at(page_index_) : 0;
 
-  set_busy(true, Tr("Loading messages..."));
+  set_busy(true, tr("Loading messages..."));
   QMetaObject::invokeMethod(
       worker_, "ListMessages", Qt::QueuedConnection, Q_ARG(quint64, next_seq()),
       Q_ARG(QString, current_folder_), Q_ARG(quint64, start),
@@ -819,7 +949,7 @@ void EMailImapController::request_page(bool reset) {
 
 void EMailImapController::handle_connected(quint64 seq) {
   if (!is_current(seq)) return;
-  set_busy(true, Tr("Loading folders..."));
+  set_busy(true, tr("Loading folders..."));
   QMetaObject::invokeMethod(worker_, "ListFolders", Qt::QueuedConnection,
                             Q_ARG(quint64, next_seq()));
 }
@@ -844,7 +974,7 @@ void EMailImapController::handle_folders(
 
   if (folders_.isEmpty()) {
     status_label_->setText(
-        Tr("This account has no folders that can be opened."));
+        tr("This account has no folders that can be opened."));
     refresh_idle_state();
     return;
   }
@@ -908,10 +1038,10 @@ void EMailImapController::refresh_page_controls(bool capped) {
     previous_button_->setVisible(false);
     next_button_->setVisible(false);
     status_label_->setText(
-        capped ? Tr("Showing the first %1 matches; narrow the search to see "
+        capped ? tr("Showing the first %1 matches; narrow the search to see "
                     "fewer.")
                      .arg(shown)
-               : Tr("%1 matches.").arg(shown));
+               : tr("%1 matches.").arg(shown));
     return;
   }
 
@@ -923,11 +1053,11 @@ void EMailImapController::refresh_page_controls(bool capped) {
   const auto pages =
       total > 0 ? (total + kMailDefaultPageSize - 1) / kMailDefaultPageSize : 1;
 
-  page_label_->setText(Tr("Page %1 of %2").arg(page_index_ + 1).arg(pages));
+  page_label_->setText(tr("Page %1 of %2").arg(page_index_ + 1).arg(pages));
   status_label_->setText(
       shown == 0
-          ? Tr("This folder is empty.")
-          : Tr("%1-%2 of %3").arg(before + 1).arg(before + shown).arg(total));
+          ? tr("This folder is empty.")
+          : tr("%1-%2 of %3").arg(before + 1).arg(before + shown).arg(total));
 
   previous_button_->setEnabled(page_index_ > 0);
   next_button_->setEnabled(remaining_ > 0);
@@ -939,35 +1069,19 @@ void EMailImapController::handle_fetched(quint64 seq,
   set_busy(false, {});
 
   if (raw_eml.isEmpty()) {
-    status_label_->setText(Tr("That message came back empty."));
+    status_label_->setText(tr("That message came back empty."));
     return;
   }
 
+  // Opened straight away. Pressing Open was the decision; asking again once
+  // the bytes have arrived makes the user confirm something they have already
+  // said, and the download it was guarding has happened either way.
+  //
   // The window stays open. Downloading a message is not a decision to stop
   // browsing, and closing the picker on every open made looking through a
   // mailbox mean reopening it each time.
-  QMessageBox box(this);
-  box.setIcon(QMessageBox::Question);
-  box.setWindowTitle(Tr("Message downloaded"));
-  box.setText(Tr("Open this message in a new tab?"));
-  box.setInformativeText(
-      Tr("It has been downloaded but nothing has been opened yet. The mailbox "
-         "is unchanged either way: the message is still marked as it was."));
-
-  auto* open = box.addButton(Tr("Open in a Tab"), QMessageBox::AcceptRole);
-  box.addButton(Tr("Not Now"), QMessageBox::RejectRole);
-  box.setDefaultButton(open);
-  box.exec();
-
-  if (box.clickedButton() == open) {
-    emit SignalMessageChosen(raw_eml);
-    status_label_->setText(Tr("Opened in a new tab."));
-    return;
-  }
-
-  // Declined, so the bytes are dropped here rather than held in a window that
-  // may stay open for a long time. A raw message can carry plaintext.
-  status_label_->setText(Tr("Downloaded, not opened."));
+  emit SignalMessageChosen(raw_eml);
+  status_label_->setText(tr("Opened in a new tab."));
 }
 
 void EMailImapController::handle_fetch_progress(quint64 seq, qint64 current,
@@ -976,7 +1090,7 @@ void EMailImapController::handle_fetch_progress(quint64 seq, qint64 current,
 
   set_progress_fraction(current, total);
   if (total > 0) {
-    status_label_->setText(Tr("Downloading message, %1 of %2...")
+    status_label_->setText(tr("Downloading message, %1 of %2...")
                                .arg(QLocale().formattedDataSize(current),
                                     QLocale().formattedDataSize(total)));
   }
@@ -993,10 +1107,10 @@ void EMailImapController::handle_failed(quint64 seq, const MailError& error) {
   // fine and the network was not.
   switch (error.category) {
     case MailErrorCategory::kAUTH:
-      disable_account(current_account_id_, Tr("the password was refused"));
+      disable_account(current_account_id_, tr("the password was refused"));
       break;
     case MailErrorCategory::kDNS:
-      disable_account(current_account_id_, Tr("the server was not found"));
+      disable_account(current_account_id_, tr("the server was not found"));
       break;
     case MailErrorCategory::kTLS_HANDSHAKE:
     case MailErrorCategory::kTLS_UNTRUSTED:
@@ -1004,7 +1118,7 @@ void EMailImapController::handle_failed(quint64 seq, const MailError& error) {
     case MailErrorCategory::kTLS_HOSTNAME:
     case MailErrorCategory::kTLS_REQUIRED:
       disable_account(current_account_id_,
-                      Tr("the secure connection was refused"));
+                      tr("the secure connection was refused"));
       break;
     default:
       break;
@@ -1020,7 +1134,7 @@ void EMailImapController::slot_open_selected() {
   const auto* summary = current_summary();
   if (summary == nullptr) return;
 
-  set_busy(true, Tr("Downloading message..."));
+  set_busy(true, tr("Downloading message..."));
 
   // Unlike a folder listing, a download is never instant and its size is
   // already known, so the bar is shown straight away rather than after the
@@ -1048,13 +1162,13 @@ void EMailImapController::refresh_table() {
     const auto date = row.date.isValid()
                           ? QLocale().toString(row.date, QLocale::ShortFormat)
                           : QString();
-    const auto sender = row.from.isEmpty() ? Tr("Unknown sender") : row.from;
+    const auto sender = row.from.isEmpty() ? tr("Unknown sender") : row.from;
     const auto subtitle =
         date.isEmpty() ? sender : QString("%1  ·  %2").arg(sender, date);
 
     auto* item = new QListWidgetItem(list_);
     item->setData(kSubjectRole,
-                  row.subject.isEmpty() ? Tr("(no subject)") : row.subject);
+                  row.subject.isEmpty() ? tr("(no subject)") : row.subject);
     item->setData(kSubtitleRole, subtitle);
     item->setData(kDimmedRole, showing_cached_);
     list_->addItem(item);
@@ -1088,7 +1202,7 @@ void EMailImapController::set_busy(bool busy, const QString& what) {
 
   if (busy) {
     status_label_->setText(what);
-    cancel_button_->setText(Tr("Stop"));
+    cancel_button_->setText(tr("Stop"));
     disconnect(cancel_button_, &QPushButton::clicked, nullptr, nullptr);
     connect(cancel_button_, &QPushButton::clicked, this,
             &EMailImapController::slot_cancel_busy);
@@ -1096,7 +1210,7 @@ void EMailImapController::set_busy(bool busy, const QString& what) {
     // The caller's word for what just finished, so the last busy message does
     // not stay on screen pretending the work is still running.
     status_label_->setText(what);
-    cancel_button_->setText(Tr("Close"));
+    cancel_button_->setText(tr("Close"));
     disconnect(cancel_button_, &QPushButton::clicked, nullptr, nullptr);
     connect(cancel_button_, &QPushButton::clicked, this, &QDialog::reject);
   }
