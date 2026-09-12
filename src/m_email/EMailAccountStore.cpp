@@ -109,6 +109,17 @@ void Store(const QList<MailAccountConfig>& accounts,
   QMutexLocker locker(settings_mutex());
 
   auto* settings = GlobalSettings();
+
+  // Refused here, not only in the settings page. A newer build may have
+  // written a schema this one cannot represent, and stamping kSchemaVersion
+  // over it would discard those accounts irreversibly. The page checks too and
+  // gives the user a reason; this is what makes the rule hold for any future
+  // caller that forgets to.
+  if (settings != nullptr &&
+      settings->value(kSchemaVersionKey, 0).toInt() > kSchemaVersion) {
+    LOG_WARN("refusing to overwrite mail accounts written by a newer version");
+    return;
+  }
   if (settings == nullptr) {
     LOG_ERROR("global settings unavailable, mail accounts not stored");
     return;

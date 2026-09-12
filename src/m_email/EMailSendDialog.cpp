@@ -598,13 +598,22 @@ void EMailSendDialog::begin_sent_copy() {
           &EMailSendDialog::handle_sent_saved);
   connect(imap_worker_, &EMailImapWorker::SignalFailed, this,
           &EMailSendDialog::handle_confirm_failed);
-  connect(
-      imap_worker_, &EMailImapWorker::SignalConnected, this, [this](quint64) {
-        QMetaObject::invokeMethod(imap_worker_, "SaveToSentFolder",
-                                  Qt::QueuedConnection, Q_ARG(quint64, seq_),
-                                  Q_ARG(QString, message_.message_id),
-                                  Q_ARG(QByteArray, message_.eml));
-      });
+  connect(imap_worker_, &EMailImapWorker::SignalConnected, this,
+          [this](quint64 seq) {
+            // Guarded like every other handler. Harmless today only because
+            // seq_ is frozen once a send starts and there is no retry -- but
+            // an unguarded append is a duplicate in Sent the moment either of
+            // those changes, and a connection that lands after the user
+            // pressed Stop must not file anything at all.
+            if (seq != seq_ || confirm_state_ == ConfirmState::kSTOPPED) {
+              return;
+            }
+            QMetaObject::invokeMethod(imap_worker_, "SaveToSentFolder",
+                                      Qt::QueuedConnection,
+                                      Q_ARG(quint64, seq_),
+                                      Q_ARG(QString, message_.message_id),
+                                      Q_ARG(QByteArray, message_.eml));
+          });
   imap_thread_->start();
 
   QMetaObject::invokeMethod(

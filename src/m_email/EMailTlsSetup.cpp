@@ -28,6 +28,7 @@
 
 #include "EMailTlsSetup.h"
 
+#include <QDate>
 #include <QMutex>
 #include <QMutexLocker>
 #include <QSslCertificate>
@@ -130,7 +131,7 @@ class RememberingVerifier : public cert::defaultCertificateVerifier {
 
   void verify(const vmime::shared_ptr<cert::certificateChain>& chain,
               const vmime::string& hostname) override {
-    remember(chain);
+    remember(chain, hostname);
     apply_pin(chain);
     cert::defaultCertificateVerifier::verify(chain, hostname);
   }
@@ -162,16 +163,47 @@ class RememberingVerifier : public cert::defaultCertificateVerifier {
     setX509TrustedCerts(trusted);
   }
 
-  static void remember(const vmime::shared_ptr<cert::certificateChain>& chain) {
+  static void remember(const vmime::shared_ptr<cert::certificateChain>& chain,
+                       const vmime::string& hostname) {
     if (!chain || chain->getCount() == 0) return;
 
     auto leaf = vmime::dynamicCast<cert::X509Certificate>(chain->getAt(0));
     if (!leaf) return;
 
+    // The issuer alone is a poor basis for a decision: for an interception
+    // certificate it is whatever the attacker's CA calls itself, and it says
+    // nothing about WHICH host the certificate claims to be. vmime exposes no
+    // subject accessor, but it can answer the question that actually matters
+    // -- whether this certificate is valid for the host being connected to --
+    // so that is recorded alongside, alone with the validity window.
+    const auto issuer = QString::fromStdString(leaf->getIssuerString()).trimmed();
+    const auto host = QString::fromStdString(hostname);
+
+    bool names_host = false;
+    try {
+      names_host = leaf->verifyHostName(hostname);
+    } catch (...) {
+      names_host = false;
+    }
+
+    const auto format = [](const vmime::datetime& d) {
+      return QDate(d.getYear(), d.getMonth(), d.getDay())
+          .toString(Qt::ISODate);
+    };
+
+    QStringList lines;
+    lines << QObject::tr("Issued by: %1").arg(issuer);
+    lines << (names_host
+                  ? QObject::tr("Valid for: %1").arg(host)
+                  : QObject::tr("NOT valid for %1 -- it names a different "
+                                "host").arg(host));
+    lines << QObject::tr("Valid from %1 to %2")
+                 .arg(format(leaf->getActivationDate()))
+                 .arg(format(leaf->getExpirationDate()));
+
     QMutexLocker locker(tls_mutex());
     last_seen->fingerprint = FingerprintOf(leaf);
-    last_seen->summary =
-        QString::fromStdString(leaf->getIssuerString()).trimmed();
+    last_seen->summary = lines.join('\n');
   }
 };
 

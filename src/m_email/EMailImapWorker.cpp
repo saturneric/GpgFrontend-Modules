@@ -848,9 +848,14 @@ void EMailImapWorker::SaveToSentFolder(quint64 seq, const QString& message_id,
   }
 
   vmime::shared_ptr<vmime::net::folder> folder;
+  // Declared out here so the catch blocks can say WHERE the copy was being
+  // filed. They used to report an empty folder, which the dialog then wrote
+  // over the resolved name -- losing the one fact the user needs to go and
+  // look for the message themselves.
+  QString path;
 
   try {
-    const auto path = ResolveSentFolder();
+    path = ResolveSentFolder();
     if (path.isEmpty()) {
       emit SignalSentSaved(seq, MailSentSaveOutcome::kUNRESOLVED, {}, {});
       return;
@@ -908,17 +913,17 @@ void EMailImapWorker::SaveToSentFolder(quint64 seq, const QString& message_id,
     // Reported as a failure to FILE the message, never as a failure to send
     // it. The send already succeeded and nothing here can undo that.
     emit SignalSentSaved(
-        seq, MailSentSaveOutcome::kFAILED, {},
+        seq, MailSentSaveOutcome::kFAILED, path,
         ClassifyVmimeException(
             e, MailStage::kLISTING,
             impl_->timeouts && impl_->timeouts->LastWasCancelled()));
   } catch (const std::exception& e) {
     // See the SignalFailed slots above: nothing may escape a slot, and the
     // sequence has to be answered either way.
-    emit SignalSentSaved(seq, MailSentSaveOutcome::kFAILED, {},
+    emit SignalSentSaved(seq, MailSentSaveOutcome::kFAILED, path,
                          MailInternalError(QString::fromUtf8(e.what())));
   } catch (...) {
-    emit SignalSentSaved(seq, MailSentSaveOutcome::kFAILED, {},
+    emit SignalSentSaved(seq, MailSentSaveOutcome::kFAILED, path,
                          MailInternalError("unknown error"));
   }
 }
