@@ -889,6 +889,18 @@ void EMailPageView::LoadFromSource(const QByteArray& source) {
 
   message_ = EMailMetaData{};
 
+  // The host round-trips our own bytes back through here: FlushPrimaryView()
+  // takes SaveToSource()'s output, puts it in the document, and a later
+  // ReloadPrimaryView() hands the very same octets back. That is not a new
+  // document, and re-deriving from it would launder a draft into a received
+  // message -- which is exactly what re-enabled Reply on a draft and cost the
+  // message its Message-ID, by making the send path preserve bytes we wrote
+  // ourselves.
+  //
+  // The comparison is sound because the round trip is byte-exact: the host
+  // remembers a CRLF document as CRLF and restores it in DocumentBytes().
+  const bool same_document = !last_source_.isEmpty() && source == last_source_;
+
   vmime::shared_ptr<vmime::message> parsed;
   const bool is_eml = CheckIfEMLMessage(source, parsed);
   if (is_eml) {
@@ -908,9 +920,13 @@ void EMailPageView::LoadFromSource(const QByteArray& source) {
 
   // Both seeded from the same fact, and then they part company. Only a message
   // can carry octets a signature covers, so plain text opened in a tab is not
-  // treated as bytes to preserve.
-  source_is_original_ = is_eml;
-  document_is_received_ = is_eml;
+  // treated as bytes to preserve. Handed back our own bytes, neither is
+  // touched: what this document IS did not change just because it made a trip
+  // through the host and came home.
+  if (!same_document) {
+    source_is_original_ = is_eml;
+    document_is_received_ = is_eml;
+  }
 
   refresh_fields();
   refresh_attachments();
