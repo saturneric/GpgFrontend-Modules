@@ -263,6 +263,217 @@ auto ExtractParts(const vmime::shared_ptr<vmime::message>& message,
     -> int;
 
 /**
+ * @brief Parses a message into a tree of parts plus its signature regions.
+ *
+ * This is the backbone the flat views are built on. Every node records the
+ * slice of @p raw it came from, so signature coverage and a raw header view
+ * can be byte-exact rather than reconstructed -- nothing here is derived from
+ * a reserialization.
+ *
+ * Leaf content is decoded once, into EMailPart::data, and the same parse
+ * limits that guard ExtractParts() apply here: this walks input that arrived
+ * from outside.
+ *
+ * @param message parsed message
+ * @param raw the ORIGINAL bytes @p message was parsed from; offsets index it
+ * @param root receives the tree
+ * @param regions receives one entry per multipart/signed subtree, outermost
+ *                first, each with a stable region_id
+ * @param limits guards against a hostile message shape
+ * @return 0 on success, -1 when a limit was exceeded
+ */
+auto ParseMimeTree(const vmime::shared_ptr<vmime::message>& message,
+                   const QByteArray& raw, EMailPart& root,
+                   QList<EMailSignatureRegion>& regions,
+                   const EMailParseLimits& limits = {}) -> int;
+
+/**
+ * @brief The part of @p root that should be shown as the message body.
+ *
+ * Unlike the body rule inside ExtractParts(), which is kept byte-compatible
+ * with what it has always done, this understands multipart/alternative: it
+ * picks one member of an alternative set rather than whichever happened to be
+ * walked first, and honours @p prefer_html within that set.
+ *
+ * @return a node owned by @p root, or nullptr when there is no body
+ */
+auto SelectBodyPart(const EMailPart& root, bool prefer_html = false)
+    -> const EMailPart*;
+
+/**
+ * @brief What the message claims to be, from structure alone.
+ *
+ * No cryptography and no network -- this only has to be right enough to tell
+ * the user which action applies. It is deliberately more forgiving than the
+ * RFC 3156 validation performed during an actual verify.
+ */
+auto ClassifyOpenPGPStructure(const EMailPart& root,
+                              const QList<EMailSignatureRegion>& regions)
+    -> EMailSecurityState;
+
+/**
+ * @brief Every node of @p root, pre-order, as flat pointers.
+ *
+ * Convenience for views and tests that need to walk the tree without
+ * recursing themselves.
+ */
+auto FlattenMimeTree(const EMailPart& root) -> QList<const EMailPart*>;
+
+/**
+ * @brief The exact header block of @p part, as it was written.
+ *
+ * Returns the slice of @p raw between the part's start and the start of its
+ * body, so what the user reads as "raw" is what the sender actually sent --
+ * header order, folding and encoding included. Never route this through vmime:
+ * a reserialized header block is a different thing wearing the same name.
+ *
+ * @return the slice, or an empty array when the offsets are not usable
+ */
+auto RawHeaderBlock(const EMailPart& part, const QByteArray& raw) -> QByteArray;
+
+/**
+ * @brief Examines a message for deceptive or ambiguous structure.
+ *
+ * Everything here is a local, offline reading of the message already in hand:
+ * header fields that contradict each other, addresses built to be misread, and
+ * MIME shapes that different readers would resolve differently.
+ *
+ * These are observations, not verdicts. A finding says what was noticed and
+ * leaves the judgement to the person reading it, because most of these
+ * patterns have innocent explanations and a tool that cries wolf gets ignored
+ * exactly when it is right.
+ *
+ * @param meta parsed headers
+ * @param root the parsed tree
+ * @param regions signature regions found in @p root
+ */
+auto InspectMessage(const EMailMetaData& meta, const EMailPart& root,
+                    const QList<EMailSignatureRegion>& regions)
+    -> QList<EMailFinding>;
+
+/**
+ * @brief Whether @p address is built to be read as a different one.
+ *
+ * Catches the two cheap tricks: a domain whose Unicode form differs from its
+ * punycode form (so it can be drawn to look like a familiar name), and a
+ * domain mixing scripts, which almost never happens by accident.
+ */
+auto LooksLikeSpoofedAddress(const QString& address) -> bool;
+
+/**
+ * @brief What to check before a message leaves.
+ *
+ * The counterpart of InspectMessage for the sending direction: unsigned parts,
+ * blind recipients that would leak, and anything about the message that the
+ * sender is unlikely to have intended.
+ *
+ * @param meta the message about to be written
+ * @param root its parsed tree
+ * @param regions signature regions found in @p root
+ * @param compose_bcc blind recipients being composed to
+ */
+auto PreflightMessage(const EMailMetaData& meta, const EMailPart& root,
+                      const QList<EMailSignatureRegion>& regions,
+                      const QStringList& compose_bcc) -> QList<EMailFinding>;
+
+/**
+ * @brief Which kind of new message to derive from an existing one.
+ */
+enum class EMailReplyMode : uint8_t {
+  kREPLY = 0,  ///< back to the sender alone
+  kREPLY_ALL,  ///< sender plus everyone else who was addressed
+  kFORWARD,    ///< to nobody yet, carrying the original along
+};
+
+/**
+ * @brief Derives a new message from @p source.
+ *
+ * This generates a fresh document and nothing else: no thread is tracked, no
+ * mailbox state is touched, and @p source is not modified. The threading
+ * headers are filled in because a reply that does not point at what it answers
+ * is broken for the recipient, not because anything here models a conversation.
+ *
+ * @p self_address, when given, is removed from the derived recipients so a
+ * reply-all does not address the sender back to themselves.
+ *
+ * Attachments are carried over for a forward only: a reply that silently
+ * re-sends the original's files would be a surprise, and often a leak.
+ *
+ * @param source the message being answered or passed on
+ * @param mode which derivation to perform
+ * @param self_address the user's own address, or empty
+ * @param out receives the derived headers
+ */
+void BuildDerivedMetaData(const EMailMetaData& source, EMailReplyMode mode,
+                          const QString& self_address, EMailMetaData& out);
+
+/**
+ * @brief The quoted form of @p source's body for a reply or forward.
+ *
+ * A reply quotes with "> " and an attribution line; a forward reproduces the
+ * original's own headers above the text, which is what makes a forwarded
+ * message readable on its own.
+ */
+auto BuildQuotedBody(const EMailMetaData& source, EMailReplyMode mode)
+    -> QByteArray;
+
+/**
+ * @brief The bare e-mail address inside a UID or address string.
+ *
+ * Accepts "Name (Comment) <a@b>" as well as a bare "a@b". Returns an empty
+ * string when there is nothing address-shaped to take.
+ */
+auto AddressOfUid(const QString& uid) -> QString;
+
+/**
+ * @brief Decodes the signatures in a GFAnalyse*ResultInfoByCapsule payload.
+ *
+ * @p region_id is stamped onto every result the call produced. The caller
+ * knows which region it just verified, so the association is made where it is
+ * unambiguous rather than inferred afterwards from list positions -- signature
+ * count, region count and emission order are all independent of each other.
+ *
+ * @param info_json the `info_json` out-param of the analyse call
+ * @param region_id the region whose bytes were verified, or -1 when the
+ *                  verification was not tied to a MIME region
+ * @return one entry per reported signature, in the order reported
+ */
+auto ParseSignatureResults(const QByteArray& info_json, int region_id)
+    -> QList<EMailSignatureResult>;
+
+/**
+ * @brief Decodes the recipients in a GFAnalyse*ResultInfoByCapsule payload.
+ */
+auto ParseRecipientInfos(const QByteArray& info_json)
+    -> QList<EMailRecipientInfo>;
+
+/**
+ * @brief Flags results whose hash algorithm disagrees with what @p region
+ * declared.
+ *
+ * micalg is written by whoever composed the message; the hash algorithm in the
+ * signature is what was actually used. A disagreement is worth showing rather
+ * than resolving silently in favour of either one.
+ */
+void CheckMicalgAgreement(QList<EMailSignatureResult>& results,
+                          const EMailSignatureRegion& region);
+
+/**
+ * @brief Cross-checks the addressed recipients against the encryption ones.
+ *
+ * Asymmetric on purpose -- see RecipientMatch. Addressed recipients are
+ * reported first, in header order, followed by any encryption recipients that
+ * matched no address.
+ *
+ * @param to, cc, bcc addresses taken from the message
+ * @param encrypted recipients the message was really encrypted to
+ */
+auto MatchRecipients(const QStringList& to, const QStringList& cc,
+                     const QStringList& bcc,
+                     const QList<EMailRecipientInfo>& encrypted)
+    -> QList<EMailRecipientRow>;
+
+/**
  * @brief Turns a filename from a message into one safe to write to disk.
  *
  * Attachment filenames are chosen by whoever sent the message, so they are

@@ -28,8 +28,12 @@
 
 #include "EMailHelper.h"
 
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QRegularExpression>
 #include <QTimeZone>
+#include <QUrl>
 
 namespace {
 MimeLogFn g_mime_log_sink = nullptr;
@@ -247,7 +251,6 @@ auto BuildMimeEML(const EMailMetaData& meta_data, const QByteArray& body_data,
   auto from = meta_data.from;
   auto recipient_list = meta_data.to;
   auto cc_list = meta_data.cc;
-  auto bcc_list = meta_data.bcc;
   auto subject = meta_data.subject;
 
   QString name;
@@ -289,18 +292,14 @@ auto BuildMimeEML(const EMailMetaData& meta_data, const QByteArray& body_data,
       }
     }
 
-    for (const QString& recipient : bcc_list) {
-      auto trimmed_recipient = recipient.trimmed();
-      if (ParseEmailString(trimmed_recipient, name, email)) {
-        plaintext_msg_builder.getBlindCopyRecipients().appendAddress(
-            vmime::make_shared<vmime::mailbox>(Q_TEXT(name),
-                                               email.toStdString()));
-      } else {
-        plaintext_msg_builder.getBlindCopyRecipients().appendAddress(
-            vmime::make_shared<vmime::mailbox>(
-                trimmed_recipient.toStdString()));
-      }
-    }
+    // Blind recipients are deliberately NOT handed to the builder.
+    //
+    // vmime::messageBuilder turns blind copy recipients into a real Bcc:
+    // header, and this function produces the bytes the user saves and sends.
+    // Writing that header tells every recipient exactly who was blind-copied,
+    // which is the one thing BCC exists to prevent. Blind recipients belong to
+    // EMailComposeState, beside the document rather than inside it; they
+    // select encryption recipients and never reach the message.
 
     plaintext_msg_builder.setSubject(Q_TEXT(subject));
 
@@ -309,8 +308,10 @@ auto BuildMimeEML(const EMailMetaData& meta_data, const QByteArray& body_data,
     // serialized through while it is being written -- an unaddressed draft
     // still has to round-trip, or the headers and attachments the user has
     // already entered are lost the moment anything reads the document back.
-    const bool addressed =
-        !recipient_list.isEmpty() || !cc_list.isEmpty() || !bcc_list.isEmpty();
+    // Blind recipients no longer count towards being addressed: since no Bcc
+    // header is written, a message with only blind recipients really does
+    // reach the builder with no addressee, and must take the draft path.
+    const bool addressed = !recipient_list.isEmpty() || !cc_list.isEmpty();
 
     vmime::shared_ptr<vmime::message> plaintext_msg;
     if (addressed) {
@@ -332,6 +333,18 @@ auto BuildMimeEML(const EMailMetaData& meta_data, const QByteArray& body_data,
     }
 
     auto plaintext_msg_header = plaintext_msg->getHeader();
+
+    // Threading headers, when the caller supplied them. Written here rather
+    // than by the builder, which has no notion of them, and only when present
+    // so an ordinary new message does not gain empty fields.
+    if (!meta_data.in_reply_to.trimmed().isEmpty()) {
+      plaintext_msg_header->InReplyTo()->setValue(
+          meta_data.in_reply_to.trimmed().toStdString());
+    }
+    if (!meta_data.references.isEmpty()) {
+      plaintext_msg_header->References()->setValue(
+          meta_data.references.join(" ").toStdString());
+    }
 
     auto plaintext_msg_content_type_header_field =
         plaintext_msg_header->getField<vmime::contentTypeField>(
@@ -411,11 +424,25 @@ auto GetEMLMetaData(vmime::shared_ptr<vmime::message>& message,
   meta_data.from = ExtractFieldValueMailBox(header, vmime::fields::FROM);
   meta_data.to = ExtractFieldValueAddressListItems(header, vmime::fields::TO);
   meta_data.cc = ExtractFieldValueAddressListItems(header, vmime::fields::CC);
-  meta_data.bcc = ExtractFieldValueAddressListItems(header, vmime::fields::BCC);
+  meta_data.bcc_header =
+      ExtractFieldValueAddressListItems(header, vmime::fields::BCC);
+  meta_data.message_id = ExtractFieldValue(header, vmime::fields::MESSAGE_ID);
+  meta_data.in_reply_to = ExtractFieldValue(header, vmime::fields::IN_REPLY_TO);
+  const auto references =
+      ExtractFieldValue(header, vmime::fields::REFERENCES).trimmed();
+  if (!references.isEmpty()) {
+    meta_data.references =
+        references.split(QRegularExpression("\\s+"), Qt::SkipEmptyParts);
+  }
   meta_data.subject = ExtractFieldValueText(header, vmime::fields::SUBJECT);
   meta_data.datetime = ExtractFieldValueDateTime(header, vmime::fields::DATE);
+  // Reply-To is an address list, not a single mailbox (RFC 5322 allows several,
+  // and vmime registers it as addressList). Reading it as a mailbox made
+  // getValue<mailbox>() return null every time, so this field was silently
+  // always empty -- which meant replies ignored it and nothing could notice a
+  // Reply-To pointing somewhere unrelated.
   meta_data.reply_to =
-      ExtractFieldValueMailBox(header, vmime::fields::REPLY_TO);
+      ExtractFieldValueAddressList(header, vmime::fields::REPLY_TO);
   meta_data.organization =
       ExtractFieldValueText(header, vmime::fields::ORGANIZATION);
 
@@ -593,15 +620,80 @@ auto IsProtocolPart(const QString& content_type) -> bool {
          content_type == "application/pgp-signature";
 }
 
-struct WalkState {
+}  // namespace
+
+namespace {
+
+// Parameter of a Content-Type field, without vmime's insert-on-read behaviour.
+auto ContentTypeParam(const vmime::shared_ptr<const vmime::bodyPart>& part,
+                      const std::string& name) -> QString {
+  auto field = part->getHeader()->findField(vmime::fields::CONTENT_TYPE);
+  if (!field) return {};
+  auto ct = vmime::dynamicCast<const vmime::contentTypeField>(field);
+  if (!ct) return {};
+  auto param = ct->findParameter(name);
+  if (!param) return {};
+  return Q_SC(param->getValue().getBuffer()).trimmed();
+}
+
+auto PartTransferEncoding(const vmime::shared_ptr<const vmime::bodyPart>& part)
+    -> QString {
+  auto field =
+      part->getHeader()->findField(vmime::fields::CONTENT_TRANSFER_ENCODING);
+  if (!field) return {};
+  auto value = field->getValue<vmime::encoding>();
+  if (!value) return {};
+  return Q_SC(value->generate()).trimmed().toLower();
+}
+
+// Content-ID without the angle brackets, which is the form an HTML "cid:"
+// reference actually uses.
+auto PartContentId(const vmime::shared_ptr<const vmime::bodyPart>& part)
+    -> QString {
+  auto field = part->getHeader()->findField("Content-Id");
+  if (!field) return {};
+  auto value = field->getValue();
+  if (!value) return {};
+  auto id = Q_SC(value->generate()).trimmed();
+  if (id.startsWith('<') && id.endsWith('>')) id = id.mid(1, id.size() - 2);
+  return id;
+}
+
+// Every header field of a part, decoded, in the order it was written. The
+// undecoded truth stays available through RawHeaderBlock().
+auto PartHeaderFields(const vmime::shared_ptr<const vmime::bodyPart>& part)
+    -> QList<QPair<QString, QString>> {
+  QList<QPair<QString, QString>> fields;
+  for (const auto& field : part->getHeader()->getFieldList()) {
+    auto name = Q_SC(field->getName());
+    QString value;
+
+    // Text fields carry RFC 2047 encoded-words; anything else is generated
+    // as-is. getValue<text>() simply returns null when the field is not text.
+    if (auto text_value = field->getValue<vmime::text>()) {
+      value = Q_SC(text_value->getConvertedText(vmime::charsets::UTF_8));
+    } else if (auto raw_value = field->getValue()) {
+      value = Q_SC(raw_value->generate());
+    }
+
+    fields.append({name, value.trimmed()});
+  }
+  return fields;
+}
+
+struct TreeState {
   int parts_seen{0};
   qint64 bytes_seen{0};
   bool limit_hit{false};
+  int next_index{0};
+  int next_region{0};
+  int next_alt_group{0};
 };
 
-void WalkPart(const vmime::shared_ptr<const vmime::bodyPart>& part,
-              EMailMetaData& meta, const EMailParseLimits& limits,
-              WalkState& state, int depth, bool inside_signed) {
+void BuildNode(const vmime::shared_ptr<const vmime::bodyPart>& part,
+               EMailPart& node, const EMailParseLimits& limits,
+               TreeState& state, QList<EMailSignatureRegion>& regions,
+               int depth, const QList<int>& covering, int alt_group) {
   if (state.limit_hit) return;
 
   if (depth > limits.max_depth || ++state.parts_seen > limits.max_parts) {
@@ -612,73 +704,802 @@ void WalkPart(const vmime::shared_ptr<const vmime::bodyPart>& part,
     return;
   }
 
-  const auto content_type = PartContentType(part);
+  node.index = state.next_index++;
+  node.depth = depth;
+  node.content_type = PartContentType(part);
+  node.charset = ContentTypeParam(part, "charset");
+  node.disposition = PartDisposition(part);
+  node.filename = PartFileName(part);
+  node.content_id = PartContentId(part);
+  node.transfer_encoding = PartTransferEncoding(part);
+  node.header_fields = PartHeaderFields(part);
+  node.covered_by_regions = covering;
+  node.alternative_group = alt_group;
+  node.is_protocol_part = IsProtocolPart(node.content_type);
+  node.is_openpgp_key = node.content_type == "application/pgp-keys";
+
+  node.raw_offset = static_cast<qint64>(part->getParsedOffset());
+  node.raw_length = static_cast<qint64>(part->getParsedLength());
+  if (auto body = part->getBody()) {
+    node.body_offset = static_cast<qint64>(body->getParsedOffset());
+    node.body_length = static_cast<qint64>(body->getParsedLength());
+  }
+
   const auto sub_parts = part->getBody()->getPartCount();
+  node.is_multipart = sub_parts > 0;
 
-  if (sub_parts > 0) {
-    // Everything below a multipart/signed is what the signature covers.
-    const bool signed_subtree =
-        inside_signed || content_type == "multipart/signed";
+  if (!node.is_multipart) {
+    node.data = DecodePart(part);
+    node.decoded_size = node.data.size();
 
-    for (size_t i = 0; i < sub_parts; ++i) {
-      WalkPart(part->getBody()->getPartAt(i), meta, limits, state, depth + 1,
-               signed_subtree);
-      if (state.limit_hit) return;
+    // Protocol parts stay out of the size budget: they are structure, and the
+    // limit exists to bound the content a message can make us hold. Counting
+    // them would also change the limit behaviour this walk has to preserve.
+    if (!node.is_protocol_part) {
+      state.bytes_seen += node.decoded_size;
+      if (state.bytes_seen > limits.max_total_bytes) {
+        state.limit_hit = true;
+        MimeLog(QString("message exceeds the decoded size limit (%1 bytes)")
+                    .arg(state.bytes_seen));
+        return;
+      }
     }
     return;
   }
 
-  if (IsProtocolPart(content_type)) return;
+  // A multipart/signed opens a region covering its FIRST part in full,
+  // headers included -- that is the entity RFC 3156 signs, and the same slice
+  // the verify path hashes. The signature part itself is not covered.
+  auto child_covering = covering;
+  const bool opens_region = node.content_type == "multipart/signed";
+  int region_id = -1;
+  int region_slot = -1;
+  if (opens_region) {
+    EMailSignatureRegion region;
+    region.region_id = state.next_region++;
+    region.nesting_depth = covering.size();
+    region.declared_micalg = ContentTypeParam(part, "micalg");
 
-  const auto data = DecodePart(part);
-  state.bytes_seen += data.size();
-  if (state.bytes_seen > limits.max_total_bytes) {
-    state.limit_hit = true;
-    MimeLog(QString("message exceeds the decoded size limit (%1 bytes)")
-                .arg(state.bytes_seen));
-    return;
+    auto signed_entity = part->getBody()->getPartAt(0);
+    region.raw_offset = static_cast<qint64>(signed_entity->getParsedOffset());
+    region.raw_length = static_cast<qint64>(signed_entity->getParsedLength());
+
+    region_id = region.region_id;
+    region_slot = static_cast<int>(regions.size());
+    regions.append(region);
   }
 
-  const auto filename = PartFileName(part);
-  const auto disposition = PartDisposition(part);
+  // One alternative group per multipart/alternative, so siblings can be told
+  // apart from alternatives further down the tree.
+  const bool opens_alternative = node.content_type == "multipart/alternative";
+  const int child_alt_group =
+      opens_alternative ? state.next_alt_group++ : alt_group;
 
-  // The first text/plain part with no filename is the body; anything else is
-  // something the user may want to keep.
-  const bool is_body = meta.body.isEmpty() && filename.isEmpty() &&
-                       content_type == "text/plain" &&
-                       !disposition.startsWith("attachment");
-  if (is_body) {
-    meta.body = data;
-    meta.body_content_type = content_type;
-    return;
+  for (size_t i = 0; i < sub_parts; ++i) {
+    EMailPart child;
+    auto covering_for_child = child_covering;
+    if (opens_region && i == 0) covering_for_child.append(region_id);
+
+    BuildNode(part->getBody()->getPartAt(i), child, limits, state, regions,
+              depth + 1, covering_for_child, child_alt_group);
+    if (state.limit_hit) return;
+
+    if (region_slot >= 0) {
+      // Note where the two halves of this region ended up, so a nested region
+      // can later be verified on its own bytes rather than the outermost
+      // ones. The signature is the first pgp-signature part beside the entity.
+      if (i == 0) {
+        regions[region_slot].signed_part_index = child.index;
+      } else if (regions[region_slot].signature_part_index < 0 &&
+                 child.content_type == "application/pgp-signature") {
+        regions[region_slot].signature_part_index = child.index;
+      }
+    }
+
+    node.children.append(child);
   }
+}
 
-  EMailAttachment att;
-  att.filename = filename;
-  att.mime_type = content_type;
-  att.disposition = disposition;
-  att.data = data;
-  att.is_openpgp_key = content_type == "application/pgp-keys";
-  att.inside_signed_part = inside_signed;
-  meta.attachments.append(att);
+// Body candidacy, matching the rule ExtractParts() has always used.
+auto IsBodyCandidate(const EMailPart& part) -> bool {
+  return !part.is_multipart && !part.is_protocol_part &&
+         part.filename.isEmpty() &&
+         !part.disposition.startsWith("attachment") &&
+         (part.content_type == "text/plain" ||
+          part.content_type == "text/html");
+}
+
+void CollectFlat(const EMailPart& node, QList<const EMailPart*>& out) {
+  out.append(&node);
+  for (const auto& child : node.children) CollectFlat(child, out);
 }
 
 }  // namespace
+
+auto ParseMimeTree(const vmime::shared_ptr<vmime::message>& message,
+                   const QByteArray& raw, EMailPart& root,
+                   QList<EMailSignatureRegion>& regions,
+                   const EMailParseLimits& limits) -> int {
+  Q_UNUSED(raw)
+  if (!message) return -1;
+
+  TreeState state;
+  try {
+    BuildNode(message, root, limits, state, regions, 0, {}, -1);
+  } catch (const vmime::exception& e) {
+    MimeLog(QString("error parsing message tree: %1").arg(e.what()));
+    return -1;
+  }
+
+  return state.limit_hit ? -1 : 0;
+}
+
+auto FlattenMimeTree(const EMailPart& root) -> QList<const EMailPart*> {
+  QList<const EMailPart*> out;
+  CollectFlat(root, out);
+  return out;
+}
+
+auto RawHeaderBlock(const EMailPart& part, const QByteArray& raw)
+    -> QByteArray {
+  if (part.raw_offset < 0 || part.body_offset < 0) return {};
+  if (part.body_offset < part.raw_offset) return {};
+  if (part.body_offset > raw.size()) return {};
+  return raw.mid(static_cast<int>(part.raw_offset),
+                 static_cast<int>(part.body_offset - part.raw_offset));
+}
+
+auto SelectBodyPart(const EMailPart& root, bool prefer_html)
+    -> const EMailPart* {
+  const auto flat = FlattenMimeTree(root);
+
+  // Within one multipart/alternative the members are the same content in
+  // different forms, so exactly one of them is the body. Picking whichever is
+  // walked first -- what the flat rule does -- lands on an arbitrary member
+  // and hides the rest.
+  const QString wanted = prefer_html ? "text/html" : "text/plain";
+  const QString fallback = prefer_html ? "text/plain" : "text/html";
+
+  const EMailPart* best = nullptr;
+  const EMailPart* best_fallback = nullptr;
+
+  for (const auto* part : flat) {
+    if (!IsBodyCandidate(*part)) continue;
+    if (part->content_type == wanted) {
+      if (best == nullptr) best = part;
+    } else if (part->content_type == fallback) {
+      if (best_fallback == nullptr) best_fallback = part;
+    }
+  }
+
+  return best != nullptr ? best : best_fallback;
+}
+
+auto ClassifyOpenPGPStructure(const EMailPart& root,
+                              const QList<EMailSignatureRegion>& regions)
+    -> EMailSecurityState {
+  const auto flat = FlattenMimeTree(root);
+
+  bool has_signed = false;
+  bool has_encrypted = false;
+  bool malformed = false;
+
+  for (const auto* part : flat) {
+    if (part->content_type == "multipart/signed") {
+      has_signed = true;
+      // RFC 3156 is exact about this: two parts, and a signature part.
+      if (part->children.size() != 2) malformed = true;
+    } else if (part->content_type == "multipart/encrypted") {
+      has_encrypted = true;
+      if (part->children.size() != 2) malformed = true;
+    }
+  }
+
+  // A signed subtree that produced no region means the structure did not hold
+  // up well enough to say what is being signed.
+  if (has_signed && regions.isEmpty()) malformed = true;
+
+  if (malformed) return EMailSecurityState::kMALFORMED_PGP;
+  if (has_signed && has_encrypted) return EMailSecurityState::kSIGNED_ENCRYPTED;
+  if (has_encrypted) return EMailSecurityState::kENCRYPTED;
+  if (has_signed) return EMailSecurityState::kSIGNED;
+  return EMailSecurityState::kPLAIN;
+}
+
+auto AddressOfUid(const QString& uid) -> QString {
+  QString name;
+  QString email;
+  if (ParseEmailString(uid, name, email)) return email.trimmed().toLower();
+
+  // A bare address with no display name never reaches the angle-bracket form.
+  const auto trimmed = uid.trimmed();
+  if (trimmed.contains('@') && !trimmed.contains(' ')) return trimmed.toLower();
+  return {};
+}
+
+namespace {
+
+auto InfoRoot(const QByteArray& info_json) -> QJsonObject {
+  const auto doc = QJsonDocument::fromJson(info_json);
+  return doc.isObject() ? doc.object() : QJsonObject{};
+}
+
+// A recipient the sender asked the engine not to name. GnuPG reports this as
+// an all-zero key id; it means "deliberately anonymous", not "unknown".
+auto IsHiddenKeyId(const QString& key_id) -> bool {
+  if (key_id.isEmpty()) return false;
+  for (const auto c : key_id) {
+    if (c != '0') return false;
+  }
+  return true;
+}
+
+}  // namespace
+
+auto ParseSignatureResults(const QByteArray& info_json, int region_id)
+    -> QList<EMailSignatureResult> {
+  QList<EMailSignatureResult> results;
+
+  const auto signatures = InfoRoot(info_json).value("signatures").toArray();
+  for (const auto& entry : signatures) {
+    const auto obj = entry.toObject();
+
+    EMailSignatureResult result;
+    // Stamped from the call site, which knows which region's bytes were just
+    // verified. Nothing here depends on the order results arrive in.
+    result.region_id = region_id;
+    result.fingerprint = obj.value("fingerprint").toString();
+    result.pubkey_algo = obj.value("pubkeyAlgo").toString();
+    result.hash_algo = obj.value("hashAlgo").toString();
+    result.uid = obj.value("uid").toString();
+    result.validity = obj.value("validity").toInt();
+
+    const auto sign_time = obj.value("signTime").toString();
+    if (!sign_time.isEmpty()) {
+      result.sign_time = QDateTime::fromString(sign_time, Qt::ISODate);
+    }
+
+    for (const auto& warning : obj.value("warnings").toArray()) {
+      result.warnings.append(warning.toString());
+    }
+
+    results.append(result);
+  }
+
+  return results;
+}
+
+auto ParseRecipientInfos(const QByteArray& info_json)
+    -> QList<EMailRecipientInfo> {
+  QList<EMailRecipientInfo> recipients;
+
+  const auto entries = InfoRoot(info_json).value("recipients").toArray();
+  for (const auto& entry : entries) {
+    const auto obj = entry.toObject();
+
+    EMailRecipientInfo info;
+    info.uid = obj.value("uid").toString();
+    info.fingerprint = obj.value("fingerprint").toString();
+    info.key_id = obj.value("keyId").toString();
+    info.pubkey_algo = obj.value("pubkeyAlgo").toString();
+    info.key_found = obj.value("keyFound").toBool();
+    info.algo_is_primary_key = obj.value("algoIsPrimaryKey").toBool();
+    info.hidden = IsHiddenKeyId(info.key_id);
+
+    recipients.append(info);
+  }
+
+  return recipients;
+}
+
+void CheckMicalgAgreement(QList<EMailSignatureResult>& results,
+                          const EMailSignatureRegion& region) {
+  // "pgp-sha256" in the header against "SHA256" from the signature: compare
+  // the part that carries the meaning, not the spelling.
+  auto normalize = [](QString value) {
+    value = value.trimmed().toLower();
+    if (value.startsWith("pgp-")) value = value.mid(4);
+    value.remove('-');
+    return value;
+  };
+
+  const auto declared = normalize(region.declared_micalg);
+  if (declared.isEmpty()) return;
+
+  for (auto& result : results) {
+    if (result.region_id != region.region_id) continue;
+    const auto actual = normalize(result.hash_algo);
+    if (actual.isEmpty()) continue;
+    result.micalg_mismatch = actual != declared;
+  }
+}
+
+auto MatchRecipients(const QStringList& to, const QStringList& cc,
+                     const QStringList& bcc,
+                     const QList<EMailRecipientInfo>& encrypted)
+    -> QList<EMailRecipientRow> {
+  QList<EMailRecipientRow> rows;
+  QList<bool> claimed;
+  claimed.reserve(encrypted.size());
+  for (int i = 0; i < encrypted.size(); ++i) claimed.append(false);
+
+  const auto match_address = [&](const QString& address, const QString& field) {
+    const auto wanted = AddressOfUid(address);
+
+    EMailRecipientRow row;
+    row.address = address;
+    row.header_field = field;
+
+    for (int i = 0; i < encrypted.size(); ++i) {
+      if (claimed[i]) continue;
+      // Only a recipient whose key is actually in the keyring can be tied to
+      // an address; an unknown key id names nobody.
+      if (!encrypted[i].key_found) continue;
+      if (wanted.isEmpty()) continue;
+      if (AddressOfUid(encrypted[i].uid) != wanted) continue;
+
+      claimed[i] = true;
+      row.match = RecipientMatch::kMATCHED;
+      row.info = encrypted[i];
+      rows.append(row);
+      return;
+    }
+
+    // Addressed but not encrypted to: they were told this message is for them
+    // and they cannot open it. This is the one case that warrants a warning.
+    row.match = RecipientMatch::kADDRESSED_NOT_ENCRYPTED;
+    rows.append(row);
+  };
+
+  for (const auto& address : to) match_address(address, "To");
+  for (const auto& address : cc) match_address(address, "Cc");
+  for (const auto& address : bcc) match_address(address, "Bcc");
+
+  for (int i = 0; i < encrypted.size(); ++i) {
+    if (claimed[i]) continue;
+
+    EMailRecipientRow row;
+    row.info = encrypted[i];
+    // Not a finding. A message is routinely encrypted to keys that never
+    // appear in a header, and a withheld key id is a choice the sender made
+    // rather than something going wrong.
+    row.match = encrypted[i].hidden ? RecipientMatch::kHIDDEN_RECIPIENT
+                                    : RecipientMatch::kENCRYPTED_NOT_ADDRESSED;
+    rows.append(row);
+  }
+
+  return rows;
+}
+
+namespace {
+
+// "Re: " / "Fwd: " only once, however many times a message has been round the
+// houses. Stacking prefixes is the classic way a subject line becomes
+// unreadable after three exchanges.
+auto PrefixSubject(const QString& subject, const QString& prefix) -> QString {
+  const auto trimmed = subject.trimmed();
+  if (trimmed.startsWith(prefix, Qt::CaseInsensitive)) return trimmed;
+  return prefix + trimmed;
+}
+
+auto NormalizedAddresses(const QStringList& addresses) -> QStringList {
+  QStringList out;
+  for (const auto& address : addresses) {
+    const auto trimmed = address.trimmed();
+    if (!trimmed.isEmpty()) out.append(trimmed);
+  }
+  return out;
+}
+
+// Deduplicate by address rather than by display name: the same person may
+// appear once bare and once with a name, and they should be addressed once.
+auto WithoutDuplicatesOrSelf(const QStringList& addresses,
+                             const QString& self_address, QStringList& seen)
+    -> QStringList {
+  const auto self = AddressOfUid(self_address);
+  QStringList out;
+  for (const auto& address : addresses) {
+    const auto key = AddressOfUid(address);
+    if (key.isEmpty()) continue;
+    if (!self.isEmpty() && key == self) continue;
+    if (seen.contains(key)) continue;
+    seen.append(key);
+    out.append(address);
+  }
+  return out;
+}
+
+}  // namespace
+
+void BuildDerivedMetaData(const EMailMetaData& source, EMailReplyMode mode,
+                          const QString& self_address, EMailMetaData& out) {
+  out = EMailMetaData{};
+
+  // The user's own identity on the new message, as far as it can be known
+  // from the old one: whoever the original was addressed to.
+  out.from = self_address;
+
+  if (mode == EMailReplyMode::kFORWARD) {
+    out.subject = PrefixSubject(source.subject, "Fwd: ");
+    // No recipients: a forward is addressed by the person forwarding it, and
+    // guessing here is how mail goes to the wrong people.
+    out.attachments = source.attachments;
+  } else {
+    out.subject = PrefixSubject(source.subject, "Re: ");
+
+    // Reply-To exists precisely so the sender can redirect answers; honouring
+    // From instead would send the reply somewhere the sender asked it not to
+    // go.
+    const auto reply_target =
+        source.reply_to.trimmed().isEmpty() ? source.from : source.reply_to;
+
+    QStringList seen;
+    out.to = WithoutDuplicatesOrSelf(NormalizedAddresses({reply_target}),
+                                     self_address, seen);
+
+    if (mode == EMailReplyMode::kREPLY_ALL) {
+      // Everyone who was visibly addressed, minus whoever is already in To and
+      // minus the user. Bcc is deliberately not carried: those recipients were
+      // blind, and a reply-all that exposes them defeats the original choice.
+      auto others = NormalizedAddresses(source.to);
+      others += NormalizedAddresses(source.cc);
+      out.cc = WithoutDuplicatesOrSelf(others, self_address, seen);
+    }
+  }
+
+  // Threading headers, so the answer attaches to what it answers. References
+  // accumulates the chain and In-Reply-To names the immediate parent.
+  if (!source.message_id.isEmpty()) {
+    out.in_reply_to = source.message_id;
+    out.references = source.references;
+    if (!out.references.contains(source.message_id)) {
+      out.references.append(source.message_id);
+    }
+  }
+}
+
+auto BuildQuotedBody(const EMailMetaData& source, EMailReplyMode mode)
+    -> QByteArray {
+  const auto text = QString::fromUtf8(source.body);
+
+  if (mode == EMailReplyMode::kFORWARD) {
+    QString out = "\n\n---------- Forwarded message ----------\n";
+    if (!source.from.isEmpty()) out += "From: " + source.from + "\n";
+    if (!source.to.isEmpty()) out += "To: " + source.to.join("; ") + "\n";
+    if (!source.cc.isEmpty()) out += "Cc: " + source.cc.join("; ") + "\n";
+    if (source.datetime.isValid()) {
+      out += "Date: " + source.datetime.toString(Qt::ISODate) + "\n";
+    }
+    if (!source.subject.isEmpty()) out += "Subject: " + source.subject + "\n";
+    out += "\n" + text;
+    return out.toUtf8();
+  }
+
+  QString out;
+  if (!source.from.isEmpty()) {
+    out += source.datetime.isValid()
+               ? QString("\nOn %1, %2 wrote:\n")
+                     .arg(source.datetime.toString(Qt::ISODate), source.from)
+               : QString("\n%1 wrote:\n").arg(source.from);
+  } else {
+    out += "\n";
+  }
+
+  // Quote every line, empty ones included: a blank line left unquoted reads as
+  // the end of the quotation.
+  const auto lines = text.split('\n');
+  for (const auto& line : lines) {
+    out += line.isEmpty() ? QString(">\n") : QString("> %1\n").arg(line);
+  }
+
+  return out.toUtf8();
+}
+
+namespace {
+
+// Fields that RFC 5322 allows at most once. A second copy is not merely
+// untidy: readers disagree about which one wins, so a message carrying two
+// can show one thing to the person and another to whatever checked it.
+auto SingletonFieldNames() -> QStringList {
+  return {"From",    "Sender", "Reply-To",   "To",          "Cc",        "Bcc",
+          "Subject", "Date",   "Message-ID", "In-Reply-To", "References"};
+}
+
+// Does this text mix scripts inside one label? Latin plus Cyrillic in one
+// domain is the classic homograph construction and essentially never
+// legitimate.
+auto MixesScripts(const QString& text) -> bool {
+  bool latin = false;
+  bool other = false;
+  for (const auto c : text) {
+    if (!c.isLetter()) continue;
+    const auto script = c.script();
+    if (script == QChar::Script_Latin) {
+      latin = true;
+    } else if (script != QChar::Script_Common &&
+               script != QChar::Script_Inherited) {
+      other = true;
+    }
+  }
+  return latin && other;
+}
+
+auto DomainOf(const QString& address) -> QString {
+  const auto email = AddressOfUid(address);
+  const auto at = email.lastIndexOf('@');
+  return at < 0 ? QString() : email.mid(at + 1);
+}
+
+}  // namespace
+
+auto LooksLikeSpoofedAddress(const QString& address) -> bool {
+  const auto domain = DomainOf(address);
+  if (domain.isEmpty()) return false;
+
+  if (MixesScripts(domain)) return true;
+
+  // A domain that is not plain ASCII has a punycode form that differs from
+  // what is displayed; that gap is exactly what a homograph attack lives in.
+  const auto ace = QString::fromLatin1(QUrl::toAce(domain));
+  return !ace.isEmpty() && ace.compare(domain, Qt::CaseInsensitive) != 0;
+}
+
+auto InspectMessage(const EMailMetaData& meta, const EMailPart& root,
+                    const QList<EMailSignatureRegion>& regions)
+    -> QList<EMailFinding> {
+  QList<EMailFinding> findings;
+
+  // --- header integrity ----------------------------------------------------
+
+  QMap<QString, int> counts;
+  for (const auto& field : root.header_fields) {
+    counts[field.first.toLower()] += 1;
+  }
+
+  for (const auto& name : SingletonFieldNames()) {
+    const auto count = counts.value(name.toLower(), 0);
+    if (count <= 1) continue;
+    findings.append(
+        {EMailFindingLevel::kRISK, QObject::tr("Duplicate %1 header").arg(name),
+         QObject::tr("This message carries %1 copies of a header that may "
+                     "appear only once. Different mail programs pick "
+                     "different copies, so what you see here may not be what "
+                     "another reader sees.")
+             .arg(count)});
+  }
+
+  // --- identity ------------------------------------------------------------
+
+  for (const auto& address : QStringList{meta.from} + meta.to + meta.cc) {
+    if (address.trimmed().isEmpty()) continue;
+    if (!LooksLikeSpoofedAddress(address)) continue;
+    findings.append(
+        {EMailFindingLevel::kRISK, QObject::tr("Address may be disguised"),
+         QObject::tr("The domain in \"%1\" uses characters that can be drawn "
+                     "to look like a different, familiar address.")
+             .arg(address)});
+  }
+
+  // A Reply-To on another domain is ordinary for mailing lists and support
+  // systems, so this is a note rather than an accusation -- but it is the
+  // mechanism behind most reply-hijacking, and it is invisible until you look.
+  if (!meta.reply_to.trimmed().isEmpty() && !meta.from.trimmed().isEmpty()) {
+    const auto reply_domain = DomainOf(meta.reply_to);
+    const auto from_domain = DomainOf(meta.from);
+    if (!reply_domain.isEmpty() && !from_domain.isEmpty() &&
+        reply_domain.compare(from_domain, Qt::CaseInsensitive) != 0) {
+      findings.append(
+          {EMailFindingLevel::kWARN, QObject::tr("Replies go somewhere else"),
+           QObject::tr("This message is from \"%1\" but replies would be sent "
+                       "to \"%2\", which is a different domain.")
+               .arg(from_domain, reply_domain)});
+    }
+  }
+
+  // --- structure -----------------------------------------------------------
+
+  const auto flat = FlattenMimeTree(root);
+
+  for (const auto* part : flat) {
+    if (part->content_type == "multipart/signed" &&
+        part->children.size() != 2) {
+      findings.append(
+          {EMailFindingLevel::kRISK, QObject::tr("Malformed signed section"),
+           QObject::tr("A signed section must contain exactly two parts; this "
+                       "one contains %1. It may not verify, and what it "
+                       "covers is ambiguous.")
+               .arg(part->children.size())});
+    }
+    if (part->content_type == "multipart/encrypted" &&
+        part->children.size() != 2) {
+      findings.append(
+          {EMailFindingLevel::kRISK, QObject::tr("Malformed encrypted section"),
+           QObject::tr("An encrypted section must contain exactly two parts; "
+                       "this one contains %1.")
+               .arg(part->children.size())});
+    }
+  }
+
+  // Content smuggled in beside a signature is the reason coverage is tracked
+  // per part rather than per message.
+  if (!regions.isEmpty()) {
+    int uncovered = 0;
+    for (const auto* part : flat) {
+      if (part->is_multipart || part->is_protocol_part) continue;
+      if (part->covered_by_regions.isEmpty()) ++uncovered;
+    }
+    if (uncovered > 0) {
+      findings.append(
+          {EMailFindingLevel::kWARN, QObject::tr("Not everything is signed"),
+           QObject::tr("%1 part(s) of this message sit outside the signature. "
+                       "They arrived unauthenticated and could have been "
+                       "added or changed by anyone in the path.")
+               .arg(uncovered)});
+    }
+  }
+
+  // --- OpenPGP material carried as attachments -----------------------------
+
+  int attached_keys = 0;
+  int detached_signatures = 0;
+  for (const auto* part : flat) {
+    if (part->is_openpgp_key) ++attached_keys;
+    // A pgp-signature part that is NOT the second half of a multipart/signed
+    // is a detached signature riding along as a file, which is a different
+    // thing and is not verified by opening the message.
+    if (part->content_type == "application/pgp-signature" &&
+        part->covered_by_regions.isEmpty()) {
+      bool belongs_to_a_region = false;
+      for (const auto& region : regions) {
+        if (region.signature_part_index == part->index) {
+          belongs_to_a_region = true;
+          break;
+        }
+      }
+      if (!belongs_to_a_region) ++detached_signatures;
+    }
+  }
+
+  if (attached_keys > 0) {
+    findings.append(
+        {EMailFindingLevel::kNOTE, QObject::tr("Public key attached"),
+         QObject::tr("This message carries %1 OpenPGP public key(s). A key "
+                     "arriving in a message proves nothing about who sent it: "
+                     "anyone can attach any key, including one they made for "
+                     "the name on the From line.")
+             .arg(attached_keys)});
+  }
+
+  if (detached_signatures > 0) {
+    findings.append(
+        {EMailFindingLevel::kNOTE, QObject::tr("Detached signature attached"),
+         QObject::tr("This message carries %1 signature file(s) that are not "
+                     "part of its own signed structure. Opening the message "
+                     "does not check them; they sign something else.")
+             .arg(detached_signatures)});
+  }
+
+  // A Bcc header on a received message means the sender's tooling disclosed
+  // recipients who were meant to be blind.
+  if (!meta.bcc_header.isEmpty()) {
+    findings.append(
+        {EMailFindingLevel::kWARN, QObject::tr("Blind recipients are visible"),
+         QObject::tr("This message carries a Bcc header naming %1 "
+                     "recipient(s). Anyone who received it can see who was "
+                     "blind-copied.")
+             .arg(meta.bcc_header.size())});
+  }
+
+  return findings;
+}
+
+auto PreflightMessage(const EMailMetaData& meta, const EMailPart& root,
+                      const QList<EMailSignatureRegion>& regions,
+                      const QStringList& compose_bcc) -> QList<EMailFinding> {
+  QList<EMailFinding> findings;
+
+  if (regions.isEmpty()) {
+    findings.append(
+        {EMailFindingLevel::kNOTE, QObject::tr("Nothing is signed"),
+         QObject::tr("This message carries no signature, so the recipient "
+                     "cannot tell that it came from you or that it arrived "
+                     "unchanged.")});
+  }
+
+  const auto flat = FlattenMimeTree(root);
+  int unsigned_parts = 0;
+  for (const auto* part : flat) {
+    if (part->is_multipart || part->is_protocol_part) continue;
+    if (!regions.isEmpty() && part->covered_by_regions.isEmpty()) {
+      ++unsigned_parts;
+    }
+  }
+
+  if (unsigned_parts > 0) {
+    findings.append(
+        {EMailFindingLevel::kWARN, QObject::tr("Some parts are not signed"),
+         QObject::tr("%1 part(s) of this message would go out without the "
+                     "signature covering them.")
+             .arg(unsigned_parts)});
+  }
+
+  // The blind recipients are about to become an encryption decision, and the
+  // one thing that must never happen is for them to become a header.
+  if (!compose_bcc.isEmpty()) {
+    findings.append(
+        {EMailFindingLevel::kNOTE, QObject::tr("Blind recipients"),
+         QObject::tr("%1 blind recipient(s) will be included in encryption "
+                     "but will not appear anywhere in the message.")
+             .arg(compose_bcc.size())});
+  }
+
+  if (!meta.bcc_header.isEmpty()) {
+    findings.append(
+        {EMailFindingLevel::kRISK, QObject::tr("Bcc header present"),
+         QObject::tr("This message carries a Bcc header. Sending it would "
+                     "tell every recipient who was blind-copied.")});
+  }
+
+  for (const auto& address : QStringList{meta.from} + meta.to + meta.cc) {
+    if (address.trimmed().isEmpty()) continue;
+    if (!LooksLikeSpoofedAddress(address)) continue;
+    findings.append(
+        {EMailFindingLevel::kRISK, QObject::tr("Recipient may be disguised"),
+         QObject::tr("The domain in \"%1\" uses characters that can be drawn "
+                     "to look like a different address. Check it before "
+                     "sending.")
+             .arg(address)});
+  }
+
+  if (meta.to.isEmpty() && meta.cc.isEmpty() && compose_bcc.isEmpty()) {
+    findings.append({EMailFindingLevel::kWARN, QObject::tr("No recipients"),
+                     QObject::tr("This message is not addressed to anyone.")});
+  }
+
+  return findings;
+}
 
 auto ExtractParts(const vmime::shared_ptr<vmime::message>& message,
                   EMailMetaData& meta_data, const EMailParseLimits& limits)
     -> int {
   if (!message) return -1;
 
-  WalkState state;
-  try {
-    WalkPart(message, meta_data, limits, state, 0, false);
-  } catch (const vmime::exception& e) {
-    MimeLog(QString("error walking message parts: %1").arg(e.what()));
-    return -1;
+  EMailPart root;
+  QList<EMailSignatureRegion> regions;
+  if (ParseMimeTree(message, {}, root, regions, limits) != 0) return -1;
+
+  meta_data.signature_regions = regions;
+
+  // The flattening rule is kept exactly as it was, deliberately. This function
+  // feeds the crypto paths and the result cards, and the tree was introduced
+  // underneath it rather than to change it -- the alternative-aware selection
+  // lives in SelectBodyPart(), which the views use. A differential test pins
+  // the two implementations together across the corpus.
+  for (const auto* part : FlattenMimeTree(root)) {
+    if (part->is_multipart || part->is_protocol_part) continue;
+
+    const bool is_body = meta_data.body.isEmpty() && part->filename.isEmpty() &&
+                         part->content_type == "text/plain" &&
+                         !part->disposition.startsWith("attachment");
+    if (is_body) {
+      meta_data.body = part->data;
+      meta_data.body_content_type = part->content_type;
+      continue;
+    }
+
+    EMailAttachment att;
+    att.filename = part->filename;
+    att.mime_type = part->content_type;
+    att.disposition = part->disposition;
+    att.data = part->data;
+    att.is_openpgp_key = part->is_openpgp_key;
+    // Being covered by any region is exactly what "inside the signed part"
+    // meant before regions existed.
+    att.inside_signed_part = !part->covered_by_regions.isEmpty();
+    meta_data.attachments.append(att);
   }
 
-  return state.limit_hit ? -1 : 0;
+  return 0;
 }
 
 auto BuildInnerPartHeader(const vmime::shared_ptr<vmime::header>& source)
