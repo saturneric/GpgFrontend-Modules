@@ -189,6 +189,18 @@ class EMailPageView : public QWidget {
    */
   QStringList AvailableCryptoOperations();  // NOLINT
 
+  /**
+   * @brief A file name to offer when this tab is saved and has no file yet.
+   *
+   * Optional half of the page/view contract. The host knows the tab's title;
+   * only this view knows the message's subject, which is the thing a message
+   * actually calls itself. Already safe to use as a single path component.
+   */
+  QString SuggestedFileName();  // NOLINT
+
+  /// Optional half of the page/view contract: the save dialog's filter.
+  QString FileTypeFilter();  // NOLINT
+
   void LoadFromSource(const QByteArray& source);  // NOLINT
 
   /**

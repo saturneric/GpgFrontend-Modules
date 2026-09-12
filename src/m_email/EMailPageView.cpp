@@ -2430,6 +2430,19 @@ void EMailPageView::report_attachment_status(const QString& note) {
   QTimer::singleShot(kStatusNoteMs, this, [this]() { refresh_attachments(); });
 }
 
+auto EMailPageView::SuggestedFileName() -> QString {
+  // The subject as it is on screen, not as it was loaded: a draft being
+  // written has a subject in the field and nothing in message_ until something
+  // serializes it, and the name offered should follow what the user typed.
+  const auto subject =
+      subject_edit_ != nullptr ? subject_edit_->text() : message_.subject;
+  return SuggestedEMailFileName(subject);
+}
+
+auto EMailPageView::FileTypeFilter() -> QString {
+  return tr("E-Mail Message (*.eml);;All Files (*)");
+}
+
 auto EMailPageView::SaveToSource() -> QByteArray {
   // Refused outright rather than merely never reached: the host probes this by
   // name, and no future call site may be able to rewrite a forensic document.
