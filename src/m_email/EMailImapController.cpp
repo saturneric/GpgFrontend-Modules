@@ -32,7 +32,6 @@
 #include <QComboBox>
 #include <QHBoxLayout>
 #include <QHeaderView>
-#include <QInputDialog>
 #include <QLabel>
 #include <QLineEdit>
 #include <QLocale>
@@ -75,7 +74,19 @@ EMailImapController::EMailImapController(QWidget* parent) : QDialog(parent) {
   }
 
   start_worker();
-  if (!accounts_.isEmpty()) connect_to_selected_account();
+
+  // Deliberately NOT connecting here. Opening this window is a request to
+  // choose an account, not to reach out over the network -- connecting on open
+  // is what made the dialog demand a password before the user had even seen
+  // it.
+  if (accounts_.isEmpty()) {
+    status_label_->setText(
+        Tr("No mail account with IMAP enabled is configured yet."));
+  } else {
+    status_label_->setText(
+        Tr("Choose an account and select Connect to browse its messages."));
+  }
+  refresh_idle_state();
 }
 
 EMailImapController::~EMailImapController() { stop_worker(); }
@@ -119,6 +130,8 @@ void EMailImapController::build_ui() {
   outer->addWidget(status_label_);
 
   auto* buttons = new QHBoxLayout;
+  connect_button_ = new QPushButton(Tr("Connect"), this);
+  connect_button_->setDefault(true);
   more_button_ = new QPushButton(Tr("Load more"), this);
   open_button_ = new QPushButton(Tr("Open"), this);
   open_button_->setDefault(true);
@@ -126,6 +139,7 @@ void EMailImapController::build_ui() {
 
   buttons->addWidget(more_button_);
   buttons->addStretch();
+  buttons->addWidget(connect_button_);
   buttons->addWidget(open_button_);
   buttons->addWidget(cancel_button_);
   outer->addLayout(buttons);
@@ -145,6 +159,8 @@ void EMailImapController::build_ui() {
   connect(table_, &QTableWidget::itemDoubleClicked, this,
           &EMailImapController::slot_open_selected);
   connect(cancel_button_, &QPushButton::clicked, this, &QDialog::reject);
+  connect(connect_button_, &QPushButton::clicked, this,
+          &EMailImapController::slot_connect);
 }
 
 void EMailImapController::start_worker() {
@@ -213,16 +229,19 @@ void EMailImapController::connect_to_selected_account() {
 
   auto password = EMailCredentialStore::Load(account.id);
   if (password.isEmpty()) {
-    // Either nothing was stored, or this profile is unprotected and we
-    // declined to store one. Asking is the correct behaviour in both cases.
-    bool accepted = false;
-    password = QInputDialog::getText(
-        this, Tr("Password"),
-        Tr("Password for %1")
-            .arg(account.Label().isEmpty() ? account.imap.host
-                                           : account.Label()),
-        QLineEdit::Password, {}, &accepted);
-    if (!accepted || password.isEmpty()) return;
+    // No prompt. A password is configuration, and it is set in exactly one
+    // place -- Settings -- so there is a single answer to "where does this
+    // credential live", rather than a dialog that holds one for a session and
+    // then forgets it.
+    status_label_->setText(
+        Tr("No password is stored for this account. Set one in Settings, "
+           "under Mail Accounts."));
+    QMessageBox::information(
+        this, Tr("No password stored"),
+        Tr("This account has no stored password, so it cannot be opened. "
+           "Set the password in Settings, under Mail Accounts, and turn on "
+           "the option to remember it."));
+    return;
   }
 
   folders_.clear();
@@ -240,7 +259,39 @@ void EMailImapController::connect_to_selected_account() {
 
 void EMailImapController::slot_account_changed() {
   if (closing_) return;
-  connect_to_selected_account();
+
+  // Switching accounts invalidates what is on screen, but is not itself a
+  // request to connect -- that stays an explicit act.
+  folders_.clear();
+  folder_combo_->clear();
+  rows_.clear();
+  current_folder_.clear();
+  cursor_ = 0;
+  refresh_table();
+
+  if (worker_ != nullptr) {
+    QMetaObject::invokeMethod(worker_, "Disconnect", Qt::QueuedConnection);
+  }
+
+  status_label_->setText(
+      Tr("Choose an account and select Connect to browse its messages."));
+  refresh_idle_state();
+}
+
+void EMailImapController::slot_connect() { connect_to_selected_account(); }
+
+void EMailImapController::refresh_idle_state() {
+  const auto has_account = account_combo_->currentIndex() >= 0;
+  const auto connected = !folders_.isEmpty();
+
+  connect_button_->setVisible(!connected);
+  connect_button_->setEnabled(has_account);
+
+  folder_combo_->setEnabled(connected);
+  search_edit_->setEnabled(connected);
+  search_button_->setEnabled(connected);
+  open_button_->setEnabled(connected);
+  more_button_->setEnabled(false);
 }
 
 void EMailImapController::slot_folder_changed() {
@@ -325,8 +376,11 @@ void EMailImapController::handle_folders(
   if (folders_.isEmpty()) {
     status_label_->setText(
         Tr("This account has no folders that can be opened."));
+    refresh_idle_state();
     return;
   }
+
+  refresh_idle_state();
 
   // Start in the inbox when the server says which one it is.
   int start = 0;
@@ -448,10 +502,17 @@ void EMailImapController::refresh_table() {
 
 void EMailImapController::set_busy(bool busy, const QString& what) {
   account_combo_->setEnabled(!busy);
-  folder_combo_->setEnabled(!busy);
-  search_button_->setEnabled(!busy);
-  open_button_->setEnabled(!busy);
-  more_button_->setEnabled(!busy && more_button_->isEnabled());
+  connect_button_->setEnabled(!busy && account_combo_->currentIndex() >= 0);
+
+  // Re-enabled only for a session that actually has folders: leaving a busy
+  // state must not leave the browse controls live on a window that never
+  // connected to anything.
+  const auto connected = !folders_.isEmpty();
+  folder_combo_->setEnabled(!busy && connected);
+  search_edit_->setEnabled(!busy && connected);
+  search_button_->setEnabled(!busy && connected);
+  open_button_->setEnabled(!busy && connected);
+  more_button_->setEnabled(!busy && connected && more_button_->isEnabled());
 
   if (busy) {
     status_label_->setText(what);

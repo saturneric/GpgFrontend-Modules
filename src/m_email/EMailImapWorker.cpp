@@ -112,10 +112,15 @@ struct EMailImapWorker::Impl {
   vmime::shared_ptr<EMailTimeoutHandlerFactory> timeouts;
   MailAccountConfig account;
 
-  /// Folders as returned by a recursive LIST, kept rather than re-derived:
-  /// a folder fetched by path carries empty attributes, so SPECIAL-USE is
-  /// only visible on the objects the listing produced.
-  std::vector<vmime::shared_ptr<vmime::net::folder>> listed;
+  /// Folder metadata from the last recursive LIST, as plain data.
+  ///
+  /// Deliberately NOT the vmime folder objects. Every IMAPFolder registers
+  /// itself with the store when constructed and only deregisters when
+  /// destroyed, and open() refuses if *any other live object* shares its path
+  /// -- so holding the listing alive makes opening any listed folder fail with
+  /// "folder already open", even though nothing is open at all. Keeping only
+  /// what we actually need lets those objects die immediately.
+  QList<EMailFolderInfo> folder_cache;
 
   void Close() {
     try {
@@ -128,7 +133,7 @@ struct EMailImapWorker::Impl {
     }
     // Released here, on the worker thread: these destructors close sockets and
     // must not run anywhere else.
-    listed.clear();
+    folder_cache.clear();
     folder = nullptr;
     store = nullptr;
     session = nullptr;
@@ -216,11 +221,12 @@ void EMailImapWorker::ListFolders(quint64 seq) {
   }
 
   try {
-    auto root = impl_->store->getRootFolder();
-    impl_->listed = root->getFolders(true);
+    // Scoped: the folder objects must not outlive this loop, or nothing in
+    // the listing can be opened afterwards.
+    auto listed = impl_->store->getRootFolder()->getFolders(true);
 
     QList<EMailFolderInfo> result;
-    for (const auto& folder : impl_->listed) {
+    for (const auto& folder : listed) {
       const auto attributes = folder->getAttributes();
 
       EMailFolderInfo info;
@@ -240,6 +246,9 @@ void EMailImapWorker::ListFolders(quint64 seq) {
       if (info.path.isEmpty()) continue;
       result.append(info);
     }
+
+    listed.clear();
+    impl_->folder_cache = result;
 
     emit SignalFolders(seq, result);
   } catch (const vmime::exception& e) {
@@ -509,11 +518,17 @@ auto EMailImapWorker::OpenFolderReadOnly(const QString& path)
     return impl_->folder;
   }
 
-  if (impl_->folder && impl_->folder->isOpen()) {
+  // Release the previous folder outright rather than merely closing it. A
+  // closed-but-still-alive IMAPFolder stays in the store's registry, and
+  // open() refuses when any other live object shares the path -- so keeping
+  // one around makes reopening the very same folder fail.
+  if (impl_->folder) {
     try {
-      impl_->folder->close(false);
+      if (impl_->folder->isOpen()) impl_->folder->close(false);
     } catch (...) {
     }
+    impl_->folder = nullptr;
+    impl_->folder_path.clear();
   }
 
   auto folder = impl_->store->getFolder(vmime::utility::path::fromString(
@@ -533,25 +548,30 @@ auto EMailImapWorker::ResolveSentFolder() -> QString {
   if (!impl_->store) return {};
 
   try {
-    // Attributes only exist on the objects a LIST produced; a folder looked up
-    // by path comes back with an empty attribute set, so SPECIAL-USE would be
-    // invisible if we re-derived it here.
-    if (impl_->listed.empty()) {
-      impl_->listed = impl_->store->getRootFolder()->getFolders(true);
+    // Attributes only exist on the objects a LIST produced -- a folder looked
+    // up by path comes back with an empty attribute set -- so the cache is
+    // filled from a listing rather than re-derived per folder.
+    if (impl_->folder_cache.isEmpty()) {
+      auto listed = impl_->store->getRootFolder()->getFolders(true);
+      for (const auto& folder : listed) {
+        const auto attributes = folder->getAttributes();
+
+        EMailFolderInfo info;
+        info.path = QString::fromStdString(
+            folder->getFullPath().toString("/", vmime::charsets::UTF_8));
+        info.selectable = (attributes.getFlags() &
+                           vmime::net::folderAttributes::FLAG_NO_OPEN) == 0;
+        info.is_sent = attributes.getSpecialUse() ==
+                       vmime::net::folderAttributes::SPECIALUSE_SENT;
+
+        if (!info.path.isEmpty()) impl_->folder_cache.append(info);
+      }
+      // Released before anything is opened; see folder_cache's comment.
+      listed.clear();
     }
 
-    for (const auto& folder : impl_->listed) {
-      const auto attributes = folder->getAttributes();
-      if (attributes.getSpecialUse() !=
-          vmime::net::folderAttributes::SPECIALUSE_SENT) {
-        continue;
-      }
-      if ((attributes.getFlags() &
-           vmime::net::folderAttributes::FLAG_NO_OPEN) != 0) {
-        continue;
-      }
-      return QString::fromStdString(
-          folder->getFullPath().toString("/", vmime::charsets::UTF_8));
+    for (const auto& info : impl_->folder_cache) {
+      if (info.is_sent && info.selectable) return info.path;
     }
   } catch (...) {
     return {};

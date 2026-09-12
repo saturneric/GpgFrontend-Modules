@@ -77,6 +77,7 @@ class EMailImapController : public QDialog {
 
  private slots:
   void slot_account_changed();
+  void slot_connect();
   void slot_folder_changed();
   void slot_search();
   void slot_load_more();
@@ -98,6 +99,8 @@ class EMailImapController : public QDialog {
   void connect_to_selected_account();
   void request_page(bool reset);
   void refresh_table();
+  /// Enables only what the current connection state actually supports.
+  void refresh_idle_state();
   void set_busy(bool busy, const QString& what);
   void show_error(const MailError& error);
 
@@ -126,6 +129,7 @@ class EMailImapController : public QDialog {
   QLineEdit* search_edit_{};
   QPushButton* search_button_{};
   QTableWidget* table_{};
+  QPushButton* connect_button_{};
   QPushButton* more_button_{};
   QPushButton* open_button_{};
   QPushButton* cancel_button_{};

@@ -622,6 +622,14 @@ REGISTER_EVENT_HANDLER(MAINWINDOW_MENU_MOUNTED, [](const MEvent& event) -> int {
     CB_ERR(event, -1, "no import_key_menu found");
   }
 
+  // Importing over the network is a different kind of act from opening a new
+  // editor, so it belongs in Advanced rather than beside "Mail Editor" in the
+  // workspace menu.
+  auto* advance_menu = GFUIGetGUIObjectAs<QMenu>(event["advance_menu"]);
+  if (advance_menu == nullptr) {
+    LOG_ERROR("advance_menu handle invalid or not QMenu");
+  }
+
   auto* workspace_menu =
       GFUIGetGUIObjectAs<QMenu>(event["file_workspace_menu"]);
   if (!workspace_menu) {
@@ -643,7 +651,7 @@ REGISTER_EVENT_HANDLER(MAINWINDOW_MENU_MOUNTED, [](const MEvent& event) -> int {
 
   QMetaObject::invokeMethod(
       QApplication::instance(),
-      [&]() -> void {
+      [&, advance_menu]() -> void {
         QWidget* parent =
             qobject_cast<QWidget*>(static_cast<QObject*>(main_window));
         auto* action = new QAction(
@@ -698,7 +706,7 @@ REGISTER_EVENT_HANDLER(MAINWINDOW_MENU_MOUNTED, [](const MEvent& event) -> int {
                                });
               controller->show();
             });
-        workspace_menu->addAction(import_action);
+        if (advance_menu != nullptr) advance_menu->addAction(import_action);
       },
       Qt::BlockingQueuedConnection);
   CB_SUCC(event);
