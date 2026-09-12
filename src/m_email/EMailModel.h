@@ -70,6 +70,22 @@ struct EMailAttachment {
 };
 
 /**
+ * @brief How far verification of this message's signed regions has got.
+ *
+ * Three states rather than a flag because a signed message with no results is
+ * ambiguous between "nothing has looked at this yet" and "something looked and
+ * found nothing to say", and those call for different words and different
+ * offers. With a flag, the Security tab said "nothing has verified it yet" for
+ * both, and a verification that came back empty left the user with no way to
+ * know it had run and no way to ask again.
+ */
+enum class EMailVerifyState : uint8_t {
+  kNOT_ATTEMPTED = 0,  ///< no verification has run against this document
+  kATTEMPTED_EMPTY,    ///< one ran and produced no results
+  kVERIFIED,           ///< one ran and produced results
+};
+
+/**
  * @brief What an OpenPGP message claims to be, judged from structure alone.
  *
  * Derived by walking content types; no cryptography and no network. It exists
