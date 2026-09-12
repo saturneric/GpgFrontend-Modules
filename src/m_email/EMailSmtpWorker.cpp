@@ -122,7 +122,10 @@ EMailSmtpWorker::~EMailSmtpWorker() = default;
 void EMailSmtpWorker::TestConnection(quint64 seq,
                                      const MailAccountConfig& account,
                                      QString password) {
-  token_->Reset();
+  // Announces the operation rather than clearing the token: a stop issued
+  // while this request was still queued was aimed at THIS operation and must
+  // survive until the guard below sees it.
+  token_->Begin(seq);
   EMailTlsSetup::ClearLastSeen();
 
   const auto& config = account.smtp;
@@ -132,6 +135,16 @@ void EMailSmtpWorker::TestConnection(quint64 seq,
       QString("%1:%2").arg(config.host).arg(config.EffectivePort(false));
   receipt.security = SecurityLabel(config.tls);
 
+
+  // A stop that arrived while this request was still queued applies to it.
+  // Nothing has been written yet, so this is a clean stop with nothing in
+  // doubt -- unlike one that lands after the body is on the wire.
+  if (token_->IsCancelled()) {
+    password.fill(QChar('\0'));
+    receipt.error = MailCancelledError();
+    emit SignalFinished(seq, receipt);
+    return;
+  }
   const auto cleartext = config.tls == MailTlsMode::kNONE;
   if (cleartext && !MailHostAllowsCleartext(config.host)) {
     password.fill(QChar('\0'));
@@ -192,7 +205,7 @@ void EMailSmtpWorker::TestConnection(quint64 seq,
 void EMailSmtpWorker::Submit(quint64 seq, const MailAccountConfig& account,
                              QString password,
                              const EMailOutgoingMessage& message) {
-  token_->Reset();
+  token_->Begin(seq);
   EMailTlsSetup::ClearLastSeen();
 
   const auto& config = account.smtp;
@@ -203,6 +216,16 @@ void EMailSmtpWorker::Submit(quint64 seq, const MailAccountConfig& account,
       QString("%1:%2").arg(config.host).arg(config.EffectivePort(false));
   receipt.security = SecurityLabel(config.tls);
 
+
+  // A stop that arrived while this request was still queued applies to it.
+  // Nothing has been written yet, so this is a clean stop with nothing in
+  // doubt -- unlike one that lands after the body is on the wire.
+  if (token_->IsCancelled()) {
+    password.fill(QChar('\0'));
+    receipt.error = MailCancelledError();
+    emit SignalFinished(seq, receipt);
+    return;
+  }
   const auto cleartext = config.tls == MailTlsMode::kNONE;
   if (cleartext && !MailHostAllowsCleartext(config.host)) {
     password.fill(QChar('\0'));

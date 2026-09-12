@@ -247,30 +247,44 @@ struct EMailImapWorker::Impl {
 
 /// Consumes a cancellation when the operation it was aimed at ends.
 ///
-/// A stop applies to the request in flight, not to the session. The only
-/// Reset() used to be in Connect(), so one press of Stop left the token set
-/// for the life of the connection and every later request failed as
-/// kCANCELLED -- the browser went silently dead until the account was
-/// switched. Resetting on the way out still honours a cancellation queued
-/// before the slot ran: the slot observes it first, this only clears it after.
+/// A stop applies to the request it was aimed at, not to the session.
+///
+/// This used to be done by clearing a shared flag on the way out of every
+/// slot, which got both ends wrong: a stop pressed while a request was still
+/// queued was wiped before the slot could see it, and a stop left over from a
+/// finished request could still be sitting there for the next one. The token
+/// is scoped by sequence number instead, so announcing the operation here is
+/// all that is needed -- see EMailCancelToken.
 class CancelScope {
  public:
-  CancelScope(EMailCancelTokenPtr token,
+  CancelScope(EMailCancelTokenPtr token, quint64 seq,
               vmime::shared_ptr<EMailTimeoutHandlerFactory> timeouts)
-      : token_(std::move(token)), timeouts_(std::move(timeouts)) {}
+      : token_(std::move(token)), timeouts_(std::move(timeouts)) {
+    if (token_) token_->Begin(seq);
+  }
 
   /// For a slot that REPLACES the timeout factory while it runs -- Connect
   /// closes the old session, which drops it, and installs a new one. Taking
   /// the factory by value there would capture the one being thrown away and
   /// leave the new one's cancelled flag set for the next operation to trip
   /// over, so this form reads the member at destruction instead.
-  CancelScope(EMailCancelTokenPtr token,
+  CancelScope(EMailCancelTokenPtr token, quint64 seq,
               vmime::shared_ptr<EMailTimeoutHandlerFactory>* timeouts)
-      : token_(std::move(token)), timeouts_slot_(timeouts) {}
+      : token_(std::move(token)), timeouts_slot_(timeouts) {
+    if (token_) token_->Begin(seq);
+  }
+
+  /// Whether this operation has been stopped. Checked at slot entry, because a
+  /// stop can arrive before the slot runs and there is no point opening a
+  /// socket for work nobody wants any more.
+  [[nodiscard]] auto Cancelled() const -> bool {
+    return token_ && token_->IsCancelled();
+  }
 
   ~CancelScope() {
-    if (token_) token_->Reset();
-
+    // The token is NOT cleared here: it clears itself when the next operation
+    // announces a higher sequence number. Only the timeout factory's record of
+    // "the last stop was deliberate" belongs to this operation.
     const auto& timeouts =
         timeouts_slot_ != nullptr ? *timeouts_slot_ : timeouts_;
     if (timeouts) timeouts->ClearLastCancelled();
@@ -300,7 +314,6 @@ EMailImapWorker::~EMailImapWorker() {
 void EMailImapWorker::Connect(quint64 seq, const MailAccountConfig& account,
                               QString password) {
   impl_->Close();
-  token_->Reset();
 
   // Reset on the way in AND cleared on the way out, like every other slot
   // here. Without the scope, a Stop pressed during a connect left the token
@@ -310,7 +323,14 @@ void EMailImapWorker::Connect(quint64 seq, const MailAccountConfig& account,
   //
   // By address, because the factory this slot ends up owning is not the one it
   // starts with.
-  const CancelScope cancel_scope(token_, &impl_->timeouts);
+  const CancelScope cancel_scope(token_, seq, &impl_->timeouts);
+
+  // A stop that arrived while this request was still queued applies to it:
+  // there is no point opening a socket for work nobody wants any more.
+  if (cancel_scope.Cancelled()) {
+    emit SignalFailed(seq, MailCancelledError());
+    return;
+  }
 
   EMailTlsSetup::ClearLastSeen();
   impl_->account = account;
@@ -373,7 +393,14 @@ void EMailImapWorker::Connect(quint64 seq, const MailAccountConfig& account,
 namespace {}  // namespace
 
 void EMailImapWorker::ListFolders(quint64 seq) {
-  const CancelScope cancel_scope(token_, impl_->timeouts);
+  const CancelScope cancel_scope(token_, seq, impl_->timeouts);
+
+  // A stop that arrived while this request was still queued applies to it:
+  // there is no point opening a socket for work nobody wants any more.
+  if (cancel_scope.Cancelled()) {
+    emit SignalFailed(seq, MailCancelledError());
+    return;
+  }
 
   if (!impl_->store) {
     emit SignalFailed(seq, MailInternalError("not connected"));
@@ -468,7 +495,14 @@ auto SummarizeMessage(const vmime::shared_ptr<vmime::net::message>& message)
 void EMailImapWorker::ListMessages(quint64 seq, const QString& folder_path,
                                    quint64 before_uid, int page_size,
                                    int retained) {
-  const CancelScope cancel_scope(token_, impl_->timeouts);
+  const CancelScope cancel_scope(token_, seq, impl_->timeouts);
+
+  // A stop that arrived while this request was still queued applies to it:
+  // there is no point opening a socket for work nobody wants any more.
+  if (cancel_scope.Cancelled()) {
+    emit SignalFailed(seq, MailCancelledError());
+    return;
+  }
 
   try {
     auto folder = OpenFolderReadOnly(folder_path);
@@ -541,7 +575,14 @@ void EMailImapWorker::ListMessages(quint64 seq, const QString& folder_path,
 
 void EMailImapWorker::SearchMessages(quint64 seq, const QString& folder_path,
                                      const QString& query, int page_size) {
-  const CancelScope cancel_scope(token_, impl_->timeouts);
+  const CancelScope cancel_scope(token_, seq, impl_->timeouts);
+
+  // A stop that arrived while this request was still queued applies to it:
+  // there is no point opening a socket for work nobody wants any more.
+  if (cancel_scope.Cancelled()) {
+    emit SignalFailed(seq, MailCancelledError());
+    return;
+  }
 
   try {
     auto folder = OpenFolderReadOnly(folder_path);
@@ -631,7 +672,14 @@ void EMailImapWorker::SearchMessages(quint64 seq, const QString& folder_path,
 
 void EMailImapWorker::FetchMessage(quint64 seq, const QString& folder_path,
                                    quint64 number) {
-  const CancelScope cancel_scope(token_, impl_->timeouts);
+  const CancelScope cancel_scope(token_, seq, impl_->timeouts);
+
+  // A stop that arrived while this request was still queued applies to it:
+  // there is no point opening a socket for work nobody wants any more.
+  if (cancel_scope.Cancelled()) {
+    emit SignalFailed(seq, MailCancelledError());
+    return;
+  }
 
   try {
     auto folder = OpenFolderReadOnly(folder_path);
@@ -690,7 +738,14 @@ void EMailImapWorker::FetchMessage(quint64 seq, const QString& folder_path,
 }
 
 void EMailImapWorker::FindInSentFolder(quint64 seq, const QString& message_id) {
-  const CancelScope cancel_scope(token_, impl_->timeouts);
+  const CancelScope cancel_scope(token_, seq, impl_->timeouts);
+
+  // A stop that arrived while this request was still queued applies to it:
+  // there is no point opening a socket for work nobody wants any more.
+  if (cancel_scope.Cancelled()) {
+    emit SignalFailed(seq, MailCancelledError());
+    return;
+  }
 
   try {
     const auto path = ResolveSentFolder();
@@ -781,7 +836,14 @@ auto SentFolderHolds(const vmime::shared_ptr<vmime::net::folder>& folder,
 
 void EMailImapWorker::SaveToSentFolder(quint64 seq, const QString& message_id,
                                        const QByteArray& eml) {
-  const CancelScope cancel_scope(token_, impl_->timeouts);
+  const CancelScope cancel_scope(token_, seq, impl_->timeouts);
+
+  // A stop that arrived while this request was still queued applies to it:
+  // there is no point opening a socket for work nobody wants any more.
+  if (cancel_scope.Cancelled()) {
+    emit SignalFailed(seq, MailCancelledError());
+    return;
+  }
 
   vmime::shared_ptr<vmime::net::folder> folder;
 
