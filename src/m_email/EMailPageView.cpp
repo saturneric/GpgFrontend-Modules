@@ -1356,38 +1356,52 @@ void EMailPageView::refresh_security_button() {
 }
 
 auto EMailPageView::AvailableCryptoOperations() -> QStringList {
-  // Deliberately permissive. This decides what the menu bar ALLOWS, which is
-  // a different question from what the security button's menu SUGGESTS: the
-  // menu names the obvious next step, this rules out only what cannot work.
+  // What the menu bar may offer for the message as it stands.
   //
-  // In particular a message whose MIME structure is plain is not necessarily
-  // free of OpenPGP -- an inline armored block in the body is ordinary, and
-  // the module's decrypt and verify handle it. Structure alone cannot see
-  // that, so "plain" must not withdraw those operations.
-  static const QStringList kAll = {"sign",   "encrypt", "encrypt_sign",
-                                   "verify", "decrypt", "decrypt_verify"};
-  static const QStringList kReading = {"verify", "decrypt", "decrypt_verify"};
+  // Structure decides this, because structure is what the operations
+  // themselves require: VerifyEMLData refuses anything that is not
+  // multipart/signed and DecryptEMLData anything that is not
+  // multipart/encrypted, both before any cryptography happens. Offering an
+  // operation that is going to be refused on those grounds turns a menu into
+  // a guessing game and answers a mistake with a security report.
+  //
+  // There is no inline-OpenPGP path here: an armored block sitting in a body
+  // is not something this module's handlers accept, so a plain message really
+  // does have nothing to decrypt or verify.
+  QStringList reading;
+  QStringList producing;
 
-  QStringList operations = kAll;
+  switch (security_state_) {
+    case EMailSecurityState::kPLAIN:
+      producing << "sign" << "encrypt" << "encrypt_sign";
+      break;
 
-  if (security_state_ == EMailSecurityState::kENCRYPTED ||
-      security_state_ == EMailSecurityState::kSIGNED_ENCRYPTED) {
-    // The one case where the rest genuinely cannot apply: nobody has read this
-    // yet. Signing or re-encrypting ciphertext says nothing about what is
-    // inside it, so only opening it is on offer.
-    operations = {"decrypt", "decrypt_verify"};
+    case EMailSecurityState::kSIGNED:
+      reading << "verify";
+      // Signing again, or wrapping the signed message in encryption, are both
+      // ordinary things to do to a signed message -- neither touches the
+      // content the existing signature covers.
+      producing << "sign" << "encrypt" << "encrypt_sign";
+      break;
+
+    case EMailSecurityState::kENCRYPTED:
+    case EMailSecurityState::kSIGNED_ENCRYPTED:
+      // Nothing else can be done with a message nobody has read yet. Signing
+      // or re-encrypting ciphertext says nothing about what is inside it.
+      reading << "decrypt" << "decrypt_verify";
+      break;
+
+    case EMailSecurityState::kMALFORMED_PGP:
+      // It claims to be OpenPGP and is not quite. Both are offered because
+      // the refusal is itself the diagnosis, and it names what is wrong.
+      reading << "verify" << "decrypt";
+      break;
   }
-
-  if (!forensic_) return operations;
 
   // A document locked for inspection does not change, and every operation
   // that PRODUCES a message rewrites this tab. Reading one does not, by the
   // same rule that keeps Reply and Forward available on a forensic message.
-  QStringList reading;
-  for (const auto& operation : operations) {
-    if (kReading.contains(operation)) reading.append(operation);
-  }
-  return reading;
+  return forensic_ ? reading : reading + producing;
 }
 
 void EMailPageView::rebuild_security_menu() {
