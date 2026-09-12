@@ -58,7 +58,11 @@
 #include "EMailPageView.h"
 
 // vmime
+// The test target defines this on the command line; the module build does
+// not, so it is set here and guarded rather than assumed either way.
+#ifndef VMIME_STATIC
 #define VMIME_STATIC
+#endif
 #include <algorithm>
 #include <vmime/vmime.hpp>
 
@@ -773,7 +777,7 @@ REGISTER_EVENT_HANDLER(
 
       EMailMetaData meta_data;
       QString error_string;
-      int result_status;
+      int result_status = 0;
       QString result_detail;
       QString result_cards;
       if (DoVerifyEMLData(channel, data, event, result_status, result_detail,
@@ -924,7 +928,7 @@ REGISTER_EVENT_HANDLER(
       auto data = QByteArray::fromBase64(QString(event["data"]).toLatin1());
 
       QString eml_data;
-      int result_status;
+      int result_status = 0;
       QString result_detail;
       QString result_cards;
       EMailMetaData meta_data;
@@ -1291,7 +1295,7 @@ REGISTER_EVENT_HANDLER(
       vmime::shared_ptr<vmime::message> message;
       if (CheckIfEMLMessage(body_data, message)) {
         QString eml_data;
-        int result_status;
+        int result_status = 0;
         QString result_detail;
         QString result_cards;
         if (DoEncryptEMLData(channel, encrypt_keys, message, body_data, event,
@@ -1319,7 +1323,7 @@ REGISTER_EVENT_HANDLER(
       const auto meta_data = EnvelopeFromKeys(channel, {}, encrypt_keys);
 
       QString eml_data;
-      int result_status;
+      int result_status = 0;
       QString result_detail;
       QString result_cards;
       if (DoEncryptPlainText(channel, encrypt_keys, meta_data, body_data, event,
@@ -1350,7 +1354,7 @@ auto DoEncryptSignEMLData(int channel, const QStringList& encrypt_keys,
                           const QString& sign_key,
                           vmime::shared_ptr<vmime::message>& message,
                           QByteArray& body_data, const MEvent& event,
-                          int result_status, QString& result_detail,
+                          int& result_status, QString& result_detail,
                           QString& result_cards, QString& eml_data) -> int {
   QString sign_cards;
   if (DoSignEMLData(channel, sign_key, message, body_data, event, result_status,
@@ -1361,7 +1365,7 @@ auto DoEncryptSignEMLData(int channel, const QStringList& encrypt_keys,
   body_data = eml_data.toLatin1();
   eml_data.clear();
 
-  int t_result_status;
+  int t_result_status = 0;
   QString t_result_detail;
   QString encrypt_cards;
 
@@ -1375,7 +1379,13 @@ auto DoEncryptSignEMLData(int channel, const QStringList& encrypt_keys,
                               event, t_result_status, t_result_detail,
                               encrypt_cards, eml_data);
 
-  result_status = std::min(t_result_status, result_status);
+  // The callee has already reported every failure of its own through CB, and
+  // leaves t_result_status untouched on the earliest of those paths.
+  // Aggregating there would read an uninitialised value and overwrite a status
+  // that has already been sent.
+  if (ret != kSUCCESS) return ret;
+
+  result_status = WorseStatus(t_result_status, result_status);
   result_detail = t_result_detail + "\n\n" + result_detail;
   result_cards = MergeCardArrays(encrypt_cards, sign_cards);
   return ret;
@@ -1397,7 +1407,7 @@ auto DoEncryptSignPlainText(int channel, const QStringList& encrypt_keys,
   body_data = eml_data.toLatin1();
   eml_data.clear();
 
-  int t_result_status;
+  int t_result_status = 0;
   QString t_result_detail;
   QString encrypt_cards;
 
@@ -1411,7 +1421,13 @@ auto DoEncryptSignPlainText(int channel, const QStringList& encrypt_keys,
                               event, t_result_status, t_result_detail,
                               encrypt_cards, eml_data);
 
-  result_status = std::min(t_result_status, result_status);
+  // The callee has already reported every failure of its own through CB, and
+  // leaves t_result_status untouched on the earliest of those paths.
+  // Aggregating there would read an uninitialised value and overwrite a status
+  // that has already been sent.
+  if (ret != kSUCCESS) return ret;
+
+  result_status = WorseStatus(t_result_status, result_status);
   result_detail = t_result_detail + "\n" + result_detail;
   result_cards = MergeCardArrays(encrypt_cards, sign_cards);
   return ret;
@@ -1510,7 +1526,7 @@ auto DoDecryptVerifyEMLData(int channel, const QByteArray& data,
     return -1;
   }
 
-  int t_result_status;
+  int t_result_status = 0;
   QString t_result_detail;
   QString verify_cards;
 
@@ -1520,7 +1536,7 @@ auto DoDecryptVerifyEMLData(int channel, const QByteArray& data,
     return -1;
   }
 
-  result_status = std::min(t_result_status, result_status);
+  result_status = WorseStatus(t_result_status, result_status);
   result_detail = t_result_detail + "\n" + result_detail;
   result_cards = MergeCardArrays(verify_cards, decrypt_cards);
 
@@ -1542,7 +1558,7 @@ REGISTER_EVENT_HANDLER(
       QString eml_data;
       EMailMetaData meta_data;
       QString error_string;
-      int result_status;
+      int result_status = 0;
       QString result_detail;
       QString result_cards;
 

@@ -28,11 +28,15 @@
 
 #include "EMailHeaderView.h"
 
-#include <QComboBox>
+#include <QApplication>
+#include <QClipboard>
 #include <QFontDatabase>
 #include <QHBoxLayout>
+#include <QHeaderView>
 #include <QLabel>
-#include <QPlainTextEdit>
+#include <QLineEdit>
+#include <QMenu>
+#include <QTreeWidget>
 #include <QVBoxLayout>
 
 #include "EMailHelper.h"
@@ -40,11 +44,13 @@
 
 namespace {
 
-enum HeaderMode : int { kBASIC = 0, kFULL = 1, kRAW = 2 };
+enum HeaderColumn : int { kCOL_NAME = 0, kCOL_VALUE = 1 };
 
-// The fields that answer "who sent this, to whom, when and about what".
-auto BasicFieldNames() -> QStringList {
-  return {"From", "To", "Cc", "Bcc", "Reply-To", "Subject", "Date"};
+// The exact bytes of a field, for the tooltip. Latin-1 rather than UTF-8 on
+// purpose: every byte maps to exactly one character, so nothing is replaced or
+// merged and what is on screen is what is in the file.
+auto AsExactText(const QByteArray& bytes) -> QString {
+  return QString::fromLatin1(bytes);
 }
 
 }  // namespace
@@ -61,42 +67,60 @@ void EMailHeaderView::build_ui() {
   auto* row = new QHBoxLayout();
   row->setContentsMargins(0, 0, 0, 0);
 
-  auto* caption = new QLabel(tr("Show:"), this);
-  {
-    auto palette = caption->palette();
-    palette.setColor(QPalette::WindowText, EMailMutedColor(this));
-    caption->setPalette(palette);
-  }
-  row->addWidget(caption);
-
-  mode_ = new QComboBox(this);
-  mode_->addItem(tr("Basic"), kBASIC);
-  mode_->addItem(tr("Full"), kFULL);
-  mode_->addItem(tr("Raw"), kRAW);
-  mode_->setToolTip(
-      tr("Basic and Full are decoded for reading. Raw is the original bytes, "
-         "exactly as they arrived."));
-  row->addWidget(mode_);
-  row->addStretch();
+  filter_ = new QLineEdit(this);
+  filter_->setClearButtonEnabled(true);
+  filter_->setPlaceholderText(tr("Filter headers"));
+  filter_->setToolTip(
+      tr("Show only the headers whose name or value contains this text."));
+  row->addWidget(filter_);
   layout->addLayout(row);
 
-  text_ = new QPlainTextEdit(this);
-  text_->setReadOnly(true);
-  text_->setLineWrapMode(QPlainTextEdit::NoWrap);
-  // Headers are column-sensitive: folding and continuation lines only read
-  // correctly in a fixed-width face.
-  text_->setFont(QFontDatabase::systemFont(QFontDatabase::FixedFont));
-  layout->addWidget(text_, 1);
+  tree_ = new QTreeWidget(this);
+  tree_->setColumnCount(2);
+  tree_->setHeaderLabels({tr("Name"), tr("Value")});
+  tree_->setRootIsDecorated(false);
+  tree_->setAlternatingRowColors(true);
+  tree_->setUniformRowHeights(true);
+  tree_->setSelectionBehavior(QAbstractItemView::SelectRows);
+  tree_->setTextElideMode(Qt::ElideRight);
+  tree_->header()->setSectionResizeMode(kCOL_NAME,
+                                        QHeaderView::ResizeToContents);
+  tree_->header()->setSectionResizeMode(kCOL_VALUE, QHeaderView::Stretch);
+  tree_->setContextMenuPolicy(Qt::CustomContextMenu);
+  layout->addWidget(tree_, 1);
 
-  connect(mode_, &QComboBox::currentIndexChanged, this,
-          [this](int) { refresh(); });
+  empty_notice_ = new QLabel(this);
+  empty_notice_->setAlignment(Qt::AlignCenter);
+  empty_notice_->setVisible(false);
+  {
+    auto palette = empty_notice_->palette();
+    palette.setColor(QPalette::WindowText, EMailMutedColor(this));
+    empty_notice_->setPalette(palette);
+  }
+  layout->addWidget(empty_notice_);
+
+  connect(filter_, &QLineEdit::textChanged, this,
+          [this](const QString&) { apply_filter(); });
+
+  connect(tree_, &QTreeWidget::customContextMenuRequested, this,
+          [this](const QPoint& pos) {
+            if (tree_->itemAt(pos) == nullptr) return;
+
+            QMenu menu(this);
+            auto* copy_value = menu.addAction(tr("Copy Value"));
+            auto* copy_field = menu.addAction(tr("Copy Whole Field"));
+            auto* chosen = menu.exec(tree_->viewport()->mapToGlobal(pos));
+            if (chosen == copy_value) copy_selected(false);
+            if (chosen == copy_field) copy_selected(true);
+          });
 }
 
 void EMailHeaderView::Clear() {
   loaded_ = false;
   root_ = EMailPart{};
   raw_.clear();
-  text_->clear();
+  tree_->clear();
+  refresh();
 }
 
 void EMailHeaderView::SetMessage(const EMailPart& root, const QByteArray& raw) {
@@ -107,45 +131,92 @@ void EMailHeaderView::SetMessage(const EMailPart& root, const QByteArray& raw) {
 }
 
 void EMailHeaderView::refresh() {
+  tree_->clear();
+
   if (!loaded_) {
-    text_->clear();
+    empty_notice_->setText(tr("No message is open."));
+    empty_notice_->setVisible(true);
+    tree_->setVisible(false);
+    filter_->setEnabled(false);
     return;
   }
 
-  const auto mode = mode_->currentData().toInt();
+  const auto block = RawHeaderBlock(root_, raw_);
+  const auto fields = SplitRawHeaderFields(block);
 
-  if (mode == kRAW) {
-    // Straight from the original bytes. Decoded as Latin-1 rather than UTF-8
-    // on purpose: every byte maps to exactly one character, so nothing is
-    // replaced or merged and what is on screen is what is in the file.
-    const auto block = RawHeaderBlock(root_, raw_);
-    if (block.isEmpty()) {
-      text_->setPlainText(tr("The raw header block is not available."));
-      return;
+  // The decoded reading, which only lines up field for field when the parser
+  // and the raw split agree on how many there are. When they do not, the bytes
+  // are the answer that can still be trusted.
+  const bool decoded_aligns = fields.size() == root_.header_fields.size();
+
+  for (int i = 0; i < fields.size(); ++i) {
+    const auto& field = fields.at(i);
+
+    // A line that is not `name: value` at all. Shown as it stands rather than
+    // dropped -- it is exactly what someone reading raw headers is looking for.
+    const bool malformed = field.name.isEmpty();
+
+    const auto decoded = decoded_aligns && !malformed
+                             ? root_.header_fields.at(i).second
+                             : AsExactText(field.value);
+
+    auto* item = new QTreeWidgetItem(tree_);
+    item->setText(kCOL_NAME, malformed ? tr("(malformed)") : field.name);
+    item->setText(kCOL_VALUE, decoded);
+
+    // The exact field, folds and encoding included, is always one hover away.
+    item->setToolTip(kCOL_NAME, AsExactText(field.raw_line));
+    item->setToolTip(kCOL_VALUE, AsExactText(field.raw_line));
+
+    if (malformed) {
+      item->setForeground(kCOL_NAME, EMailWarningColor(this));
+    } else {
+      item->setFont(kCOL_NAME,
+                    QFontDatabase::systemFont(QFontDatabase::FixedFont));
     }
-    text_->setPlainText(QString::fromLatin1(block));
-    return;
+
+    // Kept on the row so filtering and copying read what the message says,
+    // never what the column happens to be showing after elision.
+    item->setData(kCOL_NAME, Qt::UserRole, AsExactText(field.raw_line));
+    item->setData(kCOL_VALUE, Qt::UserRole, AsExactText(field.value));
   }
 
-  const auto basic = BasicFieldNames();
-  QStringList lines;
-  for (const auto& field : root_.header_fields) {
-    if (mode == kBASIC) {
-      bool wanted = false;
-      for (const auto& name : basic) {
-        if (field.first.compare(name, Qt::CaseInsensitive) == 0) wanted = true;
-      }
-      if (!wanted) continue;
-    }
-    // Repeated fields are listed once per occurrence rather than merged: a
-    // duplicated header is itself worth seeing.
-    lines.append(QString("%1: %2").arg(field.first, field.second));
+  filter_->setEnabled(tree_->topLevelItemCount() > 0);
+  apply_filter();
+}
+
+void EMailHeaderView::apply_filter() {
+  const auto needle = filter_->text().trimmed();
+
+  int shown = 0;
+  for (int i = 0; i < tree_->topLevelItemCount(); ++i) {
+    auto* item = tree_->topLevelItem(i);
+    const bool match =
+        needle.isEmpty() ||
+        item->text(kCOL_NAME).contains(needle, Qt::CaseInsensitive) ||
+        item->text(kCOL_VALUE).contains(needle, Qt::CaseInsensitive) ||
+        item->data(kCOL_NAME, Qt::UserRole)
+            .toString()
+            .contains(needle, Qt::CaseInsensitive);
+    item->setHidden(!match);
+    if (match) shown++;
   }
 
-  if (lines.isEmpty()) {
-    text_->setPlainText(tr("This message has no headers to show."));
-    return;
+  const bool empty = tree_->topLevelItemCount() == 0;
+  tree_->setVisible(!empty && shown > 0);
+  empty_notice_->setVisible(empty || shown == 0);
+  if (empty) {
+    empty_notice_->setText(tr("This message has no headers to show."));
+  } else if (shown == 0) {
+    empty_notice_->setText(tr("No headers match."));
   }
+}
 
-  text_->setPlainText(lines.join("\n"));
+void EMailHeaderView::copy_selected(bool whole_field) {
+  auto* item = tree_->currentItem();
+  if (item == nullptr) return;
+
+  const auto role = whole_field ? kCOL_NAME : kCOL_VALUE;
+  // The message's own bytes, not the elided text the column is showing.
+  QApplication::clipboard()->setText(item->data(role, Qt::UserRole).toString());
 }

@@ -32,7 +32,11 @@
 #include <atomic>
 #include <memory>
 
+// The test target defines this on the command line; the module build does
+// not, so it is set here and guarded rather than assumed either way.
+#ifndef VMIME_STATIC
 #define VMIME_STATIC
+#endif
 #include <vmime/vmime.hpp>
 
 /**

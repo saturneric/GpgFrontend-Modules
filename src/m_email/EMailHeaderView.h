@@ -32,20 +32,24 @@
 
 #include "EMailModel.h"
 
-class QPlainTextEdit;
-class QComboBox;
+class QLineEdit;
+class QTreeWidget;
+class QLabel;
 
 /**
- * @brief The message's headers, at three levels of fidelity.
+ * @brief The message's headers, as one searchable list.
  *
- * Basic and Full are decoded, human-facing renderings. Raw is the original
- * byte slice and nothing else: header order, folding, duplicates and encoding
- * exactly as the sender wrote them.
- *
- * That distinction is the whole point of the view. A "raw" mode fed by a
- * reserialization would show vmime's idea of the headers -- reordered, refolded
- * and re-encoded -- while claiming to show the sender's, which is precisely the
+ * Rows come from the ORIGINAL bytes rather than from a reserialization, so
+ * order, folding, duplicates and encoding are the sender's and not vmime's.
+ * That distinction is the whole point of the view: a header list fed by a
+ * round trip shows the parser's idea of the headers -- reordered, refolded and
+ * re-encoded -- while claiming to show the sender's, which is precisely the
  * evidence header forensics depends on.
+ *
+ * Each row therefore carries both readings: the decoded value, which is what
+ * the field means, and the exact bytes it was written as, which is what it
+ * says. They are shown together rather than behind a mode switch, because the
+ * question "do these two disagree?" is the one worth being able to ask.
  */
 class EMailHeaderView : public QWidget {
   Q_OBJECT
@@ -56,8 +60,8 @@ class EMailHeaderView : public QWidget {
   /**
    * @brief Shows the headers of @p root.
    *
-   * @param root the parsed tree; its header_fields feed Basic and Full
-   * @param raw the ORIGINAL message bytes, which feed Raw verbatim
+   * @param root the parsed tree; its header_fields supply the decoded reading
+   * @param raw the ORIGINAL message bytes, which supply the rows themselves
    */
   void SetMessage(const EMailPart& root, const QByteArray& raw);
 
@@ -67,9 +71,15 @@ class EMailHeaderView : public QWidget {
  private:
   void build_ui();
   void refresh();
+  /// Hides the rows that do not match the filter, and shows the placeholder
+  /// when that leaves nothing. Never rebuilds: filtering is a view choice and
+  /// must not be able to change what is in the list.
+  void apply_filter();
+  void copy_selected(bool whole_field);
 
-  QComboBox* mode_{};
-  QPlainTextEdit* text_{};
+  QLineEdit* filter_{};
+  QTreeWidget* tree_{};
+  QLabel* empty_notice_{};
 
   EMailPart root_;
   QByteArray raw_;
