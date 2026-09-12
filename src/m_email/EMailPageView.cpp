@@ -30,7 +30,9 @@
 
 #include <GFSDKGpg.h>
 
+#include <QAbstractItemView>
 #include <QApplication>
+#include <QCompleter>
 #include <QDir>
 #include <QDragEnterEvent>
 #include <QDropEvent>
@@ -77,15 +79,103 @@ namespace {
 constexpr double kLockedTint = 0.10;
 constexpr double kLockedFieldTint = 0.05;
 
-/// @p a mixed with @p b, @p t of the way towards @p b.
-///
-/// Mixed rather than given an alpha: these colours are painted onto widgets
-/// that fill their own background, where a translucent brush composites
-/// against whatever Qt last drew there instead of against the page.
-auto Blend(const QColor& a, const QColor& b, double t) -> QColor {
-  return QColor::fromRgbF(a.redF() * (1 - t) + b.redF() * t,
-                          a.greenF() * (1 - t) + b.greenF() * t,
-                          a.blueF() * (1 - t) + b.blueF() * t);
+/// Names the completer so it can be found again on the line edit it belongs
+/// to. Needed because a multi-value completer is not reachable through
+/// QLineEdit::completer(): it is driven by hand and only parented to the edit.
+constexpr auto kCompleterName = "EMailAddressCompleter";
+
+/// Property holding the option list a completer was built from, so an
+/// unchanged keyring rebuilds nothing.
+constexpr auto kCompleterOptions = "EMailAddressCompleterOptions";
+
+/**
+ * @brief Offers @p options on @p edit as the user types.
+ *
+ * @param multi the field holds a ';'-separated list, so completion applies to
+ *        the entry being typed rather than to the whole line. Without this the
+ *        completer matches against "alice@x.org; bo" and never fires again
+ *        after the first address.
+ *
+ * Case-insensitive and matching anywhere in the entry, not just at the start:
+ * people remember a correspondent by name or by domain at least as often as by
+ * the first letter of their local part.
+ */
+void InstallAddressCompleter(QLineEdit* edit, const QStringList& options,
+                             bool multi) {
+  if (edit == nullptr) return;
+
+  // Nothing is rebuilt unless the keyring actually changed. This runs on every
+  // focus, and tearing a completer down and building it back identical is both
+  // wasted work and a chance to destroy one that is in use.
+  const auto fingerprint = options.join('\n');
+  if (edit->property(kCompleterOptions) == fingerprint) return;
+  edit->setProperty(kCompleterOptions, fingerprint);
+
+  // Two different ownerships have to be undone here, and getting either wrong
+  // is a crash rather than a leak.
+  //
+  // setCompleter(nullptr) DELETES the completer outright when the line edit is
+  // its parent, which ours is -- so the old pointer is dangling the instant
+  // this returns and must not be touched again.
+  if (edit->completer() != nullptr) edit->setCompleter(nullptr);
+
+  // A hand-driven completer was never handed to setCompleter() at all, so the
+  // call above knows nothing about it. It is found by name and deleted here.
+  if (auto* previous = edit->findChild<QCompleter*>(
+          kCompleterName, Qt::FindDirectChildrenOnly)) {
+    delete previous;
+  }
+
+  if (options.isEmpty()) return;
+
+  auto* completer = new QCompleter(options, edit);
+  completer->setObjectName(kCompleterName);
+  completer->setCaseSensitivity(Qt::CaseInsensitive);
+  completer->setFilterMode(Qt::MatchContains);
+  completer->setCompletionMode(QCompleter::PopupCompletion);
+
+  if (!multi) {
+    edit->setCompleter(completer);
+    return;
+  }
+
+  // A multi-value field drives its completer by hand. QCompleter has no notion
+  // of a separator, so the prefix is set from the entry under the cursor and
+  // the chosen value is written back over just that entry.
+  completer->setWidget(edit);
+
+  QObject::connect(edit, &QLineEdit::textEdited, completer,
+                   [edit, completer](const QString& text) {
+                     const auto start = text.lastIndexOf(';') + 1;
+                     const auto entry = text.mid(start).trimmed();
+                     if (entry.isEmpty()) {
+                       completer->popup()->hide();
+                       return;
+                     }
+                     completer->setCompletionPrefix(entry);
+                     if (completer->completionCount() == 0) {
+                       completer->popup()->hide();
+                       return;
+                     }
+                     completer->complete();
+                   });
+
+  QObject::connect(completer,
+                   QOverload<const QString&>::of(&QCompleter::activated), edit,
+                   [edit](const QString& chosen) {
+                     const auto text = edit->text();
+                     const auto start = text.lastIndexOf(';') + 1;
+                     // The separator and the spacing around it are the field's,
+                     // not the entry's, so everything up to and including the
+                     // last ';' is kept exactly as the user left it.
+                     auto head = text.left(start);
+                     if (!head.isEmpty() && !head.endsWith(' ')) head += ' ';
+                     edit->setText(head + chosen);
+                     // Emitted by hand: setText() is a programmatic change and
+                     // does not raise textEdited, which is what the Send state
+                     // listens on.
+                     emit edit->textChanged(edit->text());
+                   });
 }
 
 // Shared with the other views in this module; see EMailViewStyle.h.
@@ -93,6 +183,7 @@ const auto& ThemeColor = EMailThemeColor;
 const auto& MutedColor = EMailMutedColor;
 const auto& AccentColor = EMailAccentColor;
 const auto& HumanSize = EMailHumanSize;
+const auto& Blend = EMailBlend;
 
 /**
  * @brief A tool button sized by its full text, drawn with as much of it as
@@ -251,6 +342,21 @@ auto EMailPageView::build_message_tab() -> QWidget* {
   cc_edit_ = new QLineEdit(this);
   bcc_edit_ = new QLineEdit(this);
   subject_edit_ = new QLineEdit(this);
+
+  // Send follows what is actually in the fields, so the reason it is off is
+  // never one edit out of date.
+  for (auto* edit :
+       {from_edit_, to_edit_, cc_edit_, bcc_edit_, subject_edit_}) {
+    connect(edit, &QLineEdit::textChanged, this,
+            [this]() { refresh_send_state(); });
+  }
+
+  // Rebuilt on entry rather than once at construction: a key imported while
+  // this tab was open should be offered the next time an address is typed,
+  // and the keyring is already in memory so the rebuild costs nothing.
+  for (auto* edit : {from_edit_, to_edit_, cc_edit_, bcc_edit_}) {
+    edit->installEventFilter(this);
+  }
 
   // Separator is shown rather than assumed: the old dialog explained it in a
   // tips label the user had to find first.
@@ -481,28 +587,6 @@ auto EMailPageView::build_message_tab() -> QWidget* {
   body_stack_->addWidget(body_view_);
   body_stack_->addWidget(locked_panel_);
   layout->addWidget(body_stack_, 1);
-
-  // A chip on the existing toolbar row rather than a paragraph under the
-  // message. Both facts are worth stating and neither is worth two lines of
-  // the reading area: the short form sits beside the other status text and
-  // the full explanation is one hover away.
-  body_notice_ = new QLabel(this);
-  body_notice_->setVisible(false);
-  {
-    auto palette = body_notice_->palette();
-    palette.setColor(QPalette::WindowText, MutedColor(this));
-    body_notice_->setPalette(palette);
-    auto font = body_notice_->font();
-    font.setPointSizeF(font.pointSizeF() * 0.92);
-    body_notice_->setFont(font);
-  }
-  // Immediately to the left of the security button, which is the row's
-  // anchor. Named rather than counted from the end: the row has gained and
-  // lost trailing widgets before, and each time the arithmetic moved this.
-  body_row->insertWidget(body_row->indexOf(security_button_), body_notice_);
-
-  connect(body_view_, &EMailBodyView::SignalHtmlShownAsSource, this,
-          [this]() { refresh_body_notice(); });
 
   attachment_heading_ = new QLabel(this);
   {
@@ -806,7 +890,8 @@ void EMailPageView::LoadFromSource(const QByteArray& source) {
   message_ = EMailMetaData{};
 
   vmime::shared_ptr<vmime::message> parsed;
-  if (CheckIfEMLMessage(source, parsed)) {
+  const bool is_eml = CheckIfEMLMessage(source, parsed);
+  if (is_eml) {
     GetEMLMetaData(parsed, message_);
     if (ExtractParts(parsed, message_) != 0) {
       MLogWarn("message exceeds the supported parsing limits");
@@ -820,6 +905,12 @@ void EMailPageView::LoadFromSource(const QByteArray& source) {
   // Set before the inspection views refresh: they read the original bytes, and
   // must read the ones just loaded rather than the previous document's.
   last_source_ = source;
+
+  // Both seeded from the same fact, and then they part company. Only a message
+  // can carry octets a signature covers, so plain text opened in a tab is not
+  // treated as bytes to preserve.
+  source_is_original_ = is_eml;
+  document_is_received_ = is_eml;
 
   refresh_fields();
   refresh_attachments();
@@ -1062,6 +1153,7 @@ void EMailPageView::sync_inspection() {
   // document they are describing. Still dirty: the host has yet to be given
   // these bytes, and only SaveToSource() settles that.
   last_source_ = eml.toUtf8();
+  source_is_original_ = false;
 
   refresh_structure();
   refresh_security_button();
@@ -1301,32 +1393,7 @@ auto EMailPageView::refuse_when_locked(const QString& what) -> bool {
   return false;
 }
 
-/**
- * @brief The one-line note about how this message is being shown.
- *
- * Kept short on purpose. It does not change what the user does next, so it
- * does not earn a paragraph across the width of the message; it is the kind of
- * thing to notice in passing and read only if curious. The wording that
- * explains WHY lives in the tooltip, where it costs nothing.
- */
-void EMailPageView::refresh_body_notice() {
-  if (body_notice_ == nullptr || body_view_ == nullptr) return;
-
-  const bool source = body_view_->ShownAsSource();
-
-  body_notice_->setVisible(source);
-  body_notice_->setText(source ? tr("shown as source") : QString());
-  body_notice_->setToolTip(
-      source ? tr("This message was written as a web page, and this "
-                  "workspace shows plain text. Its source is shown exactly as "
-                  "it arrived: nothing is rendered, nothing is fetched from "
-                  "the internet, and every address is visible as written.")
-             : QString());
-}
-
 void EMailPageView::refresh_body_view() {
-  body_notice_->setVisible(false);
-
   // The plain-text part is the body whenever the message has one, and the
   // choice is the message's own rather than a mode the user picks. Only a
   // message that offers nothing but HTML falls through to its source, which
@@ -1336,16 +1403,36 @@ void EMailPageView::refresh_body_view() {
 
   // Only offered for a message that parsed: there is nothing to reply to in a
   // draft the user is still typing.
-  const bool is_message = !tree_root_.content_type.isEmpty();
-  reply_button_->setVisible(is_message);
-  // Offered whenever there is a message and an account that could send it.
-  // Hidden rather than disabled when no account exists: an always-dead button
-  // is just clutter on a workspace that may never send anything.
-  send_button_->setVisible(is_message && EMailSendDialog::HasUsableAccount());
-  reply_all_button_->setVisible(is_message);
-  forward_button_->setVisible(is_message);
-  forensic_toggle_->setVisible(is_message);
-  if (action_separator_ != nullptr) action_separator_->setVisible(is_message);
+  // Whether this document came from SOMEONE ELSE, which is the only thing
+  // Reply and Forward mean. Deliberately not "does it currently parse as
+  // MIME": a draft parses the moment anything serializes it -- opening the
+  // Structure, Security or Headers tab is enough -- and gating on that made
+  // these three switch themselves on partway through writing a message, with
+  // nothing to reply to.
+  const bool is_message = document_is_received_;
+
+  // Every action stays where it is and is turned off instead of taken away. A
+  // control that disappears sends the user looking for a feature they think
+  // they have lost; one that is merely grey, with a tooltip, tells them what
+  // to do next. The reasons here -- no account, no recipient, nothing parsed
+  // yet -- are all things they can act on once told.
+  send_button_->setVisible(true);
+  refresh_send_state();
+
+  const auto not_a_message =
+      tr("This is a draft you are still writing, not a message that was "
+         "received, so there is nothing here to act on yet.");
+
+  reply_button_->setVisible(true);
+  reply_all_button_->setVisible(true);
+  forward_button_->setVisible(true);
+  forensic_toggle_->setVisible(true);
+  if (action_separator_ != nullptr) action_separator_->setVisible(true);
+
+  for (auto* button :
+       {reply_button_, reply_all_button_, forward_button_, forensic_toggle_}) {
+    set_action_available(button, is_message, not_a_message);
+  }
 
   // Ciphertext is not text the user can read or edit, so it is not offered as
   // either. Deliberately after the block above: Reply and Forward derive a new
@@ -1386,6 +1473,137 @@ void EMailPageView::refresh_security() {
   security_view_->SetMessage(security_state_, regions_, signature_results_,
                              recipient_rows_, addresses,
                              GFGpgCurrentGpgContextChannel(), findings);
+}
+
+/**
+ * @brief Whether this message could go out, and if not, what to fix.
+ *
+ * Every refusal names the one thing standing in the way. A disabled control
+ * that will not say why is the same dead end as a hidden one -- the user knows
+ * something is wrong and not what -- so the reason goes in the tooltip, which
+ * is where a disabled button can still speak.
+ */
+auto EMailPageView::eventFilter(QObject* watched, QEvent* event) -> bool {
+  if (event->type() == QEvent::FocusIn &&
+      (watched == from_edit_ || watched == to_edit_ || watched == cc_edit_ ||
+       watched == bcc_edit_)) {
+    install_address_hints();
+  }
+  return QWidget::eventFilter(watched, event);
+}
+
+/**
+ * @brief Turns one action off without taking it away.
+ *
+ * A control that vanishes leaves the user hunting for a feature; one that is
+ * merely grey leaves them guessing why. Neither is necessary: the button stays
+ * where it is and its tooltip says what is missing, which is the only thing a
+ * disabled control can still do.
+ */
+void EMailPageView::set_action_available(QToolButton* button, bool available,
+                                         const QString& why) {
+  if (button == nullptr) return;
+
+  // Captured on first use rather than at construction, so this cannot fall out
+  // of step with whatever wording make_action() gave the button.
+  if (!action_tooltips_.contains(button)) {
+    action_tooltips_.insert(button, button->toolTip());
+  }
+
+  button->setEnabled(available);
+  button->setToolTip(available ? action_tooltips_.value(button) : why);
+}
+
+void EMailPageView::refresh_send_state() {
+  // Read straight off the widgets rather than through collect_fields(). This
+  // runs on every keystroke, and collect_fields() copies the entire body and
+  // writes into message_ -- neither of which a button's enabled state has any
+  // business doing.
+  const auto split = [](const QString& text) {
+    QStringList out;
+    for (const auto& part : text.split(';', Qt::SkipEmptyParts)) {
+      const auto trimmed = part.trimmed();
+      if (!trimmed.isEmpty()) out.append(trimmed);
+    }
+    return out;
+  };
+
+  const auto from = from_edit_->text().trimmed();
+  const auto to = split(to_edit_->text());
+  const auto cc = split(cc_edit_->text());
+  const auto bcc = split(bcc_edit_->text());
+  const auto subject = subject_edit_->text().trimmed();
+
+  QString blocker;
+
+  if (!EMailSendDialog::HasUsableAccount()) {
+    // First, because it is the only one the user cannot fix by typing. Said as
+    // the setup step it is rather than as a fault in the message.
+    blocker =
+        tr("No mail account is set up yet. Add one in Settings, under Mail "
+           "Accounts, and this message can be sent.");
+  } else if (from.isEmpty()) {
+    blocker = tr("Fill in who this message is from.");
+  } else if (!MailIsPlausibleAddress(from)) {
+    blocker = tr("The From address does not look like an e-mail address.");
+  } else if (to.isEmpty() && cc.isEmpty() && bcc.isEmpty()) {
+    blocker = tr("Add at least one recipient.");
+  } else if (subject.isEmpty()) {
+    blocker = tr("Give this message a subject.");
+  } else {
+    // Every recipient, across all three fields: one bad address in Cc stops
+    // the message just as surely as a bad one in To, and finding out at the
+    // server is finding out too late.
+    for (const auto& list : {to, cc, bcc}) {
+      for (const auto& address : list) {
+        if (MailIsPlausibleAddress(address)) continue;
+        blocker =
+            tr("This does not look like an e-mail address: %1").arg(address);
+        break;
+      }
+      if (!blocker.isEmpty()) break;
+    }
+  }
+
+  set_action_available(send_button_, blocker.isEmpty(), blocker);
+}
+
+/**
+ * @brief The keyring's addresses, offered as you type.
+ *
+ * A hint and nothing more. That an address is offered means the keyring has
+ * seen it; it is not a claim that a usable key exists for it, still less that
+ * the key belongs to whoever the name says. Anything acting on the choice
+ * resolves it properly through the security view.
+ */
+void EMailPageView::install_address_hints() {
+  const auto addresses = [](bool secret_only) {
+    char** raw = nullptr;
+    int count = 0;
+    if (GFGpgListKeyAddresses(GFGpgCurrentGpgContextChannel(),
+                              secret_only ? 1 : 0, &raw, &count) != 0) {
+      return QStringList{};
+    }
+
+    QStringList out;
+    out.reserve(count);
+    // Copied rather than taken: UnStrDup FREES what it is handed, and these
+    // strings belong to the array that GFGpgFreeStringArray releases as a
+    // whole.
+    for (int i = 0; i < count; ++i) out.append(QString::fromUtf8(raw[i]));
+    GFGpgFreeStringArray(raw, count);
+    return out;
+  };
+
+  // From is one identity, so it completes against the keys this user actually
+  // holds -- the addresses they can send AS. The recipient fields complete
+  // against everything the keyring knows.
+  InstallAddressCompleter(from_edit_, addresses(true), false);
+
+  const auto known = addresses(false);
+  for (auto* edit : {to_edit_, cc_edit_, bcc_edit_}) {
+    InstallAddressCompleter(edit, known, true);
+  }
 }
 
 void EMailPageView::refresh_security_button() {
@@ -1793,6 +2011,9 @@ auto EMailPageView::SaveToSource() -> QByteArray {
     last_source_ = pending_replacement_;
     pending_replacement_.clear();
     dirty_ = false;
+    // Taken OUT of a message rather than built from the fields, so a nested
+    // signature may still cover them.
+    source_is_original_ = true;
     return last_source_;
   }
 
@@ -1811,6 +2032,10 @@ auto EMailPageView::SaveToSource() -> QByteArray {
 
   dirty_ = false;
   last_source_ = eml.toUtf8();
+  // Built here, from the user's own fields. There is nothing in these bytes
+  // to preserve, which is what lets the send path rebuild them and give the
+  // message the Message-ID a draft has not got yet.
+  source_is_original_ = false;
   return last_source_;
 }
 
@@ -1837,11 +2062,19 @@ auto EMailPageView::IsDirty() -> bool { return dirty_; }
 auto EMailPageView::BuildOutgoing(EMailOutgoingMessage& out) -> bool {
   collect_fields();
 
-  // A clean document is handed over untouched. That is not an optimization:
-  // these bytes may carry a signature computed over exactly these octets, and
-  // rebuilding them would invalidate it. A forensic document is never
-  // rebuilt at all, by the same rule that governs SaveToSource().
-  const auto reuse_source = (!dirty_ || forensic_) && !last_source_.isEmpty();
+  // A clean document that came from OUTSIDE is handed over untouched. That is
+  // not an optimization: those bytes may carry a signature computed over
+  // exactly these octets, and rebuilding them would invalidate it. A forensic
+  // document is never rebuilt at all, by the same rule that governs
+  // SaveToSource().
+  //
+  // Bytes our own serializer wrote are a different thing entirely. A draft
+  // saved by SaveToSource() is clean and non-empty like any loaded message,
+  // and preserving it protected nothing while costing the message its
+  // Message-ID -- which is the one handle a Sent-folder check has to search
+  // on. Those are rebuilt, and FreezeOutgoing() mints the identifier.
+  const auto reuse_source = MailShouldReuseSource(
+      source_is_original_, dirty_, forensic_, last_source_.isEmpty());
 
   const auto result =
       FreezeOutgoing(message_, compose_, message_.body, message_.attachments,
@@ -1886,6 +2119,8 @@ void EMailPageView::WipeContent() {
 
   if (!last_source_.isEmpty()) last_source_.fill('\0');
   last_source_.clear();
+  source_is_original_ = false;
+  document_is_received_ = false;
 
   // An unwrapped message the host has not collected yet is plaintext just as
   // much as the document is, so it is wiped with it.
@@ -1904,7 +2139,6 @@ void EMailPageView::WipeContent() {
   header_view_->Clear();
   security_view_->Clear();
   body_view_->Clear();
-  body_notice_->setVisible(false);
   body_stack_->setCurrentIndex(0);
   loading_ = false;
 

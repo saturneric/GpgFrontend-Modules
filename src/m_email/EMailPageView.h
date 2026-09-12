@@ -28,6 +28,7 @@
 
 #pragma once
 
+#include <QHash>
 #include <QStringList>
 #include <QWidget>
 
@@ -283,6 +284,9 @@ class EMailPageView : public QWidget {
   void dragMoveEvent(QDragMoveEvent* event) override;
   /// Attaches dropped files.
   void dropEvent(QDropEvent* event) override;
+  /// Refreshes the address hints when an address field is entered, so keys
+  /// imported since the tab opened are offered too.
+  auto eventFilter(QObject* watched, QEvent* event) -> bool override;
 
  private slots:
   void slot_add_attachment();
@@ -369,8 +373,16 @@ class EMailPageView : public QWidget {
   /// Chooses between the formatted and plain renderings of the body, and
   /// shows the toggle only when the message actually offers both.
   void refresh_body_view();
+  /// Enables Send when the message could actually go out, and says why not
+  /// when it could not. Never hides the button.
+  void refresh_send_state();
+  /// Enables or disables one action, and when disabled puts @p why in its
+  /// tooltip in place of what it normally says. Never changes visibility.
+  void set_action_available(QToolButton* button, bool available,
+                            const QString& why);
+  /// Offers the keyring's addresses as hints on the address fields.
+  void install_address_hints();
   /// Updates the short note about how the body is being shown.
-  void refresh_body_notice();
   /// Shows or hides the Cc and Bcc rows. Never clears them: collapsing a row
   /// is a view choice, not a decision to discard what is in it.
   void set_cc_bcc_visible(bool visible);
@@ -408,6 +420,20 @@ class EMailPageView : public QWidget {
   bool loading_{false};
   /// When set, this document cannot be modified or reserialized at all.
   bool forensic_{false};
+  /// Whether this tab was opened on a message someone else produced, as
+  /// opposed to a draft being written here. Set once, when the document is
+  /// loaded, and deliberately NOT cleared by re-serialization: a received
+  /// message stays a received message after the user edits it.
+  ///
+  /// Distinct from @ref source_is_original_, which is about the BYTES being
+  /// pristine. The two answer different questions and diverge the moment an
+  /// opened message is edited.
+  bool document_is_received_{false};
+  /// Whether @ref last_source_ holds bytes this program did NOT produce --
+  /// a message as it was loaded, or an entity lifted out of one. Only those
+  /// may be submitted verbatim; bytes our own serializer wrote carry nothing
+  /// worth preserving, and reusing them costs the message its Message-ID.
+  bool source_is_original_{false};
 
   QLineEdit* from_edit_{};
   QLineEdit* to_edit_{};
@@ -425,8 +451,10 @@ class EMailPageView : public QWidget {
   QToolButton* reply_all_button_{};
   QToolButton* forward_button_{};
   QToolButton* send_button_{};
+  /// What each action says when it is available, captured the first time it
+  /// is disabled so the explanation can be swapped in and back out.
+  QHash<QToolButton*, QString> action_tooltips_;
   QToolButton* forensic_toggle_{};
-  QLabel* body_notice_{};
   QTreeWidget* attachment_list_{};
   QToolButton* add_button_{};
   QToolButton* remove_button_{};
