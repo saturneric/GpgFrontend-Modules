@@ -61,6 +61,7 @@
 #include "EMailHeaderView.h"
 #include "EMailHelper.h"
 #include "EMailSecurityView.h"
+#include "EMailSendDialog.h"
 #include "EMailStructureView.h"
 #include "EMailViewStyle.h"
 #include "GFModuleCommonUtils.hpp"
@@ -285,6 +286,13 @@ auto EMailPageView::build_message_tab() -> QWidget* {
   connect(forward_button_, &QToolButton::clicked, this, [this]() {
     slot_derive_message(static_cast<int>(EMailReplyMode::kFORWARD));
   });
+
+  send_button_ = make_action(QStringLiteral("mail-send"), ":/icons/export-email.png",
+                             tr("Send..."),
+                             tr("Send this message through a configured "
+                                "mail account."));
+  connect(send_button_, &QToolButton::clicked, this,
+          &EMailPageView::slot_send_message);
 
   // Locking the document is a different kind of act from deriving a new
   // message out of it, so it is set apart rather than lined up with them.
@@ -799,6 +807,10 @@ void EMailPageView::refresh_body_view() {
   // draft the user is still typing.
   const bool is_message = !tree_root_.content_type.isEmpty();
   reply_button_->setVisible(is_message);
+  // Offered whenever there is a message and an account that could send it.
+  // Hidden rather than disabled when no account exists: an always-dead button
+  // is just clutter on a workspace that may never send anything.
+  send_button_->setVisible(is_message && EMailSendDialog::HasUsableAccount());
   reply_all_button_->setVisible(is_message);
   forward_button_->setVisible(is_message);
   forensic_toggle_->setVisible(is_message);
@@ -1062,7 +1074,45 @@ auto EMailPageView::SaveToSource() -> QByteArray {
   return last_source_;
 }
 
+void EMailPageView::slot_send_message() {
+  EMailOutgoingMessage message;
+  if (!BuildOutgoing(message)) {
+    QMessageBox::warning(
+        this, tr("Cannot send"),
+        tr("This message needs a sender and at least one recipient before it "
+           "can be sent."));
+    return;
+  }
+
+  // Owns its own copy of the frozen bytes: the tab may be edited or closed
+  // while the dialog is open, and what was approved must not change underneath
+  // the submission.
+  auto* dialog = new EMailSendDialog(message, this);
+  dialog->setAttribute(Qt::WA_DeleteOnClose);
+  dialog->show();
+}
+
 auto EMailPageView::IsDirty() -> bool { return dirty_; }
+
+auto EMailPageView::BuildOutgoing(EMailOutgoingMessage& out) -> bool {
+  collect_fields();
+
+  // A clean document is handed over untouched. That is not an optimization:
+  // these bytes may carry a signature computed over exactly these octets, and
+  // rebuilding them would invalidate it. A forensic document is never
+  // rebuilt at all, by the same rule that governs SaveToSource().
+  const auto reuse_source = (!dirty_ || forensic_) && !last_source_.isEmpty();
+
+  const auto result =
+      FreezeOutgoing(message_, compose_, message_.body, message_.attachments,
+                     reuse_source ? last_source_ : QByteArray(), out);
+
+  if (result != EMailFreezeResult::kOK) {
+    MLogWarn("cannot prepare message for sending");
+    return false;
+  }
+  return true;
+}
 
 void EMailPageView::WipeContent() {
   // Overwrite before releasing: a decrypted body or attachment left in a freed

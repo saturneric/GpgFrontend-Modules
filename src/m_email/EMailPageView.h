@@ -31,6 +31,7 @@
 #include <QWidget>
 
 #include "EMailModel.h"
+#include "EMailOutgoing.h"
 
 class QLineEdit;
 class QPlainTextEdit;
@@ -153,6 +154,24 @@ class EMailPageView : public QWidget {
   bool IsDirty();  // NOLINT
 
   /**
+   * @brief The sendable, frozen form of this message.
+   *
+   * Orchestration only: it flushes the header widgets, decides whether the
+   * document may be reused verbatim, and hands the pieces to FreezeOutgoing(),
+   * which owns every actual rule about identity, byte preservation and
+   * envelopes. Nothing about what makes a message sendable is decided here --
+   * that all lives in EMailOutgoing.cpp, where it can be tested without a
+   * widget.
+   *
+   * It has to be a member because only the view knows whether it has unsaved
+   * edits and owns the bytes as they were loaded.
+   *
+   * @param out receives the frozen message
+   * @return false when the message cannot be sent as it stands
+   */
+  bool BuildOutgoing(EMailOutgoingMessage& out);  // NOLINT
+
+  /**
    * @brief Zeroes the message content this view holds.
    *
    * Covers the attachment buffers as well as the body: a decrypted attachment
@@ -193,6 +212,8 @@ class EMailPageView : public QWidget {
   /// Opens a new tab holding a message derived from this one. The current
   /// document is only read: deriving never modifies what it derives from.
   void slot_derive_message(int mode);
+  /// Freezes the message and opens the send dialog. Reads the document only.
+  void slot_send_message();
 
  private:
   /// Rebuilds the attachment table from `message_`.
@@ -289,6 +310,7 @@ class EMailPageView : public QWidget {
   QToolButton* reply_button_{};
   QToolButton* reply_all_button_{};
   QToolButton* forward_button_{};
+  QToolButton* send_button_{};
   QToolButton* forensic_toggle_{};
   QLabel* remote_content_notice_{};
   QTreeWidget* attachment_list_{};
