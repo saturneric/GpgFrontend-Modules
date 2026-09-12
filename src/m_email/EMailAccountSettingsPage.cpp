@@ -50,17 +50,16 @@
 
 namespace {
 
-auto Tr(const char* text) -> QString {
-  return QCoreApplication::translate("EMailAccountSettingsPage", text);
-}
-
 /// The security choices offered. "None" is absent on purpose: it is not a
 /// thing a user should be picking for a mail server, and it is reached only
 /// for a loopback host, where it is inferred rather than chosen.
 void FillSecurityCombo(QComboBox* combo) {
-  combo->addItem(Tr("TLS (recommended)"),
+  combo->addItem(QCoreApplication::translate("EMailAccountSettingsPage",
+                                             "TLS (recommended)"),
                  static_cast<int>(MailTlsMode::kIMPLICIT));
-  combo->addItem(Tr("STARTTLS"), static_cast<int>(MailTlsMode::kSTARTTLS));
+  combo->addItem(
+      QCoreApplication::translate("EMailAccountSettingsPage", "STARTTLS"),
+      static_cast<int>(MailTlsMode::kSTARTTLS));
 }
 
 auto SecurityOf(const QComboBox* combo) -> MailTlsMode {
@@ -85,17 +84,17 @@ EMailAccountSettingsPage::EMailAccountSettingsPage(QWidget* parent)
 }
 
 auto EMailAccountSettingsPage::build_identity_group() -> QGroupBox* {
-  auto* group = new QGroupBox(Tr("Identity"), this);
+  auto* group = new QGroupBox(tr("Identity"), this);
   auto* form = new QFormLayout(group);
 
   display_name_edit_ = new QLineEdit(group);
   address_edit_ = new QLineEdit(group);
   reply_to_edit_ = new QLineEdit(group);
-  reply_to_edit_->setPlaceholderText(Tr("Optional"));
+  reply_to_edit_->setPlaceholderText(tr("Optional"));
 
-  form->addRow(Tr("Display name"), display_name_edit_);
-  form->addRow(Tr("Email address"), address_edit_);
-  form->addRow(Tr("Reply-To"), reply_to_edit_);
+  form->addRow(tr("Display name"), display_name_edit_);
+  form->addRow(tr("Email address"), address_edit_);
+  form->addRow(tr("Reply-To"), reply_to_edit_);
 
   for (auto* edit : {display_name_edit_, address_edit_, reply_to_edit_}) {
     connect(edit, &QLineEdit::textEdited, this,
@@ -106,11 +105,11 @@ auto EMailAccountSettingsPage::build_identity_group() -> QGroupBox* {
 
 auto EMailAccountSettingsPage::build_transport_group(bool imap) -> QGroupBox* {
   auto* group =
-      new QGroupBox(imap ? Tr("Receiving (IMAP)") : Tr("Sending (SMTP)"), this);
+      new QGroupBox(imap ? tr("Receiving (IMAP)") : tr("Sending (SMTP)"), this);
   auto* layout = new QVBoxLayout(group);
 
-  auto* enabled = new QCheckBox(imap ? Tr("Import messages from this account")
-                                     : Tr("Send messages through this account"),
+  auto* enabled = new QCheckBox(imap ? tr("Import messages from this account")
+                                     : tr("Send messages through this account"),
                                 group);
   auto* form = new QFormLayout;
 
@@ -132,11 +131,11 @@ auto EMailAccountSettingsPage::build_transport_group(bool imap) -> QGroupBox* {
   security_row->addWidget(security, 1);
   security_row->addWidget(port_hint);
 
-  form->addRow(Tr("Server"), host);
-  form->addRow(Tr("Connection"), security_row);
-  form->addRow(Tr("Username"), user);
+  form->addRow(tr("Server"), host);
+  form->addRow(tr("Connection"), security_row);
+  form->addRow(tr("Username"), user);
 
-  auto* test = new QPushButton(Tr("Test Connection"), group);
+  auto* test = new QPushButton(tr("Test Connection"), group);
   auto* status = new QLabel(group);
   status->setWordWrap(true);
 
@@ -156,8 +155,8 @@ auto EMailAccountSettingsPage::build_transport_group(bool imap) -> QGroupBox* {
     // not advertise RFC 6154 SPECIAL-USE cannot have its Sent folder
     // discovered, and guessing the name would be worse than asking.
     sent_folder_ = new QLineEdit(group);
-    sent_folder_->setPlaceholderText(Tr("Discovered automatically"));
-    form->addRow(Tr("Sent folder"), sent_folder_);
+    sent_folder_->setPlaceholderText(tr("Discovered automatically"));
+    form->addRow(tr("Sent folder"), sent_folder_);
 
     connect(sent_folder_, &QLineEdit::textEdited, this,
             &EMailAccountSettingsPage::slot_field_edited);
@@ -198,8 +197,8 @@ void EMailAccountSettingsPage::build_ui() {
   auto* left = new QVBoxLayout;
   account_list_ = new QListWidget(this);
   account_list_->setMaximumWidth(220);
-  add_button_ = new QPushButton(Tr("Add"), this);
-  remove_button_ = new QPushButton(Tr("Remove"), this);
+  add_button_ = new QPushButton(tr("Add"), this);
+  remove_button_ = new QPushButton(tr("Remove"), this);
 
   auto* buttons = new QHBoxLayout;
   buttons->addWidget(add_button_);
@@ -213,20 +212,20 @@ void EMailAccountSettingsPage::build_ui() {
   right->addWidget(build_transport_group(true));
   right->addWidget(build_transport_group(false));
 
-  auto* credentials = new QGroupBox(Tr("Password"), editor_);
+  auto* credentials = new QGroupBox(tr("Password"), editor_);
   auto* credential_form = new QFormLayout(credentials);
   password_edit_ = new QLineEdit(credentials);
   password_edit_->setEchoMode(QLineEdit::Password);
-  password_edit_->setPlaceholderText(Tr("Leave blank to keep the stored one"));
+  password_edit_->setPlaceholderText(tr("Leave blank to keep the stored one"));
 
   oauth_notice_ = new QLabel(
-      Tr("Signing in through a provider's own web page (OAuth2) is not "
+      tr("Signing in through a provider's own web page (OAuth2) is not "
          "supported yet. If your provider requires it, create an "
          "app-specific password and use that here."),
       credentials);
   oauth_notice_->setWordWrap(true);
 
-  credential_form->addRow(Tr("Password"), password_edit_);
+  credential_form->addRow(tr("Password"), password_edit_);
   credential_form->addRow(QString(), oauth_notice_);
   right->addWidget(credentials);
   right->addStretch();
@@ -286,7 +285,7 @@ auto EMailAccountSettingsPage::selected_index() const -> int {
 auto EMailAccountSettingsPage::label_for(const MailAccountConfig& account)
     -> QString {
   const auto label = account.Label();
-  return label.isEmpty() ? Tr("Untitled account") : label;
+  return label.isEmpty() ? tr("Untitled account") : label;
 }
 
 void EMailAccountSettingsPage::refresh_list() {
@@ -378,7 +377,7 @@ void EMailAccountSettingsPage::slot_field_edited() {
 /// ever be read.
 void EMailAccountSettingsPage::refresh_port_hints() {
   const auto describe = [](QComboBox* combo, bool imap) {
-    return Tr("Port %1").arg(MailDefaultPort(imap, SecurityOf(combo)));
+    return tr("Port %1").arg(MailDefaultPort(imap, SecurityOf(combo)));
   };
   if (imap_port_hint_ != nullptr) {
     imap_port_hint_->setText(describe(imap_security_, true));
@@ -483,18 +482,18 @@ void EMailAccountSettingsPage::test_transport(bool imap, QLabel* status) {
   const auto& config = imap ? account.imap : account.smtp;
 
   if (config.host.isEmpty()) {
-    status->setText(Tr("Enter a server address first."));
+    status->setText(tr("Enter a server address first."));
     return;
   }
 
   auto password = pending_passwords_.value(account.id);
   if (password.isEmpty()) password = EMailCredentialStore::Load(account.id);
   if (password.isEmpty()) {
-    status->setText(Tr("Enter a password first."));
+    status->setText(tr("Enter a password first."));
     return;
   }
 
-  status->setText(Tr("Testing..."));
+  status->setText(tr("Testing..."));
   imap_test_->setEnabled(false);
   smtp_test_->setEnabled(false);
   QCoreApplication::processEvents();
@@ -541,12 +540,12 @@ void EMailAccountSettingsPage::test_transport(bool imap, QLabel* status) {
   // internal failure is not a successful login, and reporting one as success
   // is worse than reporting nothing.
   if (connected) {
-    status->setText(Tr("Connected successfully."));
+    status->setText(tr("Connected successfully."));
     return;
   }
 
   if (!error.IsError()) {
-    status->setText(Tr("Could not connect, and the reason is not known."));
+    status->setText(tr("Could not connect, and the reason is not known."));
     return;
   }
 

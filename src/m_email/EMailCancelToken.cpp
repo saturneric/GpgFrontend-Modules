@@ -65,6 +65,10 @@ auto EMailTimeoutHandlerFactory::create()
   return last_;
 }
 
+void EMailTimeoutHandlerFactory::ClearLastCancelled() {
+  if (last_) last_->ClearCancelled();
+}
+
 auto EMailTimeoutHandlerFactory::LastWasCancelled() const -> bool {
   // The token is the more trustworthy of the two: a cancellation that arrives
   // between the handler firing and the exception being caught still means the

@@ -87,6 +87,10 @@ class EMailTimeoutHandler : public vmime::net::timeoutHandler {
   /// Whether the last firing was the user stopping rather than a timeout.
   [[nodiscard]] auto WasCancelled() const -> bool { return cancelled_; }
 
+  /// Forgets a recorded stop once the operation it belonged to has ended, so
+  /// a later timeout is not reported as the user's own cancellation.
+  void ClearCancelled() { cancelled_ = false; }
+
  private:
   EMailCancelTokenPtr token_;
   int timeout_seconds_;
@@ -108,6 +112,10 @@ class EMailTimeoutHandlerFactory : public vmime::net::timeoutHandlerFactory {
   /// The handler most recently created, so a caller unwinding an exception can
   /// ask whether the stop was deliberate.
   [[nodiscard]] auto LastWasCancelled() const -> bool;
+
+  /// Clears the recorded stop on the most recent handler. See
+  /// EMailTimeoutHandler::ClearCancelled.
+  void ClearLastCancelled();
 
  private:
   EMailCancelTokenPtr token_;

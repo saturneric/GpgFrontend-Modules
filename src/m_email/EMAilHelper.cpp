@@ -1136,7 +1136,9 @@ auto ParseSignatureResults(const QByteArray& info_json, int region_id)
     result.pubkey_algo = obj.value("pubkeyAlgo").toString();
     result.hash_algo = obj.value("hashAlgo").toString();
     result.uid = obj.value("uid").toString();
-    result.validity = obj.value("validity").toInt();
+    // -1, not 0: QJsonValue::toInt() yields 0 for a missing or non-numeric
+    // field, and 0 is kFULLY_VALID. Absence must not read as a good signature.
+    result.validity = obj.value("validity").toInt(-1);
 
     const auto sign_time = obj.value("signTime").toString();
     if (!sign_time.isEmpty()) {

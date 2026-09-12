@@ -44,7 +44,10 @@
 
 namespace {
 
-enum HeaderColumn : int { kCOL_NAME = 0, kCOL_VALUE = 1 };
+// Deliberately untyped: lupdate stops attributing tr() calls to the enclosing
+// class once it meets an enum with an explicit underlying type in this file,
+// so every string below one would silently drop out of the catalogues.
+enum HeaderColumn { kCOL_NAME = 0, kCOL_VALUE = 1 };
 
 // The exact bytes of a field, for the tooltip. Latin-1 rather than UTF-8 on
 // purpose: every byte maps to exactly one character, so nothing is replaced or

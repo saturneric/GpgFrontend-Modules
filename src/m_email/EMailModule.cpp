@@ -1348,9 +1348,9 @@ auto DoEncryptPlainText(int channel, const QStringList& encrypt_keys,
     return ret;
   }
 
-  ret = EncryptPlainText(channel, encrypt_keys, meta_data,
-                         plain_text_eml_data.toLatin1(), eml_data, err,
-                         capsule_id);
+  ret =
+      EncryptPlainText(channel, encrypt_keys, meta_data,
+                       plain_text_eml_data.toUtf8(), eml_data, err, capsule_id);
 
   if (ret == kFAILED || ret == kEML_FAILED) {
     CB(event, GFGetModuleID(),
@@ -1482,7 +1482,13 @@ auto DoEncryptSignEMLData(int channel, const QStringList& encrypt_keys,
     return -1;
   }
 
-  body_data = eml_data.toLatin1();
+  // UTF-8, not Latin-1: these are the bytes the signature was just taken
+  // over, and they are about to be re-parsed and encrypted. Latin-1 collapses
+  // every two-byte sequence to one byte and replaces anything above U+00FF, so
+  // the recipient would verify a different message than the one that was
+  // signed. The module converts through UTF-8 everywhere else -- Q_SC, QDUP
+  // and UDUP are all UTF-8 -- and corpus fixture 18 pins it.
+  body_data = eml_data.toUtf8();
   eml_data.clear();
 
   int t_result_status = 0;
@@ -1524,7 +1530,13 @@ auto DoEncryptSignPlainText(int channel, const QStringList& encrypt_keys,
     return -1;
   }
 
-  body_data = eml_data.toLatin1();
+  // UTF-8, not Latin-1: these are the bytes the signature was just taken
+  // over, and they are about to be re-parsed and encrypted. Latin-1 collapses
+  // every two-byte sequence to one byte and replaces anything above U+00FF, so
+  // the recipient would verify a different message than the one that was
+  // signed. The module converts through UTF-8 everywhere else -- Q_SC, QDUP
+  // and UDUP are all UTF-8 -- and corpus fixture 18 pins it.
+  body_data = eml_data.toUtf8();
   eml_data.clear();
 
   int t_result_status = 0;
@@ -1650,7 +1662,9 @@ auto DoDecryptVerifyEMLData(int channel, const QByteArray& data,
   QString t_result_detail;
   QString verify_cards;
 
-  if (DoVerifyEMLData(channel, eml_data.toLatin1(), event, t_result_status,
+  // UTF-8, not Latin-1: this is the decrypted plaintext and the signature
+  // inside it is checked against these exact bytes. See DoEncryptSignEMLData.
+  if (DoVerifyEMLData(channel, eml_data.toUtf8(), event, t_result_status,
                       t_result_detail, verify_cards, error_string,
                       meta_data) != kSUCCESS) {
     return -1;

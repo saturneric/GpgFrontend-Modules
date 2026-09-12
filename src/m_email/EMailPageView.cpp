@@ -705,14 +705,14 @@ void EMailPageView::set_cc_bcc_visible(bool visible) {
   header_form_->setRowVisible(bcc_edit_, visible);
 #else
   // Older Qt has no setRowVisible; hiding both cells collapses the row.
-  const auto hide_row = [this](QWidget* field) {
+  const auto set_row_visible = [this, visible](QWidget* field) {
     if (auto* label = header_form_->labelForField(field)) {
       label->setVisible(visible);
     }
     field->setVisible(visible);
   };
-  hide_row(cc_edit_);
-  hide_row(bcc_edit_);
+  set_row_visible(cc_edit_);
+  set_row_visible(bcc_edit_);
 #endif
 
   if (cc_bcc_toggle_ != nullptr && cc_bcc_toggle_->isChecked() != visible) {
@@ -2125,7 +2125,11 @@ void EMailPageView::slot_send_message() {
   // Owns its own copy of the frozen bytes: the tab may be edited or closed
   // while the dialog is open, and what was approved must not change underneath
   // the submission.
-  auto* dialog = new EMailSendDialog(message, this);
+  //
+  // Parented to the window rather than to this view for the same reason: as a
+  // child of the tab, closing the tab mid-send destroyed the dialog, and the
+  // user never learned whether the message had gone out.
+  auto* dialog = new EMailSendDialog(message, window());
   dialog->setAttribute(Qt::WA_DeleteOnClose);
   dialog->show();
 }

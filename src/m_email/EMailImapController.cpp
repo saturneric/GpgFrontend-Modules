@@ -596,10 +596,17 @@ void EMailImapController::stop_worker() {
 
   // Bounded, and deliberately not followed by terminate(): killing a thread
   // inside OpenSSL or getaddrinfo corrupts process state, so a thread that
-  // will not come back is leaked on purpose rather than made to stop.
-  if (!thread_->wait(5000)) {
-    LOG_ERROR("IMAP worker thread did not stop; leaving it to finish");
+  // will not come back is detached rather than made to stop.
+  if (thread_->wait(5000)) {
     thread_->deleteLater();
+  } else {
+    LOG_ERROR("IMAP worker thread did not stop; detaching it");
+    // deleteLater() here would be fatal, not a leak: the deletion runs on the
+    // event loop while the thread is still going, and ~QThread on a running
+    // thread is qFatal. Unparent it so this dialog's destructor cannot take it
+    // down either, and let it delete itself if it ever does finish.
+    thread_->setParent(nullptr);
+    connect(thread_, &QThread::finished, thread_, &QObject::deleteLater);
   }
 
   thread_ = nullptr;

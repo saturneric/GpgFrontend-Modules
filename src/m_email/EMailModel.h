@@ -132,7 +132,11 @@ struct EMailSignatureResult {
   QString hash_algo;  ///< what the signature reports, unlike declared_micalg
   QString uid;
   QDateTime sign_time;
-  int validity{};  ///< mirrors GpgSigValidity
+  /// Mirrors GpgSigValidity, but defaults to -1 rather than 0: 0 is
+  /// kFULLY_VALID, so an absent or unparseable field would otherwise read as a
+  /// fully valid, fully trusted signature. -1 falls through to "unknown" and
+  /// is not treated as good.
+  int validity{-1};
   QStringList warnings;
 
   /// Set when the region's declared_micalg disagrees with hash_algo.

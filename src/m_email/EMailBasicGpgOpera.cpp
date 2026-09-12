@@ -67,9 +67,16 @@ auto EncryptPlainText(int channel, const QStringList& keys,
   QString email;
 
   try {
+    // The SDK sets *ps = nullptr and returns non-zero when it cannot
+    // allocate the result, so both must be checked before the first
+    // dereference below -- not after it, as this used to.
     GFGpgEncryptionResult* s = nullptr;
     auto ret = GFGpgEncryptData(channel, QStringListToCharArray(keys),
                                 keys.size(), QDUP(body_data), 1, &s);
+    if (ret != 0 || s == nullptr) {
+      eml_data = "Operation Failed.";
+      return kFAILED;
+    }
 
     auto encrypted_data = UDUP(s->encrypted_data);
     err = s->gpgme_error;
@@ -78,11 +85,6 @@ auto EncryptPlainText(int channel, const QStringList& keys,
 
     GFGpgFreeResult(s->gpgme_encrypt_result);
     GFFreeMemory(s);
-
-    if (ret != 0) {
-      eml_data = "Operation Failed.";
-      return kFAILED;
-    }
 
     if (err != GPG_ERR_NO_ERROR) {
       eml_data = "Gpg Encryption Failed: " + gpg_error_string;
@@ -241,9 +243,16 @@ auto EncryptEMLData(int channel, const QStringList& keys,
     plain_raw_data.replace("\r\n", "\n");
     plain_raw_data.replace("\n", "\r\n");
 
+    // The SDK sets *ps = nullptr and returns non-zero when it cannot
+    // allocate the result, so both must be checked before the first
+    // dereference below -- not after it, as this used to.
     GFGpgEncryptionResult* s = nullptr;
     auto ret = GFGpgEncryptData(channel, QStringListToCharArray(keys),
                                 keys.size(), QDUP(plain_raw_data), 1, &s);
+    if (ret != 0 || s == nullptr) {
+      eml_data = "Operation Failed.";
+      return kFAILED;
+    }
 
     auto encrypted_data = UDUP(s->encrypted_data);
     err = s->gpgme_error;
@@ -252,11 +261,6 @@ auto EncryptEMLData(int channel, const QStringList& keys,
 
     GFGpgFreeResult(s->gpgme_encrypt_result);
     GFFreeMemory(s);
-
-    if (ret != 0) {
-      eml_data = "Operation Failed";
-      return kFAILED;
-    }
 
     if (err != GPG_ERR_NO_ERROR) {
       eml_data = "Encryption Failed: " + gpg_error_string;
@@ -546,9 +550,16 @@ auto SignPlainText(int channel, const QString& key,
     FLOG_DEBUG("mime raw data for signature: %1", Elide(container_raw_data));
     FLOG_DEBUG("Signature Channel: %1, Sign Key: %2", channel, key);
 
-    GFGpgSignResult* s;
+    // The SDK sets *ps = nullptr and returns non-zero when it cannot
+    // allocate the result, so both must be checked before the first
+    // dereference below -- not after it, as this used to.
+    GFGpgSignResult* s = nullptr;
     auto ret = GFGpgSignData(channel, QStringListToCharArray({key}), 1,
                              QDUP(container_raw_data), 1, 1, &s);
+    if (ret != 0 || s == nullptr) {
+      eml_data = "Operation Failed";
+      return kFAILED;
+    }
 
     auto signature = UDUP(s->signature);
     auto hash_algo = UDUP(s->hash_algo);
@@ -558,11 +569,6 @@ auto SignPlainText(int channel, const QString& key,
 
     GFGpgFreeResult(s->gpgme_sign_result);
     GFFreeMemory(s);
-
-    if (ret != kSUCCESS) {
-      eml_data = "Operation Failed";
-      return kFAILED;
-    }
 
     if (err != GPG_ERR_NO_ERROR) {
       eml_data = "Sign Failed: " + gpg_error_string;
@@ -778,9 +784,16 @@ auto SignEMLData(int channel, const QString& key,
     FLOG_DEBUG("mime raw data for signature: %1", Elide(container_raw_data));
     FLOG_DEBUG("Signature Channel: %1, Sign Key: %2", channel, key);
 
-    GFGpgSignResult* s;
+    // The SDK sets *ps = nullptr and returns non-zero when it cannot
+    // allocate the result, so both must be checked before the first
+    // dereference below -- not after it, as this used to.
+    GFGpgSignResult* s = nullptr;
     auto ret = GFGpgSignData(channel, QStringListToCharArray({key}), 1,
                              QDUP(container_raw_data), 1, 1, &s);
+    if (ret != 0 || s == nullptr) {
+      eml_data = "Operation Failed";
+      return kFAILED;
+    }
 
     auto signature = UDUP(s->signature);
     auto hash_algo = UDUP(s->hash_algo);
@@ -790,11 +803,6 @@ auto SignEMLData(int channel, const QString& key,
 
     GFGpgFreeResult(s->gpgme_sign_result);
     GFFreeMemory(s);
-
-    if (ret != 0) {
-      eml_data = "Operation Failed.";
-      return kFAILED;
-    }
 
     if (err != GPG_ERR_NO_ERROR) {
       eml_data = "Sign Failed: " + gpg_error_string;
@@ -1008,9 +1016,16 @@ auto VerifyEMLData(int channel, const QByteArray& data,
   FLOG_DEBUG("body part of signature content: %1",
              Elide(part_sign_body_content));
 
-  GFGpgVerifyResult* s;
+  // The SDK sets *ps = nullptr and returns non-zero when it cannot
+  // allocate the result, so both must be checked before the first
+  // dereference below -- not after it, as this used to.
+  GFGpgVerifyResult* s = nullptr;
   auto ret = GFGpgVerifyData(channel, QDUP(part_mime_content_text),
                              QDUP(part_sign_body_content), &s);
+  if (ret != 0 || s == nullptr) {
+    error_string = "Operation Failed.";
+    return kFAILED;
+  }
 
   err = s->gpgme_error;
   capsule_id = UDUP(s->capsule_id);
@@ -1018,11 +1033,6 @@ auto VerifyEMLData(int channel, const QByteArray& data,
 
   GFGpgFreeResult(s->gpgme_verify_result);
   GFFreeMemory(s);
-
-  if (ret != 0) {
-    error_string = "Operation Failed.";
-    return kFAILED;
-  }
 
   if (err != GPG_ERR_NO_ERROR) {
     error_string = "Verify Failed: " + gpg_error_string;
@@ -1193,8 +1203,15 @@ auto DecryptEMLData(int channel, const QByteArray& data,
 
   FLOG_DEBUG("body part of encrypt content: %1", Elide(part_encr_body_content));
 
-  GFGpgDecryptResult* s;
+  // The SDK sets *ps = nullptr and returns non-zero when it cannot
+  // allocate the result, so both must be checked before the first
+  // dereference below -- not after it, as this used to.
+  GFGpgDecryptResult* s = nullptr;
   auto ret = GFGpgDecryptData(channel, QDUP(part_encr_body_content), &s);
+  if (ret != 0 || s == nullptr) {
+    eml_data = "Operation Failed.";
+    return kFAILED;
+  }
 
   eml_data = UDUP(s->decrypted_data);
   err = s->gpgme_error;
@@ -1203,11 +1220,6 @@ auto DecryptEMLData(int channel, const QByteArray& data,
 
   GFGpgFreeResult(s->gpgme_decrypt_result);
   GFFreeMemory(s);
-
-  if (ret != 0) {
-    eml_data = "Operation Failed.";
-    return kFAILED;
-  }
 
   if (err != GPG_ERR_NO_ERROR) {
     eml_data = "Decrypt Failed: " + gpg_error_string;

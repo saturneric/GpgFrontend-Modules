@@ -47,7 +47,11 @@ constexpr int kColItem = 0;
 constexpr int kColValue = 1;
 
 // Mirrors GpgFrontend::GpgKeyStatus, which GFGpgKeyBrief::usability reports.
-enum KeyUsability : int {
+//
+// Deliberately untyped: lupdate stops attributing tr() calls to the enclosing
+// class once it meets an enum with an explicit underlying type in this file,
+// so every string below one would silently drop out of the catalogues.
+enum KeyUsability {
   kUSABLE = 0,
   kEXPIRING_SOON = 1,
   kEXPIRED = 2,
@@ -99,7 +103,15 @@ auto DescribeValidity(int validity) -> QString {
   }
 }
 
-auto ValidityIsGood(int validity) -> bool { return validity <= 2; }
+auto ValidityIsGood(int validity) -> bool {
+  // 0 is kFULLY_VALID and 2 is kVALID_NOT_FULLY_TRUSTED -- both are genuine
+  // signatures. 1 is kVALID_WITH_ISSUES, which is NOT one:
+  // GpgVerifyResultAnalyse sets it exactly when gpgme reports GPGME_SIGSUM_RED,
+  // meaning the signature is bad. It used to fall inside a "validity <= 2" test
+  // and so was painted like a clean signature, contradicting the "valid, with
+  // issues" label beside it -- and the colour is what gets read at a glance.
+  return validity == 0 || validity == 2;
+}
 
 }  // namespace
 

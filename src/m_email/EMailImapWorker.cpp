@@ -317,7 +317,42 @@ void EMailImapWorker::Connect(quint64 seq, const MailAccountConfig& account,
   }
 }
 
+namespace {
+
+/// Consumes a cancellation when the operation it was aimed at ends.
+///
+/// A stop applies to the request in flight, not to the session. The only
+/// Reset() used to be in Connect(), so one press of Stop left the token set
+/// for the life of the connection and every later request failed as
+/// kCANCELLED -- the browser went silently dead until the account was
+/// switched. Resetting on the way out still honours a cancellation queued
+/// before the slot ran: the slot observes it first, this only clears it after.
+class CancelScope {
+ public:
+  CancelScope(EMailCancelTokenPtr token,
+              vmime::shared_ptr<EMailTimeoutHandlerFactory> timeouts)
+      : token_(std::move(token)), timeouts_(std::move(timeouts)) {}
+
+  ~CancelScope() {
+    if (token_) token_->Reset();
+    if (timeouts_) timeouts_->ClearLastCancelled();
+  }
+
+  CancelScope(const CancelScope&) = delete;
+  CancelScope(CancelScope&&) = delete;
+  auto operator=(const CancelScope&) -> CancelScope& = delete;
+  auto operator=(CancelScope&&) -> CancelScope& = delete;
+
+ private:
+  EMailCancelTokenPtr token_;
+  vmime::shared_ptr<EMailTimeoutHandlerFactory> timeouts_;
+};
+
+}  // namespace
+
 void EMailImapWorker::ListFolders(quint64 seq) {
+  const CancelScope cancel_scope(token_, impl_->timeouts);
+
   if (!impl_->store) {
     emit SignalFailed(seq, MailInternalError("not connected"));
     return;
@@ -359,6 +394,14 @@ void EMailImapWorker::ListFolders(quint64 seq) {
         seq, ClassifyVmimeException(
                  e, MailStage::kFOLDER,
                  impl_->timeouts && impl_->timeouts->LastWasCancelled()));
+  } catch (const std::exception& e) {
+    // Nothing may propagate out of a slot: this runs from the worker thread's
+    // event loop, where an escaping exception is std::terminate. Answering the
+    // sequence also matters -- an unanswered request leaves the controller
+    // busy forever.
+    emit SignalFailed(seq, MailInternalError(QString::fromUtf8(e.what())));
+  } catch (...) {
+    emit SignalFailed(seq, MailInternalError("unknown error"));
   }
 }
 
@@ -403,6 +446,8 @@ auto SummarizeMessage(const vmime::shared_ptr<vmime::net::message>& message)
 void EMailImapWorker::ListMessages(quint64 seq, const QString& folder_path,
                                    quint64 before_uid, int page_size,
                                    int retained) {
+  const CancelScope cancel_scope(token_, impl_->timeouts);
+
   try {
     auto folder = OpenFolderReadOnly(folder_path);
     if (!folder) {
@@ -461,11 +506,21 @@ void EMailImapWorker::ListMessages(quint64 seq, const QString& folder_path,
         seq, ClassifyVmimeException(
                  e, MailStage::kLISTING,
                  impl_->timeouts && impl_->timeouts->LastWasCancelled()));
+  } catch (const std::exception& e) {
+    // Nothing may propagate out of a slot: this runs from the worker thread's
+    // event loop, where an escaping exception is std::terminate. Answering the
+    // sequence also matters -- an unanswered request leaves the controller
+    // busy forever.
+    emit SignalFailed(seq, MailInternalError(QString::fromUtf8(e.what())));
+  } catch (...) {
+    emit SignalFailed(seq, MailInternalError("unknown error"));
   }
 }
 
 void EMailImapWorker::SearchMessages(quint64 seq, const QString& folder_path,
                                      const QString& query, int page_size) {
+  const CancelScope cancel_scope(token_, impl_->timeouts);
+
   try {
     auto folder = OpenFolderReadOnly(folder_path);
     if (!folder) {
@@ -522,11 +577,21 @@ void EMailImapWorker::SearchMessages(quint64 seq, const QString& folder_path,
         seq, ClassifyVmimeException(
                  e, MailStage::kLISTING,
                  impl_->timeouts && impl_->timeouts->LastWasCancelled()));
+  } catch (const std::exception& e) {
+    // Nothing may propagate out of a slot: this runs from the worker thread's
+    // event loop, where an escaping exception is std::terminate. Answering the
+    // sequence also matters -- an unanswered request leaves the controller
+    // busy forever.
+    emit SignalFailed(seq, MailInternalError(QString::fromUtf8(e.what())));
+  } catch (...) {
+    emit SignalFailed(seq, MailInternalError("unknown error"));
   }
 }
 
 void EMailImapWorker::FetchMessage(quint64 seq, const QString& folder_path,
                                    quint64 number) {
+  const CancelScope cancel_scope(token_, impl_->timeouts);
+
   try {
     auto folder = OpenFolderReadOnly(folder_path);
     if (!folder) {
@@ -572,10 +637,20 @@ void EMailImapWorker::FetchMessage(quint64 seq, const QString& folder_path,
         seq, ClassifyVmimeException(
                  e, MailStage::kFETCH,
                  impl_->timeouts && impl_->timeouts->LastWasCancelled()));
+  } catch (const std::exception& e) {
+    // Nothing may propagate out of a slot: this runs from the worker thread's
+    // event loop, where an escaping exception is std::terminate. Answering the
+    // sequence also matters -- an unanswered request leaves the controller
+    // busy forever.
+    emit SignalFailed(seq, MailInternalError(QString::fromUtf8(e.what())));
+  } catch (...) {
+    emit SignalFailed(seq, MailInternalError("unknown error"));
   }
 }
 
 void EMailImapWorker::FindInSentFolder(quint64 seq, const QString& message_id) {
+  const CancelScope cancel_scope(token_, impl_->timeouts);
+
   try {
     const auto path = ResolveSentFolder();
     if (path.isEmpty()) {
@@ -609,6 +684,14 @@ void EMailImapWorker::FindInSentFolder(quint64 seq, const QString& message_id) {
         seq, ClassifyVmimeException(
                  e, MailStage::kLISTING,
                  impl_->timeouts && impl_->timeouts->LastWasCancelled()));
+  } catch (const std::exception& e) {
+    // Nothing may propagate out of a slot: this runs from the worker thread's
+    // event loop, where an escaping exception is std::terminate. Answering the
+    // sequence also matters -- an unanswered request leaves the controller
+    // busy forever.
+    emit SignalFailed(seq, MailInternalError(QString::fromUtf8(e.what())));
+  } catch (...) {
+    emit SignalFailed(seq, MailInternalError("unknown error"));
   }
 }
 
@@ -657,6 +740,8 @@ auto SentFolderHolds(const vmime::shared_ptr<vmime::net::folder>& folder,
 
 void EMailImapWorker::SaveToSentFolder(quint64 seq, const QString& message_id,
                                        const QByteArray& eml) {
+  const CancelScope cancel_scope(token_, impl_->timeouts);
+
   vmime::shared_ptr<vmime::net::folder> folder;
 
   try {
@@ -722,6 +807,14 @@ void EMailImapWorker::SaveToSentFolder(quint64 seq, const QString& message_id,
         ClassifyVmimeException(
             e, MailStage::kLISTING,
             impl_->timeouts && impl_->timeouts->LastWasCancelled()));
+  } catch (const std::exception& e) {
+    // See the SignalFailed slots above: nothing may escape a slot, and the
+    // sequence has to be answered either way.
+    emit SignalSentSaved(seq, MailSentSaveOutcome::kFAILED, {},
+                         MailInternalError(QString::fromUtf8(e.what())));
+  } catch (...) {
+    emit SignalSentSaved(seq, MailSentSaveOutcome::kFAILED, {},
+                         MailInternalError("unknown error"));
   }
 }
 

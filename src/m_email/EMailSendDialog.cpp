@@ -410,13 +410,26 @@ void EMailSendDialog::start_smtp_worker() {
 }
 
 void EMailSendDialog::stop_workers() {
+  // Unblocks whatever socket call a worker is sitting inside. quit() alone
+  // only asks an event loop to exit, and a thread blocked in vmime is not in
+  // its event loop -- so without this, closing during a submit waited out the
+  // full timeout on the GUI thread and then fell into the detach path below.
+  if (smtp_worker_ != nullptr) smtp_worker_->Token()->Cancel();
+  if (imap_worker_ != nullptr) imap_worker_->Token()->Cancel();
+
   for (auto* pair : {&smtp_thread_, &imap_thread_}) {
     auto*& thread = *pair;
     if (thread == nullptr) continue;
     thread->quit();
-    if (!thread->wait(5000)) {
-      LOG_ERROR("mail worker thread did not stop; leaving it to finish");
+    if (thread->wait(5000)) {
       thread->deleteLater();
+    } else {
+      LOG_ERROR("mail worker thread did not stop; detaching it");
+      // deleteLater() here would be fatal, not a leak: ~QThread on a running
+      // thread is qFatal, and these threads are children of this dialog, so
+      // its destructor would reach the same path. Unparent and self-delete.
+      thread->setParent(nullptr);
+      connect(thread, &QThread::finished, thread, &QObject::deleteLater);
     }
     thread = nullptr;
   }
