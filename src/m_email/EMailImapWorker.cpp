@@ -82,6 +82,10 @@ class SecureAuthenticator : public vmime::security::defaultAuthenticator {
   bool allow_cleartext_;
 };
 
+/// A header field in its WIRE form: exactly the octets the server sent.
+///
+/// Right for Message-ID and Date, which are already plain text and must not be
+/// reinterpreted. Wrong for anything a human reads -- see HeaderText below.
 auto HeaderValue(const vmime::shared_ptr<const vmime::header>& header,
                  const char* field) -> QString {
   if (!header) return {};
@@ -92,6 +96,69 @@ auto HeaderValue(const vmime::shared_ptr<const vmime::header>& header,
   } catch (...) {
     return {};
   }
+}
+
+/**
+ * @brief A header field as text a person can read.
+ *
+ * The distinction matters and is easy to miss: `generate()` re-emits a field
+ * the way it travels on the wire, so a subject that arrived as an RFC 2047
+ * encoded-word comes back as the literal string "=?utf-8?Q?Fam=2C_Can...?="
+ * rather than as the words it encodes. Every non-ASCII subject in a mailbox
+ * then reads as mojibake. Asking vmime for the TYPED value instead is what
+ * decodes it, which is the same thing EMAilHelper.cpp does when it parses a
+ * message from disk.
+ *
+ * Charset conversion is to UTF-8, and the result is still only ever shown as
+ * plain text: a subject is server-controlled input, never markup.
+ */
+auto HeaderText(const vmime::shared_ptr<const vmime::header>& header,
+                const char* field) -> QString {
+  if (!header) return {};
+  try {
+    auto f = header->findField(field);
+    if (!f) return {};
+
+    if (auto value = f->getValue<vmime::text>()) {
+      return QString::fromStdString(
+                 value->getConvertedText(vmime::charsets::UTF_8))
+          .trimmed();
+    }
+  } catch (...) {
+  }
+  return HeaderValue(header, field);
+}
+
+/// A sender as "Display Name <address>", with the name decoded.
+auto HeaderMailbox(const vmime::shared_ptr<const vmime::header>& header,
+                   const char* field) -> QString {
+  if (!header) return {};
+  try {
+    auto f = header->findField(field);
+    if (!f) return {};
+
+    vmime::shared_ptr<const vmime::mailbox> box;
+    if (auto one = f->getValue<vmime::mailbox>()) {
+      box = one;
+    } else if (auto list = f->getValue<vmime::addressList>()) {
+      if (list->getAddressCount() > 0) {
+        box = vmime::dynamicCast<const vmime::mailbox>(list->getAddressAt(0));
+      }
+    }
+
+    if (box) {
+      const auto name = QString::fromStdString(
+                            box->getName().getConvertedText(
+                                vmime::charsets::UTF_8))
+                            .trimmed();
+      const auto address =
+          QString::fromStdString(box->getEmail().toString()).trimmed();
+      if (name.isEmpty()) return address;
+      return QString("%1 <%2>").arg(name, address);
+    }
+  } catch (...) {
+  }
+  return HeaderText(header, field);
 }
 
 /// Message-ID with the angle brackets stripped, for comparison.
@@ -284,8 +351,8 @@ auto SummarizeMessage(const vmime::shared_ptr<vmime::net::message>& message)
   row.size = static_cast<qint64>(message->getSize());
 
   auto header = message->getHeader();
-  row.subject = HeaderValue(header, "Subject");
-  row.from = HeaderValue(header, "From");
+  row.subject = HeaderText(header, "Subject");
+  row.from = HeaderMailbox(header, "From");
   row.message_id = NormalizeMessageId(HeaderValue(header, "Message-ID"));
 
   const auto date = HeaderValue(header, "Date");
