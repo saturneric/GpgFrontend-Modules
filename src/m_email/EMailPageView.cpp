@@ -32,9 +32,11 @@
 
 #include <QAbstractItemView>
 #include <QApplication>
+#include <QButtonGroup>
 #include <QClipboard>
 #include <QCompleter>
 #include <QDesktopServices>
+#include <QDialogButtonBox>
 #include <QDir>
 #include <QDragEnterEvent>
 #include <QDropEvent>
@@ -76,6 +78,7 @@
 #include "EMailSecurityView.h"
 #include "EMailSendDialog.h"
 #include "EMailStructureView.h"
+#include "EMailViewLayout.h"
 #include "EMailViewStyle.h"
 #include "GFModuleCommonUtils.hpp"
 
@@ -92,9 +95,10 @@ constexpr double kLockedFieldTint = 0.05;
 /// gone looking for it, short enough not to become the label.
 constexpr int kStatusNoteMs = 4000;
 
-/// How many tabs get an Alt+<n> key. Five is what this view has; a sixth would
-/// need one too, and Alt+6 is still free.
-constexpr int kMaxTabShortcuts = 5;
+/// How long the splitter has to sit still before its width is written to
+/// settings. A drag emits a position per pixel, and each of those would
+/// otherwise be a settings write.
+constexpr int kPersistDelayMs = 500;
 
 /// The attachment list never gets less than this, however short the window:
 /// below it the list is smaller than its own header plus a row.
@@ -305,26 +309,80 @@ void EMailPageView::build_ui() {
   outer->setContentsMargins(8, 6, 8, 6);
   outer->setSpacing(6);
 
-  tabs_ = new QTabWidget(this);
-  tabs_->setDocumentMode(true);
-  // Smaller than the default 16: these sit beside text at the normal size, and
-  // full-size coloured glyphs shout over the words they are labelling.
-  tabs_->setIconSize(QSize(14, 14));
-  outer->addWidget(tabs_, 1);
+  // The message, and nothing else. This view is already mounted inside the
+  // host's document tabs, and a second row of tabs under the first reads as two
+  // competing sets of destinations rather than as one message. What is KNOWN
+  // about the message -- its structure, its signatures, its headers -- is
+  // inspection rather than content, so it is reached through a window of its
+  // own instead of taking a place beside the message itself.
+  message_surface_ = build_message_surface();
+  outer->addWidget(message_surface_, 1);
 
-  tabs_->addTab(build_message_tab(), QIcon(":/icons/email.png"), tr("Message"));
+  persist_timer_ = new QTimer(this);
+  persist_timer_->setSingleShot(true);
+  persist_timer_->setInterval(kPersistDelayMs);
+  connect(persist_timer_, &QTimer::timeout, this,
+          &EMailPageView::persist_details_state);
 
-  structure_view_ = new EMailStructureView(this);
-  tabs_->addTab(structure_view_, QIcon(":/icons/stairs.png"), tr("Structure"));
+  build_details_dialog();
 
-  security_view_ = new EMailSecurityView(this);
-  // Deliberately not lock.png. That glyph is state-bearing on the security
-  // button beside the body, where it means THIS message is encrypted; sitting
-  // permanently on a tab it would say the same thing about every message.
-  tabs_->addTab(security_view_, QIcon(":/icons/decr-verify.png"),
-                tr("Security"));
+  // Three keys rather than the five the tabs had: there are two ways to look at
+  // the document, and one window that describes it.
+  //
+  // Only within this widget: several of these views can be open at once, and a
+  // key pressed in one must not move another.
+  const auto add_shortcut = [this](const QKeySequence& keys,
+                                   const std::function<void()>& action) {
+    auto* shortcut = new QShortcut(keys, this);
+    shortcut->setContext(Qt::WidgetWithChildrenShortcut);
+    connect(shortcut, &QShortcut::activated, this, action);
+  };
 
-  // The Security tab can now ask for the two things it used to only describe.
+  add_shortcut(QKeySequence(Qt::ALT | Qt::Key_1),
+               [this]() { set_source_mode(false); });
+  add_shortcut(QKeySequence(Qt::ALT | Qt::Key_2),
+               [this]() { set_source_mode(true); });
+  add_shortcut(QKeySequence(Qt::ALT | Qt::Key_3), [this]() { open_details(); });
+
+  apply_colors();
+}
+
+void EMailPageView::build_details_dialog() {
+  // Built with the view rather than on first use. The three inspection views
+  // have to exist from the start -- everything that loads or clears a message
+  // writes to them -- and a widget that exists without a layout to sit in
+  // gets a default geometry and keeps the stale paint that goes with it. Going
+  // straight into the tab widget costs one hidden dialog and avoids all of it.
+  //
+  // Parented to this view, so it closes with the tab it describes and never
+  // outlives the message it is describing. Deliberately NOT modal: it says
+  // what the message IS, and reading that while scrolling the message is the
+  // whole point.
+  details_dialog_ = new QDialog(this);
+  details_dialog_->setWindowTitle(tr("Message Details"));
+
+  auto* layout = new QVBoxLayout(details_dialog_);
+  layout->setContentsMargins(8, 8, 8, 8);
+  layout->setSpacing(6);
+
+  // A tab widget is the right shape HERE, where it was the wrong one inside
+  // the page: in a window of its own there is no outer row of tabs for it to
+  // compete with, and the three are genuinely peers.
+  details_tabs_ = new QTabWidget(details_dialog_);
+  details_tabs_->setDocumentMode(true);
+  layout->addWidget(details_tabs_, 1);
+
+  structure_view_ = new EMailStructureView(details_tabs_);
+  security_view_ = new EMailSecurityView(details_tabs_);
+  header_view_ = new EMailHeaderView(details_tabs_);
+
+  // Most-asked first. The old order was the order the views happened to be
+  // constructed in.
+  details_tabs_->addTab(security_view_, tr("Security"));
+  details_tabs_->addTab(structure_view_, tr("Structure"));
+  details_tabs_->addTab(header_view_, tr("Headers"));
+
+  // The security view can ask for the two things it used to only describe.
   connect(security_view_, &EMailSecurityView::SignalVerifyAgainRequested, this,
           [this]() {
             run_verification();
@@ -334,54 +392,42 @@ void EMailPageView::build_ui() {
   connect(security_view_, &EMailSecurityView::SignalImportMessageKeysRequested,
           this, &EMailPageView::import_message_keys);
 
-  header_view_ = new EMailHeaderView(this);
-  tabs_->addTab(header_view_, QIcon(":/icons/detail.png"), tr("Headers"));
+  auto* buttons =
+      new QDialogButtonBox(QDialogButtonBox::Close, details_dialog_);
+  connect(buttons, &QDialogButtonBox::rejected, details_dialog_,
+          &QDialog::reject);
+  layout->addWidget(buttons);
 
-  // Alt+1..5 rather than mnemonics in the tab labels: a mnemonic has to be a
-  // letter of the translated word, and the five translations will not always
-  // have five distinct free letters between them.
-  for (int i = 0; i < kMaxTabShortcuts; ++i) {
-    auto* shortcut = new QShortcut(
-        QKeySequence(Qt::ALT | static_cast<Qt::Key>(Qt::Key_1 + i)), this);
-    // Only within this tab: several of these views can be open at once, and a
-    // key pressed in one must not switch tabs in another.
-    shortcut->setContext(Qt::WidgetWithChildrenShortcut);
-    connect(shortcut, &QShortcut::activated, this, [this, i]() {
-      if (i < tabs_->count()) tabs_->setCurrentIndex(i);
-    });
-  }
-
-  connect(tabs_, &QTabWidget::currentChanged, this, [this](int index) {
-    auto* page = tabs_->widget(index);
+  connect(details_tabs_, &QTabWidget::currentChanged, this, [this](int index) {
+    auto* page = details_tabs_->widget(index);
 
     // Focus follows the tab. Without this it stays on whatever was clicked, so
     // the filter box and the trees on the tab just opened are only reachable
-    // by tabbing across the whole page first.
+    // by tabbing across the whole window first.
     if (page != nullptr) page->setFocus(Qt::OtherFocusReason);
 
-    // The raw document is the host's, and it may be behind this view's edits.
-    // Asking for it to be brought up to date is the whole reason the host
-    // wants to hear about this switch.
-    if (page != nullptr && page == raw_tab_) {
-      emit SignalSourceViewRequested();
-      return;
-    }
-
-    if (page != structure_view_ && page != security_view_ &&
-        page != header_view_) {
-      return;
-    }
-
-    // Whatever was typed in the Message tab is part of the message now, so
-    // the tab being opened has to describe that rather than what was loaded.
-    sync_inspection();
-
-    if (page != security_view_) return;
-    ensure_regions_verified();
-    refresh_security();
+    sync_details();
+    schedule_persist();
   });
 
-  apply_colors();
+  connect(details_dialog_, &QDialog::finished, this,
+          [this](int) { persist_details_state(); });
+
+  // Restored before the window is ever shown, so it opens where it was left
+  // rather than jumping into place afterwards.
+  auto* settings = EMailViewSettings();
+  if (settings == nullptr) {
+    details_dialog_->resize(kEMailDetailsDefaultWidth,
+                            kEMailDetailsDefaultHeight);
+    return;
+  }
+
+  const auto size =
+      EMailClampDetailsSize(settings->value(kEMailDetailsWidthKey, 0).toInt(),
+                            settings->value(kEMailDetailsHeightKey, 0).toInt());
+  details_dialog_->resize(size.first, size.second);
+  details_tabs_->setCurrentIndex(EMailClampDetailsTab(
+      settings->value(kEMailDetailsTabKey, 0).toInt(), details_tabs_->count()));
 }
 
 void EMailPageView::apply_colors() {
@@ -431,7 +477,7 @@ void EMailPageView::changeEvent(QEvent* event) {
   if (EMailIsRestyle(event)) apply_colors();
 }
 
-auto EMailPageView::build_message_tab() -> QWidget* {
+auto EMailPageView::build_message_surface() -> QWidget* {
   auto* page = new QWidget(this);
   auto* layout = new QVBoxLayout(page);
   layout->setContentsMargins(0, 6, 0, 0);
@@ -531,7 +577,13 @@ auto EMailPageView::build_message_tab() -> QWidget* {
   subject_edit_->setFont(subject_font);
   form->addRow(caption(tr("Subject:")), subject_edit_);
 
-  layout->addLayout(form);
+  // Wrapped rather than added as a bare layout, so the raw source mode can
+  // take the whole envelope off screen in one call. What the form says
+  // describes the message; the raw mode shows octets it does not necessarily
+  // describe any more.
+  envelope_box_ = new QWidget(page);
+  envelope_box_->setLayout(form);
+  layout->addWidget(envelope_box_);
 
   // A hairline between the envelope and the message, so the two stop running
   // together into one undifferentiated column of boxes. Given room on both
@@ -544,6 +596,60 @@ auto EMailPageView::build_message_tab() -> QWidget* {
   auto* body_row = new QHBoxLayout();
   body_row->setContentsMargins(0, 0, 0, 0);
   body_row->setSpacing(2);
+
+  // Message / Raw Source. Flat and adjacent, the same shape the host uses for
+  // the pair when a view does NOT adopt its editor -- two views of one
+  // document, rather than two buttons that do something.
+  //
+  // It sits in the action row rather than in a strip of its own because the
+  // row stays on screen in both modes: a switcher that lives above everything
+  // is the second tab bar this redesign exists to remove.
+  view_switcher_ = new QWidget(this);
+  auto* switcher_row = new QHBoxLayout(view_switcher_);
+  switcher_row->setContentsMargins(0, 0, 0, 0);
+  switcher_row->setSpacing(2);
+
+  const auto make_mode = [this, switcher_row](const QString& text,
+                                              const QString& tip, bool checked,
+                                              const QKeySequence& shortcut) {
+    auto* button = new QToolButton(view_switcher_);
+    button->setText(text);
+    button->setCheckable(true);
+    button->setChecked(checked);
+    button->setAutoRaise(true);
+    button->setFocusPolicy(Qt::NoFocus);
+    button->setCursor(Qt::PointingHandCursor);
+    button->setToolButtonStyle(Qt::ToolButtonTextOnly);
+    button->setToolTip(
+        tr("%1 (%2)").arg(tip, shortcut.toString(QKeySequence::NativeText)));
+    // Held at its natural width. Which view you are looking at is not
+    // something to work out from "Me...ge"; when the row runs out of room it is
+    // the message ACTIONS that give way, in refresh_action_density().
+    button->setMinimumWidth(button->sizeHint().width());
+    switcher_row->addWidget(button);
+    return button;
+  };
+
+  message_mode_button_ = make_mode(tr("Message"), tr("Show the message"), true,
+                                   QKeySequence(Qt::ALT | Qt::Key_1));
+  source_mode_button_ = make_mode(tr("Raw Source"), tr("Show the raw document"),
+                                  false, QKeySequence(Qt::ALT | Qt::Key_2));
+
+  auto* mode_group = new QButtonGroup(view_switcher_);
+  mode_group->setExclusive(true);
+  mode_group->addButton(message_mode_button_);
+  mode_group->addButton(source_mode_button_);
+
+  connect(message_mode_button_, &QToolButton::clicked, this,
+          [this]() { set_source_mode(false); });
+  connect(source_mode_button_, &QToolButton::clicked, this,
+          [this]() { set_source_mode(true); });
+
+  // A host that kept its own switcher never hands over an editor, and then
+  // there is no second mode to offer.
+  view_switcher_->setVisible(false);
+  body_row->addWidget(view_switcher_);
+  body_row->addSpacing(4);
 
   // Message-level actions. Each produces a NEW document in a new tab; none of
   // them writes to this one.
@@ -629,8 +735,30 @@ auto EMailPageView::build_message_tab() -> QWidget* {
 
   body_row->addStretch();
 
+  // Opens the pane beside the message. Next to the security button because
+  // the two are the same subject: what this message is, and the detail behind
+  // that answer.
+  details_button_ = new QToolButton(this);
+  details_button_->setIcon(QIcon::fromTheme(
+      QStringLiteral("dialog-information"), QIcon(":/icons/detail.png")));
+  // The ellipsis is doing its usual job: this opens a window rather than
+  // changing anything here.
+  details_button_->setText(tr("Details…"));
+  details_button_->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+  details_button_->setAutoRaise(true);
+  details_button_->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_D));
+  details_button_->setToolTip(tr("%1 (%2)").arg(
+      tr("Show what is known about this message: its signatures, its "
+         "structure and its headers."),
+      details_button_->shortcut().toString(QKeySequence::NativeText)));
+  details_button_->setMinimumWidth(details_button_->sizeHint().width());
+  connect(details_button_, &QToolButton::clicked, this,
+          [this]() { open_details(); });
+  body_row->addWidget(details_button_);
+  body_row->addSpacing(4);
+
   // What the message IS, and which action applies, on the same row as the
-  // actions themselves rather than in a band of its own above the tabs. It is
+  // actions themselves rather than in a band of its own above the body. It is
   // the answer to "what do I do with this", so it belongs where the doing is.
   security_button_ = new ElidingToolButton(this);
   security_button_->setVisible(false);
@@ -704,6 +832,14 @@ auto EMailPageView::build_message_tab() -> QWidget* {
   body_stack_->addWidget(locked_panel_);
   layout->addWidget(body_stack_, 1);
 
+  // Everything about attachments, wrapped for the same reason as the envelope:
+  // the raw source mode hides it whole.
+  attachment_box_ = new QWidget(page);
+  auto* attachment_column = new QVBoxLayout(attachment_box_);
+  attachment_column->setContentsMargins(0, 0, 0, 0);
+  attachment_column->setSpacing(6);
+  layout->addWidget(attachment_box_);
+
   attachment_heading_ = new QLabel(this);
   {
     auto font = attachment_heading_->font();
@@ -713,8 +849,8 @@ auto EMailPageView::build_message_tab() -> QWidget* {
   attachment_heading_->setVisible(false);
   // Not welded to the body above it: this is a new group, not a caption on the
   // editor.
-  layout->addSpacing(2);
-  layout->addWidget(attachment_heading_);
+  attachment_column->addSpacing(2);
+  attachment_column->addWidget(attachment_heading_);
 
   attachment_list_ = new QTreeWidget(this);
   attachment_list_->setRootIsDecorated(false);
@@ -728,7 +864,7 @@ auto EMailPageView::build_message_tab() -> QWidget* {
                                                    QHeaderView::Stretch);
   EMailPolishTree(attachment_list_);
   attachment_list_->setVisible(false);
-  layout->addWidget(attachment_list_);
+  attachment_column->addWidget(attachment_list_);
 
   unsigned_notice_ = new QLabel(this);
   unsigned_notice_->setWordWrap(true);
@@ -738,7 +874,7 @@ auto EMailPageView::build_message_tab() -> QWidget* {
     font.setPointSizeF(font.pointSizeF() * 0.92);
     unsigned_notice_->setFont(font);
   }
-  layout->addWidget(unsigned_notice_);
+  attachment_column->addWidget(unsigned_notice_);
 
   // The same shape as the actions above: flat, icon beside text. These used
   // to be raised push buttons, which gave the attachment list a heavier
@@ -790,7 +926,7 @@ auto EMailPageView::build_message_tab() -> QWidget* {
   buttons->addStretch();
   buttons->addWidget(save_button_);
   buttons->addWidget(save_all_button_);
-  layout->addLayout(buttons);
+  attachment_column->addLayout(buttons);
 
   connect(add_button_, &QToolButton::clicked, this,
           &EMailPageView::slot_add_attachment);
@@ -836,6 +972,121 @@ auto EMailPageView::build_message_tab() -> QWidget* {
 
   slot_selection_changed();
   return page;
+}
+
+auto EMailPageView::details_visible() const -> bool {
+  return details_dialog_ != nullptr && details_dialog_->isVisible();
+}
+
+void EMailPageView::open_details() {
+  // show() on a window that is already open does nothing useful -- it may be
+  // behind the main window, or minimised -- so it is always raised and given
+  // the keyboard as well. Asking for it twice means "bring it to me".
+  details_dialog_->show();
+  details_dialog_->raise();
+  details_dialog_->activateWindow();
+
+  sync_details();
+}
+
+void EMailPageView::open_details(const QString& section) {
+  if (security_view_ == nullptr) return;
+
+  details_tabs_->setCurrentWidget(security_view_);
+
+  // Opened and brought up to date BEFORE the reveal: the refresh rebuilds the
+  // tree, and a rebuild after the scroll throws away the row scrolled to.
+  open_details();
+  security_view_->RevealSection(section);
+}
+
+void EMailPageView::sync_details() {
+  if (!details_visible()) return;
+
+  // Whatever was typed into the message is part of it now, so the tab being
+  // looked at has to describe that rather than what was loaded.
+  sync_inspection();
+
+  if (!EMailNeedsSecurityRefresh(
+          true, details_tabs_->currentWidget() == security_view_)) {
+    return;
+  }
+  ensure_regions_verified();
+  refresh_security();
+}
+
+void EMailPageView::schedule_persist() {
+  if (persist_timer_ != nullptr) persist_timer_->start();
+}
+
+void EMailPageView::persist_details_state() {
+  auto* settings = EMailViewSettings();
+  if (settings == nullptr || details_dialog_ == nullptr) return;
+
+  settings->setValue(kEMailDetailsWidthKey, details_dialog_->width());
+  settings->setValue(kEMailDetailsHeightKey, details_dialog_->height());
+  settings->setValue(kEMailDetailsTabKey, details_tabs_->currentIndex());
+  settings->sync();
+}
+
+void EMailPageView::set_source_mode(bool on) {
+  // Nothing was adopted, so there is only one mode and this cannot be entered.
+  if (raw_tab_ == nullptr || source_mode_ == on) {
+    if (message_mode_button_ != nullptr) {
+      message_mode_button_->setChecked(!source_mode_);
+      source_mode_button_->setChecked(source_mode_);
+    }
+    return;
+  }
+
+  if (on) {
+    // The host answers by writing pending edits into the document. It has to
+    // happen before the editor is on screen, or the octets the user reads as
+    // the raw source are behind what this view already has.
+    emit SignalSourceViewRequested();
+  }
+
+  source_mode_ = on;
+  message_mode_button_->setChecked(!on);
+  source_mode_button_->setChecked(on);
+
+  // The envelope and the attachment list describe the parsed message. Beside
+  // the raw octets they would be describing something the user is no longer
+  // looking at, so they go away and the document gets the whole area.
+  envelope_box_->setVisible(!on);
+  envelope_rule_->setVisible(!on);
+  attachment_box_->setVisible(!on);
+
+  if (on) {
+    body_stack_->setCurrentWidget(raw_tab_);
+    refresh_raw_lock_ui();
+    source_view_->setFocus(Qt::OtherFocusReason);
+    return;
+  }
+
+  // Back to whichever of the editor, the rendered body or the locked panel the
+  // message actually calls for.
+  refresh_body_view();
+}
+
+void EMailPageView::refresh_action_density() {
+  if (message_surface_ == nullptr || reply_button_ == nullptr) return;
+
+  const auto compact = EMailShouldCompactActions(width(), actions_compact_);
+  if (compact == actions_compact_) return;
+  actions_compact_ = compact;
+
+  const auto style =
+      compact ? Qt::ToolButtonIconOnly : Qt::ToolButtonTextBesideIcon;
+  for (auto* button : {reply_button_, reply_all_button_, forward_button_,
+                       send_button_, forensic_toggle_}) {
+    if (button != nullptr) button->setToolButtonStyle(style);
+  }
+}
+
+void EMailPageView::resizeEvent(QResizeEvent* event) {
+  QWidget::resizeEvent(event);
+  refresh_action_density();
 }
 
 void EMailPageView::set_cc_bcc_visible(bool visible) {
@@ -1172,8 +1423,8 @@ void EMailPageView::AdoptSourceView(QWidget* source) {
 
   source_view_ = source;
 
-  // The editor does not go into the tab bare: it gets a row above it saying
-  // whether it may be written to, and the control that changes that.
+  // The editor is not shown bare: it gets a row above it saying whether it may
+  // be written to, and the control that changes that.
   raw_tab_ = new QWidget(this);
   auto* layout = new QVBoxLayout(raw_tab_);
   layout->setContentsMargins(0, 4, 0, 0);
@@ -1203,9 +1454,14 @@ void EMailPageView::AdoptSourceView(QWidget* source) {
   connect(raw_unlock_button_, &QToolButton::toggled, this,
           &EMailPageView::slot_toggle_raw_edit);
 
-  // Last, after Headers: the tabs run from the most interpreted view of the
-  // message to the least, ending at the bytes themselves.
-  tabs_->addTab(raw_tab_, QIcon(":/icons/code.png"), tr("Raw Source"));
+  // A page of the body stack rather than a place of its own, so the action row
+  // above it -- and with it the switcher back -- stays on screen while the raw
+  // document is being read. Appended, so the indices the rest of this file
+  // uses for the editor, the rendered body and the locked panel do not move.
+  body_stack_->addWidget(raw_tab_);
+
+  // There is a second mode now, so the switch to it becomes reachable.
+  view_switcher_->setVisible(true);
 
   // Read-only by default, and not only in forensic mode: these are the exact
   // octets a signature covers, and an accidental keystroke here is
@@ -1324,7 +1580,10 @@ void EMailPageView::NotifyKeyringChanged() {
   // Only redo the work now if it is being looked at; otherwise the next visit
   // to the Security tab picks it up, which is where the verification is
   // normally triggered anyway.
-  if (tabs_ != nullptr && tabs_->currentWidget() == security_view_) {
+  if (EMailNeedsSecurityRefresh(
+          details_visible(),
+          details_tabs_ != nullptr &&
+              details_tabs_->currentWidget() == security_view_)) {
     ensure_regions_verified();
     refresh_security();
   }
@@ -1730,6 +1989,12 @@ auto EMailPageView::refuse_when_locked(const QString& what) -> bool {
 }
 
 void EMailPageView::refresh_body_view() {
+  // The raw document is on screen, and this function's whole job is to decide
+  // which of the OTHER pages belongs there. Without this guard the host's own
+  // reload -- which it runs on every content change, including the user's own
+  // keystrokes in that editor -- would pull the editor out from under them.
+  if (source_mode_) return;
+
   // Cleared before the body view is told anything, so the flag can only be set
   // again by the view itself saying it fell back to source.
   // apply_content_lock() runs after this function in LoadFromSource() and is
@@ -2113,12 +2378,13 @@ void EMailPageView::rebuild_security_menu() {
   security_menu_->clear();
 
   // Each of these items is a question -- what signed this, who is it
-  // encrypted to -- and answering it by opening a tab and leaving the user to
+  // encrypted to -- and answering it by opening a pane and leaving the user to
   // find the row themselves answers a different, easier question.
   const auto show_details = [this](const QString& section) {
-    if (tabs_ == nullptr || security_view_ == nullptr) return;
-    tabs_->setCurrentWidget(security_view_);
-    security_view_->RevealSection(section);
+    if (security_view_ == nullptr) return;
+    // Opened and brought up to date BEFORE the reveal: the refresh rebuilds
+    // the tree, and a rebuild after the scroll throws the row away.
+    open_details(section);
   };
   const auto request = [this](const QString& op) {
     emit SignalCryptoOperationRequested(op);

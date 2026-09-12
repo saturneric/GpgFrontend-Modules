@@ -46,7 +46,9 @@ class QFormLayout;
 class QFrame;
 class QFont;
 class QLabel;
+class QDialog;
 class QTabWidget;
+class QTimer;
 class EMailStructureView;
 class EMailHeaderView;
 class EMailSecurityView;
@@ -118,18 +120,18 @@ class EMailPageView : public QWidget {
    * they are worked out again, which is what makes an import visible without
    * reopening the message.
    *
-   * Re-derives immediately when the Security tab is the one being looked at,
-   * and otherwise leaves the work to the next visit.
+   * Re-derives immediately when the Security section is the one being looked
+   * at, and otherwise leaves the work to the next visit.
    */
   void NotifyKeyringChanged();  // NOLINT
 
   /**
-   * @brief Takes the host's raw document editor and presents it as a tab.
+   * @brief Takes the host's raw document editor and presents it as a mode.
    *
    * Optional half of the page/view contract: a page that finds this member
    * hands over its own editor instead of putting a Message / Raw Source
-   * switcher above this widget, so every way of looking at one message sits in
-   * one row of tabs.
+   * switcher above this widget, so the switch lives inside the message rather
+   * than in a strip above it.
    *
    * The widget passed in is the real editor over the real document, not a
    * copy. Editing the raw source therefore keeps working, and the document
@@ -297,6 +299,8 @@ class EMailPageView : public QWidget {
  protected:
   /// Accepts a drag only when it carries files and the document may change.
   void changeEvent(QEvent* event) override;
+  /// Keeps the action row's wording in step with the room it has.
+  void resizeEvent(QResizeEvent* event) override;
   void dragEnterEvent(QDragEnterEvent* event) override;
   void dragMoveEvent(QDragMoveEvent* event) override;
   /// Attaches dropped files.
@@ -383,22 +387,53 @@ class EMailPageView : public QWidget {
   /// True when the content may be changed. Otherwise explains why not, and
   /// for a signed message offers to remove the signature, then returns false.
   auto refuse_when_locked(const QString& what) -> bool;
-  /// Keeps the Raw Source tab's notice and unlock control in step.
+  /// Keeps the raw source notice and unlock control in step.
   void refresh_raw_lock_ui();
+  /// Builds the details window, hidden, along with the rest of the view. The
+  /// three inspection views live in its tab widget; a tab widget is the right
+  /// shape in a window of its own, where there is no outer row of tabs for it
+  /// to compete with.
+  void build_details_dialog();
+  /// Opens that window, raising it if it is already open.
+  void open_details();
+  /// Opens it on the Security tab, revealing @p section. How the security menu
+  /// answers its own questions: opening a window and leaving the user to find
+  /// the row themselves answers a different, easier question.
+  void open_details(const QString& section);
+  /// Whether the details window is on screen right now.
+  [[nodiscard]] auto details_visible() const -> bool;
+  /// Brings the visible tab in line with edits made to the message, and
+  /// re-derives the security tab when that is the one being looked at. The
+  /// lazy half of what the old tab-change handler did.
+  void sync_details();
+  /// Writes the details window's size and current tab to the host settings.
+  void persist_details_state();
+  /// Asks for that write a moment from now, so a window being resized does not
+  /// write a settings file per pixel.
+  void schedule_persist();
+  /// Drops the wording from the message actions when the row has run out of
+  /// room for it, and puts it back when there is room again. The view controls
+  /// and the security state keep theirs: those are read at a glance, while
+  /// Reply and Forward are recognisable as icons and keep their tooltips.
+  void refresh_action_density();
+  /// Shows the message, or the raw document the host handed over. The only
+  /// place the body stack is switched to the raw editor, because the host has
+  /// to be given the chance to flush its edits first.
+  void set_source_mode(bool on);
   /// Builds the panel shown in place of a body that is still ciphertext.
   auto build_locked_panel() -> QWidget*;
   /// Writes that panel from what is knowable without decrypting.
   void refresh_locked_panel();
   /// Rebuilds the security button's menu for the current state.
   void rebuild_security_menu();
-  /// Builds the Message sub-tab, which holds the editable message itself.
-  auto build_message_tab() -> QWidget*;
-  /// Reparses `last_source_` into the tree the inspection tabs render.
+  /// Builds the message surface, which holds the editable message itself.
+  auto build_message_surface() -> QWidget*;
+  /// Reparses `last_source_` into the tree the inspection views render.
   void refresh_structure();
-  /// Brings the inspection tabs back in line with edits made in the Message
-  /// tab, re-deriving the document from the editor before reparsing it.
+  /// Brings the inspection views back in line with edits made to the message,
+  /// re-deriving the document from the editor before reparsing it.
   ///
-  /// Deferred until an inspection tab is actually visited rather than run per
+  /// Deferred until a section is actually looked at rather than run per
   /// keystroke: serializing re-encodes every attachment, which is far too
   /// expensive to repeat while someone is typing.
   ///
@@ -412,13 +447,13 @@ class EMailPageView : public QWidget {
   /// Recolours the security button from the current state, and nothing else.
   /// The half of refresh_security_button() that a repaint may run.
   void paint_security_button();
-  /// Refreshes the Security tab from what parsing and any completed operation
-  /// have established. Read-only: it never writes the document, so opening the
-  /// tab cannot change the bytes.
+  /// Refreshes the Security section from what parsing and any completed
+  /// operation have established. Read-only: it never writes the document, so
+  /// opening the section cannot change the bytes.
   void refresh_security();
-  /// Verifies each signature region, once, the first time the Security tab is
-  /// actually looked at. Deferred rather than done on load because a message
-  /// may carry several signatures and most tabs are never opened; verifying
+  /// Verifies each signature region, once, the first time the Security section
+  /// is actually looked at. Deferred rather than done on load because a message
+  /// may carry several signatures and most are never opened; verifying
   /// reads the message and writes nothing, so it is safe to run here.
   void ensure_regions_verified();
   /// Verifies every signed region now, whatever has been tried before, and
@@ -442,7 +477,7 @@ class EMailPageView : public QWidget {
   void set_cc_bcc_visible(bool visible);
 
   EMailMetaData message_;
-  /// The parsed tree behind the inspection tabs. Rebuilt on every load and
+  /// The parsed tree behind the inspection views. Rebuilt on every load and
   /// never written back -- inspection is byte-preserving.
   EMailPart tree_root_;
   QList<EMailSignatureRegion> regions_;
@@ -452,7 +487,7 @@ class EMailPageView : public QWidget {
   QList<EMailSignatureResult> signature_results_;
   QList<EMailRecipientRow> recipient_rows_;
   EMailVerifyState verify_state_{EMailVerifyState::kNOT_ATTEMPTED};
-  /// Whether edits have left the inspection tabs describing an older document
+  /// Whether edits have left the inspection views describing an older document
   /// than the one the editor now holds.
   bool inspection_stale_{false};
   /// How this tab is currently displaying things. Not message state and not
@@ -547,13 +582,41 @@ class EMailPageView : public QWidget {
   QLabel* locked_heading_{};
   QLabel* locked_recipients_{};
   QPushButton* locked_decrypt_button_{};
-  QTabWidget* tabs_{};
-  /// The host's raw document editor, once adopted. Owned by the tab widget
-  /// it was placed in; null when the host kept its own switcher instead.
+  /// Everything that IS the message: the envelope, the actions, the body and
+  /// the attachments. The whole of this view -- what is merely KNOWN about the
+  /// message lives in a window of its own.
+  QWidget* message_surface_{};
+  /// The From/To/Subject form, wrapped so the raw source mode can take it off
+  /// screen in one call. It describes the message, and the raw mode is showing
+  /// bytes it does not necessarily describe any more.
+  QWidget* envelope_box_{};
+  /// The attachment heading, list, notice and buttons, wrapped for the same
+  /// reason.
+  QWidget* attachment_box_{};
+  /// The details window and its tabs. Built with the view and hidden until it
+  /// is asked for, and kept afterwards, so closing and reopening it does not
+  /// lose the tab or the size.
+  QDialog* details_dialog_{};
+  QTabWidget* details_tabs_{};
+  /// Opens that window.
+  QToolButton* details_button_{};
+  /// Message / Raw Source. Hidden until an editor is actually adopted: a host
+  /// that kept its own switcher leaves this view with only one mode.
+  QWidget* view_switcher_{};
+  QToolButton* message_mode_button_{};
+  QToolButton* source_mode_button_{};
+  /// Coalesces settings writes, so a window being dragged to a new size does
+  /// not write a settings file per pixel.
+  QTimer* persist_timer_{};
+  /// Whether the raw document is the thing on screen.
+  bool source_mode_{false};
+  /// Whether the message actions are currently showing icons alone.
+  bool actions_compact_{false};
+  /// The host's raw document editor, once adopted. Owned by the page of the
+  /// body stack it was placed in; null when the host kept its own switcher.
   QWidget* source_view_{};
-  /// The Raw Source tab itself: the adopted editor plus the row that says
-  /// whether it may be written to. Never the editor alone, or the tab-change
-  /// handler would stop recognising it.
+  /// The raw source page itself: the adopted editor plus the row that says
+  /// whether it may be written to. Never the editor alone.
   QWidget* raw_tab_{};
   QLabel* raw_notice_{};
   QToolButton* raw_unlock_button_{};

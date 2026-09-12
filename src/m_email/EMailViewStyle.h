@@ -36,6 +36,7 @@
 #include <QLabel>
 #include <QPainter>
 #include <QPalette>
+#include <QSettings>
 #include <QTreeWidget>
 #include <QTreeWidgetItem>
 #include <QVBoxLayout>
@@ -322,6 +323,17 @@ inline auto EMailTintedBanner(QWidget* parent, const QColor& tint,
   banner->setFrameShape(QFrame::NoFrame);
   EMailTintBanner(banner, tint, strength);
   return banner;
+}
+
+/**
+ * @brief The settings the host keeps for the whole application.
+ *
+ * Same object the account store writes to, reached the same way. Null when the
+ * host is not there to ask, which every caller has to be able to live with:
+ * nothing here is worth refusing to build a widget over.
+ */
+inline auto EMailViewSettings() -> QSettings* {
+  return qobject_cast<QSettings*>(static_cast<QObject*>(GFUIGlobalSettings()));
 }
 
 /**

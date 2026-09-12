@@ -31,19 +31,29 @@ aux_source_directory(. INTEGRATED_MODULE_SOURCE)
 # register module
 register_module(mod_email MODULE_TARGET ${INTEGRATED_MODULE_SOURCE})
 
-set(VMIME_INSTALL OFF CACHE BOOL "Don't Install")
-set(VMIME_BUILD_TESTS OFF CACHE BOOL "No Unit Test")
-set(VMIME_HAVE_TLS_SUPPORT ON CACHE BOOL "TLS for IMAP/SMTP")
-set(VMIME_TLS_SUPPORT_LIB "openssl" CACHE STRING "Use OpenSSL, already a dependency")
-set(VMIME_HAVE_SASL_SUPPORT OFF CACHE BOOL "No SASL")
-set(VMIME_BUILD_DOCUMENTATION OFF CACHE BOOL "Document IS Not Necessary HERE")
-set(VMIME_BUILD_STATIC_LIBRARY ON CACHE BOOL "Need Static Library")
-set(VMIME_BUILD_SHARED_LIBRARY OFF CACHE BOOL "No Shared Library")
-set(VMIME_HAVE_MESSAGING_PROTO_POP3 OFF CACHE BOOL "No POP3 protocol")
-set(VMIME_HAVE_MESSAGING_PROTO_SMTP ON CACHE BOOL "SMTP submission")
-set(VMIME_HAVE_MESSAGING_PROTO_IMAP ON CACHE BOOL "IMAP import")
-set(VMIME_HAVE_MESSAGING_PROTO_MAILDIR OFF CACHE BOOL "No Maildir protocol")
-set(VMIME_HAVE_MESSAGING_PROTO_SENDMAIL OFF CACHE BOOL "No Sendmail protocol")
+# These are requirements of this module, not preferences a build tree gets to
+# hold an opinion about -- so FORCE. Without it a cache written before an
+# option existed wins, and the build silently keeps the old value: a tree
+# configured before TLS was turned on went on building vmime with
+# VMIME_HAVE_TLS_SUPPORT=OFF, which does not fail to compile, it just removes
+# the encryption. The sanitizer build was in exactly that state.
+set(VMIME_INSTALL OFF CACHE BOOL "Don't Install" FORCE)
+set(VMIME_BUILD_TESTS OFF CACHE BOOL "No Unit Test" FORCE)
+set(VMIME_HAVE_TLS_SUPPORT ON CACHE BOOL "TLS for IMAP/SMTP" FORCE)
+set(VMIME_TLS_SUPPORT_LIB "openssl" CACHE STRING
+    "Use OpenSSL, already a dependency" FORCE)
+set(VMIME_HAVE_SASL_SUPPORT OFF CACHE BOOL "No SASL" FORCE)
+set(VMIME_BUILD_DOCUMENTATION OFF CACHE BOOL
+    "Document IS Not Necessary HERE" FORCE)
+set(VMIME_BUILD_STATIC_LIBRARY ON CACHE BOOL "Need Static Library" FORCE)
+set(VMIME_BUILD_SHARED_LIBRARY OFF CACHE BOOL "No Shared Library" FORCE)
+set(VMIME_HAVE_MESSAGING_PROTO_POP3 OFF CACHE BOOL "No POP3 protocol" FORCE)
+set(VMIME_HAVE_MESSAGING_PROTO_SMTP ON CACHE BOOL "SMTP submission" FORCE)
+set(VMIME_HAVE_MESSAGING_PROTO_IMAP ON CACHE BOOL "IMAP import" FORCE)
+set(VMIME_HAVE_MESSAGING_PROTO_MAILDIR OFF CACHE BOOL
+    "No Maildir protocol" FORCE)
+set(VMIME_HAVE_MESSAGING_PROTO_SENDMAIL OFF CACHE BOOL
+    "No Sendmail protocol" FORCE)
 find_package(OpenSSL REQUIRED)
 
 add_subdirectory(vmime "vmime" EXCLUDE_FROM_ALL)
