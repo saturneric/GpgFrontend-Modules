@@ -132,8 +132,6 @@ class EMailAccountSettingsPage : public QWidget {
   QLabel* smtp_status_{};
 
   QLineEdit* password_edit_{};
-  QCheckBox* remember_password_{};
-  QLabel* password_notice_{};
   QLabel* oauth_notice_{};
 
   QWidget* editor_{};

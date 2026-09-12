@@ -167,7 +167,6 @@ auto MailAccountConfig::ToJson() const -> QJsonObject {
       {"imap", imap.ToJson()},
       {"smtp", smtp.ToJson()},
       {"sent_folder_override", sent_folder_override},
-      {"remember_password", remember_password},
       {"page_size", page_size},
   };
 }
@@ -183,7 +182,6 @@ auto MailAccountConfig::FromJson(const QJsonObject& json) -> MailAccountConfig {
   config.smtp = MailTransportConfig::FromJson(json.value("smtp").toObject());
   config.sent_folder_override =
       json.value("sent_folder_override").toString().trimmed();
-  config.remember_password = json.value("remember_password").toBool();
   config.page_size =
       MailClampPageSize(json.value("page_size").toInt(kMailDefaultPageSize));
   return config;

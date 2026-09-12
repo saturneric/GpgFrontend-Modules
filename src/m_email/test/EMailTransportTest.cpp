@@ -124,7 +124,6 @@ TEST(EMailAccountModelTest, SerializedAccountsNeverCarryASecret) {
   account.imap.enabled = true;
   account.imap.host = "imap.example.org";
   account.imap.username = "someone";
-  account.remember_password = true;
 
   const auto json = account.ToJson();
 

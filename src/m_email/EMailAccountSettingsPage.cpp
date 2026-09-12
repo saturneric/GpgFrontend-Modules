@@ -219,9 +219,6 @@ void EMailAccountSettingsPage::build_ui() {
   password_edit_ = new QLineEdit(credentials);
   password_edit_->setEchoMode(QLineEdit::Password);
   password_edit_->setPlaceholderText(Tr("Leave blank to keep the stored one"));
-  remember_password_ = new QCheckBox(Tr("Remember this password"), credentials);
-  password_notice_ = new QLabel(credentials);
-  password_notice_->setWordWrap(true);
 
   oauth_notice_ = new QLabel(
       Tr("Signing in through a provider's own web page (OAuth2) is not "
@@ -231,8 +228,6 @@ void EMailAccountSettingsPage::build_ui() {
   oauth_notice_->setWordWrap(true);
 
   credential_form->addRow(Tr("Password"), password_edit_);
-  credential_form->addRow(QString(), remember_password_);
-  credential_form->addRow(QString(), password_notice_);
   credential_form->addRow(QString(), oauth_notice_);
   right->addWidget(credentials);
   right->addStretch();
@@ -247,8 +242,6 @@ void EMailAccountSettingsPage::build_ui() {
   connect(remove_button_, &QPushButton::clicked, this,
           &EMailAccountSettingsPage::slot_remove_account);
   connect(password_edit_, &QLineEdit::textEdited, this,
-          &EMailAccountSettingsPage::slot_field_edited);
-  connect(remember_password_, &QCheckBox::toggled, this,
           &EMailAccountSettingsPage::slot_field_edited);
 }
 
@@ -272,15 +265,11 @@ void EMailAccountSettingsPage::ApplySettings() {
   store_selected();
   EMailAccountStore::Store(accounts_, default_id_);
 
+  // A password typed here is stored, full stop. There is no prompt anywhere
+  // else and no per-account opt-out, so storing is the only way an account can
+  // ever be used -- a choice about it would be a choice between working and
+  // not working.
   for (const auto& account : accounts_) {
-    if (!account.remember_password) {
-      // Turning remembering off is a request to forget, not merely to stop
-      // saving: leaving the old secret behind would outlive the reason it was
-      // kept.
-      EMailCredentialStore::Remove(account.id);
-      continue;
-    }
-
     const auto password = pending_passwords_.value(account.id);
     if (password.isEmpty()) continue;
     EMailCredentialStore::Save(account.id, password);
@@ -409,7 +398,6 @@ void EMailAccountSettingsPage::load_selected() {
   smtp_user_->setText(account.smtp.username);
   smtp_port_->setValue(account.smtp.port);
 
-  remember_password_->setChecked(account.remember_password);
   password_edit_->setText(pending_passwords_.value(account.id));
 
   imap_status_->clear();
@@ -441,7 +429,6 @@ void EMailAccountSettingsPage::store_selected() {
 
   account.sent_folder_override = sent_folder_->text().trimmed();
   account.page_size = MailClampPageSize(page_size_->value());
-  account.remember_password = remember_password_->isChecked();
 
   const auto password = password_edit_->text();
   if (!password.isEmpty()) pending_passwords_[account.id] = password;
@@ -467,21 +454,6 @@ void EMailAccountSettingsPage::refresh_enabled_state() {
         static_cast<QWidget*>(smtp_user_), static_cast<QWidget*>(smtp_port_),
         static_cast<QWidget*>(smtp_test_)}) {
     widget->setEnabled(smtp_enabled_->isChecked());
-  }
-
-  // The credential policy, made visible. Everything the durable store holds is
-  // encrypted under the application key, so when that key is itself
-  // unprotected, storing a password there protects it in name only. The user
-  // may still insist -- but not by default, and not without being told.
-  if (EMailCredentialStore::MayPersistSilently()) {
-    password_notice_->clear();
-    remember_password_->setEnabled(true);
-  } else {
-    password_notice_->setText(
-        Tr("This profile has no protection set, so a saved password would be "
-           "stored with no real protection. Leave this off to be asked each "
-           "time, or turn on profile protection in Advanced settings first."));
-    remember_password_->setEnabled(true);
   }
 }
 

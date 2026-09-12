@@ -131,10 +131,6 @@ struct MailAccountConfig {
   /// case; this exists because discovery genuinely fails on some servers.
   QString sent_folder_override;
 
-  /// Whether the password may be written to the credential store. Only
-  /// meaningful when profile protection is on -- see EMailCredentialStore.
-  bool remember_password{false};
-
   /// Rows per page in the message picker. Clamped to the allowed set on read,
   /// so a hand-edited settings file cannot ask for an unbounded page.
   int page_size{50};

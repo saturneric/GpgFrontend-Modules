@@ -34,9 +34,8 @@
 #include <QFormLayout>
 #include <QGroupBox>
 #include <QHBoxLayout>
-#include <QInputDialog>
 #include <QLabel>
-#include <QLineEdit>
+#include <QMessageBox>
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QStackedWidget>
@@ -216,14 +215,15 @@ void EMailSendDialog::slot_send() {
 
   auto password = EMailCredentialStore::Load(account.id);
   if (password.isEmpty()) {
-    bool accepted = false;
-    password = QInputDialog::getText(
-        this, Tr("Password"),
-        Tr("Password for %1")
-            .arg(account.Label().isEmpty() ? account.smtp.host
-                                           : account.Label()),
-        QLineEdit::Password, {}, &accepted);
-    if (!accepted || password.isEmpty()) return;
+    // No prompt here either: the password is set in Settings and nowhere else.
+    // Refusing plainly is better than a dialog that would make sending depend
+    // on a credential the application never actually keeps.
+    QMessageBox::information(
+        this, Tr("No password stored"),
+        Tr("This account has no stored password, so nothing can be sent "
+           "through it. Set the password in Settings, under Mail Accounts, "
+           "and turn on the option to remember it."));
+    return;
   }
 
   send_button_->setEnabled(false);

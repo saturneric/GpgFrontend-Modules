@@ -69,10 +69,21 @@ auto MayPersistSilently() -> bool {
 auto Save(const QString& account_id, const QString& password) -> bool {
   if (account_id.isEmpty()) return false;
 
-  // Deliberately no MayPersistSilently() check here. This function does what
-  // it is told; deciding whether to call it is the caller's job, because only
-  // the caller knows whether the user was asked. Refusing here would mean an
-  // informed user could not opt in at all.
+  // Storing is not optional: there is no password prompt anywhere, so an
+  // account without a stored password simply cannot be used. Refusing here
+  // would not protect anyone, it would just break the feature.
+  //
+  // The protection level still matters though, so it is recorded rather than
+  // shown. Everything here is encrypted under the application secure key, and
+  // when that key is itself unprotected this is protection in name only --
+  // worth having in a log when someone is working out how exposed a profile
+  // is, even though it is not worth interrupting them over.
+  if (!MayPersistSilently()) {
+    LOG_WARN(
+        "storing a mail credential while the application key is unprotected; "
+        "it is only as protected as the profile itself");
+  }
+
   //
   // Both arguments are handed over owned, from the allocators the SDK will
   // release them through: the key ordinary, the secret secure. Passing a
