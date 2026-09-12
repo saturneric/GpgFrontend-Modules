@@ -95,23 +95,21 @@ auto Save(const QString& account_id, const QString& password) -> bool {
   return result == 0;
 }
 
-auto Load(const QString& account_id) -> QString {
-  if (account_id.isEmpty()) return {};
+auto Load(const QString& account_id) -> EMailSecretPtr {
+  if (account_id.isEmpty()) return std::make_shared<EMailSecret>();
 
   auto* raw = GFSecDurableCacheGet(QDUP(CredentialKey(account_id)));
-  if (raw == nullptr) return {};
+  if (raw == nullptr) return std::make_shared<EMailSecret>();
 
-  // UnSecStrDup takes ownership and wipes the SDK's buffer, so the secret
-  // exists in exactly one place from here on -- the QString we return, which
-  // the caller is expected to clear once it has been handed to the transport.
-  return UnSecStrDup(raw);
+  // AdoptCString copies the bytes out, wipes the SDK's buffer and frees it to
+  // the secure allocator it came from, so the secret exists in exactly one
+  // place from here on -- and that place can actually be erased, which a
+  // QString could not be. See EMailSecret.
+  return EMailSecret::AdoptCString(raw);
 }
 
 auto Has(const QString& account_id) -> bool {
-  auto password = Load(account_id);
-  const auto present = !password.isEmpty();
-  password.fill(QChar('\0'));
-  return present;
+  return !Load(account_id)->IsEmpty();
 }
 
 void Remove(const QString& account_id) {

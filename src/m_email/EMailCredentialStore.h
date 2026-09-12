@@ -28,6 +28,8 @@
 
 #pragma once
 
+#include "EMailSecret.h"
+
 #include <QString>
 
 /**
@@ -83,7 +85,7 @@ auto Save(const QString& account_id, const QString& password) -> bool;
  * @param account_id stable account id
  * @return the password, or an empty string when none is stored
  */
-auto Load(const QString& account_id) -> QString;
+auto Load(const QString& account_id) -> EMailSecretPtr;
 
 /**
  * @brief Whether a password is stored for an account.
