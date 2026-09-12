@@ -313,7 +313,8 @@ auto BuildRecipientCheckCard(const EMailMetaData& m,
 // JSON array string returned via the GFAnalyse*Result `cards` out-param.
 auto BuildResultCardsParam(const QString& operation,
                            const QJsonArray& meta_cards,
-                           const QString& crypto_cards_json) -> QString {
+                           const QString& crypto_cards_json,
+                           const QByteArray& info_json = {}) -> QString {
   QJsonArray cards = meta_cards;
   if (!crypto_cards_json.isEmpty()) {
     const auto doc = QJsonDocument::fromJson(crypto_cards_json.toUtf8());
@@ -322,9 +323,57 @@ auto BuildResultCardsParam(const QString& operation,
     }
   }
 
-  if (cards.isEmpty()) return {};
+  QJsonObject obj{{"operation", operation}};
 
-  QJsonObject obj{{"operation", operation}, {"cards", cards}};
+  // The structured analysis, if the caller had one. Without it the Info Board
+  // has no description to show and falls back to "<operation> failed. See the
+  // details for more information." -- which is how a failed e-mail decrypt came
+  // to say less than the same failure on plain text, where the native path
+  // hands over exactly these fields.
+  //
+  // Read from the JSON rather than from the rendered report: the Info Board
+  // never parses report text, and neither does this.
+  if (!info_json.isEmpty()) {
+    const auto info = QJsonDocument::fromJson(info_json).object();
+
+    // "Decrypt E-Mail · GnuPG v2.4.7" -- the engine belongs in the heading,
+    // because which engine produced a verdict is part of the verdict.
+    const auto engine = info.value("engine").toString();
+    if (!engine.isEmpty()) {
+      obj["operation"] = QString("%1 · %2").arg(operation, engine);
+    }
+
+    const auto description = info.value("description").toString();
+    if (!description.isEmpty()) obj.insert("description", description);
+
+    const auto details = info.value("details").toArray();
+    if (!details.isEmpty()) {
+      // The same titles the native path uses, chosen the same way, so one
+      // failure does not get two different names depending on which door the
+      // user came in through.
+      QString title = QApplication::translate("EMailModule", "DETAILS");
+      if (operation.contains(QApplication::translate("EMailModule", "Decrypt"),
+                             Qt::CaseInsensitive)) {
+        title = QApplication::translate("EMailModule", "RECIPIENT");
+      } else if (operation.contains(
+                     QApplication::translate("EMailModule", "Sign"),
+                     Qt::CaseInsensitive) ||
+                 operation.contains(
+                     QApplication::translate("EMailModule", "Verify"),
+                     Qt::CaseInsensitive)) {
+        title = QApplication::translate("EMailModule", "SIGNER");
+      }
+
+      obj.insert("details_title", title);
+      obj.insert("details_items", details);
+    }
+  }
+
+  // A payload with neither cards nor a description has nothing the board could
+  // render, so the caller falls back to the plain-text path.
+  if (cards.isEmpty() && !obj.contains("description")) return {};
+
+  obj.insert("cards", cards);
   return QString::fromUtf8(QJsonDocument(obj).toJson(QJsonDocument::Compact));
 }
 
@@ -744,20 +793,34 @@ auto DoVerifyEMLData(int channel, const QByteArray& data, const MEvent& event,
     return ret;
   }
 
+  QByteArray info_json;
   const char* tmp = nullptr;
   const char* cards_tmp = nullptr;
-  result_status = GFAnalyseVerifyResultByCapsule(channel, err, QDUP(capsule_id),
-                                                 &tmp, &cards_tmp);
+  const char* info_tmp = nullptr;
+  // The Info variant, not the plain one: the structured description
+  // and details are what let a FAILURE explain itself, and without
+  // them the board can only fall back to "<operation> failed."
+  result_status = GFAnalyseVerifyResultInfoByCapsule(
+      channel, err, QDUP(capsule_id), &tmp, &cards_tmp, &info_tmp);
   result_detail = UnStrDup(tmp);
   result_cards = UnStrDup(cards_tmp);
+  info_json = UnStrDup(info_tmp).toUtf8();
 
   if (ret == kGPG_FAILED) {
-    // decrypt failed
+    // The operation failed, and the ANALYSIS of that failure is exactly what
+    // the user needs -- which key was wanted, what the engine said. Those
+    // cards were just built above; dropping them here is what left a failed
+    // decrypt showing raw report text where every other outcome shows a
+    // structured card.
     CB(event, GFGetModuleID(),
        {
            {"ret", QString::number(0)},
            {"result_status", QString::number(result_status)},
            {"result", result_detail},
+           {"result_cards",
+            BuildResultCardsParam(
+                QApplication::translate("EMailModule", "Verify E-Mail"), {},
+                result_cards, info_json)},
        });
     return ret;
   }
@@ -900,13 +963,18 @@ auto DoDecryptEMLData(int channel, const QByteArray& data, const MEvent& event,
   decrypt_info_json = UnStrDup(info_tmp).toUtf8();
 
   if (ret == kGPG_FAILED) {
-    // decrypt failed
+    // decrypt failed. The analysis cards built above travel with it: a failure
+    // is the outcome that most needs explaining, not the one to explain least.
     CB(event, GFGetModuleID(),
        {
            {"ret", QString::number(0)},
            {"data", data},
            {"result_status", QString::number(result_status)},
            {"result", result_detail},
+           {"result_cards",
+            BuildResultCardsParam(
+                QApplication::translate("EMailModule", "Decrypt E-Mail"), {},
+                result_cards, decrypt_info_json)},
        });
     return ret;
   }
@@ -1024,21 +1092,32 @@ auto DoSignEMLData(int channel, const QString& sign_key,
     return ret;
   }
 
+  QByteArray info_json;
   const char* tmp = nullptr;
   const char* cards_tmp = nullptr;
-  result_status = GFAnalyseSignResultByCapsule(channel, err, QDUP(capsule_id),
-                                               &tmp, &cards_tmp);
+  const char* info_tmp = nullptr;
+  // The Info variant, not the plain one: the structured description
+  // and details are what let a FAILURE explain itself, and without
+  // them the board can only fall back to "<operation> failed."
+  result_status = GFAnalyseSignResultInfoByCapsule(
+      channel, err, QDUP(capsule_id), &tmp, &cards_tmp, &info_tmp);
   result_detail = UnStrDup(tmp);
   result_cards = UnStrDup(cards_tmp);
+  info_json = UnStrDup(info_tmp).toUtf8();
 
   if (ret == kGPG_FAILED) {
-    // decrypt failed
+    // decrypt failed. The analysis cards built above travel with it: a failure
+    // is the outcome that most needs explaining, not the one to explain least.
     CB(event, GFGetModuleID(),
        {
            {"ret", QString::number(0)},
            {"data", body_data},
            {"result_status", QString::number(result_status)},
            {"result", result_detail},
+           {"result_cards",
+            BuildResultCardsParam(
+                QApplication::translate("EMailModule", "Sign E-Mail"), {},
+                result_cards, info_json)},
        });
     return ret;
   }
@@ -1078,21 +1157,32 @@ auto DoSignPlainText(int channel, const QString& sign_key,
     return ret;
   }
 
+  QByteArray info_json;
   const char* tmp = nullptr;
   const char* cards_tmp = nullptr;
-  result_status = GFAnalyseSignResultByCapsule(channel, err, QDUP(capsule_id),
-                                               &tmp, &cards_tmp);
+  const char* info_tmp = nullptr;
+  // The Info variant, not the plain one: the structured description
+  // and details are what let a FAILURE explain itself, and without
+  // them the board can only fall back to "<operation> failed."
+  result_status = GFAnalyseSignResultInfoByCapsule(
+      channel, err, QDUP(capsule_id), &tmp, &cards_tmp, &info_tmp);
   result_detail = UnStrDup(tmp);
   result_cards = UnStrDup(cards_tmp);
+  info_json = UnStrDup(info_tmp).toUtf8();
 
   if (ret == kGPG_FAILED) {
-    // decrypt failed
+    // decrypt failed. The analysis cards built above travel with it: a failure
+    // is the outcome that most needs explaining, not the one to explain least.
     CB(event, GFGetModuleID(),
        {
            {"ret", QString::number(0)},
            {"data", body_data},
            {"result_status", QString::number(result_status)},
            {"result", result_detail},
+           {"result_cards",
+            BuildResultCardsParam(
+                QApplication::translate("EMailModule", "Sign E-Mail"), {},
+                result_cards, info_json)},
        });
     return ret;
   }
@@ -1204,21 +1294,32 @@ auto DoEncryptEMLData(int channel, const QStringList& encrypt_keys,
     return ret;
   }
 
+  QByteArray info_json;
   const char* tmp = nullptr;
   const char* cards_tmp = nullptr;
-  result_status = GFAnalyseEncryptResultByCapsule(
-      channel, err, QDUP(capsule_id), &tmp, &cards_tmp);
+  const char* info_tmp = nullptr;
+  // The Info variant, not the plain one: the structured description
+  // and details are what let a FAILURE explain itself, and without
+  // them the board can only fall back to "<operation> failed."
+  result_status = GFAnalyseEncryptResultInfoByCapsule(
+      channel, err, QDUP(capsule_id), &tmp, &cards_tmp, &info_tmp);
   result_detail = UnStrDup(tmp);
   result_cards = UnStrDup(cards_tmp);
+  info_json = UnStrDup(info_tmp).toUtf8();
 
   if (ret == kGPG_FAILED) {
-    // encrypt failed
+    // encrypt failed. The analysis cards built above travel with it: a failure
+    // is the outcome that most needs explaining, not the one to explain least.
     CB(event, GFGetModuleID(),
        {
            {"ret", QString::number(0)},
            {"data", QString::fromLatin1(body_data.toBase64())},
            {"result_status", QString::number(result_status)},
            {"result", result_detail},
+           {"result_cards",
+            BuildResultCardsParam(
+                QApplication::translate("EMailModule", "Encrypt E-Mail"), {},
+                result_cards, info_json)},
        });
     return ret;
   }
@@ -1262,21 +1363,32 @@ auto DoEncryptPlainText(int channel, const QStringList& encrypt_keys,
     return ret;
   }
 
+  QByteArray info_json;
   const char* tmp = nullptr;
   const char* cards_tmp = nullptr;
-  result_status = GFAnalyseEncryptResultByCapsule(
-      channel, err, QDUP(capsule_id), &tmp, &cards_tmp);
+  const char* info_tmp = nullptr;
+  // The Info variant, not the plain one: the structured description
+  // and details are what let a FAILURE explain itself, and without
+  // them the board can only fall back to "<operation> failed."
+  result_status = GFAnalyseEncryptResultInfoByCapsule(
+      channel, err, QDUP(capsule_id), &tmp, &cards_tmp, &info_tmp);
   result_detail = UnStrDup(tmp);
   result_cards = UnStrDup(cards_tmp);
+  info_json = UnStrDup(info_tmp).toUtf8();
 
   if (ret == kGPG_FAILED) {
-    // encrypt failed
+    // encrypt failed. The analysis cards built above travel with it: a failure
+    // is the outcome that most needs explaining, not the one to explain least.
     CB(event, GFGetModuleID(),
        {
            {"ret", QString::number(0)},
            {"data", QString::fromLatin1(body_data.toBase64())},
            {"result_status", QString::number(result_status)},
            {"result", result_detail},
+           {"result_cards",
+            BuildResultCardsParam(
+                QApplication::translate("EMailModule", "Encrypt E-Mail"), {},
+                result_cards, info_json)},
        });
     return ret;
   }
