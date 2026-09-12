@@ -34,6 +34,7 @@
 
 #include "EMailAccountSettingsPage.h"
 #include "EMailAccountStore.h"
+#include "EMailSecret.h"
 #include "EMailImapController.h"
 #include "EMailSendDialog.h"
 
@@ -418,6 +419,9 @@ auto GFRegisterModule() -> int {
   // These cross thread boundaries as queued signal arguments, so Qt has to
   // know how to copy them before the first connection is made.
   qRegisterMetaType<MailAccountConfig>("MailAccountConfig");
+  // Shared rather than copied: a queued connection copies its arguments, and
+  // copying the pointer is not copying the password. See EMailSecret.
+  qRegisterMetaType<EMailSecretPtr>("EMailSecretPtr");
   qRegisterMetaType<MailError>("MailError");
   qRegisterMetaType<EMailFolderInfo>("EMailFolderInfo");
   qRegisterMetaType<QList<EMailFolderInfo>>("QList<EMailFolderInfo>");
