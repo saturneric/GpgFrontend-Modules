@@ -1,0 +1,38 @@
+From: Alice <alice@example.com>
+To: Bob <bob@example.com>
+Subject: Signed then encrypted
+Date: Tue, 04 Mar 2025 10:20:00 +0000
+Message-ID: <both-006@example.com>
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="out-b"
+
+--out-b
+Content-Type: multipart/encrypted; protocol="application/pgp-encrypted";
+ boundary="enc-b"
+
+--enc-b
+Content-Type: application/pgp-encrypted
+
+Version: 1
+
+--enc-b
+Content-Type: application/octet-stream
+
+-----BEGIN PGP MESSAGE-----
+-----END PGP MESSAGE-----
+--enc-b--
+--out-b
+Content-Type: multipart/signed; protocol="application/pgp-signature";
+ micalg=pgp-sha512; boundary="sig-b"
+
+--sig-b
+Content-Type: text/plain; charset=utf-8
+
+A signed part alongside an encrypted one.
+--sig-b
+Content-Type: application/pgp-signature
+
+-----BEGIN PGP SIGNATURE-----
+-----END PGP SIGNATURE-----
+--sig-b--
+--out-b--

@@ -1,0 +1,20 @@
+Received: from relay1.example.net (relay1.example.net [192.0.2.10])
+	by mx.example.com with ESMTP id ABC123
+	for <bob@example.com>; Tue, 04 Mar 2025 10:26:00 +0000
+Received: from origin.example.org (origin.example.org [198.51.100.7])
+	by relay1.example.net with ESMTP id DEF456;
+	Tue, 04 Mar 2025 10:25:30 +0000
+From: Alice <alice@example.com>
+To: Bob <bob@example.com>,
+	Carol <carol@example.com>
+Cc: Dave <dave@example.com>
+Reply-To: no-reply@elsewhere.invalid
+Subject: Folded and repeated headers
+X-Custom: first
+X-Custom: second
+Date: Tue, 04 Mar 2025 10:26:00 +0000
+Message-ID: <odd-012@example.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+
+Header order, folding and duplicates are all load-bearing here.

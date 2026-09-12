@@ -1,0 +1,21 @@
+From: Alice <alice@example.com>
+To: Bob <bob@example.com>
+Subject: Empty and unusual parts
+Date: Tue, 04 Mar 2025 10:29:00 +0000
+Message-ID: <empty-015@example.com>
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="e-b"
+
+--e-b
+Content-Type: text/plain; charset=utf-8
+
+--e-b
+Content-Type: text/plain; charset=utf-8
+
+The first text part was empty, so this one becomes the body.
+--e-b
+Content-Type: application/octet-stream
+Content-Disposition: attachment
+
+dW5uYW1lZA==
+--e-b--

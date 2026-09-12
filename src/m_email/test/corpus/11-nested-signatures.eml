@@ -1,0 +1,31 @@
+From: Alice <alice@example.com>
+To: Bob <bob@example.com>
+Subject: Countersigned
+Date: Tue, 04 Mar 2025 10:25:00 +0000
+Message-ID: <nested-011@example.com>
+MIME-Version: 1.0
+Content-Type: multipart/signed; protocol="application/pgp-signature";
+ micalg=pgp-sha256; boundary="outer-sig"
+
+--outer-sig
+Content-Type: multipart/signed; protocol="application/pgp-signature";
+ micalg=pgp-sha512; boundary="inner-sig"
+
+--inner-sig
+Content-Type: text/plain; charset=utf-8
+
+Signed by one party, then by another.
+--inner-sig
+Content-Type: application/pgp-signature
+
+-----BEGIN PGP SIGNATURE-----
+inner
+-----END PGP SIGNATURE-----
+--inner-sig--
+--outer-sig
+Content-Type: application/pgp-signature
+
+-----BEGIN PGP SIGNATURE-----
+outer
+-----END PGP SIGNATURE-----
+--outer-sig--

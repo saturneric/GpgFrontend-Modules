@@ -1,0 +1,19 @@
+From: Alice <alice@example.com>
+To: Bob <bob@example.com>
+Subject: Declared sha512, signed with sha256
+Date: Tue, 04 Mar 2025 10:27:00 +0000
+Message-ID: <micalg-013@example.com>
+MIME-Version: 1.0
+Content-Type: multipart/signed; protocol="application/pgp-signature";
+ micalg=pgp-sha512; boundary="mm-b"
+
+--mm-b
+Content-Type: text/plain; charset=utf-8
+
+The declared micalg disagrees with the signature.
+--mm-b
+Content-Type: application/pgp-signature
+
+-----BEGIN PGP SIGNATURE-----
+-----END PGP SIGNATURE-----
+--mm-b--

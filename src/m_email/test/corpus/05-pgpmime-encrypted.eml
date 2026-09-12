@@ -1,0 +1,24 @@
+From: Alice <alice@example.com>
+To: Bob <bob@example.com>
+Subject: ...
+Date: Tue, 04 Mar 2025 10:19:00 +0000
+Message-ID: <enc-005@example.com>
+MIME-Version: 1.0
+Content-Type: multipart/encrypted; protocol="application/pgp-encrypted";
+ boundary="enc-b"
+
+--enc-b
+Content-Type: application/pgp-encrypted
+Content-Description: PGP/MIME version identification
+
+Version: 1
+
+--enc-b
+Content-Type: application/octet-stream; name="encrypted.asc"
+Content-Disposition: inline; filename="encrypted.asc"
+
+-----BEGIN PGP MESSAGE-----
+
+hQEMAexampleexampleexampleexample
+-----END PGP MESSAGE-----
+--enc-b--

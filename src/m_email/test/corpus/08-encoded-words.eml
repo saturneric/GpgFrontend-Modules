@@ -1,0 +1,19 @@
+From: =?utf-8?B?w4Vhc2Ugw5ZzdGVyZ8OlcmQ=?= <ase@example.com>
+To: Bob <bob@example.com>
+Subject: =?utf-8?B?w5xiZXJyYXNjaHVuZzogw6Ugw7Ygw7wg4oKsIA==?=
+Date: Tue, 04 Mar 2025 10:22:00 +0000
+Message-ID: <ew-008@example.com>
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="ew-b"
+
+--ew-b
+Content-Type: text/plain; charset=utf-8
+
+Body with an encoded subject and an encoded attachment name.
+--ew-b
+Content-Type: application/octet-stream
+Content-Disposition: attachment;
+ filename="=?utf-8?B?QsOpcmljaHQtw7xiZXIucGRm?="
+
+YmluYXJ5
+--ew-b--

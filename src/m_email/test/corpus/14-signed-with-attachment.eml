@@ -1,0 +1,37 @@
+From: Alice <alice@example.com>
+To: Bob <bob@example.com>
+Subject: Signed, with an attachment inside and one outside
+Date: Tue, 04 Mar 2025 10:28:00 +0000
+Message-ID: <sigatt-014@example.com>
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="o-b"
+
+--o-b
+Content-Type: multipart/signed; protocol="application/pgp-signature";
+ micalg=pgp-sha256; boundary="s-b"
+
+--s-b
+Content-Type: multipart/mixed; boundary="i-b"
+
+--i-b
+Content-Type: text/plain; charset=utf-8
+
+Covered body.
+--i-b
+Content-Type: application/octet-stream
+Content-Disposition: attachment; filename="covered.bin"
+
+Y292ZXJlZA==
+--i-b--
+--s-b
+Content-Type: application/pgp-signature
+
+-----BEGIN PGP SIGNATURE-----
+-----END PGP SIGNATURE-----
+--s-b--
+--o-b
+Content-Type: application/octet-stream
+Content-Disposition: attachment; filename="uncovered.bin"
+
+dW5jb3ZlcmVk
+--o-b--

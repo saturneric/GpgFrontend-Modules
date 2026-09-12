@@ -1,0 +1,33 @@
+From: Mallory <mallory@example.com>
+To: Bob <bob@example.com>
+Subject: Please open these
+Date: Tue, 04 Mar 2025 10:23:00 +0000
+Message-ID: <hostile-009@example.com>
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="h-b"
+
+--h-b
+Content-Type: text/plain; charset=utf-8
+
+Nothing to see here.
+--h-b
+Content-Type: application/octet-stream
+Content-Disposition: attachment; filename="../../../../etc/passwd"
+
+cm9vdDp4OjA6MA==
+--h-b
+Content-Type: application/octet-stream
+Content-Disposition: attachment; filename="CON.txt"
+
+Y29u
+--h-b
+Content-Type: application/octet-stream
+Content-Disposition: attachment; filename="report.pdf"
+
+ZHVwZTE=
+--h-b
+Content-Type: application/octet-stream
+Content-Disposition: attachment; filename="report.pdf"
+
+ZHVwZTI=
+--h-b--

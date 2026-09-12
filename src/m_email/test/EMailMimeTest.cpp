@@ -197,7 +197,7 @@ TEST(EMailMimeTest, AbsentRecipientListsAreEmptyNotBlank) {
   ASSERT_EQ(GetEMLMetaData(message, meta), 0);
 
   EXPECT_TRUE(meta.cc.isEmpty());
-  EXPECT_TRUE(meta.bcc.isEmpty());
+  EXPECT_TRUE(meta.bcc_header.isEmpty());
 }
 
 // A non-ASCII subject must survive RFC 2047 encoding and come back intact.
@@ -533,6 +533,9 @@ TEST(EMailMimeTest, AMessageWithinTheLimitsIsAccepted) {
 // outside it arrived unsigned, however trustworthy the rest of the message
 // looks, and the UI has to be able to say so.
 TEST(EMailMimeTest, PartsOutsideTheSignedSubtreeAreMarkedUnsigned) {
+  // A well-formed RFC 3156 message: multipart/signed has exactly two parts,
+  // the signed entity and the signature. The signed entity is itself a
+  // multipart, which is how a signed message carries an attachment.
   vmime::shared_ptr<vmime::message> message;
   ASSERT_TRUE(ParseLiteral(
       "From: a@example.com\n"
@@ -547,14 +550,23 @@ TEST(EMailMimeTest, PartsOutsideTheSignedSubtreeAreMarkedUnsigned) {
       " micalg=pgp-sha256; boundary=\"inner\"\n"
       "\n"
       "--inner\n"
+      "Content-Type: multipart/mixed; boundary=\"signed\"\n"
+      "\n"
+      "--signed\n"
       "Content-Type: text/plain\n"
       "\n"
       "signed body\n"
-      "--inner\n"
+      "--signed\n"
       "Content-Type: application/octet-stream\n"
       "Content-Disposition: attachment; filename=\"trusted.bin\"\n"
       "\n"
       "aaa\n"
+      "--signed--\n"
+      "--inner\n"
+      "Content-Type: application/pgp-signature\n"
+      "\n"
+      "-----BEGIN PGP SIGNATURE-----\n"
+      "-----END PGP SIGNATURE-----\n"
       "--inner--\n"
       "--outer\n"
       "Content-Type: application/octet-stream\n"
@@ -576,6 +588,41 @@ TEST(EMailMimeTest, PartsOutsideTheSignedSubtreeAreMarkedUnsigned) {
   ASSERT_TRUE(signed_by_name.contains("smuggled.bin"));
   EXPECT_TRUE(signed_by_name.value("trusted.bin"));
   EXPECT_FALSE(signed_by_name.value("smuggled.bin"));
+}
+
+TEST(EMailMimeTest, SiblingOfTheSignedEntityIsNotCovered) {
+  // RFC 3156 signs the FIRST part of a multipart/signed and nothing else. A
+  // part smuggled in beside it is not covered, however much it looks like it
+  // is sitting inside the signed container -- treating it as covered is how
+  // an attacker gets content to inherit someone else's signature.
+  vmime::shared_ptr<vmime::message> message;
+  ASSERT_TRUE(ParseLiteral(
+      "From: a@example.com\n"
+      "To: b@example.com\n"
+      "Subject: s\n"
+      "MIME-Version: 1.0\n"
+      "Content-Type: multipart/signed; "
+      "protocol=\"application/pgp-signature\";\n"
+      " micalg=pgp-sha256; boundary=\"inner\"\n"
+      "\n"
+      "--inner\n"
+      "Content-Type: text/plain\n"
+      "\n"
+      "signed body\n"
+      "--inner\n"
+      "Content-Type: application/octet-stream\n"
+      "Content-Disposition: attachment; filename=\"appended.bin\"\n"
+      "\n"
+      "ccc\n"
+      "--inner--\n",
+      message));
+
+  EMailMetaData parsed;
+  ASSERT_EQ(ExtractParts(message, parsed), 0);
+
+  ASSERT_EQ(parsed.attachments.size(), 1);
+  EXPECT_EQ(parsed.attachments[0].filename, QString("appended.bin"));
+  EXPECT_FALSE(parsed.attachments[0].inside_signed_part);
 }
 
 TEST(EMailMimeTest, OpenPgpKeyPartsAreClassified) {

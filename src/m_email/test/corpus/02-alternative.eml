@@ -1,0 +1,17 @@
+From: Alice <alice@example.com>
+To: Bob <bob@example.com>
+Subject: Both forms
+Date: Tue, 04 Mar 2025 10:16:00 +0000
+Message-ID: <alt-002@example.com>
+MIME-Version: 1.0
+Content-Type: multipart/alternative; boundary="alt-b"
+
+--alt-b
+Content-Type: text/plain; charset=utf-8
+
+The plain form of the message.
+--alt-b
+Content-Type: text/html; charset=utf-8
+
+<html><body><p>The <b>HTML</b> form of the message.</p></body></html>
+--alt-b--

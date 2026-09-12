@@ -41,6 +41,7 @@ endif()
 
 add_executable(gf_mod_email_test
   EMailMimeTest.cpp
+  EMailCorpusTest.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../EMAilHelper.cpp)
 
 target_include_directories(gf_mod_email_test PRIVATE
@@ -52,5 +53,52 @@ target_include_directories(gf_mod_email_test PRIVATE
 target_link_libraries(gf_mod_email_test PRIVATE
   GTest::gtest GTest::gtest_main Qt::Core vmime-static)
 
+# The corpus is read from the source tree at run time rather than compiled in
+# through a .qrc: this target links Qt::Core only, not gf_res, so ":/test/..."
+# paths are not available to it.
+target_compile_definitions(gf_mod_email_test PRIVATE
+  "GF_EMAIL_TEST_CORPUS_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/corpus\"")
+
 set_target_properties(gf_mod_email_test PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
+
+# --- fuzzing (opt-in, clang only) -------------------------------------------
+#
+# The MIME parsers run on unauthenticated input -- a message has to be parsed
+# before anything can say whether it is signed -- so they get a libFuzzer
+# harness as well as the corpus tests. Off by default: it needs clang and a
+# sanitizer build, and it never runs as part of an ordinary test pass.
+#
+#   cmake -B build-fuzz -DGPGFRONTEND_MODULES_BUILD_TESTS=ON \
+#         -DGPGFRONTEND_MODULES_BUILD_FUZZERS=ON \
+#         -DCMAKE_CXX_COMPILER=clang++ \
+#         -DCMAKE_CXX_FLAGS="-fsanitize=fuzzer-no-link,address,undefined"
+#   build-fuzz/artifacts/modules/gf_mod_email_fuzz \
+#         modules/src/m_email/test/corpus -max_len=1048576
+option(GPGFRONTEND_MODULES_BUILD_FUZZERS
+  "Build libFuzzer harnesses for the modules (requires clang)" OFF)
+
+if(GPGFRONTEND_MODULES_BUILD_FUZZERS)
+  if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    message(STATUS "fuzzers requested but the compiler is not clang; skipping")
+  else()
+    add_executable(gf_mod_email_fuzz
+      EMailMimeFuzz.cpp
+      ${CMAKE_CURRENT_SOURCE_DIR}/../EMAilHelper.cpp)
+
+    target_include_directories(gf_mod_email_fuzz PRIVATE
+      "${CMAKE_CURRENT_SOURCE_DIR}/.."
+      "${CMAKE_CURRENT_SOURCE_DIR}/../vmime/src"
+      "${CMAKE_BINARY_DIR}/src/vmime"
+      "${CMAKE_BINARY_DIR}/src")
+
+    target_link_libraries(gf_mod_email_fuzz PRIVATE Qt::Core vmime-static)
+    target_compile_options(gf_mod_email_fuzz PRIVATE -fsanitize=fuzzer)
+    target_link_options(gf_mod_email_fuzz PRIVATE -fsanitize=fuzzer)
+
+    # Deliberately NOT named *_test: run_tests.sh picks module test binaries up
+    # by that suffix, and a fuzzer given no corpus argument would run forever.
+    set_target_properties(gf_mod_email_fuzz PROPERTIES
+      RUNTIME_OUTPUT_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
+  endif()
+endif()

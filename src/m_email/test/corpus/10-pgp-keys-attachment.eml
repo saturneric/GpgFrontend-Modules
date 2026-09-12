@@ -1,0 +1,21 @@
+From: Alice <alice@example.com>
+To: Bob <bob@example.com>
+Subject: My key
+Date: Tue, 04 Mar 2025 10:24:00 +0000
+Message-ID: <keys-010@example.com>
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="k-b"
+
+--k-b
+Content-Type: text/plain; charset=utf-8
+
+Key attached.
+--k-b
+Content-Type: application/pgp-keys; name="OpenPGP_0xDEADBEEF.asc"
+Content-Disposition: attachment; filename="OpenPGP_0xDEADBEEF.asc"
+
+-----BEGIN PGP PUBLIC KEY BLOCK-----
+
+mDMEexampleexample
+-----END PGP PUBLIC KEY BLOCK-----
+--k-b--
