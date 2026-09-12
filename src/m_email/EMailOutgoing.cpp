@@ -55,6 +55,28 @@ auto MailAddressOnly(const QString& mailbox) -> QString {
   return text;
 }
 
+auto MailIsPlausibleAddress(const QString& mailbox) -> bool {
+  const auto address = MailAddressOnly(mailbox);
+  if (address.isEmpty()) return false;
+
+  // Whitespace anywhere in the addr-spec. Quoted local parts may legally
+  // contain a space, but nobody types one, and letting it through means the
+  // envelope carries something the server will reject.
+  if (address.contains(QRegularExpression(R"(\s)"))) return false;
+
+  const auto at = address.lastIndexOf('@');
+  if (at <= 0 || at == address.size() - 1) return false;
+
+  const auto domain = address.mid(at + 1);
+  // A dotless domain is legal in principle and never right in practice: it
+  // means a host on the local network, not a correspondent.
+  if (!domain.contains('.')) return false;
+  if (domain.startsWith('.') || domain.endsWith('.')) return false;
+  if (domain.contains("..")) return false;
+
+  return true;
+}
+
 auto MailDedupeAddresses(const QStringList& addresses) -> QStringList {
   QStringList result;
   QStringList seen;
@@ -96,6 +118,52 @@ auto MailExtractMessageId(const QByteArray& eml) -> QString {
 
   const auto match = pattern.match(header);
   return match.hasMatch() ? match.captured(1).trimmed() : QString();
+}
+
+auto MailExtractSubject(const QByteArray& eml) -> QString {
+  // Same window as MailExtractMessageId, for the same reason: below the blank
+  // line, a quoted reply is full of lines that begin "Subject:".
+  const auto header_end = eml.indexOf("\r\n\r\n");
+  const auto limit = header_end >= 0 ? header_end : eml.size();
+  auto header = QString::fromUtf8(eml.left(limit));
+
+  // Unfolded first. A long or non-ASCII subject is almost always split across
+  // continuation lines, and matching before unfolding would silently return
+  // only its first fragment.
+  static const QRegularExpression folding(R"(\r?\n[ \t]+)");
+  header.replace(folding, " ");
+
+  static const QRegularExpression pattern(
+      R"(^Subject:[ \t]*(.*)$)", QRegularExpression::CaseInsensitiveOption |
+                                     QRegularExpression::MultilineOption);
+
+  const auto match = pattern.match(header);
+  if (!match.hasMatch()) return {};
+
+  const auto raw = match.captured(1).trimmed();
+  if (raw.isEmpty()) return {};
+
+  // Decoded through vmime rather than by hand: a subject is routinely RFC 2047
+  // encoded, and showing "=?utf-8?B?..." to a user about to send it would be
+  // worse than showing nothing.
+  auto decoded = vmime::text::decodeAndUnfold(raw.toStdString());
+  if (!decoded) return raw;
+
+  return Q_SC(decoded->getConvertedText(vmime::charsets::UTF_8));
+}
+
+auto MailShouldReuseSource(bool source_is_original, bool dirty, bool forensic,
+                           bool source_empty) -> bool {
+  if (source_empty) return false;
+
+  // Never, for bytes this program produced. A draft saved by the workspace is
+  // clean and non-empty exactly like a loaded message, and treating the two
+  // alike is what sent drafts out with no Message-ID.
+  if (!source_is_original) return false;
+
+  // Forensic outranks dirty: an inspected document is handed over as it was
+  // loaded whatever else has happened to the view.
+  return forensic || !dirty;
 }
 
 auto RankSentCandidate(const QString& name, bool special_use, bool is_override)
@@ -144,6 +212,11 @@ auto FreezeOutgoing(const EMailMetaData& meta, const EMailComposeState& compose,
     // and no Message-ID injected, because either would break it.
     out.eml = existing_source;
     out.message_id = MailExtractMessageId(existing_source);
+    // Read out of the bytes, not taken from the workspace: what is shown must
+    // describe what is actually going out. The attachment count stays 0 --
+    // counting would mean walking a MIME tree these bytes exist to avoid
+    // touching, and an honest blank beats a number from the wrong message.
+    out.subject = MailExtractSubject(existing_source);
     return EMailFreezeResult::kOK;
   }
 
@@ -158,6 +231,8 @@ auto FreezeOutgoing(const EMailMetaData& meta, const EMailComposeState& compose,
   }
 
   out.eml = eml.toUtf8();
+  out.subject = pinned.subject;
+  out.attachment_count = static_cast<int>(attachments.size());
 
   // Read back out of the bytes rather than trusted from the input: what was
   // actually written is what the recipient's server will index and what a

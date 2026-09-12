@@ -67,6 +67,15 @@ struct EMailOutgoingMessage {
   /// confirmation. Informational only; the envelope is what gets used.
   QStringList blind_rcpt;
 
+  /// Subject as it stands in @ref eml. For the confirm summary and nothing
+  /// else -- no decision downstream may be made from it.
+  QString subject;
+
+  /// How many attachments the message carries. Summary only, as above, and 0
+  /// on the byte-preserving path where counting would mean re-reading bytes
+  /// that exist precisely so they are not touched.
+  int attachment_count{0};
+
   [[nodiscard]] auto IsValid() const -> bool {
     return !eml.isEmpty() && !envelope_from.isEmpty() &&
            !envelope_rcpt.isEmpty();
@@ -114,6 +123,45 @@ auto MailGenerateMessageId(const QString& sender) -> QString;
  * @return the value without angle brackets, or empty when there is none
  */
 auto MailExtractMessageId(const QByteArray& eml) -> QString;
+
+/**
+ * @brief The Subject of @p eml, decoded, or empty when it carries none.
+ *
+ * Header block only, for the same reason MailExtractMessageId stops there: a
+ * quoted reply further down contains lines that look exactly like headers.
+ * The result is for showing to a person and never for matching.
+ */
+/**
+ * @brief Whether @p mailbox could plausibly be an address.
+ *
+ * "Plausible", not "valid". RFC 5322 permits far more than anyone types, and a
+ * checker strict enough to be called a validator would reject real addresses
+ * -- which, on a Send button, means refusing to send mail that would have
+ * arrived. So this only catches what is unambiguously broken: no local part,
+ * no domain, no dot in the domain, or whitespace inside the address. A display
+ * name around it is fine; only the addr-spec is examined.
+ */
+auto MailIsPlausibleAddress(const QString& mailbox) -> bool;
+
+auto MailExtractSubject(const QByteArray& eml) -> QString;
+
+/**
+ * @brief Whether a workspace's stored bytes may be submitted verbatim.
+ *
+ * The rule, in one place, because getting it wrong is silent both ways: reuse
+ * bytes that should have been rebuilt and the message goes out without the
+ * Message-ID a Sent-folder check searches on; rebuild bytes that should have
+ * been reused and a signature computed over exactly those octets is voided.
+ *
+ * @param source_is_original the bytes came from OUTSIDE -- loaded, or lifted
+ *        out of a loaded message -- rather than from our own serializer. Bytes
+ *        we wrote carry nothing worth preserving, however clean they are.
+ * @param dirty the user has edited the document since those bytes were stored
+ * @param forensic the document is locked for inspection and is never rebuilt
+ * @param source_empty there are no stored bytes at all
+ */
+auto MailShouldReuseSource(bool source_is_original, bool dirty, bool forensic,
+                           bool source_empty) -> bool;
 
 /**
  * @brief Produce the final, unchanging form of a message about to be sent.
