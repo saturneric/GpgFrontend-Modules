@@ -30,7 +30,10 @@
 
 #include <QHash>
 #include <QStringList>
+#include <QTemporaryDir>
 #include <QWidget>
+#include <memory>
+#include <vector>
 
 #include "EMailModel.h"
 #include "EMailOutgoing.h"
@@ -51,6 +54,8 @@ class EMailBodyView;
 class QStackedWidget;
 class QMenu;
 class QPushButton;
+class QTreeWidgetItem;
+class QEvent;
 
 /**
  * @brief The message view of an e-mail tab.
@@ -279,6 +284,7 @@ class EMailPageView : public QWidget {
 
  protected:
   /// Accepts a drag only when it carries files and the document may change.
+  void changeEvent(QEvent* event) override;
   void dragEnterEvent(QDragEnterEvent* event) override;
   void dragMoveEvent(QDragMoveEvent* event) override;
   /// Attaches dropped files.
@@ -294,6 +300,8 @@ class EMailPageView : public QWidget {
   void slot_remove_attachment();
   void slot_save_attachment();
   void slot_save_all_attachments();
+  /// The attachment list's own menu, for the row at @p pos.
+  void slot_attachment_menu(const QPoint& pos);
   void slot_selection_changed();
   /// Opens a new tab holding a message derived from this one. The current
   /// document is only read: deriving never modifies what it derives from.
@@ -317,7 +325,36 @@ class EMailPageView : public QWidget {
   /// Saves one attachment into `dir` under `name`, atomically.
   auto write_attachment(const EMailAttachment& att, const QString& dir,
                         const QString& name) -> bool;
+  /// Asks where to put @p chosen and writes them there.
+  ///
+  /// Takes the attachments explicitly rather than reading the selection, so
+  /// "save all" does not have to select everything to reuse this -- which left
+  /// the whole list selected for whatever the user clicked next.
+  void save_attachments(const QList<EMailAttachment>& chosen);
+  /// Says @p note where the attachment count normally is, briefly.
+  void report_attachment_status(const QString& note);
+  /// Writes @p item's attachment somewhere temporary and hands it to the
+  /// desktop. Refuses anything IsSafeToOpenAttachment() does not vouch for,
+  /// and offers a save instead.
+  void open_attachment(QTreeWidgetItem* item);
+  /// Hands @p att to the host's key import.
+  void import_attachment_key(const EMailAttachment& att);
+  /// Says whether this user holds a private key for any of @p named, so the
+  /// encrypted panel can answer "can I open this" before the user tries.
+  void refresh_locked_capability(const QStringList& named);
+  /// Every OpenPGP key part carried by the parsed message, in tree order.
+  [[nodiscard]] auto message_key_parts() const -> QList<const EMailPart*>;
+  /// Imports all of them, then asks the Security tab to describe the keyring
+  /// as it now is.
+  void import_message_keys();
   void build_ui();
+  /// The single place every colour in this view is decided. Run at the end of
+  /// build_ui() and again on a theme change, so nothing is coloured twice and
+  /// nothing keeps the old theme's greys. Must not touch fonts.
+  void apply_colors();
+  /// Puts focus where this tab is about to be used: the recipient of a draft,
+  /// the body of a message that arrived.
+  void focus_first_field();
   /// Why the document may not be modified, if it may not.
   [[nodiscard]] auto content_lock() const -> EMailLockReason;
   /// Applies content_lock() to every widget that can modify the document.
@@ -360,6 +397,9 @@ class EMailPageView : public QWidget {
   /// menu of what can be done about it. The button keeps itself fitted to
   /// whatever room the action row leaves it.
   void refresh_security_button();
+  /// Recolours the security button from the current state, and nothing else.
+  /// The half of refresh_security_button() that a repaint may run.
+  void paint_security_button();
   /// Refreshes the Security tab from what parsing and any completed operation
   /// have established. Read-only: it never writes the document, so opening the
   /// tab cannot change the bytes.
@@ -369,6 +409,9 @@ class EMailPageView : public QWidget {
   /// may carry several signatures and most tabs are never opened; verifying
   /// reads the message and writes nothing, so it is safe to run here.
   void ensure_regions_verified();
+  /// Verifies every signed region now, whatever has been tried before, and
+  /// records which of EMailVerifyState the outcome was. Runs on this thread.
+  void run_verification();
   /// Chooses between the formatted and plain renderings of the body, and
   /// shows the toggle only when the message actually offers both.
   void refresh_body_view();
@@ -396,7 +439,7 @@ class EMailPageView : public QWidget {
   /// produced it. Empty until an operation has actually run.
   QList<EMailSignatureResult> signature_results_;
   QList<EMailRecipientRow> recipient_rows_;
-  bool regions_verified_{false};
+  EMailVerifyState verify_state_{EMailVerifyState::kNOT_ATTEMPTED};
   /// Whether edits have left the inspection tabs describing an older document
   /// than the one the editor now holds.
   bool inspection_stale_{false};
@@ -415,8 +458,17 @@ class EMailPageView : public QWidget {
   /// SaveToSource() can tell "taken out of the original" from "built from the
   /// fields" -- only the latter may go through BuildMimeEML.
   QByteArray pending_replacement_;
+  /// Directories holding attachments written out to be opened. Kept for the
+  /// life of the tab rather than the call: the viewer is another process and
+  /// may still be reading the file long after openUrl() returned. Removed when
+  /// the tab closes, the last moment they are still ours to remove.
+  std::vector<std::unique_ptr<QTemporaryDir>> temp_dirs_;
   bool dirty_{false};
   bool loading_{false};
+  /// Whether the body on screen is HTML being shown as its own source. Set by
+  /// EMailBodyView rather than derived here, so the notice cannot claim
+  /// something different from what the view actually did.
+  bool body_is_html_{false};
   /// When set, this document cannot be modified or reserialized at all.
   bool forensic_{false};
   /// Whether this tab was opened on a message someone else produced, as
@@ -462,10 +514,16 @@ class EMailPageView : public QWidget {
   /// Divider between the actions that derive a new message and the toggle
   /// that locks this one. Hidden with them when there is no message.
   QFrame* action_separator_{};
+  /// The hairline between the envelope and the body.
+  QFrame* envelope_rule_{};
+  /// The "From:", "To:" and so on. Kept so apply_colors() can find them again.
+  QList<QLabel*> captions_;
   QLabel* attachment_heading_{};
   QLabel* unsigned_notice_{};
   QToolButton* security_button_{};
   QMenu* security_menu_{};
+  /// Whether this user can open the encrypted message in front of them.
+  QLabel* locked_capability_{};
   /// Says why the message cannot be edited, when it cannot.
   QLabel* locked_notice_{};
   /// Carries locked_notice_ and its icon as one tinted strip, so the reason

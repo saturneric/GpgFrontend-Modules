@@ -32,7 +32,9 @@
 
 #include <QAbstractItemView>
 #include <QApplication>
+#include <QClipboard>
 #include <QCompleter>
+#include <QDesktopServices>
 #include <QDir>
 #include <QDragEnterEvent>
 #include <QDropEvent>
@@ -54,11 +56,15 @@
 #include <QPushButton>
 #include <QSaveFile>
 #include <QSet>
+#include <QShortcut>
 #include <QStackedWidget>
 #include <QStyle>
 #include <QTabWidget>
+#include <QTemporaryDir>
+#include <QTimer>
 #include <QToolButton>
 #include <QTreeWidget>
+#include <QUrl>
 #include <QVBoxLayout>
 #include <functional>
 
@@ -80,6 +86,19 @@ namespace {
 /// compete with the message sitting on it.
 constexpr double kLockedTint = 0.10;
 constexpr double kLockedFieldTint = 0.05;
+
+/// How long a one-off note stays in the attachment heading before it goes back
+/// to describing the list. Long enough to read a short sentence without having
+/// gone looking for it, short enough not to become the label.
+constexpr int kStatusNoteMs = 4000;
+
+/// How many tabs get an Alt+<n> key. Five is what this view has; a sixth would
+/// need one too, and Alt+6 is still free.
+constexpr int kMaxTabShortcuts = 5;
+
+/// The attachment list never gets less than this, however short the window:
+/// below it the list is smaller than its own header plus a row.
+constexpr int kMinAttachmentHeight = 120;
 
 /// Names the completer so it can be found again on the line edit it belongs
 /// to. Needed because a multi-value completer is not reachable through
@@ -288,21 +307,57 @@ void EMailPageView::build_ui() {
 
   tabs_ = new QTabWidget(this);
   tabs_->setDocumentMode(true);
+  // Smaller than the default 16: these sit beside text at the normal size, and
+  // full-size coloured glyphs shout over the words they are labelling.
+  tabs_->setIconSize(QSize(14, 14));
   outer->addWidget(tabs_, 1);
 
-  tabs_->addTab(build_message_tab(), tr("Message"));
+  tabs_->addTab(build_message_tab(), QIcon(":/icons/email.png"), tr("Message"));
 
   structure_view_ = new EMailStructureView(this);
-  tabs_->addTab(structure_view_, tr("Structure"));
+  tabs_->addTab(structure_view_, QIcon(":/icons/stairs.png"), tr("Structure"));
 
   security_view_ = new EMailSecurityView(this);
-  tabs_->addTab(security_view_, tr("Security"));
+  // Deliberately not lock.png. That glyph is state-bearing on the security
+  // button beside the body, where it means THIS message is encrypted; sitting
+  // permanently on a tab it would say the same thing about every message.
+  tabs_->addTab(security_view_, QIcon(":/icons/decr-verify.png"),
+                tr("Security"));
+
+  // The Security tab can now ask for the two things it used to only describe.
+  connect(security_view_, &EMailSecurityView::SignalVerifyAgainRequested, this,
+          [this]() {
+            run_verification();
+            refresh_security();
+            refresh_attachments();
+          });
+  connect(security_view_, &EMailSecurityView::SignalImportMessageKeysRequested,
+          this, &EMailPageView::import_message_keys);
 
   header_view_ = new EMailHeaderView(this);
-  tabs_->addTab(header_view_, tr("Headers"));
+  tabs_->addTab(header_view_, QIcon(":/icons/detail.png"), tr("Headers"));
+
+  // Alt+1..5 rather than mnemonics in the tab labels: a mnemonic has to be a
+  // letter of the translated word, and the five translations will not always
+  // have five distinct free letters between them.
+  for (int i = 0; i < kMaxTabShortcuts; ++i) {
+    auto* shortcut = new QShortcut(
+        QKeySequence(Qt::ALT | static_cast<Qt::Key>(Qt::Key_1 + i)), this);
+    // Only within this tab: several of these views can be open at once, and a
+    // key pressed in one must not switch tabs in another.
+    shortcut->setContext(Qt::WidgetWithChildrenShortcut);
+    connect(shortcut, &QShortcut::activated, this, [this, i]() {
+      if (i < tabs_->count()) tabs_->setCurrentIndex(i);
+    });
+  }
 
   connect(tabs_, &QTabWidget::currentChanged, this, [this](int index) {
     auto* page = tabs_->widget(index);
+
+    // Focus follows the tab. Without this it stays on whatever was clicked, so
+    // the filter box and the trees on the tab just opened are only reachable
+    // by tabbing across the whole page first.
+    if (page != nullptr) page->setFocus(Qt::OtherFocusReason);
 
     // The raw document is the host's, and it may be behind this view's edits.
     // Asking for it to be brought up to date is the whole reason the host
@@ -325,6 +380,55 @@ void EMailPageView::build_ui() {
     ensure_regions_verified();
     refresh_security();
   });
+
+  apply_colors();
+}
+
+void EMailPageView::apply_colors() {
+  // The one place any colour in this view is decided. Called at the end of
+  // build_ui() and again on every theme change, which is what keeps a single
+  // definition from having to exist twice -- and what makes the tab follow a
+  // live light/dark switch at all. Nothing here may touch a font: the font
+  // scaling done at build time is not idempotent.
+  for (auto* caption : captions_) {
+    if (caption != nullptr) EMailMakeMuted(caption);
+  }
+
+  if (envelope_rule_ != nullptr) EMailPaintRule(envelope_rule_);
+  if (action_separator_ != nullptr) EMailPaintRule(action_separator_);
+
+  if (locked_banner_ != nullptr) {
+    EMailTintBanner(locked_banner_, MutedColor(this), kLockedTint);
+  }
+  if (locked_notice_ != nullptr) {
+    EMailSetLabelColor(locked_notice_, MutedColor(this));
+  }
+  if (locked_recipients_ != nullptr) {
+    EMailSetLabelColor(locked_recipients_, MutedColor(this));
+  }
+  if (attachment_heading_ != nullptr) {
+    EMailSetLabelColor(attachment_heading_, MutedColor(this));
+  }
+  if (unsigned_notice_ != nullptr) {
+    EMailSetLabelColor(unsigned_notice_, ThemeColor(this, &GFUIWarningColor));
+  }
+
+  if (attachment_list_ != nullptr) {
+    EMailPaintTreeHeader(attachment_list_);
+    EMailRepaintTree(attachment_list_);
+  }
+
+  // These decide a colour from state rather than holding a fixed one, so they
+  // are asked to decide again rather than being recoloured from here.
+  if (security_button_ != nullptr) paint_security_button();
+  if (from_edit_ != nullptr) {
+    style_as_locked(content_lock() != EMailLockReason::kNONE);
+  }
+}
+
+void EMailPageView::changeEvent(QEvent* event) {
+  QWidget::changeEvent(event);
+  if (EMailIsRestyle(event)) apply_colors();
 }
 
 auto EMailPageView::build_message_tab() -> QWidget* {
@@ -335,8 +439,11 @@ auto EMailPageView::build_message_tab() -> QWidget* {
 
   auto* form = new QFormLayout();
   form->setLabelAlignment(Qt::AlignRight);
-  form->setHorizontalSpacing(8);
-  form->setVerticalSpacing(3);
+  form->setFormAlignment(Qt::AlignLeft | Qt::AlignTop);
+  // Three points of leading ran the rows together into one block of boxes; a
+  // wider gutter stops the captions touching the fields they name.
+  form->setHorizontalSpacing(10);
+  form->setVerticalSpacing(4);
   form->setContentsMargins(0, 0, 0, 0);
 
   from_edit_ = new QLineEdit(this);
@@ -378,9 +485,12 @@ auto EMailPageView::build_message_tab() -> QWidget* {
   // addresses rather than on the word "From".
   const auto caption = [this](const QString& text) {
     auto* label = new QLabel(text, this);
-    auto palette = label->palette();
-    palette.setColor(QPalette::WindowText, MutedColor(this));
-    label->setPalette(palette);
+    // Quieter AND smaller than the value beside it, which is the convention
+    // everywhere else in this module. The colour is not set here:
+    // apply_colors() owns every colour in this view, so a theme change repaints
+    // these too.
+    EMailMakeSecondary(label);
+    captions_.append(label);
     return label;
   };
 
@@ -400,7 +510,10 @@ auto EMailPageView::build_message_tab() -> QWidget* {
   cc_bcc_toggle_->setText(tr("Cc/Bcc"));
   cc_bcc_toggle_->setCheckable(true);
   cc_bcc_toggle_->setAutoRaise(true);
-  cc_bcc_toggle_->setToolTip(tr("Show carbon copy and blind carbon copy"));
+  cc_bcc_toggle_->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_C));
+  cc_bcc_toggle_->setToolTip(
+      tr("Show carbon copy and blind carbon copy (%1)")
+          .arg(cc_bcc_toggle_->shortcut().toString(QKeySequence::NativeText)));
   to_row_layout->addWidget(cc_bcc_toggle_);
 
   form->addRow(caption(tr("To:")), to_row);
@@ -421,16 +534,12 @@ auto EMailPageView::build_message_tab() -> QWidget* {
   layout->addLayout(form);
 
   // A hairline between the envelope and the message, so the two stop running
-  // together into one undifferentiated column of boxes.
-  auto* rule = new QFrame(this);
-  rule->setFrameShape(QFrame::HLine);
-  rule->setFrameShadow(QFrame::Plain);
-  auto rule_palette = rule->palette();
-  rule_palette.setColor(QPalette::WindowText,
-                        ThemeColor(this, &GFUIBorderColor));
-  rule->setPalette(rule_palette);
-  rule->setFixedHeight(1);
-  layout->addWidget(rule);
+  // together into one undifferentiated column of boxes. Given room on both
+  // sides: a rule pressed against what it divides reads as an underline.
+  envelope_rule_ = EMailRule(this);
+  layout->addSpacing(2);
+  layout->addWidget(envelope_rule_);
+  layout->addSpacing(2);
 
   auto* body_row = new QHBoxLayout();
   body_row->setContentsMargins(0, 0, 0, 0);
@@ -445,29 +554,42 @@ auto EMailPageView::build_message_tab() -> QWidget* {
   // platforms that have no icon theme at all.
   const auto make_action =
       [this, body_row](const QString& theme_icon, const QString& fallback_icon,
-                       const QString& text, const QString& tip) {
+                       const QString& text, const QString& tip,
+                       const QKeySequence& shortcut) {
         auto* button = new QToolButton(this);
         button->setIcon(QIcon::fromTheme(theme_icon, QIcon(fallback_icon)));
         button->setText(text);
         button->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
         button->setAutoRaise(true);
-        button->setToolTip(tip);
         button->setVisible(false);
+
+        // The key and the sentence advertising it are set together, so they
+        // cannot drift apart. A shortcut nothing mentions is a shortcut only
+        // the person who wrote it knows about.
+        button->setShortcut(shortcut);
+        button->setToolTip(
+            shortcut.isEmpty()
+                ? tip
+                : tr("%1 (%2)").arg(
+                      tip, shortcut.toString(QKeySequence::NativeText)));
+
         body_row->addWidget(button);
         return button;
       };
 
-  reply_button_ =
-      make_action(QStringLiteral("mail-reply-sender"), ":/icons/reply.png",
-                  tr("Reply"), tr("Write a reply to the sender."));
+  reply_button_ = make_action(
+      QStringLiteral("mail-reply-sender"), ":/icons/reply.png", tr("Reply"),
+      tr("Write a reply to the sender."), QKeySequence(Qt::CTRL | Qt::Key_R));
   reply_all_button_ = make_action(
       QStringLiteral("mail-reply-all"), ":/icons/reply-all.png",
       tr("Reply All"),
       tr("Write a reply to the sender and everyone else who was addressed. "
-         "Blind recipients are not included."));
+         "Blind recipients are not included."),
+      QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_R));
   forward_button_ = make_action(
       QStringLiteral("mail-forward"), ":/icons/redo.png", tr("Forward"),
-      tr("Pass this message on, with its attachments."));
+      tr("Pass this message on, with its attachments."),
+      QKeySequence(Qt::CTRL | Qt::Key_L));
 
   connect(reply_button_, &QToolButton::clicked, this, [this]() {
     slot_derive_message(static_cast<int>(EMailReplyMode::kREPLY));
@@ -482,22 +604,14 @@ auto EMailPageView::build_message_tab() -> QWidget* {
   send_button_ = make_action(QStringLiteral("mail-send"),
                              ":/icons/export-email.png", tr("Send..."),
                              tr("Send this message through a configured "
-                                "mail account."));
+                                "mail account."),
+                             QKeySequence(Qt::CTRL | Qt::Key_Return));
   connect(send_button_, &QToolButton::clicked, this,
           &EMailPageView::slot_send_message);
 
   // Locking the document is a different kind of act from deriving a new
   // message out of it, so it is set apart rather than lined up with them.
-  auto* action_separator = new QFrame(this);
-  action_separator->setFrameShape(QFrame::VLine);
-  action_separator->setFrameShadow(QFrame::Plain);
-  action_separator->setFixedWidth(1);
-  {
-    auto separator_palette = action_separator->palette();
-    separator_palette.setColor(QPalette::WindowText,
-                               ThemeColor(this, &GFUIBorderColor));
-    action_separator->setPalette(separator_palette);
-  }
+  auto* action_separator = EMailRule(this, Qt::Vertical);
   action_separator->setVisible(false);
   body_row->addSpacing(4);
   body_row->addWidget(action_separator);
@@ -507,7 +621,8 @@ auto EMailPageView::build_message_tab() -> QWidget* {
   forensic_toggle_ = make_action(
       QStringLiteral("object-locked"), ":/icons/read-only.png", tr("Read-only"),
       tr("Lock this message so it cannot be edited or rewritten. Reply and "
-         "Forward still work and produce new messages."));
+         "Forward still work and produce new messages."),
+      QKeySequence());
   forensic_toggle_->setCheckable(true);
   connect(forensic_toggle_, &QToolButton::toggled, this,
           [this](bool on) { SetForensicMode(on); });
@@ -547,21 +662,19 @@ auto EMailPageView::build_message_tab() -> QWidget* {
 
   body_view_ = new EMailBodyView(this);
 
+  // The body view decides for itself when it has given up on rendering and is
+  // showing source instead, so it is the thing that gets asked. Answering the
+  // signal rather than re-deriving the same condition here keeps the sentence
+  // the user reads tied to what was actually done to the body.
+  connect(body_view_, &EMailBodyView::SignalHtmlShownAsSource, this,
+          [this]() { body_is_html_ = true; });
+
   // The reason the message is locked is not a footnote: it is the first thing
   // to read when the fields will not take input. A tinted strip with the state
   // icon beside it says so at a glance, where small grey text under the body
   // did not.
-  locked_banner_ = new QFrame(this);
+  locked_banner_ = EMailTintedBanner(this, MutedColor(this), kLockedTint);
   locked_banner_->setVisible(false);
-  locked_banner_->setAutoFillBackground(true);
-  locked_banner_->setFrameShape(QFrame::NoFrame);
-  {
-    auto palette = locked_banner_->palette();
-    const auto base = palette.color(QPalette::Window);
-    palette.setColor(QPalette::Window,
-                     Blend(base, MutedColor(this), kLockedTint));
-    locked_banner_->setPalette(palette);
-  }
 
   auto* banner_row = new QHBoxLayout(locked_banner_);
   banner_row->setContentsMargins(8, 6, 8, 6);
@@ -578,6 +691,7 @@ auto EMailPageView::build_message_tab() -> QWidget* {
     font.setPointSizeF(font.pointSizeF() * 0.92);
     locked_notice_->setFont(font);
   }
+  // Colour belongs to apply_colors(), like every other colour in this view.
   banner_row->addWidget(locked_notice_, 1);
 
   layout->addWidget(locked_banner_);
@@ -592,14 +706,14 @@ auto EMailPageView::build_message_tab() -> QWidget* {
 
   attachment_heading_ = new QLabel(this);
   {
-    auto palette = attachment_heading_->palette();
-    palette.setColor(QPalette::WindowText, MutedColor(this));
-    attachment_heading_->setPalette(palette);
     auto font = attachment_heading_->font();
     font.setPointSizeF(font.pointSizeF() * 0.92);
     attachment_heading_->setFont(font);
   }
   attachment_heading_->setVisible(false);
+  // Not welded to the body above it: this is a new group, not a caption on the
+  // editor.
+  layout->addSpacing(2);
   layout->addWidget(attachment_heading_);
 
   attachment_list_ = new QTreeWidget(this);
@@ -612,7 +726,7 @@ auto EMailPageView::build_message_tab() -> QWidget* {
   attachment_list_->header()->setStretchLastSection(false);
   attachment_list_->header()->setSectionResizeMode(kColName,
                                                    QHeaderView::Stretch);
-  attachment_list_->setMaximumHeight(160);
+  EMailPolishTree(attachment_list_);
   attachment_list_->setVisible(false);
   layout->addWidget(attachment_list_);
 
@@ -620,9 +734,6 @@ auto EMailPageView::build_message_tab() -> QWidget* {
   unsigned_notice_->setWordWrap(true);
   unsigned_notice_->setVisible(false);
   {
-    auto palette = unsigned_notice_->palette();
-    palette.setColor(QPalette::WindowText, ThemeColor(this, &GFUIWarningColor));
-    unsigned_notice_->setPalette(palette);
     auto font = unsigned_notice_->font();
     font.setPointSizeF(font.pointSizeF() * 0.92);
     unsigned_notice_->setFont(font);
@@ -638,13 +749,20 @@ auto EMailPageView::build_message_tab() -> QWidget* {
 
   const auto make_attachment_action =
       [this](const QString& theme_icon, const QString& fallback_icon,
-             const QString& text, const QString& tip) {
+             const QString& text, const QString& tip,
+             const QKeySequence& shortcut = {}) {
         auto* button = new QToolButton(this);
         button->setIcon(QIcon::fromTheme(theme_icon, QIcon(fallback_icon)));
         button->setText(text);
         button->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
         button->setAutoRaise(true);
-        button->setToolTip(tip);
+
+        button->setShortcut(shortcut);
+        button->setToolTip(
+            shortcut.isEmpty()
+                ? tip
+                : tr("%1 (%2)").arg(
+                      tip, shortcut.toString(QKeySequence::NativeText)));
         return button;
       };
 
@@ -652,7 +770,8 @@ auto EMailPageView::build_message_tab() -> QWidget* {
       QStringLiteral("mail-attachment"), ":/icons/attachment.png",
       tr("Attach File…"),
       tr("Add one or more files to this message. Files can also be dropped "
-         "onto the message."));
+         "onto the message."),
+      QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_A));
   // Removing takes a part out of the message being composed; it deletes
   // nothing on disk, and the wording and icon both stay away from suggesting
   // it does.
@@ -683,6 +802,28 @@ auto EMailPageView::build_message_tab() -> QWidget* {
           &EMailPageView::slot_save_all_attachments);
   connect(attachment_list_, &QTreeWidget::itemSelectionChanged, this,
           &EMailPageView::slot_selection_changed);
+
+  // Everything the four buttons below do, on the row the user is pointing at.
+  // The buttons stay: this is the second way to reach them, for the people who
+  // look for it on the thing itself.
+  attachment_list_->setContextMenuPolicy(Qt::CustomContextMenu);
+  connect(attachment_list_, &QTreeWidget::customContextMenuRequested, this,
+          &EMailPageView::slot_attachment_menu);
+
+  // What a double-click on a file has meant everywhere else for thirty years.
+  connect(attachment_list_, &QTreeWidget::itemDoubleClicked, this,
+          [this](QTreeWidgetItem* item, int) { open_attachment(item); });
+
+  // The keys a list of files is expected to answer to. Delete goes through
+  // slot_remove_attachment(), so it asks the same question the button does
+  // rather than being a quieter way to destroy the same bytes.
+  auto* del = new QShortcut(QKeySequence::Delete, attachment_list_);
+  del->setContext(Qt::WidgetShortcut);
+  connect(del, &QShortcut::activated, this,
+          &EMailPageView::slot_remove_attachment);
+
+  connect(attachment_list_, &QTreeWidget::itemActivated, this,
+          [this](QTreeWidgetItem* item, int) { open_attachment(item); });
 
   for (auto* edit :
        {from_edit_, to_edit_, cc_edit_, bcc_edit_, subject_edit_}) {
@@ -801,12 +942,37 @@ void EMailPageView::apply_content_lock() {
   }
 
   setToolTip(notice);
+
+  // An HTML body is shown as its source, deliberately, and the user is owed
+  // that sentence -- without it the body looks like a rendering that failed.
+  // It shares the banner rather than getting one of its own: two tinted strips
+  // stacked above the message would cost more room than either is worth. The
+  // lock wins, because it is the reason the message will not take input, and
+  // the HTML note falls back to the body's tooltip.
+  const auto html_notice =
+      body_is_html_
+          ? tr("This message was written in HTML. It is shown as its source "
+               "rather than rendered: nothing here loads images or follows "
+               "links.")
+          : QString();
+
+  if (!locked && body_is_html_) {
+    icon = ":/icons/code.png";
+    notice = html_notice;
+  }
+
+  // Said on the body itself in the case the banner could not take: a locked
+  // HTML message is both things at once, and only one of them fits up there.
+  if (body_view_ != nullptr) {
+    body_view_->setToolTip(locked ? html_notice : QString());
+  }
+
   if (locked_notice_ != nullptr) locked_notice_->setText(notice);
   if (locked_banner_icon_ != nullptr && !icon.isEmpty()) {
     locked_banner_icon_->setPixmap(QIcon(icon).pixmap(16, 16));
   }
   if (locked_banner_ != nullptr) {
-    locked_banner_->setVisible(locked && !notice.isEmpty());
+    locked_banner_->setVisible(!notice.isEmpty());
   }
 
   style_as_locked(locked);
@@ -947,6 +1113,25 @@ void EMailPageView::LoadFromSource(const QByteArray& source) {
   // host hand the original bytes to a verify untouched.
   dirty_ = false;
   inspection_stale_ = false;
+
+  focus_first_field();
+}
+
+void EMailPageView::focus_first_field() {
+  // Nothing set focus at all before this, so it landed on the first widget in
+  // the form -- From -- which on a received message is a box that will not
+  // take input. Where it goes now follows what the tab is FOR: a draft is
+  // going to be addressed, and a message that arrived is going to be read.
+  if (document_is_received_) {
+    if (body_stack_ != nullptr && body_stack_->currentWidget() != nullptr) {
+      body_stack_->currentWidget()->setFocus(Qt::OtherFocusReason);
+    }
+    return;
+  }
+
+  // Not From: it is normally already filled in from the account, and the
+  // first thing anyone actually types is the recipient.
+  if (to_edit_ != nullptr) to_edit_->setFocus(Qt::OtherFocusReason);
 }
 
 void EMailPageView::refresh_structure() {
@@ -958,7 +1143,7 @@ void EMailPageView::refresh_structure() {
   // would be worse than showing none.
   signature_results_.clear();
   recipient_rows_.clear();
-  regions_verified_ = false;
+  verify_state_ = EMailVerifyState::kNOT_ATTEMPTED;
 
   vmime::shared_ptr<vmime::message> parsed;
   if (!CheckIfEMLMessage(last_source_, parsed)) {
@@ -1133,7 +1318,7 @@ void EMailPageView::NotifyKeyringChanged() {
   if (regions_.isEmpty()) return;
 
   // The previous answers were about a keyring that no longer exists.
-  regions_verified_ = false;
+  verify_state_ = EMailVerifyState::kNOT_ATTEMPTED;
   signature_results_.clear();
 
   // Only redo the work now if it is being looked at; otherwise the next visit
@@ -1155,14 +1340,25 @@ void EMailPageView::sync_inspection() {
   collect_fields();
 
   QString eml;
+  // Re-encodes every attachment, on this thread. Long enough on a message with
+  // a few large parts that the window would otherwise sit there looking dead.
+  const EMailBusyCursor busy;
+
   if (BuildMimeEML(message_, message_.body, message_.attachments, eml) != 0) {
     MLogWarn("failed to serialize the edited message for inspection: " + eml);
     // Show nothing rather than the previous document's structure: a stale tree
     // presented as the current one is worse than an empty tab. The flag stays
     // set, so the next visit tries again.
-    structure_view_->Clear();
-    header_view_->Clear();
-    security_view_->Clear();
+    //
+    // Said rather than left blank: three empty tabs after a tab switch read as
+    // a message with nothing in it, which is a different and much worse claim
+    // than "this could not be read".
+    const auto why =
+        tr("This message could not be assembled for inspection, so there is "
+           "nothing to show here. The message itself is unchanged.");
+    structure_view_->ShowNotice(why);
+    header_view_->ShowNotice(why);
+    security_view_->ShowNotice(why);
     return;
   }
 
@@ -1180,19 +1376,56 @@ void EMailPageView::sync_inspection() {
 }
 
 void EMailPageView::ensure_regions_verified() {
-  if (regions_verified_ || regions_.isEmpty() || last_source_.isEmpty()) return;
+  if (verify_state_ != EMailVerifyState::kNOT_ATTEMPTED || regions_.isEmpty() ||
+      last_source_.isEmpty()) {
+    return;
+  }
 
-  // Once per load. A failed or partial verification is still an answer, and
-  // retrying it every time the tab is focused would re-run the engine for no
-  // new information.
-  regions_verified_ = true;
+  // Once per load, unless asked again. A verification that produced nothing is
+  // still an answer, and repeating it on every focus would re-run the engine
+  // for no new information -- but it is an answer the user is now able to tell
+  // apart from "not tried yet", and so is able to ask to have taken again.
+  run_verification();
+}
+
+void EMailPageView::run_verification() {
+  // Can wait on the agent, on this thread.
+  const EMailBusyCursor busy;
 
   signature_results_.clear();
   VerifyEMLRegions(GFGpgCurrentGpgContextChannel(), last_source_, tree_root_,
                    regions_, signature_results_);
+
+  // The distinction the Security tab needs: a signed message with no results
+  // after a verification has been attempted is a different thing from one
+  // nothing has looked at yet, and saying "nothing has verified it yet" for
+  // both left the user with no way to know which they were reading.
+  verify_state_ = signature_results_.isEmpty()
+                      ? EMailVerifyState::kATTEMPTED_EMPTY
+                      : EMailVerifyState::kVERIFIED;
 }
 
 void EMailPageView::slot_derive_message(int mode) {
+  // What the user asked for, for the failure notices below. A refusal that
+  // does not name the action the user just clicked leaves them guessing which
+  // of the three buttons it came from.
+  const auto what = [mode]() -> QString {
+    switch (static_cast<EMailReplyMode>(mode)) {
+      case EMailReplyMode::kREPLY:
+        return tr("Cannot Reply");
+      case EMailReplyMode::kREPLY_ALL:
+        return tr("Cannot Reply to All");
+      case EMailReplyMode::kFORWARD:
+        break;
+    }
+    return tr("Cannot Forward");
+  }();
+
+  // Nothing below this point changes THIS message, so every failure can say
+  // so. It is the one reassurance worth giving: the user has just watched an
+  // action on a message they care about not happen.
+  const auto intact = tr("\n\nThis message itself has not been changed.");
+
   // Walk up to the tab widget that owns this page. The module cannot link the
   // UI library, so the host is reached by invokable name rather than by type.
   QObject* edit = parent();
@@ -1204,6 +1437,11 @@ void EMailPageView::slot_derive_message(int mode) {
 
   if (edit == nullptr) {
     MLogWarn("cannot derive a message: no tab host above this view");
+    QMessageBox::warning(
+        this, what,
+        tr("A new message cannot be opened from here, because this view is "
+           "not inside a window that holds tabs.") +
+            intact);
     return;
   }
 
@@ -1226,6 +1464,12 @@ void EMailPageView::slot_derive_message(int mode) {
   QString eml;
   if (BuildMimeEML(derived, quoted, derived.attachments, eml) != 0) {
     MLogWarn("failed to build the derived message");
+    QMessageBox::warning(
+        this, what,
+        tr("The new message could not be assembled. This usually means a part "
+           "of the original could not be re-encoded -- an attachment, most "
+           "often.") +
+            intact);
     return;
   }
 
@@ -1238,6 +1482,9 @@ void EMailPageView::slot_derive_message(int mode) {
 
   if (page == nullptr) {
     MLogWarn("the host did not create a tab for the derived message");
+    QMessageBox::warning(
+        this, what,
+        tr("A tab for the new message could not be opened.") + intact);
     return;
   }
 
@@ -1246,6 +1493,11 @@ void EMailPageView::slot_derive_message(int mode) {
   auto* view = page->findChild<EMailPageView*>();
   if (view == nullptr) {
     MLogWarn("the new tab has no message view to fill");
+    QMessageBox::warning(
+        this, what,
+        tr("The new tab opened, but it is not showing a message view, so "
+           "there is nowhere to put the reply. The tab can be closed.") +
+            intact);
     return;
   }
 
@@ -1279,12 +1531,16 @@ auto EMailPageView::build_locked_panel() -> QWidget* {
   locked_recipients_->setAlignment(Qt::AlignCenter);
   locked_recipients_->setWordWrap(true);
   locked_recipients_->setTextInteractionFlags(Qt::TextSelectableByMouse);
-  {
-    auto palette = locked_recipients_->palette();
-    palette.setColor(QPalette::WindowText, MutedColor(this));
-    locked_recipients_->setPalette(palette);
-  }
   layout->addWidget(locked_recipients_);
+
+  // Whether this user can open it at all, which is the question the panel was
+  // silent on. Pressing Decrypt with no matching private key produces an
+  // error from the host and a panel that comes back looking exactly as it did,
+  // so the only way to learn it was never going to work was to try it.
+  locked_capability_ = new QLabel(panel);
+  locked_capability_->setAlignment(Qt::AlignCenter);
+  locked_capability_->setWordWrap(true);
+  layout->addWidget(locked_capability_);
 
   auto* row = new QHBoxLayout();
   row->addStretch();
@@ -1336,7 +1592,68 @@ void EMailPageView::refresh_locked_panel() {
       named.isEmpty() ? tr("The recipients are not named in the headers.")
                       : tr("Addressed to %1").arg(named.join(", ")));
 
+  refresh_locked_capability(named);
+
   locked_decrypt_button_->setEnabled(true);
+}
+
+void EMailPageView::refresh_locked_capability(const QStringList& named) {
+  // The addresses this user holds the secret half for. An address being here
+  // is not a promise the decryption will work -- the message may be encrypted
+  // to a key whose address the headers never mention, which is exactly why
+  // Decrypt stays enabled either way -- but its ABSENCE across every named
+  // recipient is worth saying before the user presses a button that cannot
+  // succeed.
+  char** addresses = nullptr;
+  int count = 0;
+  if (GFGpgListKeyAddresses(GFGpgCurrentGpgContextChannel(), 1, &addresses,
+                            &count) != 0) {
+    locked_capability_->setVisible(false);
+    return;
+  }
+
+  QStringList mine;
+  for (int i = 0; i < count; ++i) {
+    const auto address = AddressOfUid(QString::fromUtf8(addresses[i]));
+    if (!address.isEmpty()) mine.append(address.toLower());
+  }
+  GFGpgFreeStringArray(addresses, count);
+
+  // Nothing knowable either way: no recipient is named, or the keyring holds
+  // no private key at all. Saying something in that case would be inventing
+  // an answer to a question that was not asked.
+  if (named.isEmpty() || mine.isEmpty()) {
+    locked_capability_->setVisible(!mine.isEmpty());
+    if (!mine.isEmpty()) {
+      EMailSetLabelColor(locked_capability_, MutedColor(this));
+      locked_capability_->setText(
+          tr("The recipients are not named, so whether you can open this "
+             "cannot be told until you try."));
+    }
+    return;
+  }
+
+  QStringList matched;
+  for (const auto& entry : named) {
+    const auto address = AddressOfUid(entry).toLower();
+    if (!address.isEmpty() && mine.contains(address)) matched.append(address);
+  }
+
+  locked_capability_->setVisible(true);
+  if (matched.isEmpty()) {
+    EMailSetLabelColor(locked_capability_, ThemeColor(this, &GFUIWarningColor));
+    locked_capability_->setText(
+        tr("You do not hold a private key for any of these addresses. Unless "
+           "the message was also encrypted to a key that is not named here, "
+           "it cannot be opened on this computer."));
+    return;
+  }
+
+  EMailSetLabelColor(locked_capability_, AccentColor(this, true));
+  locked_capability_->setText(
+      matched.size() == 1
+          ? tr("You hold the private key for %1.").arg(matched.front())
+          : tr("You hold private keys for %1.").arg(matched.join(", ")));
 }
 
 auto EMailPageView::AttachPublicKey(const QByteArray& key_data,
@@ -1412,6 +1729,12 @@ auto EMailPageView::refuse_when_locked(const QString& what) -> bool {
 }
 
 void EMailPageView::refresh_body_view() {
+  // Cleared before the body view is told anything, so the flag can only be set
+  // again by the view itself saying it fell back to source.
+  // apply_content_lock() runs after this function in LoadFromSource() and is
+  // what puts the sentence on screen.
+  body_is_html_ = false;
+
   // The plain-text part is the body whenever the message has one, and the
   // choice is the message's own rather than a mode the user picks. Only a
   // message that offers nothing but HTML falls through to its source, which
@@ -1511,7 +1834,8 @@ void EMailPageView::refresh_security() {
 
   security_view_->SetMessage(security_state_, regions_, signature_results_,
                              recipient_rows_, addresses,
-                             GFGpgCurrentGpgContextChannel(), findings);
+                             GFGpgCurrentGpgContextChannel(), findings,
+                             verify_state_, !message_key_parts().isEmpty());
 }
 
 /**
@@ -1662,31 +1986,49 @@ void EMailPageView::install_address_hints() {
   }
 }
 
+void EMailPageView::paint_security_button() {
+  // Colour only. Split from refresh_security_button() because that one also
+  // rebuilds the menu and announces that the available operations changed,
+  // and a theme change must not claim either of those happened.
+  QColor colour = MutedColor(this);
+  switch (security_state_) {
+    case EMailSecurityState::kENCRYPTED:
+    case EMailSecurityState::kSIGNED:
+    case EMailSecurityState::kSIGNED_ENCRYPTED:
+      colour = AccentColor(this, true);
+      break;
+    case EMailSecurityState::kMALFORMED_PGP:
+      colour = EMailWarningColor(this);
+      break;
+    case EMailSecurityState::kPLAIN:
+      break;
+  }
+
+  auto palette = security_button_->palette();
+  palette.setColor(QPalette::ButtonText, colour);
+  security_button_->setPalette(palette);
+}
+
 void EMailPageView::refresh_security_button() {
   QString text;
   QString icon;
-  QColor colour = MutedColor(this);
 
   switch (security_state_) {
     case EMailSecurityState::kENCRYPTED:
       text = tr("Encrypted");
       icon = ":/icons/lock.png";
-      colour = AccentColor(this, true);
       break;
     case EMailSecurityState::kSIGNED:
       text = tr("Signed");
       icon = ":/icons/signature.png";
-      colour = AccentColor(this, true);
       break;
     case EMailSecurityState::kSIGNED_ENCRYPTED:
       text = tr("Encrypted and signed");
       icon = ":/icons/lock.png";
-      colour = AccentColor(this, true);
       break;
     case EMailSecurityState::kMALFORMED_PGP:
       text = tr("Malformed OpenPGP structure");
       icon = ":/icons/warning.png";
-      colour = EMailWarningColor(this);
       break;
     case EMailSecurityState::kPLAIN:
       // Stated plainly and quietly. An unprotected message is the ordinary
@@ -1705,10 +2047,7 @@ void EMailPageView::refresh_security_button() {
   security_button_->setVisible(true);
 
   security_button_->setIcon(QIcon(icon));
-
-  auto palette = security_button_->palette();
-  palette.setColor(QPalette::ButtonText, colour);
-  security_button_->setPalette(palette);
+  paint_security_button();
 
   // The button keeps the whole wording and draws as much of it as it was given
   // room for, so narrowing the window never loses what the message is.
@@ -1772,10 +2111,13 @@ auto EMailPageView::AvailableCryptoOperations() -> QStringList {
 void EMailPageView::rebuild_security_menu() {
   security_menu_->clear();
 
-  const auto show_details = [this]() {
-    if (tabs_ != nullptr && security_view_ != nullptr) {
-      tabs_->setCurrentWidget(security_view_);
-    }
+  // Each of these items is a question -- what signed this, who is it
+  // encrypted to -- and answering it by opening a tab and leaving the user to
+  // find the row themselves answers a different, easier question.
+  const auto show_details = [this](const QString& section) {
+    if (tabs_ == nullptr || security_view_ == nullptr) return;
+    tabs_->setCurrentWidget(security_view_);
+    security_view_->RevealSection(section);
   };
   const auto request = [this](const QString& op) {
     emit SignalCryptoOperationRequested(op);
@@ -1812,7 +2154,8 @@ void EMailPageView::rebuild_security_menu() {
     case EMailSecurityState::kSIGNED: {
       add_read(tr("Verify Signature"), "verify");
       auto* details = security_menu_->addAction(tr("Signature Details..."));
-      connect(details, &QAction::triggered, this, show_details);
+      connect(details, &QAction::triggered, this,
+              [show_details]() { show_details(kSectionSignatures); });
       security_menu_->addSeparator();
       add_op(tr("Sign Again With Another Key..."), "sign");
       auto* remove = security_menu_->addAction(tr("Remove Signature..."));
@@ -1827,7 +2170,8 @@ void EMailPageView::rebuild_security_menu() {
       add_read(tr("Decrypt and Verify"), "decrypt_verify");
       security_menu_->addSeparator();
       auto* details = security_menu_->addAction(tr("Encryption Details..."));
-      connect(details, &QAction::triggered, this, show_details);
+      connect(details, &QAction::triggered, this,
+              [show_details]() { show_details(kSectionRecipients); });
       break;
     }
 
@@ -1836,7 +2180,8 @@ void EMailPageView::rebuild_security_menu() {
       add_read(tr("Decrypt"), "decrypt");
       security_menu_->addSeparator();
       auto* details = security_menu_->addAction(tr("Details..."));
-      connect(details, &QAction::triggered, this, show_details);
+      connect(details, &QAction::triggered, this,
+              [show_details]() { show_details(kSectionSignatures); });
 
       auto* remove = security_menu_->addAction(tr("Remove Signature..."));
       // Only a signature this view can actually see can be lifted off. When
@@ -1858,7 +2203,8 @@ void EMailPageView::rebuild_security_menu() {
     case EMailSecurityState::kMALFORMED_PGP: {
       auto* details =
           security_menu_->addAction(tr("What Is Wrong With This Message?"));
-      connect(details, &QAction::triggered, this, show_details);
+      connect(details, &QAction::triggered, this,
+              [show_details]() { show_details(kSectionFindings); });
       security_menu_->addSeparator();
       add_read(tr("Try to Verify Anyway"), "verify");
       add_read(tr("Try to Decrypt Anyway"), "decrypt");
@@ -1983,8 +2329,6 @@ void EMailPageView::refresh_attachments() {
   bool any_unsigned = false;
   bool any_signed_info = false;
 
-  const auto muted = MutedColor(this);
-
   for (const auto& att : message_.attachments) {
     auto* item = new QTreeWidgetItem(attachment_list_);
     item->setText(kColName,
@@ -1997,21 +2341,21 @@ void EMailPageView::refresh_attachments() {
 
     // Type and size describe the name; they are not values in their own right.
     item->setText(kColType, att.mime_type);
-    item->setForeground(kColType, muted);
+    EMailSetCellTone(item, kColType, EMailTone::kMUTED, this);
     item->setText(kColSize, HumanSize(att.data.size()));
-    item->setForeground(kColSize, muted);
+    EMailSetCellTone(item, kColSize, EMailTone::kMUTED, this);
     item->setTextAlignment(kColSize, Qt::AlignRight | Qt::AlignVCenter);
 
     if (att.inside_signed_part) {
       item->setText(kColSigned, tr("signed"));
-      item->setForeground(kColSigned, AccentColor(this, true));
+      EMailSetCellTone(item, kColSigned, EMailTone::kGOOD, this);
       any_signed_info = true;
     } else {
       // Not painted red: nothing here is broken and nothing is irreversible.
       // The part simply arrived without the signature vouching for it, which
       // is a caveat rather than an alarm.
       item->setText(kColSigned, tr("unsigned"));
-      item->setForeground(kColSigned, ThemeColor(this, &GFUIWarningColor));
+      EMailSetCellTone(item, kColSigned, EMailTone::kWARN, this);
       any_unsigned = true;
     }
 
@@ -2059,13 +2403,31 @@ void EMailPageView::refresh_attachments() {
     const auto wanted =
         header_height +
         row_height * static_cast<int>(message_.attachments.size()) + 8;
-    attachment_list_->setFixedHeight(qMin(wanted, 160));
+    // Capped against the page rather than against a constant. A fixed 160px
+    // meant a message with a dozen parts scrolled a box four rows tall no
+    // matter how much room the window had; a third of the page is the same
+    // restraint expressed as a share of what is actually available.
+    const auto ceiling = qMax(kMinAttachmentHeight, height() / 3);
+    attachment_list_->setFixedHeight(qMin(wanted, ceiling));
   }
 
   attachment_list_->resizeColumnToContents(kColType);
   attachment_list_->resizeColumnToContents(kColSize);
   if (any_signed_info) attachment_list_->resizeColumnToContents(kColSigned);
   slot_selection_changed();
+}
+
+void EMailPageView::report_attachment_status(const QString& note) {
+  // Said where the attachments are, rather than in a dialog the user has to
+  // dismiss: this is the outcome of something they just asked for and were
+  // watching, not news that has to interrupt them.
+  attachment_heading_->setVisible(true);
+  attachment_heading_->setText(note);
+
+  // Back to describing the list afterwards. The heading is the list's label
+  // first and a status line only in passing, so it must not keep saying
+  // "Saved 3 files." over a list the user has since changed.
+  QTimer::singleShot(kStatusNoteMs, this, [this]() { refresh_attachments(); });
 }
 
 auto EMailPageView::SaveToSource() -> QByteArray {
@@ -2188,7 +2550,7 @@ void EMailPageView::WipeContent() {
   regions_.clear();
   signature_results_.clear();
   recipient_rows_.clear();
-  regions_verified_ = false;
+  verify_state_ = EMailVerifyState::kNOT_ATTEMPTED;
   inspection_stale_ = false;
   security_state_ = EMailSecurityState::kPLAIN;
   view_state_ = EMailViewState{};
@@ -2258,21 +2620,22 @@ void EMailPageView::attach_paths(const QStringList& paths) {
   // behind the disabled button and the refused drag.
   if (content_lock() != EMailLockReason::kNONE) return;
 
+  // Collected rather than reported as they happen: a folder dropped on the
+  // message can easily be twenty unreadable paths, and twenty modal dialogs in
+  // a row is a worse way to learn that than one list.
+  QStringList refused;
+
   for (const auto& path : paths) {
     // Directories arrive from a drop as readily as files do, and reading one
     // yields nothing useful.
     if (QFileInfo(path).isDir()) {
-      QMessageBox::warning(
-          this, tr("Attach File"),
-          tr("%1 is a folder and was not attached.").arg(path));
+      refused.append(tr("%1 -- a folder").arg(path));
       continue;
     }
 
     QFile file(path);
     if (!file.open(QIODevice::ReadOnly)) {
-      QMessageBox::warning(
-          this, tr("Attach File"),
-          tr("Cannot read %1:\n%2.").arg(path, file.errorString()));
+      refused.append(tr("%1 -- %2").arg(path, file.errorString()));
       continue;
     }
 
@@ -2289,6 +2652,14 @@ void EMailPageView::attach_paths(const QStringList& paths) {
 
   refresh_attachments();
   mark_dirty();
+
+  if (!refused.isEmpty()) {
+    QMessageBox::warning(
+        this, tr("Attach Files"),
+        refused.size() == paths.size()
+            ? tr("Nothing was attached:\n\n%1").arg(refused.join("\n"))
+            : tr("These were not attached:\n\n%1").arg(refused.join("\n")));
+  }
 }
 
 void EMailPageView::dragEnterEvent(QDragEnterEvent* event) {
@@ -2337,6 +2708,152 @@ void EMailPageView::dropEvent(QDropEvent* event) {
   attach_paths(paths);
 }
 
+void EMailPageView::slot_attachment_menu(const QPoint& pos) {
+  auto* item = attachment_list_->itemAt(pos);
+  if (item == nullptr) return;
+
+  const auto row = attachment_list_->indexOfTopLevelItem(item);
+  if (row < 0 || row >= message_.attachments.size()) return;
+  const auto& att = message_.attachments.at(row);
+
+  // The row under the cursor is what the menu is about, so it is what the menu
+  // acts on. Clicking a row already selects it, which keeps this in step with
+  // the buttons, which act on the selection.
+  if (!item->isSelected()) {
+    attachment_list_->setCurrentItem(item);
+  }
+
+  QMenu menu(this);
+  auto* open = menu.addAction(tr("Open"));
+  auto* save = menu.addAction(tr("Save..."));
+
+  QAction* import = nullptr;
+  if (att.is_openpgp_key) {
+    menu.addSeparator();
+    // Offered only where it means something. A message carrying a public key
+    // is how most first contacts arrive, and until now the only way to act on
+    // one was to save it and import it from the key manager.
+    import = menu.addAction(tr("Import Key"));
+  }
+
+  menu.addSeparator();
+  auto* copy_name = menu.addAction(tr("Copy Name"));
+  auto* remove = menu.addAction(tr("Remove"));
+  remove->setEnabled(content_lock() == EMailLockReason::kNONE);
+
+  auto* chosen = menu.exec(attachment_list_->viewport()->mapToGlobal(pos));
+  if (chosen == nullptr) return;
+
+  if (chosen == open) {
+    open_attachment(item);
+  } else if (chosen == save) {
+    slot_save_attachment();
+  } else if (import != nullptr && chosen == import) {
+    import_attachment_key(att);
+  } else if (chosen == copy_name) {
+    QApplication::clipboard()->setText(att.filename);
+  } else if (chosen == remove) {
+    slot_remove_attachment();
+  }
+}
+
+auto EMailPageView::message_key_parts() const -> QList<const EMailPart*> {
+  QList<const EMailPart*> keys;
+  for (const auto* part : FlattenMimeTree(tree_root_)) {
+    if (part != nullptr && part->is_openpgp_key && !part->data.isEmpty()) {
+      keys.append(part);
+    }
+  }
+  return keys;
+}
+
+void EMailPageView::import_message_keys() {
+  const auto keys = message_key_parts();
+  if (keys.isEmpty()) return;
+
+  // Every key part in the message, in one go. A message that carries two of
+  // them carries them for the same reason, and asking twice about one act the
+  // user already asked for would be a dialog per part.
+  for (const auto* part : keys) {
+    GFGpgImportKeys(GFGpgCurrentGpgContextChannel(), this,
+                    part->data.constData(),
+                    static_cast<int>(part->data.size()));
+  }
+
+  // The keyring is what the Security tab was reporting against, so it has to
+  // be asked again now rather than on the next visit -- the user is looking
+  // straight at the row they just acted on.
+  NotifyKeyringChanged();
+  refresh_security();
+}
+
+void EMailPageView::import_attachment_key(const EMailAttachment& att) {
+  // The host owns the import, including whatever it wants to say about what
+  // came of it: this module has no business inventing a second report of the
+  // same operation.
+  GFGpgImportKeys(GFGpgCurrentGpgContextChannel(), this, att.data.constData(),
+                  static_cast<int>(att.data.size()));
+}
+
+void EMailPageView::open_attachment(QTreeWidgetItem* item) {
+  if (item == nullptr) return;
+
+  const auto row = attachment_list_->indexOfTopLevelItem(item);
+  if (row < 0 || row >= message_.attachments.size()) return;
+  const auto& att = message_.attachments.at(row);
+
+  const auto name = SanitizeAttachmentFileName(att.filename, att.mime_type);
+
+  // Handing a file from a message straight to whatever the desktop has
+  // registered for it is how mail clients have historically run attachments
+  // for people. What can be opened here is limited to the types where that is
+  // a viewing, not an execution -- everything else is offered as a save, which
+  // puts the decision somewhere the user can see it.
+  if (!IsSafeToOpenAttachment(att)) {
+    QMessageBox::information(
+        this, tr("Open Attachment"),
+        tr("%1 is not a kind of file this program will open for you, because "
+           "opening it would mean running it or handing it to something that "
+           "might.\n\nSave it instead, and open it yourself if you are sure "
+           "of where it came from.")
+            .arg(name));
+    slot_save_attachment();
+    return;
+  }
+
+  // Written where the user cannot mistake it for a file of their own, and
+  // named so the application that opens it sees the extension it expects.
+  auto* temp = new QTemporaryDir();
+  if (!temp->isValid()) {
+    delete temp;
+    QMessageBox::warning(this, tr("Open Attachment"),
+                         tr("A temporary folder to open %1 from could not be "
+                            "created.")
+                             .arg(name));
+    return;
+  }
+
+  // Kept alive for as long as this view is: the viewer is a separate process
+  // and may still be reading the file long after this function has returned.
+  // Removed when the tab closes, which is the last moment it is still ours to
+  // remove.
+  temp_dirs_.emplace_back(temp);
+
+  if (!write_attachment(att, temp->path(), name)) {
+    QMessageBox::warning(
+        this, tr("Open Attachment"),
+        tr("%1 could not be written out to be opened.").arg(name));
+    return;
+  }
+
+  if (!QDesktopServices::openUrl(
+          QUrl::fromLocalFile(QDir(temp->path()).filePath(name)))) {
+    QMessageBox::warning(
+        this, tr("Open Attachment"),
+        tr("Nothing on this system is registered to open %1.").arg(name));
+  }
+}
+
 void EMailPageView::slot_remove_attachment() {
   // Removing a part changes the message, so it follows the same lock as
   // adding one. The button is already disabled; this is the backstop.
@@ -2351,6 +2868,33 @@ void EMailPageView::slot_remove_attachment() {
     rows.append(attachment_list_->indexOfTopLevelItem(item));
   }
   std::sort(rows.begin(), rows.end(), std::greater<>());
+
+  // On a message that arrived from somewhere else, these bytes may be the only
+  // copy in existence -- an attachment out of a decrypted message has never
+  // been on disk -- and the removal below wipes the buffer before dropping it.
+  // Asked only here: warning every time a file is taken back out of one's own
+  // draft would be noise, and there the original is still where it came from.
+  if (document_is_received_) {
+    QStringList names;
+    for (const auto row : rows) {
+      if (row >= 0 && row < message_.attachments.size()) {
+        names.prepend(
+            SanitizeAttachmentFileName(message_.attachments[row].filename,
+                                       message_.attachments[row].mime_type));
+      }
+    }
+
+    if (QMessageBox::question(
+            this, tr("Remove Attachment"),
+            tr("Take out of this message:\n\n%1\n\nThis message came from "
+               "somewhere else, so unless these have been saved already this "
+               "is the only copy. Removing them cannot be undone.")
+                .arg(names.join("\n")),
+            QMessageBox::Yes | QMessageBox::Cancel,
+            QMessageBox::Cancel) != QMessageBox::Yes) {
+      return;
+    }
+  }
 
   for (const auto row : rows) {
     if (row >= 0 && row < message_.attachments.size()) {
@@ -2399,6 +2943,18 @@ void EMailPageView::slot_save_attachment() {
       chosen.append(message_.attachments[row]);
     }
   }
+  save_attachments(chosen);
+}
+
+void EMailPageView::slot_save_all_attachments() {
+  // Every attachment, passed explicitly. This used to call selectAll() and
+  // reuse the selection path, which left everything selected afterwards -- so
+  // a Save All followed by a Remove took out the whole message's attachments
+  // rather than the one row the user thought was still selected.
+  save_attachments(message_.attachments);
+}
+
+void EMailPageView::save_attachments(const QList<EMailAttachment>& chosen) {
   if (chosen.isEmpty()) return;
 
   auto default_dir = UnStrDup(GFUIDefaultUserFilePath());
@@ -2448,19 +3004,27 @@ void EMailPageView::slot_save_attachment() {
     return;
   }
 
-  // The names are reported back because sanitizing or de-duplicating may have
-  // changed them, and a silent rename is worse than a noisy one.
-  const auto saved_count = written.size();
-  const auto saved_line = saved_count == 1
-                              ? tr("Saved 1 file:")
-                              : tr("Saved %1 files:").arg(saved_count);
-  QMessageBox::information(this, tr("Save Attachments"),
-                           saved_line + "\n" + written.join("\n"));
-}
+  // A rename is still reported, because sanitizing or de-duplicating may have
+  // changed a name and a silent rename is worse than a noisy one. A save that
+  // wrote what it was asked to write is not: a modal confirming that a routine
+  // operation did what it said is a click the user has to spend on nothing.
+  QStringList renamed;
+  for (int i = 0; i < chosen.size(); ++i) {
+    const auto asked =
+        SanitizeAttachmentFileName(chosen[i].filename, chosen[i].mime_type);
+    if (names[i] != asked) renamed.append(tr("%1 -> %2").arg(asked, names[i]));
+  }
 
-void EMailPageView::slot_save_all_attachments() {
-  if (message_.attachments.isEmpty()) return;
+  if (!renamed.isEmpty()) {
+    QMessageBox::information(
+        this, tr("Save Attachments"),
+        tr("Saved. Some names were already taken in that folder, so these "
+           "were written under a different name:\n\n%1")
+            .arg(renamed.join("\n")));
+    return;
+  }
 
-  attachment_list_->selectAll();
-  slot_save_attachment();
+  report_attachment_status(written.size() == 1
+                               ? tr("Saved 1 file.")
+                               : tr("Saved %1 files.").arg(written.size()));
 }
