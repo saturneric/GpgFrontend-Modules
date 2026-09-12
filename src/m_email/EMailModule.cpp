@@ -96,7 +96,7 @@ auto BuildEMailHeaderCard(const EMailMetaData& m) -> QJsonObject {
        {QApplication::translate("EMailModule", "To"), m.to.join("; ")},
        {QApplication::translate("EMailModule", "Subject"), m.subject},
        {QApplication::translate("EMailModule", "CC"), m.cc.join("; ")},
-       {QApplication::translate("EMailModule", "BCC"), m.bcc.join("; ")},
+       {QApplication::translate("EMailModule", "BCC"), m.bcc_header.join("; ")},
        {QApplication::translate("EMailModule", "Date"),
         m.datetime.isValid() ? QLocale().toString(m.datetime) : QString()}});
 }
@@ -105,10 +105,14 @@ auto BuildEMailHeaderCard(const EMailMetaData& m) -> QJsonObject {
 auto BuildOpenPGPMetaCard(const EMailMetaData& m) -> QJsonObject {
   return MakeCardJson(
       QApplication::translate("EMailModule", "OpenPGP"), "neutral",
-      {{QApplication::translate("EMailModule", "Signed EML Data Hash (SHA1)"),
-        m.mime_hash},
+      // Two different things, kept apart on purpose: the first is a digest we
+      // computed over the bytes the signature covers, the second is only what
+      // the message declares about the signature's hash algorithm.
+      {{QApplication::translate("EMailModule",
+                                "Digest of Signed MIME Entity (SHA-256)"),
+        m.signed_entity_digest},
        {QApplication::translate("EMailModule",
-                                "Message Integrity Check Algorithm"),
+                                "Declared Signature Hash (micalg)"),
         m.micalg}});
 }
 
@@ -241,6 +245,59 @@ auto MergeCardArrays(const QString& a, const QString& b) -> QString {
       QJsonDocument(merged).toJson(QJsonDocument::Compact));
 }
 
+// The recipient cross-check, as a card.
+//
+// Asymmetric on purpose. Someone in To or Cc who was not encrypted to has a
+// real problem: they were told the message is for them and cannot open it.
+// The reverse -- a key that is not in the headers -- is ordinary (a blind
+// copy, an archive key, the sender's own key, or a deliberately hidden
+// recipient) and is reported without alarm. Treating it as suspicious would
+// raise a warning on most correct messages.
+auto BuildRecipientCheckCard(const EMailMetaData& m,
+                             const QByteArray& decrypt_info_json)
+    -> QJsonObject {
+  const auto encrypted = ParseRecipientInfos(decrypt_info_json);
+  if (encrypted.isEmpty()) return {};
+
+  const auto rows = MatchRecipients(m.to, m.cc, m.bcc_header, encrypted);
+
+  QList<QPair<QString, QString>> fields;
+  bool any_warning = false;
+
+  for (const auto& row : rows) {
+    switch (row.match) {
+      case RecipientMatch::kMATCHED:
+        fields.append({row.address,
+                       QApplication::translate("EMailModule", "encrypted to")});
+        break;
+      case RecipientMatch::kADDRESSED_NOT_ENCRYPTED:
+        any_warning = true;
+        fields.append(
+            {row.address,
+             QApplication::translate("EMailModule",
+                                     "in %1 but NOT encrypted to - cannot read")
+                 .arg(row.header_field)});
+        break;
+      case RecipientMatch::kENCRYPTED_NOT_ADDRESSED:
+        fields.append({row.info.uid.isEmpty() ? row.info.key_id : row.info.uid,
+                       QApplication::translate(
+                           "EMailModule", "encrypted to, not in the headers")});
+        break;
+      case RecipientMatch::kHIDDEN_RECIPIENT:
+        fields.append(
+            {QApplication::translate("EMailModule", "Hidden recipient"),
+             QApplication::translate("EMailModule",
+                                     "the sender withheld this key id")});
+        break;
+    }
+  }
+
+  if (fields.isEmpty()) return {};
+
+  return MakeCardJson(QApplication::translate("EMailModule", "Recipient Check"),
+                      any_warning ? "warn" : "ok", fields);
+}
+
 // Assemble the `result_cards` payload the UI decodes: the module's own metadata
 // cards followed by the crypto-analysis cards produced by the SDK (which reuses
 // the same converter the native operations use). `crypto_cards_json` is the
@@ -295,6 +352,10 @@ auto GFRegisterModule() -> int {
   GFUIRegisterFileExtensionHandleEvent(DUP("eml"), DUP("EMAIL"));
 
   LISTEN("FILE_EXT_EMAIL_OP_OPEN_FILE");
+
+  // An imported key changes what an already-open message can be told about
+  // itself, so the views have to hear about it.
+  LISTEN("KEY_DATABASE_REFRESH_DONE");
   return 0;
 }
 
@@ -314,6 +375,54 @@ auto GFUnregisterModule() -> int {
 }
 
 namespace {
+
+// The preflight dialog: what the user should know before this message leaves.
+//
+// Shown only when there is something to say, and it never refuses the save --
+// the decision is the user's, and a check that blocks gets worked around
+// rather than read. Returns false when the user chooses not to write the file.
+auto ConfirmExport(QWidget* parent, const QByteArray& source) -> bool {
+  vmime::shared_ptr<vmime::message> parsed;
+  if (!CheckIfEMLMessage(source, parsed)) return true;
+
+  EMailPart root;
+  QList<EMailSignatureRegion> regions;
+  if (ParseMimeTree(parsed, source, root, regions) != 0) return true;
+
+  EMailMetaData meta;
+  GetEMLMetaData(parsed, meta);
+
+  const auto findings = PreflightMessage(meta, root, regions, {});
+
+  QStringList risks;
+  QStringList notes;
+  for (const auto& finding : findings) {
+    const auto line = QString("%1 - %2").arg(finding.title, finding.detail);
+    if (finding.level == EMailFindingLevel::kRISK) {
+      risks.append(line);
+    } else if (finding.level == EMailFindingLevel::kWARN) {
+      notes.append(line);
+    }
+  }
+
+  // Notes alone are not worth interrupting a save for; the Security tab
+  // already carries them.
+  if (risks.isEmpty()) return true;
+
+  QMessageBox box(parent);
+  box.setIcon(QMessageBox::Warning);
+  box.setWindowTitle(
+      QApplication::translate("EMailModule", "Check before exporting"));
+  box.setText(QApplication::translate(
+      "EMailModule",
+      "Something about this message is worth checking before you save it."));
+  box.setInformativeText(risks.join("\n\n"));
+  if (!notes.isEmpty()) box.setDetailedText(notes.join("\n\n"));
+  box.setStandardButtons(QMessageBox::Save | QMessageBox::Cancel);
+  box.setDefaultButton(QMessageBox::Cancel);
+
+  return box.exec() == QMessageBox::Save;
+}
 
 // Where a Save dialog should open. Falls back to the home directory only if
 // the host cannot answer, which it always can in practice.
@@ -384,6 +493,16 @@ auto ErrorHelper(int ret, const QString& err) -> QString {
 }
 
 }  // namespace
+
+REGISTER_EVENT_HANDLER(KEY_DATABASE_REFRESH_DONE,
+                       [](const MEvent& event) -> int {
+                         // A verification that reported a missing key stops
+                         // being true once that key is imported; open messages
+                         // work their signatures out again rather than keeping
+                         // the stale verdict.
+                         EMailNotifyKeyringChanged();
+                         CB_SUCC(event);
+                       });
 
 REGISTER_EVENT_HANDLER(MAINWINDOW_MENU_MOUNTED, [](const MEvent& event) -> int {
   LOG_DEBUG("main window menu mounted event: processing");
@@ -541,7 +660,7 @@ REGISTER_EVENT_HANDLER(
                             .arg(meta_data.cc.join("; ")));
       email_info.append(QString("- %1: %2\n")
                             .arg(QApplication::translate("EMailModule", "BCC"))
-                            .arg(meta_data.bcc.join("; ")));
+                            .arg(meta_data.bcc_header.join("; ")));
       email_info.append(QString("- %1: %2\n")
                             .arg(QApplication::translate("EMailModule", "Date"))
                             .arg(QLocale().toString(meta_data.datetime)));
@@ -550,15 +669,31 @@ REGISTER_EVENT_HANDLER(
 
       email_info.append("# OpenPGP Information\n\n");
 
-      email_info.append(QString("- %1: %2\n")
-                            .arg(QApplication::translate(
-                                "EMailModule", "Signed EML Data Hash (SHA1)"))
-                            .arg(meta_data.mime_hash));
+      email_info.append(
+          QString("- %1: %2\n")
+              .arg(QApplication::translate(
+                  "EMailModule", "Digest of Signed MIME Entity (SHA-256)"))
+              .arg(meta_data.signed_entity_digest));
       email_info.append(
           QString("- %1: %2\n")
               .arg(QApplication::translate("EMailModule",
-                                           "Message Integrity Check Algorithm"))
+                                           "Declared Signature Hash (micalg)"))
               .arg(meta_data.micalg));
+
+      // Without this, a message whose line endings were rewritten after
+      // signing reads exactly like a forged one, and the user has no way to
+      // tell the difference or to know that importing a key cannot help.
+      if (meta_data.signed_entity_non_canonical) {
+        email_info.append(QString("- %1\n").arg(QApplication::translate(
+            "EMailModule",
+            "**Note**: the signed part is not in canonical form, "
+            "because its line endings are not CRLF. Something rewrote "
+            "this message after it was signed, which is usually a "
+            "program that changed line endings while saving or "
+            "copying it. A signature cannot verify against these "
+            "bytes, and importing the sender's key will not change "
+            "that.")));
+      }
 
       email_info.append("\n");
 
@@ -584,7 +719,8 @@ namespace {
 auto DoDecryptEMLData(int channel, const QByteArray& data, const MEvent& event,
                       int& result_status, QString& result_detail,
                       QString& result_cards, QString& eml_data,
-                      EMailMetaData& meta_data) -> int {
+                      EMailMetaData& meta_data, QByteArray& decrypt_info_json)
+    -> int {
   gpgme_error_t err;
   QString capsule_id;
   auto ret =
@@ -603,10 +739,15 @@ auto DoDecryptEMLData(int channel, const QByteArray& data, const MEvent& event,
 
   const char* tmp = nullptr;
   const char* cards_tmp = nullptr;
-  result_status = GFAnalyseDecryptResultByCapsule(
-      channel, err, QDUP(capsule_id), &tmp, &cards_tmp);
+  const char* info_tmp = nullptr;
+  // The Info variant, because the recipient cross-check needs the structured
+  // recipients rather than the rendered report. The capsule is consumed by
+  // whichever analyse call touches it, so everything has to come from this one.
+  result_status = GFAnalyseDecryptResultInfoByCapsule(
+      channel, err, QDUP(capsule_id), &tmp, &cards_tmp, &info_tmp);
   result_detail = UnStrDup(tmp);
   result_cards = UnStrDup(cards_tmp);
+  decrypt_info_json = UnStrDup(info_tmp).toUtf8();
 
   if (ret == kGPG_FAILED) {
     // decrypt failed
@@ -649,8 +790,10 @@ REGISTER_EVENT_HANDLER(
       QString result_detail;
       QString result_cards;
       EMailMetaData meta_data;
+      QByteArray decrypt_info_json;
       if (DoDecryptEMLData(channel, data, event, result_status, result_detail,
-                           result_cards, eml_data, meta_data) != kSUCCESS) {
+                           result_cards, eml_data, meta_data,
+                           decrypt_info_json) != kSUCCESS) {
         return -1;
       }
 
@@ -671,7 +814,7 @@ REGISTER_EVENT_HANDLER(
                             .arg(meta_data.cc.join("; ")));
       email_info.append(QString("- %1: %2\n")
                             .arg(QApplication::translate("EMailModule", "BCC"))
-                            .arg(meta_data.bcc.join("; ")));
+                            .arg(meta_data.bcc_header.join("; ")));
       email_info.append(QString("- %1: %2\n")
                             .arg(QApplication::translate("EMailModule", "Date"))
                             .arg(QLocale().toString(meta_data.datetime)));
@@ -681,9 +824,14 @@ REGISTER_EVENT_HANDLER(
       email_info.append("# OpenPGP Information\n\n");
       email_info.append("#" + result_detail + "\n");
 
+      auto decrypt_meta_cards = BuildReadMetaCards(meta_data, false);
+      const auto recipient_card =
+          BuildRecipientCheckCard(meta_data, decrypt_info_json);
+      if (!recipient_card.isEmpty()) decrypt_meta_cards.append(recipient_card);
+
       const auto result_cards_param = BuildResultCardsParam(
           QApplication::translate("EMailModule", "Decrypt E-Mail"),
-          BuildReadMetaCards(meta_data, false), result_cards);
+          decrypt_meta_cards, result_cards);
 
       // callback
       CB(event, GFGetModuleID(),
@@ -1215,10 +1363,12 @@ auto DoDecryptVerifyEMLData(int channel, const QByteArray& data,
                             const MEvent& event, int& result_status,
                             QString& result_detail, QString& result_cards,
                             QString& eml_data, QString& error_string,
-                            EMailMetaData& meta_data) -> int {
+                            EMailMetaData& meta_data,
+                            QByteArray& decrypt_info_json) -> int {
   QString decrypt_cards;
   if (DoDecryptEMLData(channel, data, event, result_status, result_detail,
-                       decrypt_cards, eml_data, meta_data) != kSUCCESS) {
+                       decrypt_cards, eml_data, meta_data,
+                       decrypt_info_json) != kSUCCESS) {
     return -1;
   }
 
@@ -1258,9 +1408,11 @@ REGISTER_EVENT_HANDLER(
       QString result_detail;
       QString result_cards;
 
+      QByteArray decrypt_info_json;
       if (DoDecryptVerifyEMLData(channel, data, event, result_status,
                                  result_detail, result_cards, eml_data,
-                                 error_string, meta_data) != kSUCCESS) {
+                                 error_string, meta_data,
+                                 decrypt_info_json) != kSUCCESS) {
         return -1;
       }
 
@@ -1281,7 +1433,7 @@ REGISTER_EVENT_HANDLER(
                             .arg(meta_data.cc.join("; ")));
       email_info.append(QString("- %1: %2\n")
                             .arg(QApplication::translate("EMailModule", "BCC"))
-                            .arg(meta_data.bcc.join("; ")));
+                            .arg(meta_data.bcc_header.join("; ")));
       email_info.append(QString("- %1: %2\n")
                             .arg(QApplication::translate("EMailModule", "Date"))
                             .arg(QLocale().toString(meta_data.datetime)));
@@ -1290,23 +1442,44 @@ REGISTER_EVENT_HANDLER(
 
       email_info.append("# OpenPGP Information\n\n");
 
-      email_info.append(QString("- %1: %2\n")
-                            .arg(QApplication::translate(
-                                "EMailModule", "Signed EML Data Hash (SHA1)"))
-                            .arg(meta_data.mime_hash));
+      email_info.append(
+          QString("- %1: %2\n")
+              .arg(QApplication::translate(
+                  "EMailModule", "Digest of Signed MIME Entity (SHA-256)"))
+              .arg(meta_data.signed_entity_digest));
       email_info.append(
           QString("- %1: %2\n")
               .arg(QApplication::translate("EMailModule",
-                                           "Message Integrity Check Algorithm"))
+                                           "Declared Signature Hash (micalg)"))
               .arg(meta_data.micalg));
+
+      // Without this, a message whose line endings were rewritten after
+      // signing reads exactly like a forged one, and the user has no way to
+      // tell the difference or to know that importing a key cannot help.
+      if (meta_data.signed_entity_non_canonical) {
+        email_info.append(QString("- %1\n").arg(QApplication::translate(
+            "EMailModule",
+            "**Note**: the signed part is not in canonical form, "
+            "because its line endings are not CRLF. Something rewrote "
+            "this message after it was signed, which is usually a "
+            "program that changed line endings while saving or "
+            "copying it. A signature cannot verify against these "
+            "bytes, and importing the sender's key will not change "
+            "that.")));
+      }
 
       email_info.append("\n");
 
       email_info.append("#" + result_detail + "\n");
 
+      auto dv_meta_cards = BuildReadMetaCards(meta_data, true);
+      const auto dv_recipient_card =
+          BuildRecipientCheckCard(meta_data, decrypt_info_json);
+      if (!dv_recipient_card.isEmpty()) dv_meta_cards.append(dv_recipient_card);
+
       const auto result_cards_param = BuildResultCardsParam(
           QApplication::translate("EMailModule", "Decrypt and Verify E-Mail"),
-          BuildReadMetaCards(meta_data, true), result_cards);
+          dv_meta_cards, result_cards);
 
       // callback
       CB(event, GFGetModuleID(),
@@ -1390,6 +1563,14 @@ REGISTER_EVENT_HANDLER(
       auto text = text_edit->toPlainText();
       text.replace("\r\n", "\n");
       text.replace("\n", "\r\n");
+
+      // Last look before the bytes leave. Deliberately after the content is
+      // assembled and before anything is written, so what is checked is
+      // exactly what would be saved.
+      if (!ConfirmExport(page, text.toUtf8())) {
+        LOG_INFO("user cancelled the save after the export check");
+        CB_SUCC(event);
+      }
 
       // Written binary and through QSaveFile: QIODevice::Text would translate
       // the line endings a second time on Windows, and a plain QFile leaves a
