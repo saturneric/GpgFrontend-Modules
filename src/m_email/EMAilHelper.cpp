@@ -473,6 +473,28 @@ namespace {
 
 // Windows refuses these as filenames whatever extension follows, and a file
 // named after one can be a nuisance on other systems too.
+/// Extensions this program will hand to the desktop to open.
+///
+/// Documents, images, audio, video and plain text: file types whose registered
+/// handler views them. Nothing that is itself a program, a script, a shortcut,
+/// an installer or an archive -- an archive because what comes out of it is
+/// unknown until it is out, and by then nobody has been asked anything. See
+/// IsSafeToOpenAttachment for why this is an allow-list and not a blocklist.
+const QStringList kOpenableExtensions = {
+    // documents
+    "pdf", "txt", "text", "log", "md", "markdown", "csv", "tsv", "rtf", "odt",
+    "ods", "odp", "odg", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "epub",
+    // images
+    "png", "jpg", "jpeg", "gif", "bmp", "tif", "tiff", "webp", "heic", "avif",
+    "ico",
+    // audio and video
+    "mp3", "wav", "flac", "ogg", "oga", "opus", "m4a", "aac", "mp4", "m4v",
+    "webm", "mkv", "mov", "avi",
+    // Structured text that is read rather than run. Deliberately no "svg": it
+    // carries script, and a viewer that runs that is a viewer running a
+    // stranger's code.
+    "json", "xml", "yaml", "yml", "ini", "conf", "eml", "ics", "vcf"};
+
 const QStringList kReservedDeviceNames = {
     "CON",  "PRN",  "AUX",  "NUL",  "COM1", "COM2", "COM3", "COM4",
     "COM5", "COM6", "COM7", "COM8", "COM9", "LPT1", "LPT2", "LPT3",
@@ -501,6 +523,20 @@ auto SplitExtension(const QString& name) -> QPair<QString, QString> {
 }
 
 }  // namespace
+
+auto IsSafeToOpenAttachment(const EMailAttachment& att) -> bool {
+  // The name as it will actually reach the desktop, so the decision is made
+  // about the same string the system will dispatch on.
+  const auto name = SanitizeAttachmentFileName(att.filename, att.mime_type);
+
+  const auto dot = name.lastIndexOf('.');
+  // No extension at all: nothing to recognise, so nothing to allow. Most
+  // desktops will not open it either, and the ones that guess are exactly the
+  // case worth not relying on.
+  if (dot < 0 || dot == name.size() - 1) return false;
+
+  return kOpenableExtensions.contains(name.mid(dot + 1).toLower());
+}
 
 auto SanitizeAttachmentFileName(const QString& raw, const QString& mime_type)
     -> QString {

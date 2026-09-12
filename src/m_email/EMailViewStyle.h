@@ -28,13 +28,19 @@
 
 #pragma once
 
+#include <QApplication>
 #include <QColor>
+#include <QEvent>
 #include <QFrame>
+#include <QHeaderView>
 #include <QLabel>
 #include <QPainter>
 #include <QPalette>
+#include <QTreeWidget>
+#include <QTreeWidgetItem>
 #include <QVBoxLayout>
 #include <QWidget>
+#include <functional>
 
 #include "GFModuleCommonUtils.hpp"
 #include "GFSDKUI.h"
@@ -92,6 +98,54 @@ inline auto EMailBlend(const QColor& a, const QColor& b, double t) -> QColor {
                           a.blueF() * (1 - t) + b.blueF() * t);
 }
 
+/**
+ * @brief Holds the wait cursor for as long as it is in scope.
+ *
+ * Several things this module does on the GUI thread are not quick: serializing
+ * a message re-encodes every attachment, and verifying its signed regions can
+ * end up waiting on the agent. Done silently, the window simply stops
+ * responding and the user is left deciding whether the program has hung.
+ *
+ * Scoped rather than a matched pair of calls because the work between them
+ * returns early in several places, and an override cursor that is not restored
+ * is left over the whole application.
+ */
+class EMailBusyCursor {
+ public:
+  EMailBusyCursor() { QApplication::setOverrideCursor(Qt::WaitCursor); }
+  ~EMailBusyCursor() { QApplication::restoreOverrideCursor(); }
+
+  EMailBusyCursor(const EMailBusyCursor&) = delete;
+  auto operator=(const EMailBusyCursor&) -> EMailBusyCursor& = delete;
+  EMailBusyCursor(EMailBusyCursor&&) = delete;
+  auto operator=(EMailBusyCursor&&) -> EMailBusyCursor& = delete;
+};
+
+/**
+ * @brief Whether @p event means the colours this module mixed have gone stale.
+ *
+ * Every colour here is derived from the live palette ONCE, when the widget is
+ * built, and then baked into a child's palette or an item's foreground brush.
+ * A theme change replaces the palette underneath those widgets and repaints
+ * them, but the baked colours are no longer palette lookups, so the view keeps
+ * the old theme's greys on the new theme's background. Qt announces the
+ * change; the only discipline needed is to listen for it.
+ *
+ * ApplicationPaletteChange is included because a palette set on the
+ * application never reaches a widget carrying an explicit palette of its own
+ * as a PaletteChange -- and after this module has coloured them, that is most
+ * of them. ThemeChange because the platforms with a system-wide light/dark
+ * switch deliver that instead.
+ *
+ * Whatever this triggers must be safe to run twice. In practice that means it
+ * may set colours and may not touch fonts: see EMailMakeSecondary.
+ */
+inline auto EMailIsRestyle(QEvent* event) -> bool {
+  const auto type = event->type();
+  return type == QEvent::PaletteChange || type == QEvent::ThemeChange ||
+         type == QEvent::ApplicationPaletteChange;
+}
+
 /// Paints @p label in @p color without a stylesheet.
 ///
 /// Through the palette rather than QSS, which is the convention everywhere
@@ -104,12 +158,49 @@ inline void EMailSetLabelColor(QLabel* label, const QColor& color) {
   label->setPalette(palette);
 }
 
+/// Recolours @p rule to the application's border colour.
+///
+/// Split out from EMailRule because this is the half a theme change has to run
+/// again, and because a QFrame line takes its colour from WindowText rather
+/// than from a role of its own -- written inline, that palette entry reads
+/// like a mistake.
+inline void EMailPaintRule(QFrame* rule) {
+  auto palette = rule->palette();
+  palette.setColor(QPalette::WindowText, EMailBorderColor(rule));
+  rule->setPalette(palette);
+}
+
+/// A one-pixel rule dividing two groups of things.
+///
+/// Pinned to one pixel rather than left to the frame's own metric: the default
+/// line is a two-pixel bevel, which on a flat theme reads as a groove cut into
+/// the page rather than as a division drawn on it.
+inline auto EMailRule(QWidget* parent,
+                      Qt::Orientation orientation = Qt::Horizontal) -> QFrame* {
+  auto* rule = new QFrame(parent);
+  rule->setFrameShape(orientation == Qt::Horizontal ? QFrame::HLine
+                                                    : QFrame::VLine);
+  rule->setFrameShadow(QFrame::Plain);
+  if (orientation == Qt::Horizontal) {
+    rule->setFixedHeight(1);
+  } else {
+    rule->setFixedWidth(1);
+  }
+  EMailPaintRule(rule);
+  return rule;
+}
+
 /// A label that says something about the thing above it rather than being it.
+///
+/// Colour only, so it is safe to call again from a re-apply path.
 inline void EMailMakeMuted(QLabel* label) {
   EMailSetLabelColor(label, EMailMutedColor(label));
 }
 
 /// Muted, and a shade smaller. The secondary line under a primary one.
+///
+/// Call it once, when the widget is built: it scales the font it is given, so
+/// a second call scales an already-scaled font. See EMailIsRestyle.
 inline void EMailMakeSecondary(QLabel* label) {
   auto font = label->font();
   font.setPointSizeF(font.pointSizeF() * 0.92);
@@ -118,11 +209,32 @@ inline void EMailMakeSecondary(QLabel* label) {
 }
 
 /// A heading: the loudest thing on its surface, and still the platform font.
+///
+/// Like EMailMakeSecondary, call once: it scales the font it is given.
 inline void EMailMakeTitle(QLabel* label) {
   auto font = label->font();
   font.setPointSizeF(font.pointSizeF() * 1.15);
   font.setBold(true);
   label->setFont(font);
+}
+
+/**
+ * @brief A sentence standing in for a table that has nothing in it.
+ *
+ * An empty list is a ruled box with column headings and no rows, which reads
+ * as a table that failed to load rather than as "there is nothing here".
+ * Saying which one it is takes a sentence, and the sentence takes the list's
+ * place rather than sitting above it: a caption beside the blank box it is
+ * explaining leaves the blank box on screen.
+ */
+inline auto EMailEmptyNotice(QWidget* parent, const QString& text = {})
+    -> QLabel* {
+  auto* label = new QLabel(text, parent);
+  label->setAlignment(Qt::AlignCenter);
+  label->setWordWrap(true);
+  label->setMargin(24);
+  EMailMakeSecondary(label);
+  return label;
 }
 
 /**
@@ -185,17 +297,143 @@ inline auto EMailCard(QWidget* parent, const QString& title = {})
  * The tint is a mix towards @p tint rather than @p tint itself: a banner is a
  * surface the text has to stay readable on, not a coloured block.
  */
+/// (Re)tints @p banner towards @p tint.
+///
+/// Mixed from the PARENT's window colour rather than from the banner's own.
+/// The banner is already carrying the last mix, so mixing its own colour again
+/// would take it one further step towards the tint on every call -- which,
+/// once a theme change starts calling this, it does.
+inline void EMailTintBanner(QFrame* banner, const QColor& tint,
+                            double strength = 0.12) {
+  const auto base =
+      banner->parentWidget() != nullptr
+          ? banner->parentWidget()->palette().color(QPalette::Window)
+          : QApplication::palette().color(QPalette::Window);
+
+  auto palette = banner->palette();
+  palette.setColor(QPalette::Window, EMailBlend(base, tint, strength));
+  banner->setPalette(palette);
+}
+
 inline auto EMailTintedBanner(QWidget* parent, const QColor& tint,
                               double strength = 0.12) -> QFrame* {
   auto* banner = new QFrame(parent);
   banner->setAutoFillBackground(true);
   banner->setFrameShape(QFrame::NoFrame);
-
-  auto palette = banner->palette();
-  palette.setColor(QPalette::Window,
-                   EMailBlend(palette.color(QPalette::Window), tint, strength));
-  banner->setPalette(palette);
+  EMailTintBanner(banner, tint, strength);
   return banner;
+}
+
+/**
+ * @brief Which of this module's colours a tree cell is painted in.
+ *
+ * A cell is given a tone, not a colour. The tone is the DECISION -- "this is
+ * subordinate", "this is a caveat" -- and the QColor is only the current
+ * theme's answer to it, which is what lets the answer be asked for again after
+ * the theme changes.
+ *
+ * Storing the decision is not merely tidier than recolouring by hand: the
+ * Security view builds its rows out of arguments it does not keep and so
+ * cannot rebuild them, and rebuilding the attachment list would silently drop
+ * whatever the user had selected.
+ */
+enum class EMailTone : uint8_t {
+  kDEFAULT,  ///< the palette's own text colour
+  kMUTED,    ///< describes the cell beside it rather than being a value
+  kGOOD,     ///< evidence of something having happened
+  kWARN,     ///< a caveat; NOT a failure, and never red
+  kDANGER,   ///< actually wrong, or built to deceive
+};
+
+/// Where the tone lives on an item. Far past Qt::UserRole, which these trees
+/// already use for their own per-column payloads.
+constexpr int kEMailToneRole = Qt::UserRole + 100;
+
+inline auto EMailToneColor(QWidget* owner, EMailTone tone) -> QColor {
+  switch (tone) {
+    case EMailTone::kMUTED:
+      return EMailMutedColor(owner);
+    case EMailTone::kGOOD:
+      return EMailAccentColor(owner, true);
+    case EMailTone::kWARN:
+      return EMailWarningColor(owner);
+    case EMailTone::kDANGER:
+      return EMailThemeColor(owner, &GFUIDangerColor);
+    case EMailTone::kDEFAULT:
+      break;
+  }
+  return owner->palette().color(QPalette::WindowText);
+}
+
+/// Paints one cell, and records why, so it can be painted again later.
+inline void EMailSetCellTone(QTreeWidgetItem* item, int column, EMailTone tone,
+                             QWidget* owner) {
+  item->setData(column, kEMailToneRole, static_cast<int>(tone));
+  item->setForeground(column, EMailToneColor(owner, tone));
+}
+
+/// Repaints every cell that was given a tone, in the colours of the palette as
+/// it now is.
+///
+/// Cells that were never toned are left alone: they follow the palette
+/// already, and giving them an explicit brush would opt them out of the
+/// selection and alternating-row colours the style draws for them.
+inline void EMailRepaintTree(QTreeWidget* tree) {
+  std::function<void(QTreeWidgetItem*)> repaint = [&](QTreeWidgetItem* item) {
+    for (int column = 0; column < tree->columnCount(); ++column) {
+      const auto tone = item->data(column, kEMailToneRole);
+      if (!tone.isValid()) continue;
+      item->setForeground(
+          column, EMailToneColor(tree, static_cast<EMailTone>(tone.toInt())));
+    }
+    for (int i = 0; i < item->childCount(); ++i) repaint(item->child(i));
+  };
+
+  for (int i = 0; i < tree->topLevelItemCount(); ++i) {
+    repaint(tree->topLevelItem(i));
+  }
+}
+
+/// The palette-dependent half of this module's list styling.
+///
+/// A column header names a column; it is not a row of buttons. So it is given
+/// the same muted colour as every other caption here. Header text is drawn in
+/// ButtonText by most styles and in WindowText by some, so both are set rather
+/// than guessed at.
+///
+/// Separate from EMailPolishTree because this is the half a theme change runs
+/// again, and it must not touch the font -- the font it would scale has been
+/// scaled already.
+inline void EMailPaintTreeHeader(QTreeWidget* tree) {
+  auto* header = tree->header();
+  const auto muted = EMailMutedColor(tree);
+
+  auto palette = header->palette();
+  palette.setColor(QPalette::ButtonText, muted);
+  palette.setColor(QPalette::WindowText, muted);
+  palette.setColor(QPalette::Text, muted);
+  header->setPalette(palette);
+}
+
+/// The once-only half: everything about a list that is not a colour.
+///
+/// Losing the frame does most of the work. These lists sit inside a tab page
+/// that is already a bordered surface, so a sunken box around them draws the
+/// same edge twice a few pixels apart, and that doubled edge is most of what
+/// makes these pages read as a stack of boxes.
+inline void EMailPolishTree(QTreeWidget* tree) {
+  tree->setFrameShape(QFrame::NoFrame);
+  tree->setIndentation(14);
+
+  auto* header = tree->header();
+  header->setHighlightSections(false);
+  header->setDefaultAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+
+  auto font = header->font();
+  font.setPointSizeF(font.pointSizeF() * 0.92);
+  header->setFont(font);
+
+  EMailPaintTreeHeader(tree);
 }
 
 /// What one line of a result is currently known to be.

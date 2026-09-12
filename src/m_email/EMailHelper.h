@@ -578,6 +578,29 @@ auto SanitizeAttachmentFileName(const QString& raw,
                                 const QString& mime_type = {}) -> QString;
 
 /**
+ * @brief Whether this program may hand @p att straight to the desktop to open.
+ *
+ * Opening an attachment means giving a file that arrived from a stranger to
+ * whatever the system has registered for it. For a document that is a viewing;
+ * for a program, a script, a shortcut or an installer it is an execution, and
+ * the user would have authorised it by double-clicking a row in a list.
+ *
+ * So this is an allow-list, decided on the file's own extension rather than on
+ * the Content-Type the sender chose -- the extension is what the desktop will
+ * dispatch on, and the two need not agree. Anything not positively recognised
+ * as viewable is refused, which is the safe direction to be wrong in: the user
+ * is offered a save instead and loses a step, rather than silently running
+ * something.
+ *
+ * Deliberately not a blocklist of dangerous extensions. Those lists are never
+ * finished, and every entry missing from one is a file that gets executed.
+ *
+ * @param att the attachment as it arrived
+ * @return true when opening it is a viewing rather than a running
+ */
+auto IsSafeToOpenAttachment(const EMailAttachment& att) -> bool;
+
+/**
  * @brief Sanitized, collision-free names for a set of attachments.
  *
  * Two parts may legitimately carry the same filename. Numbering is assigned in
