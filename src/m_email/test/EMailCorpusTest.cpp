@@ -400,6 +400,41 @@ auto ClassifyCorpus(const QString& name) -> EMailSecurityState {
 
 }  // namespace
 
+// The signed entity's bytes must survive the QString hop the crypto path puts
+// them through. That hop is UTF-8 by construction everywhere in this module --
+// Q_SC is fromStdString, QDUP is toUtf8, UDUP is fromUtf8 -- and a Latin-1
+// conversion silently breaks it: each two-byte sequence collapses to one byte
+// and anything above U+00FF becomes '?', so the bytes verified are not the
+// bytes signed and a good signature reads as a forgery.
+//
+// Every other golden fixture is pure 7-bit ASCII, where both conversions agree,
+// which is exactly why this went unnoticed.
+TEST(EMailCorpusTest, AnEightBitSignedEntitySurvivesTheUtf8Round_Trip) {
+  QByteArray raw;
+  vmime::shared_ptr<vmime::message> message;
+  ASSERT_TRUE(ParseCorpus("golden/18-signed-8bit-utf8.eml", raw, message));
+
+  EMailPart root;
+  QList<EMailSignatureRegion> regions;
+  ASSERT_EQ(ParseMimeTree(message, raw, root, regions), 0);
+  ASSERT_EQ(regions.size(), 1);
+
+  const auto slice = raw.mid(static_cast<int>(regions[0].raw_offset),
+                             static_cast<int>(regions[0].raw_length));
+
+  // The fixture only earns its keep if it actually carries 8-bit bytes.
+  bool has_high_bytes = false;
+  for (const char byte : slice) {
+    if (static_cast<unsigned char>(byte) > 0x7F) has_high_bytes = true;
+  }
+  ASSERT_TRUE(has_high_bytes) << "fixture lost its 8-bit content";
+
+  EXPECT_EQ(QString::fromUtf8(slice).toUtf8(), slice);
+  EXPECT_NE(QString::fromUtf8(slice).toLatin1(), slice)
+      << "Latin-1 has stopped being lossy here, so this test no longer "
+         "pins anything -- check the fixture still carries 8-bit bytes";
+}
+
 TEST(EMailCorpusTest, StructureClassificationMatchesTheManifest) {
   EXPECT_EQ(ClassifyCorpus("golden/01-plain-text.eml"),
             EMailSecurityState::kPLAIN);
@@ -851,6 +886,26 @@ TEST(EMailCorpusTest, AVerificationNotTiedToARegionSaysSo) {
   const auto results = ParseSignatureResults(VerifyInfoJson("SHA256"), -1);
   ASSERT_EQ(results.size(), 1);
   EXPECT_EQ(results[0].region_id, -1);
+}
+
+// 0 is kFULLY_VALID, so a signature result whose validity is missing or not a
+// number must not land on it -- that would present an unknown signature as a
+// fully valid, fully trusted one.
+TEST(EMailCorpusTest, AMissingValidityIsNotReadAsFullyValid) {
+  const auto results = ParseSignatureResults(R"({"signatures": [
+      {"fingerprint": "AAAA1111", "uid": "Alice <alice@example.com>"}
+    ]})",
+                                             0);
+
+  ASSERT_EQ(results.size(), 1);
+  EXPECT_NE(results[0].validity, 0);
+
+  const auto bad_type = ParseSignatureResults(R"({"signatures": [
+      {"fingerprint": "AAAA1111", "validity": "fully valid"}
+    ]})",
+                                              0);
+  ASSERT_EQ(bad_type.size(), 1);
+  EXPECT_NE(bad_type[0].validity, 0);
 }
 
 TEST(EMailCorpusTest, MalformedResultJsonYieldsNothingRatherThanGuesses) {

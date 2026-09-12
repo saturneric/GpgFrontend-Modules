@@ -1,0 +1,24 @@
+From: Anaïs Beaulieu <anais@example.com>
+To: Björn Ström <bjorn@example.com>
+Subject: =?UTF-8?Q?Señales_de_humo?=
+Date: Tue, 04 Mar 2025 10:18:00 +0000
+Message-ID: <signed-8bit-018@example.com>
+MIME-Version: 1.0
+Content-Type: multipart/signed; protocol="application/pgp-signature";
+ micalg=pgp-sha256; boundary="sig-8bit"
+
+--sig-8bit
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+Café, naïve, über, æther — and 中文.
+These bytes are on the wire as raw UTF-8, not base64.
+--sig-8bit
+Content-Type: application/pgp-signature; name="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+
+iHUEARYIAB0WIQT0000000000000000000000000UCZAAAAAAKCRAAAAAAAAAAAA
+=AAAA
+-----END PGP SIGNATURE-----
+--sig-8bit--

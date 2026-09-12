@@ -212,6 +212,9 @@ class EMailImapNetTest : public ::testing::Test {
                      [this](quint64, const QList<EMailFolderInfo>& folders) {
                        folders_ = folders;
                      });
+    QObject::connect(
+        &worker_, &EMailImapWorker::SignalMessages, &worker_,
+        [this](quint64, const EMailMessagePage& page) { page_ = page; });
 
     worker_.Connect(1, ImapAccount(server_.serverPort()), "password");
     ASSERT_TRUE(connected_) << last_error_.title.toStdString();
@@ -228,7 +231,25 @@ class EMailImapNetTest : public ::testing::Test {
   MailError last_error_;
   bool connected_{false};
   QList<EMailFolderInfo> folders_;
+  EMailMessagePage page_;
 };
+
+// A cancellation applies to the operation it was aimed at, not to the session.
+// Pressing Stop used to leave the token set forever -- the only Reset() in the
+// module was in Connect() -- so every later request failed as kCANCELLED and
+// the browser silently went dead until the account was switched.
+TEST_F(EMailImapNetTest, ACancelledOperationDoesNotPoisonTheSession) {
+  worker_.Token()->Cancel();
+  worker_.ListMessages(2, "INBOX", 0, 50, 0);
+  EXPECT_EQ(last_error_.category, MailErrorCategory::kCANCELLED);
+
+  page_ = {};
+  last_error_ = {};
+  worker_.ListMessages(3, "INBOX", 0, 50, 0);
+
+  EXPECT_NE(last_error_.category, MailErrorCategory::kCANCELLED);
+  EXPECT_FALSE(page_.rows.isEmpty());
+}
 
 TEST_F(EMailImapNetTest, FoldersAreOpenedReadOnly) {
   worker_.ListFolders(2);

@@ -144,6 +144,17 @@ if it did. Real signature and decryption behaviour needs the crypto path in
 EMailBasicGpgOpera.cpp, which is still untested and needs a gpgme-enabled
 target of its own.
 
+18-signed-8bit-utf8.eml
+    multipart/signed whose signed entity is Content-Transfer-Encoding: 8bit
+    with raw UTF-8 on the wire -- accented Latin, an em dash and CJK. Every
+    other fixture here is pure 7-bit ASCII, which made a whole class of bug
+    invisible: a QString hop that re-encoded the message as Latin-1 collapsed
+    each two-byte sequence to one byte and replaced anything above U+00FF,
+    so the bytes verified were not the bytes signed and a good signature read
+    as a forgery. The module converts through UTF-8 everywhere (Q_SC, QDUP,
+    UDUP), and this fixture is what makes a departure from that visible.
+    Security state: kSIGNED.
+
 Known divergences from the pre-tree implementation
 --------------------------------------------------
 The differential test compares ExtractParts() against ExtractPartsLegacy(),
