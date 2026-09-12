@@ -234,10 +234,15 @@ auto EMailSendDialog::build_account_block() -> QWidget* {
 /**
  * @brief What is known afterwards, one line per question.
  *
- * Three questions that are genuinely different, kept apart on purpose. An
- * SMTP 250 means the outgoing server took responsibility for the message; a
- * copy in Sent means the account's own server has it; delivery means neither
- * and cannot be seen from here at all.
+ * Two questions that are genuinely different, kept apart on purpose: an SMTP
+ * 250 means the outgoing server took responsibility for the message, and a
+ * copy in Sent means the account's own server has it.
+ *
+ * There is deliberately no third line for delivery. It is not observable from
+ * a sending program, and a row that could only ever say "unknown" was read as
+ * a step that had failed rather than as a question nobody can answer. The
+ * wording above carries the distinction instead: "accepted by outgoing mail
+ * server" is a claim about the handover and says nothing about arrival.
  */
 auto EMailSendDialog::build_result_card() -> QFrame* {
   auto* card = EMailCard(this, tr("Result"));
@@ -282,7 +287,6 @@ auto EMailSendDialog::build_result_card() -> QFrame* {
   qobject_cast<QHBoxLayout*>(sent_row->layout())
       ->addWidget(stop_confirm_button_, 0, Qt::AlignTop);
 
-  add_status_row(tr("Delivery"), &delivery_dot_, &delivery_label_);
   layout->addLayout(grid);
 
   // Collapsed, because the protocol transcript is not what a successful send
@@ -726,14 +730,6 @@ void EMailSendDialog::refresh_result() {
   }
 
   stop_confirm_button_->setVisible(confirm_state_ == ConfirmState::kCHECKING);
-
-  // Never anything else. Delivery is not observable from here, and a field
-  // that sometimes said otherwise would teach the user to read acceptance as
-  // delivery.
-  delivery_dot_->SetState(EMailStatusState::kUNKNOWN);
-  delivery_label_->setText(
-      tr("Unknown -- delivery cannot be confirmed by the "
-         "sending program."));
 
   const auto evidence = evidence_text();
   evidence_view_->setPlainText(evidence);

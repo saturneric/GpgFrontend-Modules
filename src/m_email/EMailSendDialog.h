@@ -148,10 +148,8 @@ class EMailSendDialog : public QDialog {
   QFrame* result_card_{};
   EMailStatusDot* accepted_dot_{};
   EMailStatusDot* sent_copy_dot_{};
-  EMailStatusDot* delivery_dot_{};
   QLabel* accepted_label_{};
   QLabel* sent_copy_label_{};
-  QLabel* delivery_label_{};
   QToolButton* stop_confirm_button_{};
   QToolButton* details_button_{};
   QToolButton* copy_evidence_button_{};

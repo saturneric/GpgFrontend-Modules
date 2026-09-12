@@ -387,6 +387,50 @@ TEST(EMailOutgoingTest, BuildMimeEmlMintsNoIdentityOfItsOwn) {
   EXPECT_TRUE(MailExtractMessageId(eml.toUtf8()).isEmpty());
 }
 
+TEST(EMailOutgoingTest, ASuppliedMessageIdIsWrittenIntoTheBytes) {
+  // The load-bearing half of composing an identity early. A message that gets
+  // encrypted or signed is frozen into octets that must never be touched
+  // again, so its identifier has to be INSIDE them before that happens -- it
+  // can never be added afterwards without breaking the signature.
+  EMailMetaData meta;
+  meta.from = "sender@example.org";
+  meta.to = {"to@example.org"};
+  meta.message_id = "composed-early@example.org";
+
+  QString eml;
+  ASSERT_EQ(BuildMimeEML(meta, "body", {}, eml), 0);
+  EXPECT_EQ(MailExtractMessageId(eml.toUtf8()), "composed-early@example.org");
+}
+
+TEST(EMailOutgoingTest, AProtectedMessageKeepsTheIdentityItWasBuiltWith) {
+  // What the send path sees for an encrypted message: bytes it must not
+  // rebuild, carrying an identifier minted back when the message was still
+  // plain text. Reading it back is what makes a Sent-folder copy findable.
+  const QByteArray protectedd =
+      "From: sender@example.org\r\n"
+      "To: to@example.org\r\n"
+      "Message-ID: <composed-early@example.org>\r\n"
+      "Content-Type: multipart/encrypted; "
+      "protocol=\"application/pgp-encrypted\"; boundary=\"b\"\r\n"
+      "\r\n"
+      "--b\r\n"
+      "Content-Type: application/pgp-encrypted\r\n"
+      "\r\n"
+      "Version: 1\r\n"
+      "--b--\r\n";
+
+  EMailMetaData meta;
+  meta.from = "sender@example.org";
+  meta.to = {"to@example.org"};
+
+  EMailOutgoingMessage out;
+  ASSERT_EQ(FreezeOutgoing(meta, {}, "ignored", {}, protectedd, out),
+            EMailFreezeResult::kOK);
+
+  EXPECT_EQ(out.eml, protectedd);
+  EXPECT_EQ(out.message_id, "composed-early@example.org");
+}
+
 // ---------------------------------------------------------------------------
 // Whether an address is plausible enough to offer Send for
 // ---------------------------------------------------------------------------

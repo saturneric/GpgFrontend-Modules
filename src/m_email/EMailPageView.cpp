@@ -53,6 +53,7 @@
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QSaveFile>
+#include <QSet>
 #include <QStackedWidget>
 #include <QStyle>
 #include <QTabWidget>
@@ -61,6 +62,7 @@
 #include <QVBoxLayout>
 #include <functional>
 
+#include "EMailAccountStore.h"
 #include "EMailBasicGpgOpera.h"
 #include "EMailBodyView.h"
 #include "EMailHeaderView.h"
@@ -1611,10 +1613,27 @@ void EMailPageView::install_address_hints() {
     return out;
   };
 
-  // From is one identity, so it completes against the keys this user actually
-  // holds -- the addresses they can send AS. The recipient fields complete
-  // against everything the keyring knows.
-  InstallAddressCompleter(from_edit_, addresses(true), false);
+  // From is one identity, so it completes against what the user can send AS.
+  // The configured mail accounts come FIRST and the keyring second: an account
+  // is an address this program can actually send through, whereas a secret key
+  // is only an identity it could sign as. When the two name the same address
+  // the account's wording wins, because that is the one the user typed into
+  // Settings.
+  QStringList senders;
+  QSet<QString> seen;
+  const auto remember = [&senders, &seen](const QString& entry) {
+    const auto address = MailAddressOnly(entry).toLower();
+    if (address.isEmpty() || seen.contains(address)) return;
+    seen.insert(address);
+    senders.append(entry);
+  };
+
+  for (const auto& account : EMailAccountStore::Load()) {
+    remember(account.Label());
+  }
+  for (const auto& entry : addresses(true)) remember(entry);
+
+  InstallAddressCompleter(from_edit_, senders, false);
 
   const auto known = addresses(false);
   for (auto* edit : {to_edit_, cc_edit_, bcc_edit_}) {
@@ -1918,6 +1937,23 @@ void EMailPageView::collect_fields() {
   compose_.bcc = split(bcc_edit_->text());
   message_.subject = subject_edit_->text();
   message_.body = body_edit_->toPlainText().toUtf8();
+
+  // The identity is decided HERE, the first time this document is collected
+  // with a sender on it -- not at send time.
+  //
+  // Send time is too late for anything that gets protected first. Encrypting
+  // or signing freezes the message into octets that must never be touched
+  // again, so an identifier that is not already inside them can never be added
+  // afterwards: that is exactly why an encrypted message used to go out with
+  // no Message-ID and no copy that could be found in Sent.
+  //
+  // Minted once and kept, rather than per serialization: BuildMimeEML is
+  // called for every draft save, and a fresh identifier each time would give
+  // the message a different identity in every copy of it that exists.
+  if (message_.message_id.trimmed().isEmpty()) {
+    const auto sender = MailAddressOnly(message_.from);
+    if (!sender.isEmpty()) message_.message_id = MailGenerateMessageId(sender);
+  }
 }
 
 void EMailPageView::refresh_attachments() {
