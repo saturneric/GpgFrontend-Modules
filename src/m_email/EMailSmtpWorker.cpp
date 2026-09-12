@@ -153,7 +153,7 @@ void EMailSmtpWorker::TestConnection(quint64 seq,
     transport->setTimeoutHandlerFactory(timeouts);
 
     EMailTlsSetup::Apply(session, transport,
-                         QString("transport.%1").arg(protocol), config);
+                         QString("transport.%1").arg(protocol), config, false);
 
     transport->setAuthenticator(vmime::make_shared<SecureAuthenticator>(
         config.username, password, cleartext));
@@ -164,8 +164,10 @@ void EMailSmtpWorker::TestConnection(quint64 seq,
     if (!cleartext && !EMailTlsSetup::IsSecured(transport)) {
       receipt.error = MailTlsRequiredError(config.host);
     } else {
-      // Reaching here means the server accepted the credentials, which is the
-      // whole question a connection test asks.
+      // Reaching here means the server completed the greeting, secured the
+      // link, and -- because the session demands authentication -- accepted
+      // the credentials. All three are required, which is the whole question
+      // a connection test asks.
       receipt.accepted = true;
     }
 
@@ -233,7 +235,7 @@ void EMailSmtpWorker::Submit(quint64 seq, const MailAccountConfig& account,
     transport->setTimeoutHandlerFactory(timeouts);
 
     EMailTlsSetup::Apply(session, transport,
-                         QString("transport.%1").arg(protocol), config);
+                         QString("transport.%1").arg(protocol), config, false);
 
     transport->setAuthenticator(vmime::make_shared<SecureAuthenticator>(
         config.username, password, cleartext));

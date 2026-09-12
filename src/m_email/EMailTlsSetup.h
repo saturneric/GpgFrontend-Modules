@@ -58,7 +58,8 @@ namespace EMailTlsSetup {
 /**
  * @brief Apply this application's security policy to a session and service.
  *
- * Sets the transport properties that make TLS mandatory, installs the
+ * Sets the transport properties that make TLS mandatory, requires
+ * authentication where the protocol treats it as optional, installs the
  * certificate verifier, and applies any certificate the user has pinned for
  * this transport.
  *
@@ -66,10 +67,12 @@ namespace EMailTlsSetup {
  * @param service the store or transport to attach the verifier to
  * @param prefix property prefix, e.g. "store.imaps" or "transport.smtp"
  * @param config the transport being connected
+ * @param imap true for IMAP, false for SMTP. Only SMTP treats authentication
+ *   as optional, so only SMTP needs it demanded; see the property below.
  */
 void Apply(const vmime::shared_ptr<vmime::net::session>& session,
            const vmime::shared_ptr<vmime::net::service>& service,
-           const QString& prefix, const MailTransportConfig& config);
+           const QString& prefix, const MailTransportConfig& config, bool imap);
 
 /**
  * @brief The vmime protocol name for a transport.

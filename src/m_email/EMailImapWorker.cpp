@@ -183,7 +183,7 @@ void EMailImapWorker::Connect(quint64 seq, const MailAccountConfig& account,
     impl_->store->setTimeoutHandlerFactory(impl_->timeouts);
 
     EMailTlsSetup::Apply(impl_->session, impl_->store,
-                         QString("store.%1").arg(protocol), config);
+                         QString("store.%1").arg(protocol), config, true);
 
     impl_->store->setAuthenticator(vmime::make_shared<SecureAuthenticator>(
         config.username, password, cleartext));

@@ -81,7 +81,7 @@ auto RootCertificates()
   // placeholder is left in the text and the argument is dropped with a
   // runtime warning.
   FLOG_DEBUG("loaded %1 root certificates for mail TLS",
-             static_cast<int>(roots.size())); 
+             static_cast<int>(roots.size()));
   return roots;
 }
 
@@ -99,11 +99,17 @@ auto FingerprintOf(const vmime::shared_ptr<cert::X509Certificate>& certificate)
     -> QString {
   if (!certificate) return {};
 
+  // vmime hands back the fingerprint ALREADY FORMATTED, as the ASCII text
+  // "AB:CD:EF:..." rather than as the raw digest bytes
+  // (X509Certificate_OpenSSL.cpp:571-592). Hex-encoding that a second time --
+  // which is what this used to do -- produced a string twice the right length
+  // that matched nothing and meant nothing, so no pin could ever apply and
+  // the fingerprint shown to the user was not the certificate's.
   const auto digest =
       certificate->getFingerprint(cert::X509Certificate::DIGEST_SHA256);
   QByteArray bytes;
   for (const auto byte : digest) bytes.append(static_cast<char>(byte));
-  return QString::fromLatin1(bytes.toHex()).toLower();
+  return QString::fromLatin1(bytes).remove(':').trimmed().toLower();
 }
 
 /**
@@ -118,13 +124,44 @@ auto FingerprintOf(const vmime::shared_ptr<cert::X509Certificate>& certificate)
  */
 class RememberingVerifier : public cert::defaultCertificateVerifier {
  public:
+  /// @param pin lowercase hex SHA-256 of the one certificate this transport
+  ///   trusts beyond the system roots, or empty for "system roots only".
+  explicit RememberingVerifier(QString pin) : pin_(std::move(pin)) {}
+
   void verify(const vmime::shared_ptr<cert::certificateChain>& chain,
               const vmime::string& hostname) override {
     remember(chain);
+    apply_pin(chain);
     cert::defaultCertificateVerifier::verify(chain, hostname);
   }
 
  private:
+  QString pin_;
+
+  /// A pin names the certificate the SERVER PRESENTS, which is the whole point
+  /// of pinning: the case it exists for is a self-signed or privately-issued
+  /// certificate, and such a certificate is by definition not in the system
+  /// root store. Matching the pin against the roots -- as this once did --
+  /// could therefore only ever match a certificate that already verified, so
+  /// pinning silently did nothing at all.
+  ///
+  /// Trust is still expressed by handing the leaf to the base class as a
+  /// trusted certificate rather than by skipping any check, so the base
+  /// class's ordering continues to hold: expiry is judged BEFORE the trusted
+  /// comparison and the hostname AFTER it. A pinned certificate that has
+  /// expired, is not yet valid, or names another host still fails. That is
+  /// what keeps a pin from degrading into "ignore TLS errors".
+  void apply_pin(const vmime::shared_ptr<cert::certificateChain>& chain) {
+    if (pin_.isEmpty() || !chain || chain->getCount() == 0) return;
+
+    auto leaf = vmime::dynamicCast<cert::X509Certificate>(chain->getAt(0));
+    if (!leaf || FingerprintOf(leaf) != pin_) return;
+
+    std::vector<vmime::shared_ptr<cert::X509Certificate>> trusted;
+    trusted.push_back(leaf);
+    setX509TrustedCerts(trusted);
+  }
+
   static void remember(const vmime::shared_ptr<cert::certificateChain>& chain) {
     if (!chain || chain->getCount() == 0) return;
 
@@ -152,10 +189,26 @@ auto ProtocolName(bool imap, MailTlsMode mode) -> QString {
 
 void Apply(const vmime::shared_ptr<vmime::net::session>& session,
            const vmime::shared_ptr<vmime::net::service>& service,
-           const QString& prefix, const MailTransportConfig& config) {
+           const QString& prefix, const MailTransportConfig& config,
+           bool imap) {
   if (!session || !service) return;
 
   auto& properties = session->getProperties();
+
+  // The second load-bearing line of this file, and for a long time a missing
+  // one. vmime treats SMTP authentication as OPTIONAL and defaults
+  // "options.need-authentication" to false (SMTPServiceInfos.cpp:58). With it
+  // false, SMTPConnection::connect() sets m_authenticated = true and returns
+  // WITHOUT SENDING ANY AUTH COMMAND at all -- so every password verified,
+  // every password was accepted, and mail was submitted unauthenticated.
+  //
+  // IMAP has no such property and authenticates unconditionally, which is why
+  // this is asked for only on the SMTP side.
+  if (!imap && !config.username.isEmpty()) {
+    properties.setProperty(
+        QString("%1.options.need-authentication").arg(prefix).toStdString(),
+        true);
+  }
 
   const auto tls_key = QString("%1.connection.tls").arg(prefix).toStdString();
   const auto required_key =
@@ -176,21 +229,9 @@ void Apply(const vmime::shared_ptr<vmime::net::session>& session,
   // that then carries the password. Setting it makes that failure fatal.
   properties.setProperty(required_key, true);
 
-  auto verifier = vmime::make_shared<RememberingVerifier>();
+  auto verifier =
+      vmime::make_shared<RememberingVerifier>(config.pinned_cert_sha256);
   verifier->setX509RootCAs(RootCertificates());
-
-  if (!config.pinned_cert_sha256.isEmpty()) {
-    // A pin is one certificate for one transport. It is given to the base
-    // class as a trusted certificate, which excuses an untrusted chain and
-    // nothing else: expiry is checked before this is consulted and the
-    // hostname after it.
-    std::vector<vmime::shared_ptr<cert::X509Certificate>> pinned;
-    for (const auto& root : RootCertificates()) {
-      if (FingerprintOf(root) == config.pinned_cert_sha256)
-        pinned.push_back(root);
-    }
-    if (!pinned.empty()) verifier->setX509TrustedCerts(pinned);
-  }
 
   service->setCertificateVerifier(verifier);
 }
