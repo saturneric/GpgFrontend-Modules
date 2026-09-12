@@ -772,3 +772,83 @@ TEST(EMailMimeTest, UnaddressedDraftKeepsItsHeadersAndAttachments) {
   ASSERT_EQ(parsed.attachments.size(), 1);
   EXPECT_EQ(parsed.attachments[0].filename, QString("notes.txt"));
 }
+
+// --- composite operation status --------------------------------------------
+//
+// The host reads a status as one of three buckets: greater than zero is OK,
+// zero is a warning, and negative is a failure. An encrypt-and-sign is two
+// operations reported as one, so the rule for combining them decides what the
+// user is told about a message that half worked.
+
+TEST(EMailMimeTest, WorseStatusPrefersCriticalOverWarningOverOk) {
+  EXPECT_EQ(WorseStatus(1, 1), 1);
+  EXPECT_EQ(WorseStatus(1, 0), 0);
+  EXPECT_EQ(WorseStatus(0, 1), 0);
+  EXPECT_EQ(WorseStatus(0, -1), -1);
+  EXPECT_EQ(WorseStatus(1, -1), -1);
+  EXPECT_EQ(WorseStatus(-1, -3), -3);
+}
+
+TEST(EMailMimeTest, WorseStatusIsCommutativeAndIdempotent) {
+  for (int a : {-3, -1, 0, 1}) {
+    for (int b : {-3, -1, 0, 1}) {
+      EXPECT_EQ(WorseStatus(a, b), WorseStatus(b, a));
+    }
+    EXPECT_EQ(WorseStatus(a, a), a);
+  }
+}
+
+TEST(EMailMimeTest, UnwrapRejectsUnusableOffsets) {
+  // A tree whose offsets do not index the bytes it was given. The helper must
+  // refuse rather than read past the end of the array.
+  EMailPart root;
+  root.content_type = "multipart/signed";
+
+  EMailPart entity;
+  entity.content_type = "text/plain";
+  entity.raw_offset = -1;
+  entity.raw_length = 0;
+
+  EMailPart signature;
+  signature.content_type = "application/pgp-signature";
+  signature.raw_offset = 0;
+  signature.raw_length = 1;
+
+  root.children = {entity, signature};
+
+  QByteArray out;
+  EXPECT_EQ(UnwrapProtectedLayer(root, QByteArray("short"), out),
+            EMailUnwrapResult::kMALFORMED);
+  EXPECT_TRUE(out.isEmpty());
+
+  // An offset that starts inside the buffer but runs off the end of it.
+  root.children[0].raw_offset = 2;
+  root.children[0].raw_length = 9999;
+  EXPECT_EQ(UnwrapProtectedLayer(root, QByteArray("short"), out),
+            EMailUnwrapResult::kMALFORMED);
+}
+
+TEST(EMailMimeTest, UnwrapNeedsASignatureAsTheSecondPart) {
+  EMailPart root;
+  root.content_type = "multipart/signed";
+  root.raw_offset = 0;
+  root.body_offset = 4;
+
+  EMailPart a;
+  a.content_type = "text/plain";
+  a.raw_offset = 0;
+  a.raw_length = 2;
+
+  // Two parts, but the second is not a detached signature: not an RFC 3156
+  // shape, so there is no "the signature" to remove.
+  root.children = {a, a};
+
+  QByteArray out;
+  EXPECT_EQ(UnwrapProtectedLayer(root, QByteArray("hello"), out),
+            EMailUnwrapResult::kMALFORMED);
+
+  // One part is not it either.
+  root.children = {a};
+  EXPECT_EQ(UnwrapProtectedLayer(root, QByteArray("hello"), out),
+            EMailUnwrapResult::kMALFORMED);
+}

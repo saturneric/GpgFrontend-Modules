@@ -1574,3 +1574,383 @@ TEST(EMailCorpusTest, TheCheckNeedsTheOriginalBytesToSayAnything) {
   EXPECT_TRUE(
       HasFinding(InspectMessage(meta, root, regions, raw), "canonical"));
 }
+
+// --- lifting a protected layer off a message -------------------------------
+//
+// "Remove the signature" has to leave a message that is still the message. The
+// tests below are mostly about what is NOT allowed to change: the octets of
+// the signed entity, and of anything signed inside it.
+
+namespace {
+
+struct UnwrapCase {
+  QByteArray raw;
+  EMailPart root;
+  QList<EMailSignatureRegion> regions;
+};
+
+auto LoadForUnwrap(const QString& name) -> UnwrapCase {
+  UnwrapCase c;
+  vmime::shared_ptr<vmime::message> message;
+  EXPECT_TRUE(ParseCorpus(name, c.raw, message)) << name.toStdString();
+  EXPECT_EQ(ParseMimeTree(message, c.raw, c.root, c.regions), 0);
+  return c;
+}
+
+auto Unwrap(const QString& name, QByteArray& out) -> EMailUnwrapResult {
+  const auto c = LoadForUnwrap(name);
+  return UnwrapProtectedLayer(c.root, c.raw, out);
+}
+
+// The header block of a message, as bytes -- everything before the first empty
+// line. Used to assert on what the unwrap kept and dropped.
+auto HeaderBlockOf(const QByteArray& eml) -> QByteArray {
+  const int crlf = eml.indexOf("\r\n\r\n");
+  if (crlf >= 0) return eml.left(crlf + 2);
+  const int lf = eml.indexOf("\n\n");
+  return lf >= 0 ? eml.left(lf + 1) : eml;
+}
+
+}  // namespace
+
+TEST(EMailCorpusTest, UnwrappingASignedMessageYieldsAnOrdinaryOne) {
+  QByteArray out;
+  ASSERT_EQ(Unwrap("golden/04-pgpmime-signed.eml", out),
+            EMailUnwrapResult::kOK);
+
+  vmime::shared_ptr<vmime::message> message;
+  ASSERT_TRUE(CheckIfEMLMessage(out, message));
+
+  EMailPart root;
+  QList<EMailSignatureRegion> regions;
+  ASSERT_EQ(ParseMimeTree(message, out, root, regions), 0);
+
+  EXPECT_EQ(ClassifyOpenPGPStructure(root, regions),
+            EMailSecurityState::kPLAIN);
+  EXPECT_TRUE(regions.isEmpty());
+
+  // The message is still the same message: the envelope survives the unwrap.
+  const auto before = LoadForUnwrap("golden/04-pgpmime-signed.eml");
+  vmime::shared_ptr<vmime::message> original;
+  ASSERT_TRUE(CheckIfEMLMessage(before.raw, original));
+  EMailMetaData meta_before;
+  EMailMetaData meta_after;
+  ASSERT_EQ(GetEMLMetaData(original, meta_before), 0);
+  ASSERT_EQ(GetEMLMetaData(message, meta_after), 0);
+  EXPECT_EQ(meta_after.subject, meta_before.subject);
+  EXPECT_EQ(meta_after.from, meta_before.from);
+  EXPECT_EQ(meta_after.to, meta_before.to);
+}
+
+TEST(EMailCorpusTest, UnwrappingTakesTheSignedEntityByteForByte) {
+  const auto c = LoadForUnwrap("golden/04-pgpmime-signed.eml");
+  QByteArray out;
+  ASSERT_EQ(UnwrapProtectedLayer(c.root, c.raw, out), EMailUnwrapResult::kOK);
+
+  ASSERT_EQ(c.root.children.size(), 2);
+  const auto& entity = c.root.children.at(0);
+  const auto expected = c.raw.mid(static_cast<int>(entity.raw_offset),
+                                  static_cast<int>(entity.raw_length));
+
+  // Not "contains" and not "reparses the same": the entity's octets are what a
+  // nested signature would cover, so they must be carried over untouched.
+  ASSERT_FALSE(expected.isEmpty());
+  EXPECT_TRUE(out.endsWith(expected));
+}
+
+TEST(EMailCorpusTest, UnwrappingKeepsANestedSignatureByteExact) {
+  // The load-bearing case. Removing the outer signature must leave the inner
+  // one verifiable, which is only true if its bytes never went through a
+  // reserialization.
+  const auto c = LoadForUnwrap("golden/11-nested-signatures.eml");
+  ASSERT_GE(c.regions.size(), 2);
+
+  // The innermost region is the one that has to survive.
+  const EMailSignatureRegion* inner = &c.regions.at(0);
+  for (const auto& region : c.regions) {
+    if (region.nesting_depth > inner->nesting_depth) inner = &region;
+  }
+  const auto inner_bytes = c.raw.mid(static_cast<int>(inner->raw_offset),
+                                     static_cast<int>(inner->raw_length));
+  ASSERT_FALSE(inner_bytes.isEmpty());
+
+  QByteArray out;
+  ASSERT_EQ(UnwrapProtectedLayer(c.root, c.raw, out), EMailUnwrapResult::kOK);
+
+  vmime::shared_ptr<vmime::message> message;
+  ASSERT_TRUE(CheckIfEMLMessage(out, message));
+  EMailPart root;
+  QList<EMailSignatureRegion> regions;
+  ASSERT_EQ(ParseMimeTree(message, out, root, regions), 0);
+
+  EXPECT_EQ(regions.size(), c.regions.size() - 1);
+  ASSERT_FALSE(regions.isEmpty());
+
+  bool found = false;
+  for (const auto& region : regions) {
+    const auto bytes = out.mid(static_cast<int>(region.raw_offset),
+                               static_cast<int>(region.raw_length));
+    if (bytes == inner_bytes) found = true;
+  }
+  EXPECT_TRUE(found) << "the nested signed bytes did not survive the unwrap";
+}
+
+TEST(EMailCorpusTest, UnwrappingASignatureOverCiphertextLeavesAnEncrypted) {
+  // Signing wrapped around an encrypted part: removing the signature is a
+  // legitimate answer, and what is left is an encrypted, unsigned message.
+  QByteArray out;
+  ASSERT_EQ(Unwrap("golden/17-encrypted-inside-signed.eml", out),
+            EMailUnwrapResult::kOK);
+
+  vmime::shared_ptr<vmime::message> message;
+  ASSERT_TRUE(CheckIfEMLMessage(out, message));
+  EMailPart root;
+  QList<EMailSignatureRegion> regions;
+  ASSERT_EQ(ParseMimeTree(message, out, root, regions), 0);
+
+  EXPECT_EQ(ClassifyOpenPGPStructure(root, regions),
+            EMailSecurityState::kENCRYPTED);
+}
+
+TEST(EMailCorpusTest, UnwrappingRefusesWhenTheSignatureIsInsideTheCiphertext) {
+  // There may well be a signature in there, but it is not visible from here
+  // and guessing would be worse than saying so.
+  QByteArray out;
+  EXPECT_EQ(Unwrap("golden/05-pgpmime-encrypted.eml", out),
+            EMailUnwrapResult::kNOT_SUPPORTED);
+  EXPECT_TRUE(out.isEmpty());
+}
+
+TEST(EMailCorpusTest, UnwrappingFindsASignedSubtreeBesideAnEncryptedOne) {
+  // multipart/mixed { multipart/encrypted, multipart/signed }. The signature
+  // that IS visible can be removed; the encrypted part is left alone.
+  QByteArray out;
+  ASSERT_EQ(Unwrap("golden/06-signed-inside-encrypted.eml", out),
+            EMailUnwrapResult::kOK);
+
+  vmime::shared_ptr<vmime::message> message;
+  ASSERT_TRUE(CheckIfEMLMessage(out, message));
+  EMailPart root;
+  QList<EMailSignatureRegion> regions;
+  ASSERT_EQ(ParseMimeTree(message, out, root, regions), 0);
+
+  EXPECT_TRUE(regions.isEmpty());
+  EXPECT_EQ(ClassifyOpenPGPStructure(root, regions),
+            EMailSecurityState::kENCRYPTED);
+}
+
+TEST(EMailCorpusTest, UnwrappingASignedSubtreeKeepsEverythingAroundIt) {
+  // The realistic shape: multipart/mixed { multipart/signed { ... }, extra }.
+  // Only the wrapper goes; the sibling attachment and the message headers are
+  // untouched bytes on either side of the splice.
+  const auto c = LoadForUnwrap("golden/14-signed-with-attachment.eml");
+  QByteArray out;
+  ASSERT_EQ(UnwrapProtectedLayer(c.root, c.raw, out), EMailUnwrapResult::kOK);
+
+  // The message headers come through byte-for-byte -- nothing was filtered,
+  // because the wrapper was never the message itself.
+  const auto original_headers = HeaderBlockOf(c.raw);
+  EXPECT_TRUE(out.startsWith(original_headers));
+
+  vmime::shared_ptr<vmime::message> message;
+  ASSERT_TRUE(CheckIfEMLMessage(out, message));
+  EMailPart root;
+  QList<EMailSignatureRegion> regions;
+  ASSERT_EQ(ParseMimeTree(message, out, root, regions), 0);
+
+  EXPECT_TRUE(regions.isEmpty());
+  EXPECT_EQ(ClassifyOpenPGPStructure(root, regions),
+            EMailSecurityState::kPLAIN);
+
+  // The part that was never covered by the signature is still there.
+  EMailMetaData meta;
+  ASSERT_EQ(GetEMLMetaData(message, meta), 0);
+  ASSERT_EQ(ExtractParts(message, meta), 0);
+  bool kept_uncovered = false;
+  for (const auto& att : meta.attachments) {
+    if (att.filename.contains("uncovered")) kept_uncovered = true;
+  }
+  EXPECT_TRUE(kept_uncovered);
+}
+
+TEST(EMailCorpusTest, UnwrappingAPlainMessageIsANoOp) {
+  for (const auto* name :
+       {"golden/01-plain-text.eml", "golden/03-mixed-attachments.eml"}) {
+    QByteArray out;
+    EXPECT_EQ(Unwrap(name, out), EMailUnwrapResult::kNOT_PROTECTED) << name;
+    EXPECT_TRUE(out.isEmpty()) << name;
+  }
+}
+
+TEST(EMailCorpusTest, UnwrappingDropsOnlyTheOuterContentHeaders) {
+  // A message that IS the multipart/signed: its headers are the message's, so
+  // they are filtered rather than spliced around.
+  const auto c = LoadForUnwrap("golden/04-pgpmime-signed.eml");
+  QByteArray out;
+  ASSERT_EQ(UnwrapProtectedLayer(c.root, c.raw, out), EMailUnwrapResult::kOK);
+
+  const auto original_headers = HeaderBlockOf(c.raw);
+  const auto headers = HeaderBlockOf(out);
+
+  // Everything that identifies the message is kept exactly as it was written.
+  for (const auto& field : SplitRawHeaderFields(original_headers)) {
+    if (field.name.startsWith("Content-", Qt::CaseInsensitive)) continue;
+    EXPECT_TRUE(headers.contains(field.raw_line))
+        << "lost header: " << field.name.toStdString();
+  }
+
+  // ...and the wrapper's own description of itself is gone, continuation
+  // lines included. An orphaned boundary= line is the failure this guards.
+  EXPECT_FALSE(headers.toLower().contains("multipart/signed"));
+  EXPECT_FALSE(headers.toLower().contains("boundary="));
+
+  // Exactly one Content-Type survives, and it is the entity's: describing the
+  // content is the entity's job now that the wrapper describing it is gone.
+  // Two would mean the wrapper's was kept alongside it.
+  QList<QByteArray> content_types;
+  for (const auto& field : SplitRawHeaderFields(headers)) {
+    if (field.name.compare("Content-Type", Qt::CaseInsensitive) == 0) {
+      content_types.append(field.value);
+    }
+  }
+  ASSERT_EQ(content_types.size(), 1);
+  EXPECT_TRUE(content_types.at(0).toLower().startsWith("text/plain"))
+      << content_types.at(0).toStdString();
+}
+
+TEST(EMailCorpusTest, UnwrappingNeverIntroducesBareLineFeeds) {
+  // A bare LF where CRLF was makes a signature fail in a way that looks
+  // exactly like a forgery -- see 16-signed-lf-mangled.eml for why that
+  // distinction matters. The unwrap must never be the cause of one.
+  for (const auto& name : CorpusNames()) {
+    const auto c = LoadForUnwrap(name);
+    if (ClassifyOpenPGPStructure(c.root, c.regions) !=
+        EMailSecurityState::kSIGNED) {
+      continue;
+    }
+
+    QByteArray out;
+    if (UnwrapProtectedLayer(c.root, c.raw, out) != EMailUnwrapResult::kOK) {
+      continue;
+    }
+
+    // The fixture that is already mangled cannot get any cleaner.
+    if (HasBareLineFeeds(c.raw)) continue;
+    EXPECT_FALSE(HasBareLineFeeds(out)) << name.toStdString();
+  }
+}
+
+// --- raw header fields -----------------------------------------------------
+
+TEST(EMailCorpusTest, SplittingRawHeadersKeepsOrderAndDuplicates) {
+  const auto c = LoadForUnwrap("golden/12-odd-headers.eml");
+  const auto block = RawHeaderBlock(c.root, c.raw);
+  ASSERT_FALSE(block.isEmpty());
+
+  const auto fields = SplitRawHeaderFields(block);
+  ASSERT_FALSE(fields.isEmpty());
+
+  // Order is the order on the wire.
+  QStringList names;
+  for (const auto& field : fields) names.append(field.name);
+  QStringList in_message;
+  for (const auto& field : c.root.header_fields) in_message.append(field.first);
+  EXPECT_EQ(names.size(), in_message.size());
+
+  // A repeated header is listed once per occurrence, never merged.
+  QSet<QString> seen;
+  bool has_duplicate = false;
+  for (const auto& name : names) {
+    if (seen.contains(name.toLower())) has_duplicate = true;
+    seen.insert(name.toLower());
+  }
+  EXPECT_TRUE(has_duplicate)
+      << "12-odd-headers.eml is expected to carry a repeated field";
+}
+
+TEST(EMailCorpusTest, SplittingRawHeadersJoinsFoldedContinuations) {
+  const QByteArray block =
+      "Subject: a subject that\r\n"
+      " continues on the next line\r\n"
+      "To: someone@example.com\r\n"
+      "\r\n";
+
+  const auto fields = SplitRawHeaderFields(block);
+  ASSERT_EQ(fields.size(), 2);
+  EXPECT_EQ(fields.at(0).name, "Subject");
+  EXPECT_EQ(fields.at(0).value,
+            QByteArray("a subject that continues on the next line"));
+  // The whole field, folds included, is what a raw view has to be able to show.
+  EXPECT_TRUE(fields.at(0).raw_line.contains("\r\n "));
+  EXPECT_EQ(fields.at(1).name, "To");
+}
+
+TEST(EMailCorpusTest, SplittingRawHeadersKeepsMalformedLines) {
+  // Neither a continuation nor `name: value`. Dropping it would hide exactly
+  // what someone reading the raw headers is looking for.
+  const QByteArray block =
+      "From: a@example.com\r\n"
+      "this-line-has-no-colon\r\n"
+      "To: b@example.com\r\n"
+      "\r\n";
+
+  const auto fields = SplitRawHeaderFields(block);
+  ASSERT_EQ(fields.size(), 3);
+  EXPECT_EQ(fields.at(1).name, QString());
+  EXPECT_EQ(fields.at(1).value, QByteArray("this-line-has-no-colon"));
+}
+
+TEST(EMailCorpusTest, SplittingRawHeadersStopsAtTheHeaderTerminator) {
+  const QByteArray eml =
+      "From: a@example.com\r\n"
+      "\r\n"
+      "To: this is body text, not a header\r\n";
+
+  const auto fields = SplitRawHeaderFields(eml);
+  ASSERT_EQ(fields.size(), 1);
+  EXPECT_EQ(fields.at(0).name, "From");
+}
+
+TEST(EMailCorpusTest, EveryGoldenMessageSplitsIntoItsParsedFields) {
+  for (const auto& name : CorpusNames()) {
+    const auto c = LoadForUnwrap(name);
+    const auto block = RawHeaderBlock(c.root, c.raw);
+    if (block.isEmpty()) continue;
+
+    const auto fields = SplitRawHeaderFields(block);
+    EXPECT_EQ(fields.size(), c.root.header_fields.size())
+        << name.toStdString()
+        << ": the raw split and the parsed field list must agree, or the "
+           "Headers view cannot pair them";
+  }
+}
+
+TEST(EMailCorpusTest, EncryptedMessagesAreClassifiedBeforeAnyDecryption) {
+  // The premise of the locked panel: the view knows a message is encrypted
+  // from its structure alone, with no cryptography and no key, so it can say
+  // so instead of showing an empty editable body.
+  const struct {
+    const char* name;
+    EMailSecurityState state;
+  } cases[] = {
+      {"golden/05-pgpmime-encrypted.eml", EMailSecurityState::kENCRYPTED},
+      {"golden/06-signed-inside-encrypted.eml",
+       EMailSecurityState::kSIGNED_ENCRYPTED},
+  };
+
+  for (const auto& c : cases) {
+    const auto loaded = LoadForUnwrap(c.name);
+    EXPECT_EQ(ClassifyOpenPGPStructure(loaded.root, loaded.regions), c.state)
+        << c.name;
+
+    // A message that is nothing but ciphertext has no body to show at all,
+    // which is the case the locked panel exists for. 06 deliberately carries a
+    // readable part beside the encrypted one, so it is not that case.
+    if (c.state == EMailSecurityState::kENCRYPTED) {
+      const auto* body = SelectBodyPart(loaded.root, false);
+      if (body != nullptr) {
+        EXPECT_TRUE(body->is_protocol_part || body->data.isEmpty()) << c.name;
+      }
+    }
+  }
+}
