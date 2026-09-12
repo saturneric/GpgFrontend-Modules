@@ -1071,3 +1071,84 @@ TEST(EMailMimeTest, StrippingLeavesASignatureOfAnotherProtocolAlone) {
   ASSERT_TRUE(Reparse(message, root));
   EXPECT_EQ(root.content_type, "multipart/signed");
 }
+
+// ---------------------------------------------------------------------------
+// IsSafeToOpenAttachment
+//
+// Decides whether a part that arrived from a stranger may be handed to the
+// desktop to open. Getting this wrong in the permissive direction runs the
+// stranger's code, so the tests below are mostly about what it must REFUSE.
+// ---------------------------------------------------------------------------
+
+namespace {
+
+auto AttachmentNamed(const QString& filename, const QString& mime_type = {})
+    -> EMailAttachment {
+  EMailAttachment att;
+  att.filename = filename;
+  att.mime_type = mime_type;
+  return att;
+}
+
+}  // namespace
+
+TEST(EMailMimeTest, OpenableAllowsOrdinaryDocuments) {
+  for (const auto* name :
+       {"report.pdf", "notes.txt", "sheet.csv", "photo.jpg", "scan.PNG",
+        "slides.pptx", "song.mp3", "clip.mp4", "card.vcf", "invite.ics"}) {
+    EXPECT_TRUE(IsSafeToOpenAttachment(AttachmentNamed(name))) << name;
+  }
+}
+
+TEST(EMailMimeTest, OpenableRefusesExecutables) {
+  // The whole point of the allow-list. Every one of these is a file whose
+  // registered handler RUNS it.
+  for (const auto* name :
+       {"invoice.exe", "setup.msi", "run.bat", "run.cmd", "script.ps1",
+        "install.sh", "payload.scr", "shortcut.lnk", "macro.vbs", "app.jar",
+        "tool.com", "lib.dll", "thing.app", "pkg.deb", "pkg.rpm"}) {
+    EXPECT_FALSE(IsSafeToOpenAttachment(AttachmentNamed(name))) << name;
+  }
+}
+
+TEST(EMailMimeTest, OpenableRefusesArchivesAndScriptableImages) {
+  // An archive hides what is inside it until it is already out; SVG carries
+  // script, so a viewer that honours it runs a stranger's code.
+  for (const auto* name :
+       {"bundle.zip", "bundle.tar", "bundle.gz", "bundle.7z", "bundle.rar",
+        "drawing.svg", "page.html", "page.htm"}) {
+    EXPECT_FALSE(IsSafeToOpenAttachment(AttachmentNamed(name))) << name;
+  }
+}
+
+TEST(EMailMimeTest, OpenableRefusesWhatItCannotRecognise) {
+  // No extension, or one nobody has heard of: refused, because the decision
+  // is an allow-list and an unknown type is not on it.
+  EXPECT_FALSE(IsSafeToOpenAttachment(AttachmentNamed("README")));
+  EXPECT_FALSE(IsSafeToOpenAttachment(AttachmentNamed("data.")));
+  EXPECT_FALSE(IsSafeToOpenAttachment(AttachmentNamed("")));
+  EXPECT_FALSE(IsSafeToOpenAttachment(AttachmentNamed("thing.qqzz")));
+}
+
+TEST(EMailMimeTest, OpenableJudgesTheSanitizedName) {
+  // The decision has to be made about the name the desktop will actually
+  // dispatch on, which is the sanitized one. A part that smuggles a path in
+  // its filename must be judged on the component that survives.
+  EXPECT_TRUE(IsSafeToOpenAttachment(AttachmentNamed("../../etc/report.pdf")));
+  EXPECT_FALSE(IsSafeToOpenAttachment(AttachmentNamed("../../etc/evil.exe")));
+
+  // A double extension is judged on the LAST one, which is what the system
+  // dispatches on -- "report.pdf.exe" is an executable.
+  EXPECT_FALSE(IsSafeToOpenAttachment(AttachmentNamed("report.pdf.exe")));
+  EXPECT_TRUE(IsSafeToOpenAttachment(AttachmentNamed("report.exe.pdf")));
+}
+
+TEST(EMailMimeTest, OpenableIgnoresTheSendersContentType) {
+  // The Content-Type is chosen by the sender and need not agree with the
+  // extension. The extension is what the desktop acts on, so it is what
+  // decides -- a declared "text/plain" must not launder an .exe.
+  EXPECT_FALSE(
+      IsSafeToOpenAttachment(AttachmentNamed("evil.exe", "text/plain")));
+  EXPECT_TRUE(IsSafeToOpenAttachment(
+      AttachmentNamed("report.pdf", "application/octet-stream")));
+}
