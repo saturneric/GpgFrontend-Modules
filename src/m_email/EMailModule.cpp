@@ -1937,6 +1937,20 @@ REGISTER_EVENT_HANDLER(
       // parse of untrusted input, and that is now bounded properly by the
       // depth, part-count and decoded-size limits in ExtractParts -- so the
       // ceiling can be about memory alone.
+      // A FIFO, a device node or /proc entry reports size 0 and would sail
+      // through the ceiling below, then block or grow without bound inside
+      // readAll() -- on the GUI thread, where the read actually happens.
+      if (!file_info.isFile()) {
+        QMessageBox::warning(
+            nullptr, QApplication::translate("EMailModule", "Warning"),
+            QApplication::translate(
+                "EMailModule",
+                "%1 is not an ordinary file, so it cannot be opened as a "
+                "message.")
+                .arg(file_path));
+        CB_ERR(event, -1, "not a regular file");
+      }
+
       if (file_info.size() > kMaxEMLFileSize) {
         QMessageBox::warning(
             nullptr, QApplication::translate("EMailModule", "Warning"),
@@ -1977,6 +1991,23 @@ REGISTER_EVENT_HANDLER(
                                       "Cannot read file %1:\n%2.")
                   .arg(file_path)
                   .arg(file.errorString()));
+          return;
+        }
+
+        // Checked again on the OPEN handle. The size test above ran on the
+        // module thread against a path; this runs against the file actually
+        // opened, which is not necessarily the same one and not necessarily
+        // the same length.
+        if (file.size() > kMaxEMLFileSize) {
+          QMessageBox::warning(
+              nullptr, QApplication::translate("EMailModule", "Warning"),
+              QApplication::translate(
+                  "EMailModule",
+                  "The file %1 is too large (%2) to be opened. The maximum "
+                  "allowed size is %3.")
+                  .arg(file_path)
+                  .arg(QLocale().formattedDataSize(file.size()))
+                  .arg(QLocale().formattedDataSize(kMaxEMLFileSize)));
           return;
         }
 
