@@ -1037,6 +1037,8 @@ auto VerifyEMLData(int channel, const QByteArray& data,
   meta_data.mime = {};
   meta_data.signed_entity_digest = part_mime_content_hash.toHex();
   meta_data.signed_entity_digest_algo = "SHA-256";
+  meta_data.signed_entity_non_canonical =
+      HasBareLineFeeds(part_mime_content_text);
   meta_data.signature = {};
   return 0;
 }
