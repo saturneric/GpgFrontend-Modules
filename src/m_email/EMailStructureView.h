@@ -64,8 +64,17 @@ class EMailStructureView : public QWidget {
   /// Drops everything shown, including any decrypted part sizes.
   void Clear();
 
+  /// Replaces the table with @p text, for when there is nothing to tabulate.
+  /// Passing an empty string is not a way to clear the view; use Clear().
+  void ShowNotice(const QString& text);
+
+ protected:
+  void changeEvent(QEvent* event) override;
+
  private:
   void build_ui();
+  /// The single place this view's colours are decided. Must not touch fonts.
+  void apply_colors();
   /// Adds @p part and its children under @p parent_item, or at the top level
   /// when @p parent_item is nullptr.
   void add_part(const EMailPart& part, QTreeWidgetItem* parent_item);
@@ -75,7 +84,15 @@ class EMailStructureView : public QWidget {
   /// building the tree: hashing every part of a large message up front would
   /// cost real time for rows nobody looks at.
   void show_selected_digest();
+  /// The part behind @p item, or nullptr when the row resolves to nothing.
+  [[nodiscard]] auto part_at(QTreeWidgetItem* item) const -> const EMailPart*;
+  /// The tree's own menu, for the row at @p pos.
+  void show_part_menu(const QPoint& pos);
+  /// Asks where to put @p part and writes its bytes there.
+  void save_part(const EMailPart& part);
 
+  /// Shown in the tree's place when the tree would be empty.
+  QLabel* empty_notice_{};
   QLabel* summary_{};
   QTreeWidget* tree_{};
   QLabel* digest_{};
