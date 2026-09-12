@@ -644,13 +644,18 @@ auto OpenRawAsEMailTab(const QByteArray& raw, const QString& title) -> bool {
 }
 
 /// A tab title for an imported message: its subject, or a neutral fallback.
+///
+/// Sanitized, because this title also becomes the suggested file name when the
+/// tab is saved, and the subject is written by whoever sent the message -- a
+/// subject containing a path separator would otherwise produce a name that
+/// resolves somewhere else entirely.
 auto TitleForImported(const QByteArray& raw) -> QString {
   vmime::shared_ptr<vmime::message> parsed;
   if (CheckIfEMLMessage(raw, parsed)) {
     EMailMetaData meta;
     GetEMLMetaData(parsed, meta);
     const auto subject = meta.subject.trimmed();
-    if (!subject.isEmpty()) return subject.left(60) + ".eml";
+    if (!subject.isEmpty()) return SuggestedEMailFileName(subject);
   }
   return "imported.eml";
 }
@@ -1812,9 +1817,23 @@ REGISTER_EVENT_HANDLER(
         auto ok = QMetaObject::invokeMethod(
             QCoreApplication::instance(),
             [&]() -> void {
+              // Named after the message rather than left blank. The view is
+              // the only thing that knows the subject, and it is reached the
+              // same way the rest of this module reaches it.
+              QString suggested;
+              if (auto* view = page->findChild<EMailPageView*>();
+                  view != nullptr) {
+                suggested = view->SuggestedFileName();
+              }
+              if (suggested.isEmpty())
+                suggested = QStringLiteral("untitled.eml");
+
               filename = QFileDialog::getSaveFileName(
                   page, QApplication::translate("EMailModule", "Save file"),
-                  default_save_dir());
+                  QDir(default_save_dir()).filePath(suggested),
+                  QApplication::translate("EMailModule",
+                                          "E-Mail Message (*.eml);;All Files "
+                                          "(*)"));
             },
             Qt::BlockingQueuedConnection);
 
