@@ -29,6 +29,7 @@
 #pragma once
 
 #include <QDialog>
+#include <QHash>
 #include <QList>
 
 #include "EMailAccountModel.h"
@@ -37,9 +38,14 @@
 class QComboBox;
 class QLabel;
 class QLineEdit;
+class QListWidget;
+class QProgressBar;
 class QPushButton;
-class QTableWidget;
+class QSplitter;
+class QStackedWidget;
 class QThread;
+class QTimer;
+class QToolButton;
 
 /**
  * @brief A remote file picker for messages. Not an inbox.
@@ -77,11 +83,12 @@ class EMailImapController : public QDialog {
 
  private slots:
   void slot_account_changed();
-  void slot_connect();
   void slot_folder_changed();
   void slot_search();
   void slot_load_more();
   void slot_open_selected();
+  void slot_selection_changed();
+  void slot_refresh();
   void slot_cancel_busy();
 
   void handle_connected(quint64 seq);
@@ -92,6 +99,8 @@ class EMailImapController : public QDialog {
 
  private:
   void build_ui();
+  /// Builds the right-hand metadata pane and its empty state.
+  auto build_detail_pane() -> QWidget*;
   void start_worker();
   /// Tear the session and its thread down, on the worker's own thread.
   void stop_worker();
@@ -110,9 +119,40 @@ class EMailImapController : public QDialog {
   auto is_current(quint64 seq) const -> bool { return seq == request_seq_; }
   auto next_seq() -> quint64 { return ++request_seq_; }
 
+  /**
+   * @brief What one account looked like the last time it was browsed.
+   *
+   * Metadata only, in memory only, and only for as long as this window is
+   * open. It exists so that switching back to an account shows something
+   * immediately instead of a blank list, and for no other reason: the message
+   * BYTES are deliberately never kept, because a fetched message can hold
+   * plaintext, and nothing here is ever written to disk. Restored rows are
+   * marked provisional until a refresh confirms them, so a stale row is never
+   * mistaken for current server state.
+   */
+  struct AccountViewState {
+    QList<EMailFolderInfo> folders;
+    QList<EMailMessageSummary> rows;
+    QString folder;
+    QString search;
+    quint64 cursor{0};
+    bool more_available{false};
+  };
+
+  void remember_current_account();
+  /// Restores a cached view for @p account_id, if there is one.
+  auto restore_cached_account(const QString& account_id) -> bool;
+
+  void refresh_detail();
+  /// The selected message, or nullptr when none is selected or it is too big.
+  auto current_summary() const -> const EMailMessageSummary*;
+  void set_progress_visible(bool visible);
+
   QList<MailAccountConfig> accounts_;
   QList<EMailFolderInfo> folders_;
   QList<EMailMessageSummary> rows_;
+  QHash<QString, AccountViewState> cache_;
+  QString current_account_id_;
 
   EMailImapWorker* worker_{};
   QThread* thread_{};
@@ -123,13 +163,31 @@ class EMailImapController : public QDialog {
   quint64 cursor_{0};
   bool searching_{false};
   bool closing_{false};
+  /// Whether the server said there are older messages to page to. Held as
+  /// state rather than read back off the button, which could only ever clear
+  /// the flag and never restore it.
+  bool more_available_{false};
+  /// Set while showing cached rows that have not yet been confirmed.
+  bool showing_cached_{false};
 
   QComboBox* account_combo_{};
   QComboBox* folder_combo_{};
   QLineEdit* search_edit_{};
-  QPushButton* search_button_{};
-  QTableWidget* table_{};
-  QPushButton* connect_button_{};
+  QToolButton* refresh_button_{};
+  QListWidget* list_{};
+  QSplitter* splitter_{};
+  QStackedWidget* detail_stack_{};
+  QWidget* detail_placeholder_{};
+  QWidget* detail_page_{};
+  QLabel* detail_subject_{};
+  QLabel* detail_from_{};
+  QLabel* detail_date_{};
+  QLabel* detail_size_{};
+  QLabel* detail_id_{};
+  QLabel* detail_folder_{};
+  QLabel* detail_note_{};
+  QProgressBar* progress_{};
+  QTimer* progress_timer_{};
   QPushButton* more_button_{};
   QPushButton* open_button_{};
   QPushButton* cancel_button_{};
