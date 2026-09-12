@@ -321,6 +321,13 @@ class EMailPageView : public QWidget {
   /// The single place that decides what is editable, so the two reasons a
   /// message can be locked cannot drift apart.
   void apply_content_lock();
+  /// Makes the lock visible rather than merely effective.
+  ///
+  /// A read-only QLineEdit is drawn exactly like an editable one, so without
+  /// this the user meets a form that silently swallows every keystroke. Locked
+  /// fields lose their frame and their input background and become what they
+  /// actually are: the message, displayed.
+  void style_as_locked(bool locked);
   /// True when the content may be changed. Otherwise explains why not, and
   /// for a signed message offers to remove the signature, then returns false.
   auto refuse_when_locked(const QString& what) -> bool;
@@ -362,6 +369,8 @@ class EMailPageView : public QWidget {
   /// Chooses between the formatted and plain renderings of the body, and
   /// shows the toggle only when the message actually offers both.
   void refresh_body_view();
+  /// Updates the short note about how the body is being shown.
+  void refresh_body_notice();
   /// Shows or hides the Cc and Bcc rows. Never clears them: collapsing a row
   /// is a view choice, not a decision to discard what is in it.
   void set_cc_bcc_visible(bool visible);
@@ -412,13 +421,12 @@ class EMailPageView : public QWidget {
   /// reading. Never fetches anything from the network.
   EMailBodyView* body_view_{};
   QStackedWidget* body_stack_{};
-  QToolButton* body_mode_toggle_{};
   QToolButton* reply_button_{};
   QToolButton* reply_all_button_{};
   QToolButton* forward_button_{};
   QToolButton* send_button_{};
   QToolButton* forensic_toggle_{};
-  QLabel* remote_content_notice_{};
+  QLabel* body_notice_{};
   QTreeWidget* attachment_list_{};
   QToolButton* add_button_{};
   QToolButton* remove_button_{};
@@ -433,6 +441,10 @@ class EMailPageView : public QWidget {
   QMenu* security_menu_{};
   /// Says why the message cannot be edited, when it cannot.
   QLabel* locked_notice_{};
+  /// Carries locked_notice_ and its icon as one tinted strip, so the reason
+  /// reads as the message's state rather than as a footnote under the body.
+  QFrame* locked_banner_{};
+  QLabel* locked_banner_icon_{};
   /// Shown in place of the body while the message is still ciphertext.
   QWidget* locked_panel_{};
   QLabel* locked_heading_{};

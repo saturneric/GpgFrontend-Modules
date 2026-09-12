@@ -85,7 +85,8 @@ class EMailImapController : public QDialog {
   void slot_account_changed();
   void slot_folder_changed();
   void slot_search();
-  void slot_load_more();
+  void slot_next_page();
+  void slot_previous_page();
   void slot_open_selected();
   void slot_selection_changed();
   void slot_refresh();
@@ -95,6 +96,7 @@ class EMailImapController : public QDialog {
   void handle_folders(quint64 seq, const QList<EMailFolderInfo>& folders);
   void handle_messages(quint64 seq, const EMailMessagePage& page);
   void handle_fetched(quint64 seq, const QByteArray& raw_eml);
+  void handle_fetch_progress(quint64 seq, qint64 current, qint64 total);
   void handle_failed(quint64 seq, const MailError& error);
 
  private:
@@ -135,38 +137,51 @@ class EMailImapController : public QDialog {
     QList<EMailMessageSummary> rows;
     QString folder;
     QString search;
-    quint64 cursor{0};
-    bool more_available{false};
+    QList<quint64> page_starts;
+    int page_index{0};
+    int remaining{0};
   };
 
+  /// Marks accounts the controller cannot use, with the reason.
+  void refresh_account_availability();
+  /// Disables one account after it has failed, so it is not retried blindly.
+  void disable_account(const QString& account_id, const QString& reason);
   void remember_current_account();
   /// Restores a cached view for @p account_id, if there is one.
   auto restore_cached_account(const QString& account_id) -> bool;
 
   void refresh_detail();
+  /// Updates the page position, its label, and the two page buttons.
+  void refresh_page_controls(bool capped);
   /// The selected message, or nullptr when none is selected or it is too big.
   auto current_summary() const -> const EMailMessageSummary*;
   void set_progress_visible(bool visible);
+  /// Switches the bar to a real fraction, or back to indeterminate.
+  void set_progress_fraction(qint64 current, qint64 total);
 
   QList<MailAccountConfig> accounts_;
   QList<EMailFolderInfo> folders_;
   QList<EMailMessageSummary> rows_;
   QHash<QString, AccountViewState> cache_;
   QString current_account_id_;
+  /// Accounts that cannot be browsed, and why. Keyed by account id.
+  QHash<QString, QString> unusable_;
 
   EMailImapWorker* worker_{};
   QThread* thread_{};
 
   quint64 request_seq_{0};
   QString current_folder_;
-  /// Sequence number the next page continues from; 0 means "the newest".
-  quint64 cursor_{0};
+  /// Where each page begins, as the UID to page back from; index 0 is the
+  /// newest page and always starts at 0, meaning "from the newest". Held as a
+  /// stack because IMAP can only page BACKWARDS from a UID: returning to an
+  /// earlier page means remembering where it started, not computing it.
+  QList<quint64> page_starts_;
+  int page_index_{0};
+  /// Older messages the server says are still beyond the current page.
+  int remaining_{0};
   bool searching_{false};
   bool closing_{false};
-  /// Whether the server said there are older messages to page to. Held as
-  /// state rather than read back off the button, which could only ever clear
-  /// the flag and never restore it.
-  bool more_available_{false};
   /// Set while showing cached rows that have not yet been confirmed.
   bool showing_cached_{false};
 
@@ -188,7 +203,9 @@ class EMailImapController : public QDialog {
   QLabel* detail_note_{};
   QProgressBar* progress_{};
   QTimer* progress_timer_{};
-  QPushButton* more_button_{};
+  QPushButton* previous_button_{};
+  QPushButton* next_button_{};
+  QLabel* page_label_{};
   QPushButton* open_button_{};
   QPushButton* cancel_button_{};
   QLabel* status_label_{};

@@ -276,7 +276,6 @@ struct EMailComposeState {
  */
 struct EMailViewState {
   bool remote_content_allowed{false};
-  bool prefer_html{false};
 };
 
 struct EMailMetaData {

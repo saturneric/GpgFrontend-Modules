@@ -28,77 +28,61 @@
 
 #pragma once
 
-#include <QMap>
-#include <QTextBrowser>
+#include <QPlainTextEdit>
 
 #include "EMailModel.h"
 
 /**
- * @brief A message body rendered as safely as a rich-text widget allows.
+ * @brief A message body, shown as the text it literally is.
  *
- * The whole design rests on one rule: nothing in a message may cause a network
- * request. QTextBrowser will happily fetch an <img src="http://..."> through
- * its default loadResource(), which turns simply opening a message into a
- * read receipt for the sender -- and worse, into a way to confirm that an
- * address is live. loadResource() is therefore overridden unconditionally and
- * serves exactly one thing: parts that arrived inside this message, addressed
- * by their Content-ID.
+ * This workspace supports plain-text mail. A body that arrived as HTML is not
+ * rendered and is not converted into an approximation of itself: its source is
+ * shown verbatim, which is the only form of it that is certainly true.
  *
- * There is deliberately no "load remote content" switch. Adding one would mean
- * writing a fetcher that sends no cookies or credentials, keeps no cache,
- * allows only https, refuses loopback, link-local and private-network
- * addresses (including after a redirect), and bounds size, time and redirect
- * count. Until such a fetcher exists, offering the option would really mean
- * handing the job back to QTextBrowser's default loader, which does none of
- * that. Blocking, and saying so, is the honest behaviour.
+ * That is a deliberate narrowing, and it removes rather than manages three
+ * separate hazards. Qt's rich-text engine is not built for real-world mail: it
+ * lays a nested table out again for every pass its parent makes, so cost grows
+ * exponentially with nesting depth and an ordinary marketing newsletter -- 45
+ * tables, seven deep -- never finishes, synchronously, on the GUI thread,
+ * inside setHtml(), with no event loop left to cancel from. Rendering also
+ * resolves resources, and an <img src="http://..."> turns opening a message
+ * into a read receipt and a confirmation that the address is live. And it lets
+ * a link hide its destination behind friendly words.
  *
- * Links never open on a click either: the real target is disclosed first, with
- * the host shown in punycode beside its Unicode form when they differ, because
- * a homograph host is invisible precisely when it matters.
+ * Showing the source ends all three: no layout engine runs on attacker
+ * controlled markup, nothing is ever fetched, and every URL is visible as
+ * written. The widget is a read-only QPlainTextEdit for the same reason -- it
+ * has no rich-text engine to reach, so none of this can be reintroduced by
+ * calling the wrong setter.
  */
-class EMailBodyView : public QTextBrowser {
+class EMailBodyView : public QPlainTextEdit {
   Q_OBJECT
 
  public:
   explicit EMailBodyView(QWidget* parent = nullptr);
 
   /**
-   * @brief Shows @p body, resolving any cid: references against @p root.
+   * @brief Shows @p body as text.
    *
    * @param body the part chosen as the message body; nullptr clears the view
-   * @param root the tree the inline parts live in
    */
-  void SetBody(const EMailPart* body, const EMailPart& root);
+  void SetBody(const EMailPart* body);
 
   void Clear();
 
-  /// Whether the last rendered body asked for content from the network.
-  [[nodiscard]] auto BlockedRemoteContent() const -> bool {
-    return blocked_remote_content_;
-  }
+  /// Whether what is shown is HTML source rather than a plain-text body.
+  [[nodiscard]] auto ShownAsSource() const -> bool { return shown_as_source_; }
 
  signals:
-  /// Emitted when a body referencing remote content is shown, so the host can
-  /// tell the user that something was deliberately not loaded.
-  void SignalRemoteContentBlocked();
-
- protected:
   /**
-   * @brief Serves inline parts and refuses everything else.
+   * @brief An HTML body is being shown as its source.
    *
-   * Returning an empty QVariant is what stops the default loader from going
-   * to the network, so every path out of here must return one unless the
-   * resource came from inside this very message.
+   * Said out loud rather than done quietly: this is not how the message was
+   * meant to look, and the reader is entitled to know which of the two they
+   * are looking at.
    */
-  auto loadResource(int type, const QUrl& name) -> QVariant override;
+  void SignalHtmlShownAsSource();
 
  private:
-  void handle_anchor(const QUrl& url);
-  /// Collects every part with a Content-ID, so cid: lookups never walk the
-  /// tree while the layout engine is asking for resources.
-  void index_inline_parts(const EMailPart& part);
-
-  QMap<QString, QByteArray> inline_parts_;
-  QMap<QString, QString> inline_types_;
-  bool blocked_remote_content_{false};
+  bool shown_as_source_{false};
 };

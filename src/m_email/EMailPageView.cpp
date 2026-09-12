@@ -71,6 +71,23 @@
 
 namespace {
 
+/// How far a locked surface moves from the page's own background towards its
+/// muted foreground. Enough to read as a different material, not enough to
+/// compete with the message sitting on it.
+constexpr double kLockedTint = 0.10;
+constexpr double kLockedFieldTint = 0.05;
+
+/// @p a mixed with @p b, @p t of the way towards @p b.
+///
+/// Mixed rather than given an alpha: these colours are painted onto widgets
+/// that fill their own background, where a translucent brush composites
+/// against whatever Qt last drew there instead of against the page.
+auto Blend(const QColor& a, const QColor& b, double t) -> QColor {
+  return QColor::fromRgbF(a.redF() * (1 - t) + b.redF() * t,
+                          a.greenF() * (1 - t) + b.greenF() * t,
+                          a.blueF() * (1 - t) + b.blueF() * t);
+}
+
 // Shared with the other views in this module; see EMailViewStyle.h.
 const auto& ThemeColor = EMailThemeColor;
 const auto& MutedColor = EMailMutedColor;
@@ -415,15 +432,6 @@ auto EMailPageView::build_message_tab() -> QWidget* {
   security_button_->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Preferred);
   body_row->addWidget(security_button_);
 
-  body_mode_toggle_ = new QToolButton(this);
-  body_mode_toggle_->setText(tr("Plain text"));
-  body_mode_toggle_->setCheckable(true);
-  body_mode_toggle_->setAutoRaise(true);
-  body_mode_toggle_->setToolTip(
-      tr("Switch between the formatted message and its source text."));
-  body_mode_toggle_->setVisible(false);
-  body_row->addSpacing(4);
-  body_row->addWidget(body_mode_toggle_);
   layout->addLayout(body_row);
 
   body_edit_ = new QPlainTextEdit(this);
@@ -431,18 +439,40 @@ auto EMailPageView::build_message_tab() -> QWidget* {
 
   body_view_ = new EMailBodyView(this);
 
-  locked_notice_ = new QLabel(this);
-  locked_notice_->setWordWrap(true);
-  locked_notice_->setVisible(false);
+  // The reason the message is locked is not a footnote: it is the first thing
+  // to read when the fields will not take input. A tinted strip with the state
+  // icon beside it says so at a glance, where small grey text under the body
+  // did not.
+  locked_banner_ = new QFrame(this);
+  locked_banner_->setVisible(false);
+  locked_banner_->setAutoFillBackground(true);
+  locked_banner_->setFrameShape(QFrame::NoFrame);
   {
-    auto palette = locked_notice_->palette();
-    palette.setColor(QPalette::WindowText, MutedColor(this));
-    locked_notice_->setPalette(palette);
+    auto palette = locked_banner_->palette();
+    const auto base = palette.color(QPalette::Window);
+    palette.setColor(QPalette::Window,
+                     Blend(base, MutedColor(this), kLockedTint));
+    locked_banner_->setPalette(palette);
+  }
+
+  auto* banner_row = new QHBoxLayout(locked_banner_);
+  banner_row->setContentsMargins(8, 6, 8, 6);
+  banner_row->setSpacing(8);
+
+  locked_banner_icon_ = new QLabel(locked_banner_);
+  locked_banner_icon_->setAlignment(Qt::AlignTop | Qt::AlignHCenter);
+  banner_row->addWidget(locked_banner_icon_);
+
+  locked_notice_ = new QLabel(locked_banner_);
+  locked_notice_->setWordWrap(true);
+  {
     auto font = locked_notice_->font();
     font.setPointSizeF(font.pointSizeF() * 0.92);
     locked_notice_->setFont(font);
   }
-  layout->addWidget(locked_notice_);
+  banner_row->addWidget(locked_notice_, 1);
+
+  layout->addWidget(locked_banner_);
 
   locked_panel_ = build_locked_panel();
 
@@ -452,29 +482,27 @@ auto EMailPageView::build_message_tab() -> QWidget* {
   body_stack_->addWidget(locked_panel_);
   layout->addWidget(body_stack_, 1);
 
-  remote_content_notice_ = new QLabel(this);
-  remote_content_notice_->setWordWrap(true);
-  remote_content_notice_->setVisible(false);
+  // A chip on the existing toolbar row rather than a paragraph under the
+  // message. Both facts are worth stating and neither is worth two lines of
+  // the reading area: the short form sits beside the other status text and
+  // the full explanation is one hover away.
+  body_notice_ = new QLabel(this);
+  body_notice_->setVisible(false);
   {
-    auto palette = remote_content_notice_->palette();
+    auto palette = body_notice_->palette();
     palette.setColor(QPalette::WindowText, MutedColor(this));
-    remote_content_notice_->setPalette(palette);
-    auto font = remote_content_notice_->font();
+    body_notice_->setPalette(palette);
+    auto font = body_notice_->font();
     font.setPointSizeF(font.pointSizeF() * 0.92);
-    remote_content_notice_->setFont(font);
+    body_notice_->setFont(font);
   }
-  layout->addWidget(remote_content_notice_);
+  // Immediately to the left of the security button, which is the row's
+  // anchor. Named rather than counted from the end: the row has gained and
+  // lost trailing widgets before, and each time the arithmetic moved this.
+  body_row->insertWidget(body_row->indexOf(security_button_), body_notice_);
 
-  connect(body_mode_toggle_, &QToolButton::toggled, this,
-          [this](bool plain) { body_stack_->setCurrentIndex(plain ? 0 : 1); });
-  connect(body_view_, &EMailBodyView::SignalRemoteContentBlocked, this,
-          [this]() {
-            remote_content_notice_->setVisible(true);
-            remote_content_notice_->setText(
-                tr("This message asked to load images or other content from "
-                   "the internet. That was not done: fetching it would tell "
-                   "the sender that you opened the message."));
-          });
+  connect(body_view_, &EMailBodyView::SignalHtmlShownAsSource, this,
+          [this]() { refresh_body_notice(); });
 
   attachment_heading_ = new QLabel(this);
   {
@@ -649,11 +677,15 @@ void EMailPageView::apply_content_lock() {
     source_view_->setProperty("readOnly", forensic_ || !raw_unlocked_);
   }
 
+  // The icon travels with the wording: the same reason, said twice, so the
+  // state is recognisable before the sentence is read.
   QString notice;
+  QString icon;
   switch (reason) {
     case EMailLockReason::kNONE:
       break;
     case EMailLockReason::kFORENSIC:
+      icon = ":/icons/read-only.png";
       notice =
           tr("This message is open for inspection only. It cannot be edited or "
              "rewritten; Reply and Forward still work, and produce new "
@@ -662,15 +694,18 @@ void EMailPageView::apply_content_lock() {
     case EMailLockReason::kPROTECTED:
       switch (security_state_) {
         case EMailSecurityState::kENCRYPTED:
+          icon = ":/icons/lock.png";
           notice =
               tr("This message is encrypted. Decrypt it before editing it.");
           break;
         case EMailSecurityState::kSIGNED_ENCRYPTED:
+          icon = ":/icons/lock.png";
           notice = tr(
               "This message is encrypted and signed. Decrypt it, then remove "
               "the signature, before editing it.");
           break;
         default:
+          icon = ":/icons/signature.png";
           notice =
               tr("This message is signed. Remove the signature before editing "
                  "it -- an edit under a signature reads as a forgery.");
@@ -680,12 +715,52 @@ void EMailPageView::apply_content_lock() {
   }
 
   setToolTip(notice);
-  if (locked_notice_ != nullptr) {
-    locked_notice_->setText(notice);
-    locked_notice_->setVisible(locked && !notice.isEmpty());
+  if (locked_notice_ != nullptr) locked_notice_->setText(notice);
+  if (locked_banner_icon_ != nullptr && !icon.isEmpty()) {
+    locked_banner_icon_->setPixmap(QIcon(icon).pixmap(16, 16));
+  }
+  if (locked_banner_ != nullptr) {
+    locked_banner_->setVisible(locked && !notice.isEmpty());
   }
 
+  style_as_locked(locked);
   refresh_raw_lock_ui();
+}
+
+void EMailPageView::style_as_locked(bool locked) {
+  // Unset rather than recoloured when the lock lifts: a default-constructed
+  // palette resolves nothing of its own, so the widget goes back to following
+  // the user's theme instead of to whatever this function last decided the
+  // theme was.
+  const auto field_palette = [this, locked]() {
+    if (!locked) return QPalette();
+
+    QPalette p;
+    p.setColor(QPalette::Base, Blend(palette().color(QPalette::Window),
+                                     MutedColor(this), kLockedFieldTint));
+    return p;
+  }();
+
+  // Losing the frame is what does the work. A framed box is an invitation to
+  // type in it, and the invitation is the confusing part -- without it the
+  // envelope reads as the message's addresses rather than as a form.
+  for (auto* edit :
+       {from_edit_, to_edit_, cc_edit_, bcc_edit_, subject_edit_}) {
+    edit->setFrame(!locked);
+    edit->setPalette(field_palette);
+  }
+
+  body_edit_->setFrameShape(locked ? QFrame::NoFrame : QFrame::StyledPanel);
+  body_edit_->setPalette(field_palette);
+
+  // The text itself keeps its normal colour. It is the thing the user came to
+  // read, and greying it out to signal "read-only" would make the message
+  // harder to read in order to say that it can be read.
+
+  // Shown exactly when the body is empty, which is when a promise to take
+  // writing is least true.
+  body_edit_->setPlaceholderText(locked ? QString()
+                                        : tr("Write your message here."));
 }
 
 void EMailPageView::SetForensicMode(bool on) {
@@ -1226,16 +1301,38 @@ auto EMailPageView::refuse_when_locked(const QString& what) -> bool {
   return false;
 }
 
+/**
+ * @brief The one-line note about how this message is being shown.
+ *
+ * Kept short on purpose. It does not change what the user does next, so it
+ * does not earn a paragraph across the width of the message; it is the kind of
+ * thing to notice in passing and read only if curious. The wording that
+ * explains WHY lives in the tooltip, where it costs nothing.
+ */
+void EMailPageView::refresh_body_notice() {
+  if (body_notice_ == nullptr || body_view_ == nullptr) return;
+
+  const bool source = body_view_->ShownAsSource();
+
+  body_notice_->setVisible(source);
+  body_notice_->setText(source ? tr("shown as source") : QString());
+  body_notice_->setToolTip(
+      source ? tr("This message was written as a web page, and this "
+                  "workspace shows plain text. Its source is shown exactly as "
+                  "it arrived: nothing is rendered, nothing is fetched from "
+                  "the internet, and every address is visible as written.")
+             : QString());
+}
+
 void EMailPageView::refresh_body_view() {
-  remote_content_notice_->setVisible(false);
+  body_notice_->setVisible(false);
 
-  // Only a message that actually parsed has a formatted form to offer; a draft
-  // being typed is plain text and nothing else.
-  const auto* html_body = SelectBodyPart(tree_root_, true);
-  const bool has_html =
-      html_body != nullptr && html_body->content_type == "text/html";
-
-  body_mode_toggle_->setVisible(has_html);
+  // The plain-text part is the body whenever the message has one, and the
+  // choice is the message's own rather than a mode the user picks. Only a
+  // message that offers nothing but HTML falls through to its source, which
+  // is read-only: this workspace composes plain text and nothing else.
+  const auto* body = SelectBodyPart(tree_root_, false);
+  const bool html_only = body != nullptr && body->content_type == "text/html";
 
   // Only offered for a message that parsed: there is nothing to reply to in a
   // draft the user is still typing.
@@ -1258,24 +1355,18 @@ void EMailPageView::refresh_body_view() {
                       security_state_ == EMailSecurityState::kSIGNED_ENCRYPTED;
   if (locked) {
     refresh_locked_panel();
-    body_mode_toggle_->setVisible(false);
     body_view_->Clear();
     body_stack_->setCurrentIndex(2);
     return;
   }
 
-  if (!has_html) {
+  if (!html_only) {
     body_view_->Clear();
     body_stack_->setCurrentIndex(0);
     return;
   }
 
-  body_view_->SetBody(html_body, tree_root_);
-
-  // Default to the formatted form, which is how the sender meant it to read.
-  // The source stays one click away.
-  QSignalBlocker blocker(body_mode_toggle_);
-  body_mode_toggle_->setChecked(false);
+  body_view_->SetBody(body);
   body_stack_->setCurrentIndex(1);
 }
 
@@ -1813,8 +1904,7 @@ void EMailPageView::WipeContent() {
   header_view_->Clear();
   security_view_->Clear();
   body_view_->Clear();
-  body_mode_toggle_->setVisible(false);
-  remote_content_notice_->setVisible(false);
+  body_notice_->setVisible(false);
   body_stack_->setCurrentIndex(0);
   loading_ = false;
 

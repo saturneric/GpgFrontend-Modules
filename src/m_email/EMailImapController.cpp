@@ -44,6 +44,7 @@
 #include <QScrollArea>
 #include <QSplitter>
 #include <QStackedWidget>
+#include <QStandardItemModel>
 #include <QStyledItemDelegate>
 #include <QThread>
 #include <QTimer>
@@ -152,16 +153,29 @@ EMailImapController::EMailImapController(QWidget* parent) : QDialog(parent) {
   build_ui();
 
   accounts_ = EMailAccountStore::ImapAccounts();
+  account_combo_->blockSignals(true);
   for (const auto& account : accounts_) {
     account_combo_->addItem(account.Label().isEmpty() ? account.imap.host
                                                       : account.Label());
   }
+  account_combo_->blockSignals(false);
+
+  refresh_account_availability();
 
   const auto preferred = EMailAccountStore::DefaultAccount();
+  int start = -1;
   for (int i = 0; i < accounts_.size(); ++i) {
-    if (accounts_.at(i).id != preferred.id) continue;
-    account_combo_->setCurrentIndex(i);
-    break;
+    if (unusable_.contains(accounts_.at(i).id)) continue;
+    if (start < 0) start = i;
+    if (accounts_.at(i).id == preferred.id) {
+      start = i;
+      break;
+    }
+  }
+  if (start >= 0) {
+    account_combo_->blockSignals(true);
+    account_combo_->setCurrentIndex(start);
+    account_combo_->blockSignals(false);
   }
 
   start_worker();
@@ -177,9 +191,78 @@ EMailImapController::EMailImapController(QWidget* parent) : QDialog(parent) {
   if (accounts_.isEmpty()) {
     status_label_->setText(
         Tr("No mail account with IMAP enabled is configured yet."));
+  } else if (account_combo_->currentIndex() < 0 ||
+             unusable_.contains(
+                 accounts_.at(account_combo_->currentIndex()).id)) {
+    // Every account is unusable, so there is nothing to reach out to. Saying
+    // why beats connecting in order to fail.
+    status_label_->setText(
+        Tr("No configured account can be opened. Check Settings, under Mail "
+           "Accounts."));
   } else {
     connect_to_selected_account();
   }
+}
+
+/**
+ * @brief Greys out the accounts this window cannot browse, and says why.
+ *
+ * An account with no stored password cannot be opened at all, and offering it
+ * as a choice only leads to a dialog explaining that after the fact. This asks
+ * the question up front. Nothing here reaches the network: it reads local
+ * configuration and the credential store, so an account is judged unusable
+ * only when it is unusable for a reason we already know.
+ */
+void EMailImapController::refresh_account_availability() {
+  auto* model = qobject_cast<QStandardItemModel*>(account_combo_->model());
+
+  for (int i = 0; i < accounts_.size(); ++i) {
+    const auto& account = accounts_.at(i);
+
+    QString reason;
+    if (!account.imap.enabled) {
+      reason = Tr("IMAP is turned off for this account");
+    } else if (account.imap.host.isEmpty()) {
+      reason = Tr("no server is configured");
+    } else if (account.imap.username.isEmpty()) {
+      reason = Tr("no username is configured");
+    } else {
+      auto password = EMailCredentialStore::Load(account.id);
+      if (password.isEmpty()) reason = Tr("no password is stored");
+      password.fill(QChar('\0'));
+    }
+
+    // A reason recorded earlier by a real failure outranks these, since it
+    // reflects what actually happened rather than what is merely missing.
+    if (unusable_.contains(account.id)) {
+      reason = unusable_.value(account.id);
+    } else if (!reason.isEmpty()) {
+      unusable_.insert(account.id, reason);
+    }
+
+    const auto usable = reason.isEmpty();
+    const auto label =
+        account.Label().isEmpty() ? account.imap.host : account.Label();
+
+    account_combo_->setItemText(
+        i, usable ? label : QString("%1  —  %2").arg(label, reason));
+
+    if (model != nullptr && model->item(i) != nullptr) {
+      model->item(i)->setEnabled(usable);
+    }
+    account_combo_->setItemData(
+        i,
+        usable ? QString()
+               : Tr("This account cannot be opened: %1.").arg(reason),
+        Qt::ToolTipRole);
+  }
+}
+
+void EMailImapController::disable_account(const QString& account_id,
+                                          const QString& reason) {
+  if (account_id.isEmpty()) return;
+  unusable_.insert(account_id, reason);
+  refresh_account_availability();
 }
 
 EMailImapController::~EMailImapController() { stop_worker(); }
@@ -260,12 +343,22 @@ void EMailImapController::build_ui() {
   status_label_->setWordWrap(true);
 
   auto* buttons = new QHBoxLayout;
-  more_button_ = new QPushButton(Tr("Load more"), this);
+
+  // Pages rather than an ever-growing list. IMAP can only page backwards from
+  // a UID, so this is a real position in the mailbox rather than a window onto
+  // an accumulating buffer -- and it keeps the amount held in memory fixed
+  // however deep the user goes.
+  previous_button_ = new QPushButton(Tr("Previous"), this);
+  next_button_ = new QPushButton(Tr("Next"), this);
+  page_label_ = new QLabel(this);
+
   open_button_ = new QPushButton(Tr("Open"), this);
   open_button_->setDefault(true);
   cancel_button_ = new QPushButton(Tr("Close"), this);
 
-  buttons->addWidget(more_button_);
+  buttons->addWidget(previous_button_);
+  buttons->addWidget(next_button_);
+  buttons->addWidget(page_label_);
   buttons->addWidget(status_label_, 1);
   buttons->addWidget(open_button_);
   buttons->addWidget(cancel_button_);
@@ -279,8 +372,10 @@ void EMailImapController::build_ui() {
           &EMailImapController::slot_search);
   connect(refresh_button_, &QToolButton::clicked, this,
           &EMailImapController::slot_refresh);
-  connect(more_button_, &QPushButton::clicked, this,
-          &EMailImapController::slot_load_more);
+  connect(previous_button_, &QPushButton::clicked, this,
+          &EMailImapController::slot_previous_page);
+  connect(next_button_, &QPushButton::clicked, this,
+          &EMailImapController::slot_next_page);
   connect(list_, &QListWidget::itemSelectionChanged, this,
           &EMailImapController::slot_selection_changed);
   connect(list_, &QListWidget::itemDoubleClicked, this,
@@ -383,6 +478,8 @@ void EMailImapController::start_worker() {
           &EMailImapController::handle_messages);
   connect(worker_, &EMailImapWorker::SignalMessageFetched, this,
           &EMailImapController::handle_fetched);
+  connect(worker_, &EMailImapWorker::SignalFetchProgress, this,
+          &EMailImapController::handle_fetch_progress);
   connect(worker_, &EMailImapWorker::SignalFailed, this,
           &EMailImapController::handle_failed);
 
@@ -425,20 +522,22 @@ void EMailImapController::connect_to_selected_account() {
 
   const auto account = accounts_.at(index);
 
+  if (unusable_.contains(account.id)) {
+    status_label_->setText(Tr("This account cannot be opened: %1.")
+                               .arg(unusable_.value(account.id)));
+    return;
+  }
+
+  // No prompt. A password is configuration, and it is set in exactly one place
+  // -- Settings -- so there is a single answer to "where does this credential
+  // live", rather than a dialog that holds one for a session and then forgets
+  // it. An account without one is already greyed out in the list above.
   auto password = EMailCredentialStore::Load(account.id);
   if (password.isEmpty()) {
-    // No prompt. A password is configuration, and it is set in exactly one
-    // place -- Settings -- so there is a single answer to "where does this
-    // credential live", rather than a dialog that holds one for a session and
-    // then forgets it.
+    disable_account(account.id, Tr("no password is stored"));
     status_label_->setText(
         Tr("No password is stored for this account. Set one in Settings, "
            "under Mail Accounts."));
-    QMessageBox::information(
-        this, Tr("No password stored"),
-        Tr("This account has no stored password, so it cannot be opened. "
-           "Set the password in Settings, under Mail Accounts, and turn on "
-           "the option to remember it."));
     return;
   }
 
@@ -471,8 +570,9 @@ void EMailImapController::slot_account_changed() {
   remember_current_account();
 
   current_folder_.clear();
-  cursor_ = 0;
-  more_available_ = false;
+  page_starts_ = {0};
+  page_index_ = 0;
+  remaining_ = 0;
   searching_ = false;
   search_edit_->clear();
 
@@ -505,8 +605,9 @@ void EMailImapController::remember_current_account() {
   state.rows = rows_;
   state.folder = current_folder_;
   state.search = search_edit_->text();
-  state.cursor = cursor_;
-  state.more_available = more_available_;
+  state.page_starts = page_starts_;
+  state.page_index = page_index_;
+  state.remaining = remaining_;
   cache_.insert(current_account_id_, state);
 }
 
@@ -518,8 +619,9 @@ auto EMailImapController::restore_cached_account(const QString& account_id)
   folders_ = it->folders;
   rows_ = it->rows;
   current_folder_ = it->folder;
-  cursor_ = it->cursor;
-  more_available_ = it->more_available;
+  page_starts_ = it->page_starts;
+  page_index_ = it->page_index;
+  remaining_ = it->remaining;
   showing_cached_ = true;
 
   folder_combo_->blockSignals(true);
@@ -544,7 +646,6 @@ void EMailImapController::refresh_idle_state() {
   folder_combo_->setEnabled(connected);
   search_edit_->setEnabled(connected);
   refresh_button_->setEnabled(has_account);
-  more_button_->setEnabled(more_available_);
 
   // Open follows the SELECTION, not the connection: an enabled button that
   // does nothing when pressed is worse than a disabled one.
@@ -615,6 +716,25 @@ void EMailImapController::set_progress_visible(bool visible) {
   }
   progress_timer_->stop();
   progress_->setVisible(false);
+  // Back to indeterminate, so the next operation does not inherit a stale
+  // fraction from the last download.
+  progress_->setRange(0, 0);
+  progress_->setTextVisible(false);
+}
+
+void EMailImapController::set_progress_fraction(qint64 current, qint64 total) {
+  // A download is the one operation whose length is known ahead of time, so
+  // it is the one that can honestly show a fraction. Everything else stays a
+  // marquee rather than pretending to measure something it cannot.
+  if (total <= 0) {
+    progress_->setRange(0, 0);
+    progress_->setTextVisible(false);
+    return;
+  }
+
+  progress_->setRange(0, 100);
+  const auto percent = qBound(qint64{0}, current * 100 / total, qint64{100});
+  progress_->setValue(static_cast<int>(percent));
 }
 
 void EMailImapController::slot_folder_changed() {
@@ -648,26 +768,53 @@ void EMailImapController::slot_search() {
       Q_ARG(QString, query), Q_ARG(int, kMailDefaultPageSize));
 }
 
-void EMailImapController::slot_load_more() { request_page(false); }
+void EMailImapController::slot_next_page() {
+  if (rows_.isEmpty() || remaining_ <= 0) return;
+
+  // The next page starts just past the oldest row on this one. Recorded so
+  // that coming back to this position later asks the server the same question
+  // rather than a reconstructed guess.
+  const auto next_start = rows_.last().uid;
+  ++page_index_;
+  if (page_starts_.size() <= page_index_) {
+    page_starts_.append(next_start);
+  } else {
+    page_starts_[page_index_] = next_start;
+  }
+  request_page(false);
+}
+
+void EMailImapController::slot_previous_page() {
+  if (page_index_ <= 0) return;
+  --page_index_;
+  request_page(false);
+}
 
 void EMailImapController::request_page(bool reset) {
   if (current_folder_.isEmpty() || worker_ == nullptr) return;
 
   if (reset) {
-    // The cached rows stay on screen until the fresh page lands, so the list
-    // does not blink empty on every switch; handle_messages() clears them.
+    // Back to the newest page. The cached rows stay on screen until the fresh
+    // page lands, so the list does not blink empty on every switch;
+    // handle_messages() clears them.
     if (!showing_cached_) rows_.clear();
-    cursor_ = 0;
-    more_available_ = false;
+    page_starts_ = {0};
+    page_index_ = 0;
+    remaining_ = 0;
     refresh_table();
   }
+
+  const auto start =
+      page_index_ < page_starts_.size() ? page_starts_.at(page_index_) : 0;
 
   set_busy(true, Tr("Loading messages..."));
   QMetaObject::invokeMethod(
       worker_, "ListMessages", Qt::QueuedConnection, Q_ARG(quint64, next_seq()),
-      Q_ARG(QString, current_folder_), Q_ARG(quint64, cursor_),
+      Q_ARG(QString, current_folder_), Q_ARG(quint64, start),
       Q_ARG(int, kMailDefaultPageSize),
-      Q_ARG(int, static_cast<int>(rows_.size())));
+      // One page is held at a time, so the session cap is never approached and
+      // "retained" is simply this page.
+      Q_ARG(int, 0));
 }
 
 void EMailImapController::handle_connected(quint64 seq) {
@@ -740,29 +887,50 @@ void EMailImapController::handle_messages(quint64 seq,
     showing_cached_ = false;
   }
 
-  rows_ += page.rows;
-  if (!page.rows.isEmpty()) cursor_ = page.rows.last().uid;
+  // One page REPLACES the last, rather than accumulating: that is what keeps
+  // memory flat no matter how far the user pages into a large mailbox.
+  rows_ = page.rows;
+  remaining_ = page.remaining;
 
   refresh_table();
+  refresh_page_controls(page.capped);
+  refresh_idle_state();
+}
 
-  // The cap is reported rather than hidden: a silently truncated list would
-  // leave the user believing they had seen everything there was.
-  if (page.capped) {
+/// The page position, and how much of the mailbox is behind and ahead of it.
+void EMailImapController::refresh_page_controls(bool capped) {
+  const auto shown = static_cast<int>(rows_.size());
+
+  if (searching_) {
+    // Search results are one bounded set, not a position in the mailbox, so
+    // paging through them would be meaningless.
+    page_label_->clear();
+    previous_button_->setVisible(false);
+    next_button_->setVisible(false);
     status_label_->setText(
-        Tr("Showing the first %1 messages. Use the search box to narrow this "
-           "down rather than loading more.")
-            .arg(rows_.size()));
-  } else if (page.remaining > 0) {
-    status_label_->setText(Tr("Showing %1 messages; %2 older ones not loaded.")
-                               .arg(rows_.size())
-                               .arg(page.remaining));
-  } else {
-    status_label_->setText(Tr("Showing %1 messages.").arg(rows_.size()));
+        capped ? Tr("Showing the first %1 matches; narrow the search to see "
+                    "fewer.")
+                     .arg(shown)
+               : Tr("%1 matches.").arg(shown));
+    return;
   }
 
-  more_available_ = !searching_ && page.remaining > 0 && !page.capped;
-  more_button_->setEnabled(more_available_);
-  refresh_idle_state();
+  previous_button_->setVisible(true);
+  next_button_->setVisible(true);
+
+  const auto before = page_index_ * kMailDefaultPageSize;
+  const auto total = before + shown + remaining_;
+  const auto pages =
+      total > 0 ? (total + kMailDefaultPageSize - 1) / kMailDefaultPageSize : 1;
+
+  page_label_->setText(Tr("Page %1 of %2").arg(page_index_ + 1).arg(pages));
+  status_label_->setText(
+      shown == 0
+          ? Tr("This folder is empty.")
+          : Tr("%1-%2 of %3").arg(before + 1).arg(before + shown).arg(total));
+
+  previous_button_->setEnabled(page_index_ > 0);
+  next_button_->setEnabled(remaining_ > 0);
 }
 
 void EMailImapController::handle_fetched(quint64 seq,
@@ -775,14 +943,73 @@ void EMailImapController::handle_fetched(quint64 seq,
     return;
   }
 
-  emit SignalMessageChosen(raw_eml);
-  accept();
+  // The window stays open. Downloading a message is not a decision to stop
+  // browsing, and closing the picker on every open made looking through a
+  // mailbox mean reopening it each time.
+  QMessageBox box(this);
+  box.setIcon(QMessageBox::Question);
+  box.setWindowTitle(Tr("Message downloaded"));
+  box.setText(Tr("Open this message in a new tab?"));
+  box.setInformativeText(
+      Tr("It has been downloaded but nothing has been opened yet. The mailbox "
+         "is unchanged either way: the message is still marked as it was."));
+
+  auto* open = box.addButton(Tr("Open in a Tab"), QMessageBox::AcceptRole);
+  box.addButton(Tr("Not Now"), QMessageBox::RejectRole);
+  box.setDefaultButton(open);
+  box.exec();
+
+  if (box.clickedButton() == open) {
+    emit SignalMessageChosen(raw_eml);
+    status_label_->setText(Tr("Opened in a new tab."));
+    return;
+  }
+
+  // Declined, so the bytes are dropped here rather than held in a window that
+  // may stay open for a long time. A raw message can carry plaintext.
+  status_label_->setText(Tr("Downloaded, not opened."));
+}
+
+void EMailImapController::handle_fetch_progress(quint64 seq, qint64 current,
+                                                qint64 total) {
+  if (!is_current(seq)) return;
+
+  set_progress_fraction(current, total);
+  if (total > 0) {
+    status_label_->setText(Tr("Downloading message, %1 of %2...")
+                               .arg(QLocale().formattedDataSize(current),
+                                    QLocale().formattedDataSize(total)));
+  }
 }
 
 void EMailImapController::handle_failed(quint64 seq, const MailError& error) {
   if (!is_current(seq)) return;
   set_busy(false, {});
   if (error.category == MailErrorCategory::kCANCELLED) return;
+
+  // A failure that retrying cannot fix takes the account out of the list, so
+  // the user is not invited to try it again and again. A transient one --
+  // a timeout, a dropped connection -- deliberately does not: the account is
+  // fine and the network was not.
+  switch (error.category) {
+    case MailErrorCategory::kAUTH:
+      disable_account(current_account_id_, Tr("the password was refused"));
+      break;
+    case MailErrorCategory::kDNS:
+      disable_account(current_account_id_, Tr("the server was not found"));
+      break;
+    case MailErrorCategory::kTLS_HANDSHAKE:
+    case MailErrorCategory::kTLS_UNTRUSTED:
+    case MailErrorCategory::kTLS_EXPIRED:
+    case MailErrorCategory::kTLS_HOSTNAME:
+    case MailErrorCategory::kTLS_REQUIRED:
+      disable_account(current_account_id_,
+                      Tr("the secure connection was refused"));
+      break;
+    default:
+      break;
+  }
+
   show_error(error);
 }
 
@@ -793,7 +1020,15 @@ void EMailImapController::slot_open_selected() {
   const auto* summary = current_summary();
   if (summary == nullptr) return;
 
-  set_busy(true, Tr("Fetching message..."));
+  set_busy(true, Tr("Downloading message..."));
+
+  // Unlike a folder listing, a download is never instant and its size is
+  // already known, so the bar is shown straight away rather than after the
+  // usual short delay: there is nothing to avoid flashing.
+  progress_timer_->stop();
+  set_progress_fraction(0, summary->size);
+  progress_->setVisible(true);
+
   QMetaObject::invokeMethod(
       worker_, "FetchMessage", Qt::QueuedConnection, Q_ARG(quint64, next_seq()),
       Q_ARG(QString, current_folder_), Q_ARG(quint64, summary->uid));
@@ -845,10 +1080,11 @@ void EMailImapController::set_busy(bool busy, const QString& what) {
   search_edit_->setEnabled(!busy && connected);
   open_button_->setEnabled(!busy && current_summary() != nullptr);
 
-  // From remembered state, never from the button itself: reading the widget
-  // back could only ever clear this flag, so "Load more" once lost during a
+  // From remembered state, never from the buttons themselves: reading a
+  // widget back could only ever clear such a flag, so a control lost during a
   // busy period never returned.
-  more_button_->setEnabled(!busy && more_available_);
+  previous_button_->setEnabled(!busy && page_index_ > 0);
+  next_button_->setEnabled(!busy && remaining_ > 0);
 
   if (busy) {
     status_label_->setText(what);
