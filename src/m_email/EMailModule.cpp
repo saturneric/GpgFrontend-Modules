@@ -1654,7 +1654,12 @@ REGISTER_EVENT_HANDLER(
       QMetaObject::invokeMethod(QCoreApplication::instance(), [=]() -> void {
         QFileInfo file_info(file_path);
         QFile file(file_path);
-        if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        // NOT QIODevice::Text. Text mode translates CRLF to LF on the way
+        // in, and a PGP/MIME signature covers the exact octets of the message
+        // in canonical CRLF form -- so reading it that way silently destroys
+        // every signature in the file before anything has a chance to check
+        // one.
+        if (!file.open(QIODevice::ReadOnly)) {
           QMessageBox::warning(
               nullptr, QApplication::translate("EMailModule", "Warning"),
               QApplication::translate("EMailModule",
@@ -1689,9 +1694,18 @@ REGISTER_EVENT_HANDLER(
           return;
         }
 
-        text_edit->setPlainText(
-            QString::fromUtf8(file.readAll()).replace("\r\n", "\n"));
-        text_edit->document()->setModified(false);
+        const auto raw = file.readAll();
+
+        // Handed over as bytes so the page can record which line endings the
+        // message arrived with and reproduce them when it is read back or
+        // saved. Falls back to the old path on a host that does not offer
+        // this, where the endings are lost exactly as they were before.
+        if (!QMetaObject::invokeMethod(page, "SetContentFromBytes",
+                                       Qt::DirectConnection,
+                                       Q_ARG(QByteArray, raw))) {
+          text_edit->setPlainText(QString::fromUtf8(raw));
+          text_edit->document()->setModified(false);
+        }
 
         QMetaObject::invokeMethod(page, "SetFilePath", Qt::DirectConnection,
                                   Q_ARG(QString, file_path));
