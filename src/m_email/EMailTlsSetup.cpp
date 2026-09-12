@@ -77,7 +77,10 @@ auto RootCertificates()
       reinterpret_cast<const vmime::byte_t*>(bundle.constData()),
       static_cast<size_t>(bundle.size()), roots);
 
-  FLOG_DEBUG("loaded %d root certificates for mail TLS",
+  // %1, not %d: FormatString() is built on QString::arg, so a printf-style
+  // placeholder is left in the text and the argument is dropped with a
+  // runtime warning.
+  FLOG_DEBUG("loaded %1 root certificates for mail TLS",
              static_cast<int>(roots.size())); 
   return roots;
 }
