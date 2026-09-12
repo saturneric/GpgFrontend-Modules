@@ -935,7 +935,9 @@ void EMailAccountSettingsPage::slot_stop_test() {
   // before that lands still counts -- `cancelled` is already set, so the
   // outcome is reported as stopped whatever the connection went on to do.
   const std::lock_guard<std::mutex> guard(probe->mutex);
-  if (probe->token != nullptr) probe->token->Cancel();
+  // A probe is a one-shot with no requests behind it, so stopping it means
+  // stopping everything it might still do.
+  if (probe->token != nullptr) probe->token->CancelAll();
 }
 
 void EMailAccountSettingsPage::report_probe_error(const MailError& error,

@@ -428,8 +428,10 @@ void EMailSendDialog::stop_workers() {
   // only asks an event loop to exit, and a thread blocked in vmime is not in
   // its event loop -- so without this, closing during a submit waited out the
   // full timeout on the GUI thread and then fell into the detach path below.
-  if (smtp_worker_ != nullptr) smtp_worker_->Token()->Cancel();
-  if (imap_worker_ != nullptr) imap_worker_->Token()->Cancel();
+  // CancelAll, not Cancel(seq): this window is going away, so anything still
+  // queued behind the current request is unwanted too.
+  if (smtp_worker_ != nullptr) smtp_worker_->Token()->CancelAll();
+  if (imap_worker_ != nullptr) imap_worker_->Token()->CancelAll();
 
   for (auto* pair : {&smtp_thread_, &imap_thread_}) {
     auto*& thread = *pair;
@@ -682,7 +684,7 @@ void EMailSendDialog::slot_stop_sending() {
   // already on the wire the classifier reports the outcome as unknown, and
   // that verdict is shown here like any other. Stopping is a request, not a
   // statement that nothing was delivered.
-  if (smtp_worker_ != nullptr) smtp_worker_->Token()->Cancel();
+  if (smtp_worker_ != nullptr) smtp_worker_->Token()->Cancel(seq_);
   stop_send_button_->setEnabled(false);
   stop_send_button_->setText(tr("Stopping..."));
 }
@@ -724,7 +726,7 @@ void EMailSendDialog::closeEvent(QCloseEvent* event) {
 }
 
 void EMailSendDialog::slot_stop_confirming() {
-  if (imap_worker_ != nullptr) imap_worker_->Token()->Cancel();
+  if (imap_worker_ != nullptr) imap_worker_->Token()->Cancel(seq_);
   confirm_state_ = ConfirmState::kSTOPPED;
   refresh_result();
 }

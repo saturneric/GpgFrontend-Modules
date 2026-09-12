@@ -635,7 +635,8 @@ void EMailImapController::stop_worker() {
   if (worker_ != nullptr) {
     // Unblocks whatever socket call the worker is sitting inside; without it
     // quit() would wait on an event loop that is not currently running.
-    worker_->Token()->Cancel();
+    // Everything: the dialog is closing, so queued requests are unwanted too.
+    worker_->Token()->CancelAll();
     QMetaObject::invokeMethod(worker_, "Disconnect", Qt::QueuedConnection);
   }
 
@@ -662,7 +663,7 @@ void EMailImapController::stop_worker() {
 
 void EMailImapController::closeEvent(QCloseEvent* event) {
   closing_ = true;
-  if (worker_ != nullptr) worker_->Token()->Cancel();
+  if (worker_ != nullptr) worker_->Token()->CancelAll();
   QDialog::closeEvent(event);
 }
 
@@ -1330,7 +1331,9 @@ void EMailImapController::slot_open_selected() {
 }
 
 void EMailImapController::slot_cancel_busy() {
-  if (worker_ != nullptr) worker_->Token()->Cancel();
+  // Scoped to the request in flight. A stop pressed now must not reach past it
+  // and kill whatever the user asks for next.
+  if (worker_ != nullptr) worker_->Token()->Cancel(request_seq_);
 }
 
 void EMailImapController::refresh_table() {
