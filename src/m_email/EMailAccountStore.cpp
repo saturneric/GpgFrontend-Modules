@@ -57,13 +57,17 @@ auto GlobalSettings() -> QSettings* {
 
 namespace EMailAccountStore {
 
-auto Load() -> QList<MailAccountConfig> {
+auto Load() -> QList<MailAccountConfig> { return LoadChecked().accounts; }
+
+auto LoadChecked() -> LoadResult {
   QMutexLocker locker(settings_mutex());
 
   auto* settings = GlobalSettings();
   if (settings == nullptr) {
     LOG_ERROR("global settings unavailable, no mail accounts loaded");
-    return {};
+    // Not kOK: nothing was read, so nothing may be written back over whatever
+    // is actually there.
+    return {{}, LoadOutcome::kUNREADABLE};
   }
 
   // The host writes through its own short-lived QSettings objects, and this one
@@ -77,12 +81,18 @@ auto Load() -> QList<MailAccountConfig> {
     // silently reinterpreting fields we do not understand could downgrade a
     // transport's security, and writing it back would destroy the newer data.
     LOG_WARN("mail account schema is newer than this build understands");
-    return {};
+    return {{}, LoadOutcome::kNEWER};
   }
 
-  const auto document = QJsonDocument::fromJson(
-      settings->value(kAccountsKey).toString().toUtf8());
-  if (!document.isArray()) return {};
+  const auto raw = settings->value(kAccountsKey).toString();
+  const auto document = QJsonDocument::fromJson(raw.toUtf8());
+  if (!document.isArray()) {
+    // An absent value is not a corrupt one: a profile that has never had a
+    // mail account has no key here, and that must stay writable.
+    if (raw.trimmed().isEmpty()) return {};
+    LOG_WARN("mail account list is not readable as this schema");
+    return {{}, LoadOutcome::kUNREADABLE};
+  }
 
   QList<MailAccountConfig> accounts;
   for (const auto value : document.array()) {
@@ -91,7 +101,7 @@ auto Load() -> QList<MailAccountConfig> {
     if (account.id.isEmpty()) continue;
     accounts.append(account);
   }
-  return accounts;
+  return {accounts, LoadOutcome::kOK};
 }
 
 void Store(const QList<MailAccountConfig>& accounts,

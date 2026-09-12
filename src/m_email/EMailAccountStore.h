@@ -30,6 +30,7 @@
 
 #include <QList>
 #include <QString>
+#include <cstdint>
 
 #include "EMailAccountModel.h"
 
@@ -44,6 +45,28 @@
  */
 namespace EMailAccountStore {
 
+/// Why Load() came back with nothing, when it did.
+enum class LoadOutcome : uint8_t {
+  kOK = 0,      ///< the list was read; it may still be empty
+  kNEWER,       ///< written by a newer build and deliberately not read
+  kUNREADABLE,  ///< present but not parsable as this schema
+};
+
+/// An account list together with whether it is the whole truth.
+struct LoadResult {
+  QList<MailAccountConfig> accounts;
+  LoadOutcome outcome{LoadOutcome::kOK};
+
+  /// Whether these accounts may be written back.
+  ///
+  /// They may not when the load was refused: an empty list stored over a
+  /// newer-schema one destroys settings this build could not read, which is
+  /// the very thing refusing to read them was meant to prevent.
+  [[nodiscard]] auto MayStore() const -> bool {
+    return outcome == LoadOutcome::kOK;
+  }
+};
+
 /**
  * @brief Read the configured accounts.
  *
@@ -53,6 +76,16 @@ namespace EMailAccountStore {
  * @return the accounts in display order, possibly empty
  */
 auto Load() -> QList<MailAccountConfig>;
+
+/**
+ * @brief Read the configured accounts, and say whether they are complete.
+ *
+ * The same read as Load(), for callers that may WRITE the result back. An
+ * empty list means "there are no accounts" and "this build refused to read
+ * them" indistinguishably, and storing the second one over a newer build's
+ * settings erases them.
+ */
+auto LoadChecked() -> LoadResult;
 
 /**
  * @brief Persist the accounts and which one is preferred.
