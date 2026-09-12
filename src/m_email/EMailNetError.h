@@ -152,3 +152,12 @@ auto MailTlsRequiredError(const QString& host) -> MailError;
 
 /// An error for something that is our fault rather than the server's.
 auto MailInternalError(const QString& what) -> MailError;
+
+/**
+ * @brief The user stopped this operation before it did anything.
+ *
+ * Only for a stop that arrived while the request was still queued, so nothing
+ * was sent and nothing is in doubt. A stop that lands once a message body is
+ * already on the wire is NOT this: see MailStage::kSUBMIT_FINAL.
+ */
+auto MailCancelledError() -> MailError;

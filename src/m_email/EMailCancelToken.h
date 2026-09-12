@@ -30,6 +30,7 @@
 
 #include <QElapsedTimer>
 #include <atomic>
+#include <limits>
 #include <memory>
 
 // The test target defines this on the command line; the module build does
@@ -50,15 +51,50 @@
  */
 class EMailCancelToken {
  public:
-  void Cancel() { cancelled_.store(true, std::memory_order_relaxed); }
-  void Reset() { cancelled_.store(false, std::memory_order_relaxed); }
+  /// Cancels the operation numbered @p seq: the one running now, or one that
+  /// has been queued to the worker and has not started yet.
+  ///
+  /// Scoped by sequence number rather than a bare flag because both ends of
+  /// that range matter. A stop pressed while a request is still sitting in the
+  /// worker's event queue has to survive until the slot runs -- the previous
+  /// design cleared the flag at slot entry, so such a stop did nothing at all
+  /// and the operation ran to its full timeout. Equally, a stop belonging to a
+  /// finished operation must not cancel the next one, which a latch that was
+  /// never cleared would do.
+  void Cancel(quint64 seq) {
+    auto previous = cancelled_through_.load(std::memory_order_relaxed);
+    while (seq > previous &&
+           !cancelled_through_.compare_exchange_weak(
+               previous, seq, std::memory_order_relaxed)) {
+    }
+  }
+
+  /// Cancels the current operation and everything queued behind it, whatever
+  /// their numbers. For teardown, where no further work is wanted at all.
+  void CancelAll() {
+    cancelled_through_.store(std::numeric_limits<quint64>::max(),
+                             std::memory_order_relaxed);
+  }
+
+  /// Announces the operation the worker is about to run.
+  ///
+  /// Deliberately does NOT clear a cancel already issued for @p seq: that
+  /// stop was aimed at this very operation.
+  void Begin(quint64 seq) {
+    current_.store(seq, std::memory_order_relaxed);
+  }
 
   [[nodiscard]] auto IsCancelled() const -> bool {
-    return cancelled_.load(std::memory_order_relaxed);
+    const auto current = current_.load(std::memory_order_relaxed);
+    return current != 0 &&
+           current <= cancelled_through_.load(std::memory_order_relaxed);
   }
 
  private:
-  std::atomic<bool> cancelled_{false};
+  /// The operation the worker is running. 0 means none has begun.
+  std::atomic<quint64> current_{0};
+  /// Every operation numbered at or below this is cancelled.
+  std::atomic<quint64> cancelled_through_{0};
 };
 
 using EMailCancelTokenPtr = std::shared_ptr<EMailCancelToken>;

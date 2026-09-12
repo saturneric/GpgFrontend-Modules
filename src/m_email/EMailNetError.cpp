@@ -391,6 +391,13 @@ auto MailTlsRequiredError(const QString& host) -> MailError {
   return out;
 }
 
+auto MailCancelledError() -> MailError {
+  MailError out;
+  out.category = MailErrorCategory::kCANCELLED;
+  out.title = Tr("Stopped");
+  return out;
+}
+
 auto MailInternalError(const QString& what) -> MailError {
   MailError out;
   out.category = MailErrorCategory::kINTERNAL;
