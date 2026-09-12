@@ -388,6 +388,195 @@ TEST(EMailOutgoingTest, BuildMimeEmlMintsNoIdentityOfItsOwn) {
 }
 
 // ---------------------------------------------------------------------------
+// Whether an address is plausible enough to offer Send for
+// ---------------------------------------------------------------------------
+
+TEST(EMailOutgoingTest, OrdinaryAddressesAreAccepted) {
+  EXPECT_TRUE(MailIsPlausibleAddress("a@example.org"));
+  EXPECT_TRUE(MailIsPlausibleAddress("Someone <a@example.org>"));
+  EXPECT_TRUE(MailIsPlausibleAddress("first.last+tag@mail.example.co.uk"));
+  EXPECT_TRUE(MailIsPlausibleAddress("  a@example.org  "));
+}
+
+TEST(EMailOutgoingTest, UnambiguouslyBrokenAddressesAreRejected) {
+  EXPECT_FALSE(MailIsPlausibleAddress(""));
+  EXPECT_FALSE(MailIsPlausibleAddress("   "));
+  EXPECT_FALSE(MailIsPlausibleAddress("no-at-sign"));
+  EXPECT_FALSE(MailIsPlausibleAddress("@example.org"));
+  EXPECT_FALSE(MailIsPlausibleAddress("a@"));
+  EXPECT_FALSE(MailIsPlausibleAddress("a b@example.org"));
+  EXPECT_FALSE(MailIsPlausibleAddress("a@example..org"));
+  EXPECT_FALSE(MailIsPlausibleAddress("a@.org"));
+  EXPECT_FALSE(MailIsPlausibleAddress("a@example."));
+}
+
+TEST(EMailOutgoingTest, ADotlessDomainIsRejected) {
+  // Legal in principle, and never what anyone means: it addresses a host on
+  // the local network rather than a correspondent.
+  EXPECT_FALSE(MailIsPlausibleAddress("a@localhost"));
+}
+
+TEST(EMailOutgoingTest, PlausibilityIsNotStrictValidation) {
+  // Deliberately permissive. This gates a Send button, so rejecting a real
+  // address means refusing to send mail that would have arrived -- a worse
+  // failure than letting an odd-looking one through to the server.
+  EXPECT_TRUE(MailIsPlausibleAddress("!#$%&'*+-/=?^_`{|}~@example.org"));
+  EXPECT_TRUE(MailIsPlausibleAddress("a@xn--bcher-kva.example"));
+}
+
+// ---------------------------------------------------------------------------
+// When stored bytes may be submitted verbatim
+// ---------------------------------------------------------------------------
+
+TEST(EMailOutgoingTest, BytesWeSerializedOurselvesAreNeverReusedVerbatim) {
+  // The regression this rule exists for: a draft saved by the workspace is
+  // clean and non-empty exactly like a loaded message. Treating the two alike
+  // sent drafts out with no Message-ID, which is the one handle a Sent-folder
+  // check can search on.
+  EXPECT_FALSE(MailShouldReuseSource(false, false, false, false));
+  EXPECT_FALSE(MailShouldReuseSource(false, true, false, false));
+  // Not even under forensic: those bytes still carry nothing to preserve.
+  EXPECT_FALSE(MailShouldReuseSource(false, false, true, false));
+}
+
+TEST(EMailOutgoingTest, AnUneditedLoadedMessageIsSubmittedAsItArrived) {
+  // A signature may cover exactly these octets, so rebuilding would void it.
+  EXPECT_TRUE(MailShouldReuseSource(true, false, false, false));
+}
+
+TEST(EMailOutgoingTest, EditingALoadedMessageGivesItAnIdentityOfItsOwn) {
+  // The original signature is void the moment it is edited, so there is
+  // nothing left to preserve and the message needs its own Message-ID.
+  EXPECT_FALSE(MailShouldReuseSource(true, true, false, false));
+}
+
+TEST(EMailOutgoingTest, AForensicDocumentIsHandedOverEvenWhenTheViewIsDirty) {
+  // Forensic outranks dirty: an inspected document goes out as it was loaded,
+  // whatever else has happened to the view.
+  EXPECT_TRUE(MailShouldReuseSource(true, true, true, false));
+}
+
+TEST(EMailOutgoingTest, ThereIsNothingToReuseWhenNoBytesAreStored) {
+  EXPECT_FALSE(MailShouldReuseSource(true, false, false, true));
+  EXPECT_FALSE(MailShouldReuseSource(true, false, true, true));
+}
+
+// ---------------------------------------------------------------------------
+// Summary fields for the send confirmation
+// ---------------------------------------------------------------------------
+
+TEST(EMailOutgoingTest, AFrozenMessageCarriesWhatTheConfirmationShows) {
+  EMailMetaData meta;
+  meta.from = "sender@example.org";
+  meta.to = {"to@example.org"};
+  meta.subject = "Quarterly report";
+
+  QList<EMailAttachment> attachments;
+  attachments.append(EMailAttachment{.filename = "a.txt",
+                                     .mime_type = "text/plain",
+                                     .disposition = "attachment",
+                                     .data = "one"});
+  attachments.append(EMailAttachment{.filename = "b.txt",
+                                     .mime_type = "text/plain",
+                                     .disposition = "attachment",
+                                     .data = "two"});
+
+  EMailOutgoingMessage out;
+  ASSERT_EQ(FreezeOutgoing(meta, {}, "body", attachments, {}, out),
+            EMailFreezeResult::kOK);
+
+  EXPECT_EQ(out.subject, "Quarterly report");
+  EXPECT_EQ(out.attachment_count, 2);
+}
+
+TEST(EMailOutgoingTest, AnExistingMessagesSubjectIsReadBackOutOfItsBytes) {
+  const QByteArray original =
+      "From: sender@example.org\r\n"
+      "To: to@example.org\r\n"
+      "Subject: Signed and sealed\r\n"
+      "\r\n"
+      "body\r\n";
+
+  EMailMetaData meta;
+  meta.from = "sender@example.org";
+  meta.to = {"to@example.org"};
+  // Deliberately disagrees with the bytes. What is shown must describe what is
+  // actually going out, not what the workspace happens to hold.
+  meta.subject = "Something else entirely";
+
+  EMailOutgoingMessage out;
+  ASSERT_EQ(FreezeOutgoing(meta, {}, "ignored", {}, original, out),
+            EMailFreezeResult::kOK);
+
+  EXPECT_EQ(out.subject, "Signed and sealed");
+  // Counting would mean walking a MIME tree these bytes exist to avoid
+  // touching, so it is left blank rather than guessed.
+  EXPECT_EQ(out.attachment_count, 0);
+}
+
+TEST(EMailOutgoingTest, AnEncodedSubjectIsDecodedBeforeItIsShown) {
+  const QByteArray original =
+      "From: sender@example.org\r\n"
+      "To: to@example.org\r\n"
+      "Subject: =?utf-8?B?w4RwZmVs?=\r\n"
+      "\r\n"
+      "body\r\n";
+
+  EMailMetaData meta;
+  meta.from = "sender@example.org";
+  meta.to = {"to@example.org"};
+
+  EMailOutgoingMessage out;
+  ASSERT_EQ(FreezeOutgoing(meta, {}, "ignored", {}, original, out),
+            EMailFreezeResult::kOK);
+
+  // Showing "=?utf-8?B?..." to someone about to send would be worse than
+  // showing nothing at all.
+  EXPECT_EQ(out.subject, QString::fromUtf8("\xc3\x84pfel"));
+}
+
+TEST(EMailOutgoingTest, AFoldedSubjectIsUnfoldedRatherThanTruncated) {
+  const QByteArray original =
+      "From: sender@example.org\r\n"
+      "To: to@example.org\r\n"
+      "Subject: A rather long subject line\r\n"
+      " that the sender folded\r\n"
+      "\r\n"
+      "body\r\n";
+
+  EMailMetaData meta;
+  meta.from = "sender@example.org";
+  meta.to = {"to@example.org"};
+
+  EMailOutgoingMessage out;
+  ASSERT_EQ(FreezeOutgoing(meta, {}, "ignored", {}, original, out),
+            EMailFreezeResult::kOK);
+
+  EXPECT_EQ(out.subject, "A rather long subject line that the sender folded");
+}
+
+TEST(EMailOutgoingTest, SubjectIsReadFromTheHeaderBlockOnly) {
+  // The quoted reply below the blank line is full of lines that look exactly
+  // like headers, and none of them describe THIS message.
+  const QByteArray original =
+      "From: sender@example.org\r\n"
+      "To: to@example.org\r\n"
+      "\r\n"
+      "On Monday you wrote:\r\n"
+      "Subject: the one being quoted\r\n";
+
+  EMailMetaData meta;
+  meta.from = "sender@example.org";
+  meta.to = {"to@example.org"};
+
+  EMailOutgoingMessage out;
+  ASSERT_EQ(FreezeOutgoing(meta, {}, "ignored", {}, original, out),
+            EMailFreezeResult::kOK);
+
+  EXPECT_TRUE(out.subject.isEmpty());
+}
+
+// ---------------------------------------------------------------------------
 // Sent-folder resolution
 // ---------------------------------------------------------------------------
 
