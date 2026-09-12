@@ -43,7 +43,14 @@ add_executable(gf_mod_email_test
   EMailMimeTest.cpp
   EMailCorpusTest.cpp
   EMailPublicCorpusTest.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/../EMAilHelper.cpp)
+  EMailTransportTest.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/../EMAilHelper.cpp
+  # The transport's decision-making, none of which needs a socket or a widget:
+  # account policy, envelope construction, Message-ID, and the error taxonomy.
+  # Kept SDK-free for exactly this reason.
+  ${CMAKE_CURRENT_SOURCE_DIR}/../EMailAccountModel.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/../EMailOutgoing.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/../EMailNetError.cpp)
 
 target_include_directories(gf_mod_email_test PRIVATE
   "${CMAKE_CURRENT_SOURCE_DIR}/.."
@@ -52,13 +59,16 @@ target_include_directories(gf_mod_email_test PRIVATE
   "${CMAKE_BINARY_DIR}/src")
 
 target_link_libraries(gf_mod_email_test PRIVATE
-  GTest::gtest GTest::gtest_main Qt::Core vmime-static)
+  GTest::gtest GTest::gtest_main Qt::Core Qt::Network vmime-static)
 
 # The corpus is read from the source tree at run time rather than compiled in
 # through a .qrc: this target links Qt::Core only, not gf_res, so ":/test/..."
 # paths are not available to it.
 target_compile_definitions(gf_mod_email_test PRIVATE
-  "GF_EMAIL_TEST_CORPUS_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/corpus\"")
+  "GF_EMAIL_TEST_CORPUS_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/corpus\""
+  # vmime is linked statically here, as it is in the module. Without this its
+  # headers expect the shared-build export header, which is never generated.
+  VMIME_STATIC)
 
 set_target_properties(gf_mod_email_test PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
