@@ -102,6 +102,14 @@ struct EMailSignatureRegion {
   /// EMailPart::index of the entity being signed and of the signature that
   /// signs it. Recorded so a nested region can be verified on its own rather
   /// than only the outermost one.
+  /// The signed entity is itself a multipart/encrypted. The signature is
+  /// then over CIPHERTEXT: it says who wrapped the encrypted blob, and says
+  /// nothing at all about the plaintext that comes out of it. Structural
+  /// containment inside a signed subtree is not authentication of the content
+  /// the user ends up reading, and the two must never be shown as the same
+  /// thing -- anyone can take someone else's ciphertext and sign it.
+  bool covers_ciphertext_only{false};
+
   int signed_part_index{-1};
   int signature_part_index{-1};
 };

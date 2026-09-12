@@ -790,6 +790,11 @@ void BuildNode(const vmime::shared_ptr<const vmime::bodyPart>& part,
       // ones. The signature is the first pgp-signature part beside the entity.
       if (i == 0) {
         regions[region_slot].signed_part_index = child.index;
+        // Encrypt-then-sign: the entity under this signature is the encrypted
+        // blob, so the signature authenticates ciphertext and not the message
+        // that will be read. Recorded here, where the shape is still visible.
+        regions[region_slot].covers_ciphertext_only =
+            child.content_type == "multipart/encrypted";
       } else if (regions[region_slot].signature_part_index < 0 &&
                  child.content_type == "application/pgp-signature") {
         regions[region_slot].signature_part_index = child.index;
@@ -1369,6 +1374,21 @@ auto InspectMessage(const EMailMetaData& meta, const EMailPart& root,
                        "added or changed by anyone in the path.")
                .arg(uncovered)});
     }
+  }
+
+  // A signature over ciphertext is the case most easily misread as "this
+  // message is signed by X". It is not: signing someone else's encrypted blob
+  // takes no key of theirs and no knowledge of what is inside it.
+  for (const auto& region : regions) {
+    if (!region.covers_ciphertext_only) continue;
+    findings.append(
+        {EMailFindingLevel::kWARN,
+         QObject::tr("Signature covers the encrypted data only"),
+         QObject::tr("This signature was made over the encrypted block, not "
+                     "over the message inside it. It shows who sent the "
+                     "ciphertext along; it does not say who wrote what you "
+                     "are reading, and anyone could have signed a copy of "
+                     "this same block.")});
   }
 
   // --- OpenPGP material carried as attachments -----------------------------
