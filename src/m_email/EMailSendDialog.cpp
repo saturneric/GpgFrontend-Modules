@@ -37,6 +37,8 @@
 #include <QIcon>
 #include <QKeyEvent>
 #include <QLabel>
+#include <QCloseEvent>
+#include <QMessageBox>
 #include <QMouseEvent>
 #include <QPlainTextEdit>
 #include <QProgressBar>
@@ -276,7 +278,16 @@ auto EMailSendDialog::build_result_card() -> QFrame* {
     return holder;
   };
 
-  add_status_row(tr("Submission"), &accepted_dot_, &accepted_label_);
+  auto* submission_row =
+      add_status_row(tr("Submission"), &accepted_dot_, &accepted_label_);
+  // Stopping a send was previously only expressible as destroying the window,
+  // which threw the verdict away with it.
+  stop_send_button_ = new QToolButton(submission_row);
+  stop_send_button_->setText(tr("Stop"));
+  stop_send_button_->setAutoRaise(true);
+  stop_send_button_->setVisible(false);
+  qobject_cast<QHBoxLayout*>(submission_row->layout())
+      ->addWidget(stop_send_button_, 0, Qt::AlignTop);
 
   auto* sent_row =
       add_status_row(tr("Copy in Sent"), &sent_copy_dot_, &sent_copy_label_);
@@ -321,11 +332,14 @@ auto EMailSendDialog::build_result_card() -> QFrame* {
           &EMailSendDialog::slot_toggle_details);
   connect(stop_confirm_button_, &QToolButton::clicked, this,
           &EMailSendDialog::slot_stop_confirming);
+  connect(stop_send_button_, &QToolButton::clicked, this,
+          &EMailSendDialog::slot_stop_sending);
 
   // A click that lands on a button never reaches the dialog's own
   // mousePressEvent, so each of these says for itself that someone is here.
   for (auto* button :
-       {details_button_, copy_evidence_button_, stop_confirm_button_}) {
+       {details_button_, copy_evidence_button_, stop_confirm_button_,
+        stop_send_button_}) {
     connect(button, &QToolButton::clicked, this,
             &EMailSendDialog::cancel_auto_close);
   }
@@ -514,6 +528,7 @@ void EMailSendDialog::slot_send() {
 
   // The summary above stays exactly where it is, and so does the result block:
   // its first line simply stops saying "not sent yet".
+  submit_state_ = SubmitState::kSUBMITTING;
   progress_timer_->start();
   refresh_result();
 }
@@ -522,6 +537,7 @@ void EMailSendDialog::handle_sent(quint64 seq,
                                   const EMailSendReceipt& receipt) {
   if (seq != seq_) return;
 
+  submit_state_ = SubmitState::kFINISHED;
   receipt_ = receipt;
   refresh_result();
 
@@ -661,6 +677,52 @@ void EMailSendDialog::handle_confirm_failed(quint64 seq,
   refresh_result();
 }
 
+void EMailSendDialog::slot_stop_sending() {
+  // Asks the worker to stop; it does NOT decide what happened. If the body was
+  // already on the wire the classifier reports the outcome as unknown, and
+  // that verdict is shown here like any other. Stopping is a request, not a
+  // statement that nothing was delivered.
+  if (smtp_worker_ != nullptr) smtp_worker_->Token()->Cancel();
+  stop_send_button_->setEnabled(false);
+  stop_send_button_->setText(tr("Stopping..."));
+}
+
+void EMailSendDialog::closeEvent(QCloseEvent* event) {
+  if (submit_state_ != SubmitState::kSUBMITTING) {
+    QDialog::closeEvent(event);
+    return;
+  }
+
+  // The bytes may already be at the server. This window is the only place the
+  // answer will ever appear, so closing it now is a decision to never find
+  // out -- and after an ambiguous outcome, resending delivers twice.
+  QMessageBox box(this);
+  box.setIcon(QMessageBox::Warning);
+  box.setWindowTitle(tr("Still sending"));
+  box.setText(tr("This message is still being sent."));
+  box.setInformativeText(
+      tr("The server may already have accepted it. If you close this window "
+         "now, you will not find out whether it was delivered -- and sending "
+         "it again could deliver it twice."));
+  auto* wait = box.addButton(tr("Keep Waiting"), QMessageBox::RejectRole);
+  auto* close = box.addButton(tr("Close Anyway"), QMessageBox::DestructiveRole);
+  box.setDefaultButton(wait);
+  box.exec();
+
+  if (box.clickedButton() != close) {
+    event->ignore();
+    return;
+  }
+
+  // Recorded rather than merely dropped: an abandoned submission is exactly
+  // the thing someone will later need to explain a duplicate.
+  abandoned_mid_submit_ = true;
+  LOG_WARN(
+      "send dialog closed while a submission was in flight; the outcome "
+      "will not be reported");
+  QDialog::closeEvent(event);
+}
+
 void EMailSendDialog::slot_stop_confirming() {
   if (imap_worker_ != nullptr) imap_worker_->Token()->Cancel();
   confirm_state_ = ConfirmState::kSTOPPED;
@@ -743,6 +805,7 @@ void EMailSendDialog::refresh_result() {
   }
 
   stop_confirm_button_->setVisible(confirm_state_ == ConfirmState::kCHECKING);
+  stop_send_button_->setVisible(submit_state_ == SubmitState::kSUBMITTING);
 
   const auto evidence = evidence_text();
   evidence_view_->setPlainText(evidence);

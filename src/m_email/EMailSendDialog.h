@@ -72,6 +72,7 @@ class EMailSendDialog : public QDialog {
  private slots:
   void slot_send();
   void slot_stop_confirming();
+  void slot_stop_sending();
   void handle_sent(quint64 seq, const EMailSendReceipt& receipt);
   void handle_sent_saved(quint64 seq, MailSentSaveOutcome outcome,
                          const QString& folder, const MailError& error);
@@ -105,6 +106,18 @@ class EMailSendDialog : public QDialog {
   void mousePressEvent(QMouseEvent* event) override;
   void keyPressEvent(QKeyEvent* event) override;
 
+  /**
+   * @brief Refuses to throw away a submission's verdict.
+   *
+   * While a submission is in flight this window is the only thing that will
+   * ever learn what happened to it. Esc and the window's close button both
+   * reach here, and destroying the dialog mid-submit used to discard the
+   * receipt silently -- including an ambiguous one, which is precisely the
+   * outcome a user must be told about, because resending after it delivers
+   * twice.
+   */
+  void closeEvent(QCloseEvent* event) override;
+
  private:
   EMailOutgoingMessage message_;
   QList<MailAccountConfig> accounts_;
@@ -113,6 +126,19 @@ class EMailSendDialog : public QDialog {
   /// Where filing the copy got to. Deliberately separate from the send
   /// itself: stopping this must never read as having cancelled the submission,
   /// and failing at it never means the message did not go out.
+  /// Where the submission itself has got to. Distinct from ConfirmState,
+  /// which tracks only the Sent-folder copy that follows a successful send.
+  enum class SubmitState : uint8_t {
+    kNOT_STARTED,
+    kSUBMITTING,  ///< bytes may be on the wire; the outcome is not yet known
+    kFINISHED,    ///< a receipt arrived and has been shown
+  };
+  SubmitState submit_state_{SubmitState::kNOT_STARTED};
+
+  /// Set when the user closed the window while a submission was still in
+  /// flight, having been told the outcome would be unknown.
+  bool abandoned_mid_submit_{false};
+
   enum class ConfirmState : uint8_t {
     kNOT_STARTED,
     kCHECKING,
@@ -151,6 +177,7 @@ class EMailSendDialog : public QDialog {
   QLabel* accepted_label_{};
   QLabel* sent_copy_label_{};
   QToolButton* stop_confirm_button_{};
+  QToolButton* stop_send_button_{};
   QToolButton* details_button_{};
   QToolButton* copy_evidence_button_{};
   QPlainTextEdit* evidence_view_{};

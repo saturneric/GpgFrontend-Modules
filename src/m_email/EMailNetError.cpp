@@ -240,9 +240,23 @@ auto ClassifyVmimeException(const vmime::exception& e, MailStage stage,
   MailError out;
   out.protocol_detail = QString::fromUtf8(e.what()).trimmed();
 
-  // Cancellation first: vmime cannot tell our timeout handler firing on a user
-  // request apart from a server that stopped answering, and reporting a
-  // deliberate stop as a server fault would be a lie.
+  // Ambiguity outranks everything, cancellation included. Once DATA has been
+  // fully written the server may already have queued the message, and WHY the
+  // connection ended does not change that: a timeout, a dropped socket and the
+  // user pressing Stop look identical from the far end. Reporting a deliberate
+  // stop as a clean "not sent" is what invites a resend that delivers twice,
+  // which is the whole reason this category exists.
+  if (stage == MailStage::kSUBMIT_FINAL) {
+    out.category = MailErrorCategory::kSMTP_AMBIGUOUS;
+    out.title = Tr("The outcome is unknown");
+    out.transient = false;
+    return out;
+  }
+
+  // Before that point nothing was delivered, so a stop can be reported as the
+  // stop it was. vmime cannot tell our timeout handler firing on a user
+  // request apart from a server that stopped answering, and calling a
+  // deliberate stop a server fault would be a lie.
   if (cancelled) {
     out.category = MailErrorCategory::kCANCELLED;
     out.title = Tr("Stopped");
@@ -262,13 +276,6 @@ auto ClassifyVmimeException(const vmime::exception& e, MailStage stage,
     out.category = MailErrorCategory::kTIMEOUT;
     out.title = Tr("The server stopped responding");
     out.transient = true;
-
-    // The body is already on the wire; whether the server took it is unknown.
-    if (stage == MailStage::kSUBMIT_FINAL) {
-      out.category = MailErrorCategory::kSMTP_AMBIGUOUS;
-      out.title = Tr("The outcome is unknown");
-      out.transient = false;
-    }
     return out;
   }
 
@@ -327,14 +334,6 @@ auto ClassifyVmimeException(const vmime::exception& e, MailStage stage,
 
   if (dynamic_cast<const ex::connection_error*>(&e) != nullptr ||
       dynamic_cast<const ex::socket_exception*>(&e) != nullptr) {
-    // A failure once the body is on the wire is the one case that must never
-    // be reported as either success or failure.
-    if (stage == MailStage::kSUBMIT_FINAL) {
-      out.category = MailErrorCategory::kSMTP_AMBIGUOUS;
-      out.title = Tr("The outcome is unknown");
-      return out;
-    }
-
     // vmime raises the same exception type for "cannot resolve" and "cannot
     // connect", and only the message distinguishes them. Matching on text is
     // fragile, so an unrecognised message falls through to the connect case,
