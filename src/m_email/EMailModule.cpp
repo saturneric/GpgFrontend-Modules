@@ -374,6 +374,12 @@ auto BuildResultCardsParam(const QString& operation,
     }
   }
 
+  // The caller's own account of the outcome wins over the engine's. It is
+  // written from the ONE aggregated verdict -- the same one the badge quotes --
+  // so the board names the actual reason rather than telling the user to go and
+  // find it in the details.
+  if (!description.isEmpty()) obj["description"] = description;
+
   // A payload with neither cards nor a description has nothing the board could
   // render, so the caller falls back to the plain-text path.
   if (cards.isEmpty() && !obj.contains("description")) return {};
@@ -831,6 +837,102 @@ auto ReportStatusFor(EMailBadgeState overall) -> int {
   return 0;
 }
 
+/// Why the verification came out the way it did, in one sentence.
+///
+/// The status board used to say only "completed with warnings -- please review
+/// the details", which tells the user that something is wrong and makes them go
+/// looking for what. Every outcome below has a specific, knowable cause, and
+/// the board is where it belongs: it is the surface that announces the result.
+///
+/// Written from the aggregated verdict, the same one the badge and the
+/// attachment list quote, so the card and the message surface cannot end up
+/// describing the outcome differently.
+auto ReportDescriptionFor(const EMailVerificationResult& result) -> QString {
+  // Every string below is a literal at the translate() call, never routed
+  // through a helper taking a const char*: lupdate reads the call site, and a
+  // variable there makes it skip the string -- silently, and for the whole
+  // file. See the notes on lupdate in the translation tooling.
+
+  // Said wherever it applies, because it is the one cause that looks exactly
+  // like a forgery and is not one -- and the one no amount of key importing
+  // will fix.
+  const auto rewritten =
+      result.meta.signed_entity_non_canonical
+          ? QApplication::translate(
+                "EMailModule",
+                " The bytes the signature covers were rewritten after it was "
+                "made -- their line endings are no longer CRLF -- which is "
+                "usually a program that changed them while saving or copying "
+                "the message. Checking the signature needs the original.")
+          : QString();
+
+  switch (result.overall) {
+    case EMailBadgeState::kSIGNED_GOOD:
+      return QApplication::translate(
+          "EMailModule",
+          "The signature is valid, and the key that made it speaks for the "
+          "address this message says it is from.");
+
+    case EMailBadgeState::kSIGNED_MISMATCH:
+      return QApplication::translate(
+          "EMailModule",
+          "The signature itself is valid, but the key that made it does not "
+          "speak for the address this message says it is from. That is what a "
+          "signature moved from another message looks like, so it is worth "
+          "checking who the signer is before trusting the contents.");
+
+    case EMailBadgeState::kSIGNED_UNKNOWN_KEY:
+      return QApplication::translate(
+          "EMailModule",
+          "The key that made this signature is not in your keyring, so nothing "
+          "here can say whether the signature is genuine. Import the sender's "
+          "key and verify again.");
+
+    case EMailBadgeState::kSIGNED_EXPIRED:
+      return QApplication::translate(
+          "EMailModule",
+          "The signature was made with a key that has expired, or the "
+          "signature itself has. It may still be genuine; what cannot be "
+          "confirmed is that the key was valid at the time it was used.");
+
+    case EMailBadgeState::kSIGNED_BAD:
+      return QApplication::translate(
+                 "EMailModule",
+                 "The signature does not match the bytes it covers. Either the "
+                 "message was changed after it was signed, or the signature "
+                 "was not made for this message.") +
+             rewritten;
+
+    case EMailBadgeState::kSIGNED_ERROR:
+      return QApplication::translate(
+                 "EMailModule",
+                 "The check could not be completed, so nothing is known about "
+                 "this signature either way. This is not a statement that the "
+                 "signature is bad.") +
+             rewritten;
+
+    case EMailBadgeState::kMALFORMED:
+      return QApplication::translate(
+          "EMailModule",
+          "This message claims to carry an OpenPGP signature, but its "
+          "structure does not hold up well enough to check one.");
+
+    case EMailBadgeState::kENCRYPTED_ONLY:
+      return QApplication::translate(
+          "EMailModule",
+          "The signatures in this message cover ciphertext rather than the "
+          "content you read. They say who wrapped the encrypted part, and "
+          "nothing about who wrote what is inside it.");
+
+    case EMailBadgeState::kSIGNED_UNVERIFIED:
+    case EMailBadgeState::kNOT_PROTECTED:
+      break;
+  }
+
+  return QApplication::translate(
+      "EMailModule", "There was no signature in this message to check.");
+}
+
 auto DoVerifyEMLData(int channel, const QByteArray& data, const MEvent& event,
                      QString& error_string, EMailVerificationResult& result)
     -> int {
@@ -924,7 +1026,8 @@ REGISTER_EVENT_HANDLER(
 
       const auto result_cards_param = BuildResultCardsParam(
           QApplication::translate("EMailModule", "Verify E-Mail"),
-          BuildReadMetaCards(meta_data, true), result.report_cards);
+          BuildReadMetaCards(meta_data, true), result.report_cards,
+          result.report_info_json, ReportDescriptionFor(result));
 
       // callback
       CB(event, GFGetModuleID(),
@@ -1666,7 +1769,8 @@ auto DoDecryptVerifyEMLData(int channel, const QByteArray& data,
                             QByteArray& eml_data, QString& error_string,
                             EMailMetaData& meta_data,
                             QByteArray& decrypt_info_json,
-                            EMailPostDecryptPlan& plan) -> int {
+                            EMailPostDecryptPlan& plan,
+                            EMailVerificationResult& verification) -> int {
   QString decrypt_cards;
   if (DoDecryptEMLData(channel, data, event, result_status, result_detail,
                        decrypt_cards, eml_data, meta_data,
@@ -1701,11 +1805,10 @@ auto DoDecryptVerifyEMLData(int channel, const QByteArray& data,
     return kSUCCESS;
   }
 
-  // Its OWN result, not the one the decrypt filled. Both walk the same
+  // Filled by the verify alone, not by the decrypt. Both walk the same
   // plaintext and ExtractParts() only ever appends, so sharing one metadata
   // object listed every attachment twice.
-  EMailVerificationResult verification;
-
+  //
   // UTF-8, not Latin-1: this is the decrypted plaintext and the signature
   // inside it is checked against these exact bytes. See DoEncryptSignEMLData.
   if (DoVerifyEMLData(channel, eml_data, event, error_string, verification) !=
@@ -1744,10 +1847,11 @@ REGISTER_EVENT_HANDLER(
 
       QByteArray decrypt_info_json;
       auto plan = EMailPostDecryptPlan::kVERIFY;
+      EMailVerificationResult verification;
       if (DoDecryptVerifyEMLData(channel, data, event, result_status,
                                  result_detail, result_cards, eml_data,
                                  error_string, meta_data, decrypt_info_json,
-                                 plan) != kSUCCESS) {
+                                 plan, verification) != kSUCCESS) {
         return -1;
       }
       const bool verified = plan == EMailPostDecryptPlan::kVERIFY;
@@ -1824,9 +1928,13 @@ REGISTER_EVENT_HANDLER(
           BuildRecipientCheckCard(meta_data, decrypt_info_json);
       if (!dv_recipient_card.isEmpty()) dv_meta_cards.append(dv_recipient_card);
 
+      // The same reason the Verify board gives, when a verification actually
+      // happened. A message that carried no signature is not a verification
+      // outcome at all, and the note above already says so.
       const auto result_cards_param = BuildResultCardsParam(
           QApplication::translate("EMailModule", "Decrypt and Verify E-Mail"),
-          dv_meta_cards, result_cards);
+          dv_meta_cards, result_cards, verification.report_info_json,
+          verified ? ReportDescriptionFor(verification) : QString());
 
       // callback
       CB(event, GFGetModuleID(),
