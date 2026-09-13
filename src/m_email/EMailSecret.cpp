@@ -70,7 +70,8 @@ auto EMailSecret::AdoptCString(char* source) -> std::shared_ptr<EMailSecret> {
   return secret;
 }
 
-auto EMailSecret::CopyFrom(const QString& text) -> std::shared_ptr<EMailSecret> {
+auto EMailSecret::CopyFrom(const QString& text)
+    -> std::shared_ptr<EMailSecret> {
   auto secret = std::make_shared<EMailSecret>();
 
   // A freshly built temporary, so its buffer is unshared and overwriting it

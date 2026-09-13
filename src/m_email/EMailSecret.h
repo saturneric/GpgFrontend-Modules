@@ -71,8 +71,7 @@ class EMailSecret {
   EMailSecret(const EMailSecret&) = delete;
   auto operator=(const EMailSecret&) -> EMailSecret& = delete;
 
-  EMailSecret(EMailSecret&& other) noexcept
-      : bytes_(std::move(other.bytes_)) {
+  EMailSecret(EMailSecret&& other) noexcept : bytes_(std::move(other.bytes_)) {
     other.bytes_.clear();
   }
 
