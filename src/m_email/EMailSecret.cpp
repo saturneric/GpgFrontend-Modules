@@ -72,7 +72,23 @@ auto EMailSecret::AdoptCString(char* source) -> std::shared_ptr<EMailSecret> {
 
 auto EMailSecret::CopyFrom(const QString& text) -> std::shared_ptr<EMailSecret> {
   auto secret = std::make_shared<EMailSecret>();
-  const auto utf8 = text.toUtf8();
+
+  // A freshly built temporary, so its buffer is unshared and overwriting it
+  // reaches the bytes rather than detaching a copy -- which is exactly the
+  // distinction this class exists to make. The QString the caller holds is
+  // still beyond reach; that is theirs to let go of quickly.
+  auto utf8 = text.toUtf8();
   secret->bytes_.assign(utf8.constData(), utf8.constData() + utf8.size());
+  SecureZero(utf8.data(), static_cast<size_t>(utf8.size()));
   return secret;
+}
+
+auto EMailSecret::ToSecureCString() const -> char* {
+  auto* buffer = static_cast<char*>(
+      GFSecAllocateMemory(static_cast<uint32_t>(bytes_.size() + 1)));
+  if (buffer == nullptr) return nullptr;
+
+  if (!bytes_.empty()) std::memcpy(buffer, bytes_.data(), bytes_.size());
+  buffer[bytes_.size()] = '\0';
+  return buffer;
 }

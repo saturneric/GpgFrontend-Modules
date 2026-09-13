@@ -94,6 +94,18 @@ class EMailSecret {
     return std::string(bytes_.data(), bytes_.size());
   }
 
+  /// A NUL-terminated copy in the SDK's SECURE allocator, for a GFSDK call
+  /// that takes ownership of what it is given.
+  ///
+  /// This exists so a secret can reach the SDK without being rendered into a
+  /// QString on the way: QSecStrDup(QString) builds an unwiped QByteArray
+  /// temporary, which is one more copy of the password than there needs to be
+  /// and one that nothing can erase.
+  ///
+  /// @return a buffer the callee must free, or nullptr if it could not be
+  ///   allocated. Never free it yourself once it has been handed over.
+  [[nodiscard]] auto ToSecureCString() const -> char*;
+
   /// Overwrites the buffer and releases it. Safe to call more than once.
   void Wipe();
 
