@@ -69,12 +69,12 @@ Error: %2</source>
     <message>
         <location filename="../KeyServerSyncModule.cpp" line="101"/>
         <source>The key server did not return a key.</source>
-        <translation type="unfinished"></translation>
+        <translation>Сервер ключей не вернул ключ.</translation>
     </message>
     <message>
         <location filename="../KeyServerSyncModule.cpp" line="127"/>
         <source>Publish Without Verification?</source>
-        <translation type="unfinished"></translation>
+        <translation>Опубликовать без проверки?</translation>
     </message>
     <message>
         <location filename="../KeyServerSyncModule.cpp" line="129"/>
@@ -83,19 +83,25 @@ Error: %2</source>
 The server will not confirm your email address, and the upload cannot be undone — HKP key servers do not let keys be removed.
 
 Publish to %1 anyway?</source>
-        <translation type="unfinished"></translation>
+        <translation>%1 не поддерживает проверенную публикацию (VKS), поэтому ключ будет загружен через HKP.
+
+Сервер не подтвердит ваш адрес электронной почты, и загрузку нельзя отменить — серверы ключей HKP не позволяют удалять ключи.
+
+Опубликовать на %1 всё равно?</translation>
     </message>
     <message>
         <location filename="../KeyServerSyncModule.cpp" line="190"/>
         <source>Failed to export the public key before uploading.
 Key: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>Не удалось экспортировать открытый ключ перед загрузкой.
+Ключ: %1</translation>
     </message>
     <message>
         <location filename="../KeyServerSyncModule.cpp" line="232"/>
         <source>The public key was uploaded to the key server %2 over HKP.
 Fingerprint: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>Открытый ключ загружен на сервер ключей %2 через HKP.
+Отпечаток: %1</translation>
     </message>
     <message>
         <location filename="../KeyServerSyncModule.cpp" line="274"/>
@@ -104,14 +110,20 @@ Fingerprint: %1
 
 %2
 Please check your email (%3) for further verification from %4.</source>
-        <translation type="unfinished"></translation>
+        <translation>Открытый ключ успешно загружен на сервер ключей %4.
+Отпечаток: %1
+
+%2
+Пожалуйста, проверьте вашу электронную почту (%3) на наличие дальнейшего подтверждения от %4.</translation>
     </message>
     <message>
         <location filename="../KeyServerSyncModule.cpp" line="326"/>
         <source>Failed to retrieve public key from %3.
 Key ID: %1
 Error: %2</source>
-        <translation type="unfinished"></translation>
+        <translation>Не удалось получить открытый ключ с %3.
+Идентификатор ключа: %1
+Ошибка: %2</translation>
     </message>
     <message>
         <location filename="../KeyServerSyncModule.cpp" line="375"/>
@@ -141,12 +153,12 @@ Error: %2</source>
     <message>
         <location filename="../KeyServerProbe.cpp" line="247"/>
         <source>The server could not be reached.</source>
-        <translation type="unfinished"></translation>
+        <translation>Не удалось связаться с сервером.</translation>
     </message>
     <message>
         <location filename="../KeyServerProbe.cpp" line="249"/>
         <source>The server responded, but not as a key server: it supports neither the HKP nor the VKS interface.</source>
-        <translation type="unfinished"></translation>
+        <translation>Сервер ответил, но не как сервер ключей: он не поддерживает ни интерфейс HKP, ни интерфейс VKS.</translation>
     </message>
 </context>
 <context>
@@ -155,143 +167,143 @@ Error: %2</source>
         <location filename="../KeyServerSettingsPage.ui" line="17"/>
         <location filename="../KeyServerSettingsPage.cpp" line="58"/>
         <source>Key Server List</source>
-        <translation type="unfinished"></translation>
+        <translation>Список серверов ключей</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.ui" line="49"/>
         <location filename="../KeyServerSettingsPage.cpp" line="59"/>
         <source>Add a Key Server</source>
-        <translation type="unfinished"></translation>
+        <translation>Добавить сервер ключей</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.ui" line="60"/>
         <location filename="../KeyServerSettingsPage.cpp" line="62"/>
         <source>Add</source>
-        <translation type="unfinished"></translation>
+        <translation>Добавить</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.ui" line="82"/>
         <location filename="../KeyServerSettingsPage.cpp" line="60"/>
         <source>Operations</source>
-        <translation type="unfinished"></translation>
+        <translation>Операции</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.ui" line="88"/>
         <location filename="../KeyServerSettingsPage.cpp" line="63"/>
         <source>Set As Default</source>
-        <translation type="unfinished"></translation>
+        <translation>Установить по умолчанию</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.ui" line="95"/>
         <location filename="../KeyServerSettingsPage.cpp" line="64"/>
         <source>Test Selected</source>
-        <translation type="unfinished"></translation>
+        <translation>Проверить выбранные</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.ui" line="102"/>
         <location filename="../KeyServerSettingsPage.cpp" line="65"/>
         <source>Delete Selected</source>
-        <translation type="unfinished"></translation>
+        <translation>Удалить выбранные</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.cpp" line="67"/>
         <source>https://keys.example.org</source>
-        <translation type="unfinished"></translation>
+        <translation>https://keys.example.org</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.cpp" line="68"/>
         <source>A new key server is tested against the HKP and VKS interfaces before it is added. Searching uses HKP. Publishing and refreshing always use the default server: over VKS where it offers it, over HKP otherwise.</source>
-        <translation type="unfinished"></translation>
+        <translation>Новый сервер ключей проверяется через интерфейсы HKP и VKS перед добавлением. Поиск использует HKP. Публикация и обновление всегда используют сервер по умолчанию: через VKS, если он его поддерживает, иначе через HKP.</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.cpp" line="75"/>
         <source>Default</source>
-        <translation type="unfinished"></translation>
+        <translation>По умолчанию</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.cpp" line="75"/>
         <source>Address</source>
-        <translation type="unfinished"></translation>
+        <translation>Адрес</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.cpp" line="75"/>
         <source>HKP</source>
-        <translation type="unfinished"></translation>
+        <translation>HKP</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.cpp" line="75"/>
         <source>VKS</source>
-        <translation type="unfinished"></translation>
+        <translation>VKS</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.cpp" line="75"/>
         <source>Status</source>
-        <translation type="unfinished">Статус</translation>
+        <translation>Статус</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.cpp" line="76"/>
         <source>Last Tested</source>
-        <translation type="unfinished"></translation>
+        <translation>Последняя проверка</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.cpp" line="108"/>
         <source>yes</source>
-        <translation type="unfinished"></translation>
+        <translation>да</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.cpp" line="109"/>
         <source>no</source>
-        <translation type="unfinished"></translation>
+        <translation>нет</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.cpp" line="127"/>
         <source>Verified</source>
-        <translation type="unfinished"></translation>
+        <translation>Проверено</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.cpp" line="127"/>
         <source>Unverified</source>
-        <translation type="unfinished"></translation>
+        <translation>Не проверено</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.cpp" line="136"/>
         <source>never</source>
-        <translation type="unfinished"></translation>
+        <translation>никогда</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.cpp" line="162"/>
         <source>Invalid Address</source>
-        <translation type="unfinished"></translation>
+        <translation>Недопустимый адрес</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.cpp" line="163"/>
         <source>&quot;%1&quot; is not a valid key server address.</source>
-        <translation type="unfinished"></translation>
+        <translation>&quot;%1&quot; не является допустимым адресом сервера ключей.</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.cpp" line="173"/>
         <source>Already Listed</source>
-        <translation type="unfinished"></translation>
+        <translation>Уже в списке</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.cpp" line="174"/>
         <source>%1 is already in the key server list.</source>
-        <translation type="unfinished"></translation>
+        <translation>%1 уже есть в списке серверов ключей.</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.cpp" line="180"/>
         <source>Insecure Key Server Address</source>
-        <translation type="unfinished"></translation>
+        <translation>Небезопасный адрес сервера ключей</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.cpp" line="181"/>
         <source>%1 uses plain HTTP, so anyone on the network can see and change what you look up or publish. Add it anyway?</source>
-        <translation type="unfinished"></translation>
+        <translation>%1 использует обычный HTTP, поэтому любой в сети может видеть и изменять то, что вы ищете или публикуете. Всё равно добавить?</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.cpp" line="229"/>
         <source>No Verified Publishing</source>
-        <translation type="unfinished"></translation>
+        <translation>Нет подтверждённой публикации</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.cpp" line="230"/>
@@ -300,12 +312,16 @@ Error: %2</source>
 Over HKP the server does not confirm your email address, and an uploaded key cannot be removed again.
 
 Use %1 as the default anyway?</source>
-        <translation type="unfinished"></translation>
+        <translation>%1 не поддерживает интерфейс VKS, поэтому публикация и обновление будут использовать HKP.
+
+Через HKP сервер не подтверждает ваш адрес электронной почты, и загруженный ключ нельзя будет удалить.
+
+Всё равно использовать %1 по умолчанию?</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.cpp" line="291"/>
         <source>Key Server Not Verified</source>
-        <translation type="unfinished"></translation>
+        <translation>Сервер ключей не проверен</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.cpp" line="292"/>
@@ -314,7 +330,11 @@ Use %1 as the default anyway?</source>
 %2
 
 It has been added and marked unverified; use Test Selected to try again.</source>
-        <translation type="unfinished"></translation>
+        <translation>%1 не ответил как сервер ключей.
+
+%2
+
+Он был добавлен и помечен как непроверенный; используйте «Проверить выбранное», чтобы попробовать снова.</translation>
     </message>
 </context>
 <context>
@@ -402,7 +422,7 @@ It has been added and marked unverified; use Test Selected to try again.</source
     <message>
         <location filename="../SearchKeyDialog.cpp" line="120"/>
         <source>Enter a value, then press Enter or Search</source>
-        <translation type="unfinished"></translation>
+        <translation>Введите значение, затем нажмите Enter или Поиск</translation>
     </message>
     <message>
         <location filename="../SearchKeyDialog.cpp" line="163"/>
@@ -427,7 +447,7 @@ It has been added and marked unverified; use Test Selected to try again.</source
     <message>
         <location filename="../SearchKeyDialog.cpp" line="216"/>
         <source>Invalid fingerprint format. It should be a hex string of length 16, 40 or 64.</source>
-        <translation type="unfinished"></translation>
+        <translation>Неверный формат отпечатка. Он должен быть шестнадцатеричной строкой длиной 16, 40 или 64.</translation>
     </message>
     <message>
         <source>Invalid fingerprint format. It should be a hex string of length 16 or 40.</source>
@@ -447,22 +467,22 @@ It has been added and marked unverified; use Test Selected to try again.</source
         <location filename="../SearchKeyDialog.cpp" line="273"/>
         <location filename="../SearchKeyDialog.cpp" line="283"/>
         <source>No keys found matching your search.</source>
-        <translation type="unfinished"></translation>
+        <translation>Не найдено ключей, соответствующих вашему поиску.</translation>
     </message>
     <message>
         <location filename="../SearchKeyDialog.cpp" line="302"/>
         <source>(no user ID published)</source>
-        <translation type="unfinished"></translation>
+        <translation>(идентификатор пользователя не опубликован)</translation>
     </message>
     <message>
         <location filename="../SearchKeyDialog.cpp" line="306"/>
         <source>Unknown</source>
-        <translation type="unfinished"></translation>
+        <translation>Неизвестно</translation>
     </message>
     <message>
         <location filename="../SearchKeyDialog.cpp" line="310"/>
         <source>Never</source>
-        <translation type="unfinished"></translation>
+        <translation>Никогда</translation>
     </message>
     <message>
         <location filename="../SearchKeyDialog.cpp" line="374"/>
