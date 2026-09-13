@@ -462,8 +462,8 @@ void EMailAccountSettingsPage::ApplySettings() {
   // not working.
   for (const auto& account : accounts_) {
     const auto password = pending_passwords_.value(account.id);
-    if (password.isEmpty()) continue;
-    EMailCredentialStore::Save(account.id, password);
+    if (!password || password->IsEmpty()) continue;
+    EMailCredentialStore::Save(account.id, *password);
   }
 
   wipe_pending_passwords();
@@ -767,7 +767,11 @@ void EMailAccountSettingsPage::load_selected() {
   SelectSecurity(smtp_security_, account.smtp.tls);
   smtp_user_->setText(account.smtp.username);
 
-  password_edit_->setText(pending_passwords_.value(account.id));
+  // Deliberately NOT refilled from the staged secret. Rendering it back into
+  // the field would create another QString copy that cannot be erased, to show
+  // the user a row of dots they cannot read anyway. An empty field means
+  // "unchanged"; what was staged is still applied on Save.
+  password_edit_->clear();
 
   refresh_port_hints();
   refresh_pin_state();
@@ -804,8 +808,14 @@ void EMailAccountSettingsPage::store_selected() {
 
   account.sent_folder_override = sent_folder_->text().trimmed();
 
-  const auto password = password_edit_->text();
-  if (!password.isEmpty()) pending_passwords_[account.id] = password;
+  // Out of the widget and into an erasable secret at once. The QString handed
+  // over here is still beyond anyone's reach -- see EMailSecret -- but it goes
+  // out of scope at the end of this function instead of living in a map for as
+  // long as the settings page is open.
+  const auto typed = password_edit_->text();
+  if (!typed.isEmpty()) {
+    pending_passwords_[account.id] = EMailSecret::CopyFrom(typed);
+  }
 }
 
 void EMailAccountSettingsPage::refresh_enabled_state() {
@@ -940,13 +950,16 @@ void EMailAccountSettingsPage::slot_stop_test() {
 }
 
 void EMailAccountSettingsPage::wipe_pending_passwords() {
-  // Overwritten in place before the map lets go of them. QString cannot be
-  // erased once anything else shares it -- see EMailSecret -- but these are
-  // unshared while staged here, so this does reach the buffer. What matters is
-  // that it happens on EVERY path out: clear() alone freed the plaintext, and
-  // two of the three exits took that route.
+  // Really overwritten now. These were QStrings, and the fill() that stood
+  // here claimed to reach their buffers -- it did not: the value came from
+  // QLineEdit::text(), which is implicitly shared with the widget, so fill()
+  // detached and zeroed a fresh copy while the original went on living inside
+  // the QLineEdit and was later freed with the password still in it.
+  //
+  // What matters as much is that this happens on EVERY path out: clear() alone
+  // freed the plaintext, and two of the three exits took that route.
   for (auto& password : pending_passwords_) {
-    password.fill(QChar('\0'));
+    if (password) password->Wipe();
   }
   pending_passwords_.clear();
 }
@@ -1095,7 +1108,8 @@ void EMailAccountSettingsPage::test_transport(bool imap, QLabel* status) {
   // this function holds can actually be erased.
   auto password = EMailSecret::CopyFrom(password_edit_->text());
   if (password->IsEmpty()) {
-    password = EMailSecret::CopyFrom(pending_passwords_.value(account.id));
+    const auto staged = pending_passwords_.value(account.id);
+    if (staged && !staged->IsEmpty()) password = staged;
   }
   if (password->IsEmpty()) password = EMailCredentialStore::Load(account.id);
   if (password->IsEmpty()) {

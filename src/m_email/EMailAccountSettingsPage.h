@@ -37,6 +37,7 @@
 #include "EMailAccountStore.h"
 #include "EMailCancelToken.h"
 #include "EMailNetError.h"
+#include "EMailSecret.h"
 
 class QCheckBox;
 class QComboBox;
@@ -174,7 +175,19 @@ class EMailAccountSettingsPage : public QWidget {
   QThread* probe_thread_{};
   quint64 probe_seq_{0};
 
-  QMap<QString, QString> pending_passwords_;
+  /// Staged passwords, as erasable secrets rather than QStrings.
+  ///
+  /// They used to be QStrings taken straight from the line edit, and the wipe
+  /// that "cleared" them called QString::fill() on a buffer the QLineEdit
+  /// still shared -- which detaches and zeroes a fresh copy while the original
+  /// lives on. See the note on EMailSecret.
+  ///
+  /// This does not close the window, it narrows it: the text still passes
+  /// through QLineEdit's own storage and through the QString that
+  /// EMailSecret::CopyFrom() is handed, and neither of those can be erased
+  /// from here. What it removes is this page holding its own un-erasable copy
+  /// for as long as the dialog stays open.
+  QMap<QString, EMailSecretPtr> pending_passwords_;
   /// Accounts removed from the list but whose stored password is only
   /// forgotten on Apply, so Cancel really does put everything back.
   QStringList pending_removals_;
