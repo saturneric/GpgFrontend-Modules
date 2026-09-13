@@ -32,6 +32,8 @@
 #include <vmime/net/imap/IMAPFolder.hpp>
 #include <vmime/net/imap/IMAPSearchAttributes.hpp>
 #include <vmime/security/defaultAuthenticator.hpp>
+#include <optional>
+#include <string>
 
 #include "EMailTlsSetup.h"
 #include "GFModuleCommonUtils.hpp"
@@ -204,6 +206,44 @@ class FetchProgress : public vmime::utility::progressListener {
 };
 
 /// Message-ID with the angle brackets stripped, for comparison.
+/**
+ * @brief An output stream that refuses to grow past a ceiling.
+ *
+ * The size check before a fetch reads RFC822.SIZE, which is the SERVER's
+ * claim about the message. A server that under-reports -- or simply one that
+ * is wrong -- then streams as much as it likes into an ostringstream that has
+ * no bound of its own, and the process grows until it is killed. The only
+ * timeout in the way is reset by every read, so a slow drip never trips it.
+ *
+ * So the ceiling is enforced where the bytes actually arrive. Throwing is what
+ * stops the transfer: vmime has no way to say "stop" to a listener.
+ */
+class BoundedOutputStream : public vmime::utility::outputStream {
+ public:
+  BoundedOutputStream(std::ostringstream& sink, size_t limit)
+      : sink_(sink), limit_(limit) {}
+
+  void flush() override {}
+
+  [[nodiscard]] auto Written() const -> size_t { return written_; }
+
+ protected:
+  void writeImpl(const vmime::byte_t* data, const size_t count) override {
+    written_ += count;
+    if (written_ > limit_) {
+      throw vmime::exceptions::invalid_response(
+          "FETCH", "the message is larger than its reported size");
+    }
+    sink_.write(reinterpret_cast<const char*>(data), count);
+  }
+
+ private:
+  std::ostringstream& sink_;
+  size_t limit_;
+  size_t written_{0};
+};
+
+
 auto NormalizeMessageId(const QString& raw) -> QString {
   auto value = raw.trimmed();
   if (value.startsWith('<')) value.remove(0, 1);
@@ -212,6 +252,26 @@ auto NormalizeMessageId(const QString& raw) -> QString {
 }
 
 }  // namespace
+
+auto ImapQuotable(const QString& text) -> std::optional<std::string> {
+  std::string out;
+  out.reserve(static_cast<size_t>(text.size()));
+
+  for (const auto ch : text) {
+    const auto code = ch.unicode();
+
+    // CR and LF end the command; everything else below 0x20, and DEL, has no
+    // business in a quoted string either.
+    if (code < 0x20 || code == 0x7F) return std::nullopt;
+    if (code > 0x7E) return std::nullopt;
+
+    // The two characters a quoted string has to escape, per RFC 3501.
+    if (ch == '"' || ch == '\\') out.push_back('\\');
+    out.push_back(static_cast<char>(code));
+  }
+
+  return out;
+}
 
 struct EMailImapWorker::Impl {
   vmime::shared_ptr<vmime::net::session> session;
@@ -495,7 +555,7 @@ auto SummarizeMessage(const vmime::shared_ptr<vmime::net::message>& message)
 }  // namespace
 
 void EMailImapWorker::ListMessages(quint64 seq, const QString& folder_path,
-                                   quint64 before_uid, int page_size,
+                                   quint64 before_seq, int page_size,
                                    int retained) {
   const CancelScope cancel_scope(token_, seq, impl_->timeouts);
 
@@ -535,7 +595,7 @@ void EMailImapWorker::ListMessages(quint64 seq, const QString& folder_path,
     // The alternative -- asking for everything and keeping the tail -- is what
     // this design exists to avoid.
     int highest = total;
-    if (before_uid != 0) highest = static_cast<int>(before_uid) - 1;
+    if (before_seq != 0) highest = static_cast<int>(before_seq) - 1;
     if (highest <= 0) {
       emit SignalMessages(seq, page);
       return;
@@ -550,9 +610,10 @@ void EMailImapWorker::ListMessages(quint64 seq, const QString& folder_path,
 
     for (auto it = messages.rbegin(); it != messages.rend(); ++it) {
       auto row = SummarizeMessage(*it);
-      // Carry the sequence number as the cursor: UIDs are not contiguous, and
-      // this is what the next page is asked to come before.
-      row.uid = static_cast<quint64>((*it)->getNumber());
+      // The cursor, ALONGSIDE the UID rather than instead of it. This used to
+      // overwrite row.uid, which left every row identified by its position --
+      // and a position is only true until something else is expunged.
+      row.seq = static_cast<quint64>((*it)->getNumber());
       page.rows.append(row);
     }
 
@@ -599,11 +660,24 @@ void EMailImapWorker::SearchMessages(quint64 seq, const QString& folder_path,
       return;
     }
 
-    const auto text = query.trimmed().toStdString();
+    const auto text = ImapQuotable(query.trimmed());
+    if (!text) {
+      MailError error;
+      error.category = MailErrorCategory::kLISTING;
+      error.title = QCoreApplication::translate(
+          "EMailTransport", "That search text cannot be sent");
+      error.detail = QCoreApplication::translate(
+          "EMailTransport",
+          "A search may only contain ordinary ASCII characters, with no line "
+          "breaks. Try searching for a shorter part of the word.");
+      emit SignalFailed(seq, error);
+      return;
+    }
+
     vmime::net::imap::IMAPSearchAttributes attributes;
     attributes.add(vmime::net::imap::IMAPSearchTokenFactory::OR(
-        vmime::net::imap::IMAPSearchTokenFactory::SUBJECT(text),
-        vmime::net::imap::IMAPSearchTokenFactory::FROM(text)));
+        vmime::net::imap::IMAPSearchTokenFactory::SUBJECT(*text),
+        vmime::net::imap::IMAPSearchTokenFactory::FROM(*text)));
 
     // vmime hands back the whole match set: IMAP SEARCH has no LIMIT and this
     // call materializes every UID. They are cheap individually, but the count
@@ -644,7 +718,10 @@ void EMailImapWorker::SearchMessages(quint64 seq, const QString& folder_path,
       QHash<QString, EMailMessageSummary> by_uid;
       for (const auto& message : messages) {
         auto row = SummarizeMessage(message);
-        row.uid = static_cast<quint64>(message->getNumber());
+        // SummarizeMessage already read the real UID; only the cursor is
+        // taken from the position. Search results are not paged by position,
+        // so this is recorded for completeness rather than used.
+        row.seq = static_cast<quint64>(message->getNumber());
         by_uid.insert(QString::fromStdString(message->getUID()), row);
       }
 
@@ -673,7 +750,7 @@ void EMailImapWorker::SearchMessages(quint64 seq, const QString& folder_path,
 }
 
 void EMailImapWorker::FetchMessage(quint64 seq, const QString& folder_path,
-                                   quint64 number) {
+                                   quint64 uid) {
   const CancelScope cancel_scope(token_, seq, impl_->timeouts);
 
   // A stop that arrived while this request was still queued applies to it:
@@ -690,10 +767,25 @@ void EMailImapWorker::FetchMessage(quint64 seq, const QString& folder_path,
       return;
     }
 
+    // By UID, which is the message's identity. Addressing by sequence number
+    // meant asking for a POSITION: an expunge by another client renumbers
+    // everything after it, so the row the user clicked and the message that
+    // came back could be two different messages, with nothing to say so.
     auto messages = folder->getMessages(
-        vmime::net::messageSet::byNumber(static_cast<size_t>(number)));
+        vmime::net::messageSet::byUID(static_cast<vmime::net::message::uid>(
+            std::to_string(uid))));
     if (messages.empty()) {
-      emit SignalFailed(seq, MailInternalError("message not found"));
+      // A UID that no longer resolves means the message is gone, which is a
+      // different thing from a fetch failing and is worth saying so.
+      MailError error;
+      error.category = MailErrorCategory::kFETCH;
+      error.title = QCoreApplication::translate(
+          "EMailTransport", "That message is no longer in this folder");
+      error.detail = QCoreApplication::translate(
+          "EMailTransport",
+          "It was moved or deleted after this list was loaded. Refresh the "
+          "folder to see what is there now.");
+      emit SignalFailed(seq, error);
       return;
     }
 
@@ -712,7 +804,10 @@ void EMailImapWorker::FetchMessage(quint64 seq, const QString& folder_path,
     }
 
     std::ostringstream stream;
-    vmime::utility::outputStreamAdapter out(stream);
+    // Bounded, because the check above trusted the server's own account of how
+    // big this message is. If it was wrong, this is what stops it.
+    BoundedOutputStream out(stream,
+                            static_cast<size_t>(kMailMaxMessageSize));
 
     // peek = true is the whole point: opening a message here must not be a
     // change to the mailbox, and the folder being read-only means the server
@@ -770,10 +865,22 @@ void EMailImapWorker::FindInSentFolder(quint64 seq, const QString& message_id) {
       return;
     }
 
-    const auto needle = NormalizeMessageId(message_id);
+    // Escaped, and refused outright if it cannot be. On the byte-preserving
+    // send path this identifier is read out of a message the user loaded from
+    // elsewhere, so it is chosen by whoever wrote that message -- a quote in
+    // it would end the search string early and the rest would be read as more
+    // of the command.
+    const auto needle = ImapQuotable(NormalizeMessageId(message_id));
+    if (!needle) {
+      // Not an error worth stopping the user over: the copy in Sent simply
+      // cannot be confirmed by searching for an identifier like this one.
+      emit SignalSentLookup(seq, false, false, path);
+      return;
+    }
+
     vmime::net::imap::IMAPSearchAttributes attributes;
-    attributes.add(vmime::net::imap::IMAPSearchTokenFactory::HEADER(
-        "Message-ID", needle.toStdString()));
+    attributes.add(
+        vmime::net::imap::IMAPSearchTokenFactory::HEADER("Message-ID", *needle));
     auto uids = imap->getMessageUIDsMatchingSearchAttributes(attributes);
 
     emit SignalSentLookup(seq, true, !uids.empty(), path);
@@ -828,9 +935,16 @@ auto SentFolderHolds(const vmime::shared_ptr<vmime::net::folder>& folder,
   auto imap = vmime::dynamicCast<vmime::net::imap::IMAPFolder>(folder);
   if (!imap || message_id.isEmpty()) return false;
 
+  // See FindInSentFolder: this identifier comes out of message bytes, so it is
+  // escaped, and a value that cannot be escaped is treated as "not found"
+  // rather than sent. Filing a second copy is a far smaller problem than
+  // letting a message dictate part of an IMAP command.
+  const auto needle = ImapQuotable(message_id);
+  if (!needle) return false;
+
   vmime::net::imap::IMAPSearchAttributes attributes;
-  attributes.add(vmime::net::imap::IMAPSearchTokenFactory::HEADER(
-      "Message-ID", message_id.toStdString()));
+  attributes.add(
+      vmime::net::imap::IMAPSearchTokenFactory::HEADER("Message-ID", *needle));
   return !imap->getMessageUIDsMatchingSearchAttributes(attributes).empty();
 }
 

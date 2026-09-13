@@ -33,6 +33,8 @@
 #include <QList>
 #include <QMetaType>
 #include <QObject>
+#include <optional>
+#include <string>
 #include <QString>
 
 #include "EMailAccountModel.h"
@@ -59,8 +61,47 @@ Q_DECLARE_METATYPE(EMailFolderInfo)
  * no structure and no attachment information: a picker that needed those would
  * be downloading mail rather than listing it.
  */
+/**
+ * @brief @p text as the body of an IMAP quoted string, or nothing at all.
+ *
+ * vmime writes a search keyword between two quote characters and does nothing
+ * else with it (IMAPSearchAttributes.cpp) -- it neither escapes nor rejects.
+ * A quote in the text therefore ends the string early and what follows is read
+ * as more of the command; a CRLF ends the command outright and what follows
+ * becomes a new one.
+ *
+ * That is not only about text the user typed. Send-and-confirm looks a message
+ * up by its Message-ID, and on the byte-preserving path that value is read out
+ * of a message loaded from elsewhere, so it is chosen by whoever wrote it.
+ *
+ * Non-ASCII is refused rather than escaped: a quoted string is 7-bit, and
+ * 8-bit bytes without a CHARSET argument -- which vmime cannot emit -- are a
+ * protocol violation servers may reject outright.
+ *
+ * @return the escaped body, or nullopt when it cannot be sent safely
+ */
+auto ImapQuotable(const QString& text) -> std::optional<std::string>;
+
 struct EMailMessageSummary {
+  /// The message's IMAP UID: its IDENTITY, stable for the life of the mailbox.
+  ///
+  /// This is what a fetch addresses. It used to be overwritten with the
+  /// sequence number, which is a POSITION and changes whenever anything is
+  /// expunged -- so a message deleted by another client while this list was on
+  /// screen renumbered everything after it, and clicking a row downloaded a
+  /// different message than the one it named.
   quint64 uid{0};
+
+  /// The message's position in the folder at the moment it was listed.
+  ///
+  /// A cursor, and only that: it is what the next page is asked to come
+  /// before, because a UID range cannot express "the newest N before this
+  /// one" without enumerating every UID below it. It is NEVER used to address
+  /// a message -- if it has gone stale, a page boundary shifts and a row may
+  /// repeat or be missed, which is a listing annoyance rather than the wrong
+  /// message being opened.
+  quint64 seq{0};
+
   QString message_id;
   QString subject;
   QString from;
@@ -143,11 +184,13 @@ class EMailImapWorker : public QObject {
   /**
    * @brief Fetch one page of the newest messages in @p folder.
    *
-   * @param before_uid page backwards from this UID, or 0 for the newest page
+   * @param before_seq page backwards from this SEQUENCE number, or 0 for the
+   *   newest page. A cursor into a list that can change under it; see
+   *   EMailMessageSummary::seq.
    * @param page_size rows to fetch; clamped
    * @param retained how many rows the picker already holds, for the cap
    */
-  void ListMessages(quint64 seq, const QString& folder, quint64 before_uid,
+  void ListMessages(quint64 seq, const QString& folder, quint64 before_seq,
                     int page_size, int retained);
 
   /**
