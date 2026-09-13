@@ -1034,22 +1034,27 @@ void EMailAccountSettingsPage::report_probe_error(const MailError& error,
   // to do next.
   status->setToolTip(error.protocol_detail);
 
-  if (error.IsPinnable()) offer_certificate_pin(imap, status);
+  if (error.IsPinnable()) offer_certificate_pin(imap, status, error);
 }
 
-void EMailAccountSettingsPage::offer_certificate_pin(bool imap,
-                                                     QLabel* status) {
+void EMailAccountSettingsPage::offer_certificate_pin(bool imap, QLabel* status,
+                                                     const MailError& error) {
   const auto index = selected_index();
   if (index < 0) return;
 
-  const auto fingerprint = EMailTlsSetup::LastSeenFingerprint();
+  // Off the error itself, which carries what THIS connection's verifier saw.
+  // It used to be read from one process-global slot that every verification in
+  // the process wrote to -- so a probe started here while a mailbox browser
+  // was connecting could show the browser's fingerprint and then pin it to the
+  // account being edited.
+  const auto fingerprint = error.cert_fingerprint;
   if (fingerprint.isEmpty()) return;
 
   // The fingerprint is put in front of the user and the decision is theirs.
   // Trusting a certificate because a dialog asked is not a decision, so the
   // default button is Cancel and the question names exactly what is being
   // trusted and how far that trust goes.
-  const auto summary = EMailTlsSetup::LastSeenCertificateSummary();
+  const auto summary = error.cert_summary;
   const auto question =
       tr("This server presented a certificate that no authority vouches for. "
          "That is normal for a server you run yourself, and it is also what "

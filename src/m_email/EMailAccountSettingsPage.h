@@ -164,7 +164,8 @@ class EMailAccountSettingsPage : public QWidget {
   /// Overwrites every staged password before releasing it.
   void wipe_pending_passwords();
   /// Offers to trust the certificate the last test was refused over.
-  void offer_certificate_pin(bool imap, QLabel* status);
+  /// @param error the failure that produced the certificate, which carries it
+  void offer_certificate_pin(bool imap, QLabel* status, const MailError& error);
   /// Shows, per transport, whether a certificate is pinned.
   void refresh_pin_state();
   /// Drops the pinned certificate for one transport.
