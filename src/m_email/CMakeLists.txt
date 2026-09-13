@@ -68,6 +68,31 @@ if(MINGW)
   target_link_libraries(vmime-static ws2_32 mlang)
 endif()
 
+# Only the module ABI leaves this shared object.
+#
+# The host resolves exactly ten symbols by name (Module.cpp), every one of them
+# declared GF_MODULE_EXPORT, which is __attribute__((visibility("default"))).
+# Everything else -- this module's own classes and the whole of vmime -- is
+# private to the object and was being exported anyway: 8404 dynamic symbols for
+# an interface of ten, of which 711 were vmime internals nobody outside can
+# call. The export table alone cost about 0.84 MB of the stripped binary, and a
+# symbol that might be interposed is also a symbol the compiler cannot inline
+# or fold.
+#
+# vmime needs this as much as the module does, since VMIME_EXPORT is empty in a
+# static build and so its symbols carry no visibility of their own. Exceptions
+# and dynamic_cast stay correct because nothing vmime defines ever crosses an
+# object boundary: the module's interface to the host is plain C.
+#
+# On Windows this is inert -- a DLL's exports come from dllexport rather than
+# from ELF visibility -- so it changes nothing there rather than breaking it.
+foreach(target ${MODULE_TARGET} vmime-static)
+  set_target_properties(${target} PROPERTIES
+    C_VISIBILITY_PRESET hidden
+    CXX_VISIBILITY_PRESET hidden
+    VISIBILITY_INLINES_HIDDEN ON)
+endforeach()
+
 # vmime headers
 target_include_directories(${MODULE_TARGET} PRIVATE
   "${CMAKE_CURRENT_SOURCE_DIR}/vmime/src"
