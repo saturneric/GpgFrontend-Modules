@@ -52,6 +52,45 @@ auto Elide(const QByteArray& data) -> QString {
 
 auto Elide(const QString& data) -> QString { return Elide(data.toUtf8()); }
 
+/**
+ * @brief Reclaims a result the SDK handed back with a failure, and returns
+ * what the engine said went wrong.
+ *
+ * The four crypto entry points allocate their result struct BEFORE they can
+ * fail, so a non-zero return does not mean there is nothing to clean up: the
+ * struct is live, and on most of those paths it carries the engine's own
+ * description of the failure (src/sdk/GFSDKGpg.cpp -- every `return -1` after
+ * `*ps = new (mem) ...`). Every call site here used to check
+ * `ret != 0 || s == nullptr` and walk away, which leaked the struct and its
+ * strings and threw away the one explanation that existed -- so a signing key
+ * that could not be found reached the user as "Operation Failed."
+ *
+ * @p handle names the ref-counted gpgme result member, which differs per
+ * struct. Leaves @p s null, so taking twice is harmless.
+ *
+ * @return the engine's message, or an empty string when it gave none.
+ */
+template <typename ResultT, typename HandleT>
+auto TakeSdkFailure(ResultT*& s, HandleT ResultT::*handle) -> QString {
+  if (s == nullptr) return {};
+
+  // Read before the struct goes; UDUP takes ownership of each buffer, and a
+  // null one is a no-op rather than a crash.
+  const auto message = UDUP(s->error_string);
+  UDUP(s->capsule_id);
+
+  GFGpgFreeResult(s->*handle);
+  GFFreeMemory(s);
+  s = nullptr;
+  return message;
+}
+
+/// The failure text to show: the engine's own words wherever it gave any.
+auto SdkFailureText(const QString& prefix, const QString& reason) -> QString {
+  return reason.isEmpty() ? QString("%1 Failed.").arg(prefix)
+                          : QString("%1 Failed: %2").arg(prefix, reason);
+}
+
 }  // namespace
 
 auto EncryptPlainText(int channel, const QStringList& keys,
@@ -75,7 +114,11 @@ auto EncryptPlainText(int channel, const QStringList& keys,
         GFGpgEncryptDataN(channel, QStringListToCharArray(keys), keys.size(),
                           body_data.constData(), body_data.size(), 1, &s);
     if (ret != 0 || s == nullptr) {
-      eml_data = "Operation Failed.";
+      eml_data =
+          SdkFailureText(
+              "Encryption",
+              TakeSdkFailure(s, &GFGpgEncryptionResult::gpgme_encrypt_result))
+              .toUtf8();
       return kFAILED;
     }
 
@@ -253,7 +296,11 @@ auto EncryptEMLData(int channel, const QStringList& keys,
                                  keys.size(), plain_raw_data.constData(),
                                  plain_raw_data.size(), 1, &s);
     if (ret != 0 || s == nullptr) {
-      eml_data = "Operation Failed.";
+      eml_data =
+          SdkFailureText(
+              "Encryption",
+              TakeSdkFailure(s, &GFGpgEncryptionResult::gpgme_encrypt_result))
+              .toUtf8();
       return kFAILED;
     }
 
@@ -562,7 +609,10 @@ auto SignPlainText(int channel, const QString& key,
                               container_raw_data.constData(),
                               container_raw_data.size(), 1, 1, &s);
     if (ret != 0 || s == nullptr) {
-      eml_data = "Operation Failed";
+      eml_data =
+          SdkFailureText("Sign",
+                         TakeSdkFailure(s, &GFGpgSignResult::gpgme_sign_result))
+              .toUtf8();
       return kFAILED;
     }
 
@@ -798,7 +848,10 @@ auto SignEMLData(int channel, const QString& key,
                               container_raw_data.constData(),
                               container_raw_data.size(), 1, 1, &s);
     if (ret != 0 || s == nullptr) {
-      eml_data = "Operation Failed";
+      eml_data =
+          SdkFailureText("Sign",
+                         TakeSdkFailure(s, &GFGpgSignResult::gpgme_sign_result))
+              .toUtf8();
       return kFAILED;
     }
 
@@ -1014,8 +1067,12 @@ auto VerifyEMLData(int channel, const QByteArray& data,
     return kEML_FAILED;
   }
 
-  auto part_sign_body_content =
-      QByteArray::fromStdString(part_sign->getBody()->generate());
+  // DECODED, not generated. body::generate() emits the WIRE form -- for a
+  // part carrying Content-Transfer-Encoding: base64, that is the base64 text
+  // rather than the signature. Handing that to the engine makes a perfectly
+  // good signature fail as bad data, and the user is shown a verification
+  // failure that looks exactly like a forgery.
+  auto part_sign_body_content = DecodePartContent(part_sign);
   if (part_sign_body_content.trimmed().isEmpty()) {
     error_string = "The signature part is empty";
     return kEML_FAILED;
@@ -1033,7 +1090,8 @@ auto VerifyEMLData(int channel, const QByteArray& data,
                               part_sign_body_content.constData(),
                               part_sign_body_content.size(), &s);
   if (ret != 0 || s == nullptr) {
-    error_string = "Operation Failed.";
+    error_string = SdkFailureText(
+        "Verify", TakeSdkFailure(s, &GFGpgVerifyResult::gpgme_verify_result));
     return kFAILED;
   }
 
@@ -1204,8 +1262,10 @@ auto DecryptEMLData(int channel, const QByteArray& data,
     return kEML_FAILED;
   }
 
-  auto part_encr_body_content =
-      QByteArray::fromStdString(part_sign->getBody()->generate());
+  // DECODED, for the same reason as the signature part in VerifyEMLData():
+  // body::generate() would hand the engine base64 text instead of the
+  // ciphertext whenever the sender transfer-encoded this part.
+  auto part_encr_body_content = DecodePartContent(part_sign);
   if (part_encr_body_content.trimmed().isEmpty()) {
     eml_data = "The second part is empty";
     return kEML_FAILED;
@@ -1220,7 +1280,10 @@ auto DecryptEMLData(int channel, const QByteArray& data,
   auto ret = GFGpgDecryptDataN(channel, part_encr_body_content.constData(),
                                part_encr_body_content.size(), &s);
   if (ret != 0 || s == nullptr) {
-    eml_data = "Operation Failed.";
+    eml_data = SdkFailureText(
+                   "Decrypt",
+                   TakeSdkFailure(s, &GFGpgDecryptResult::gpgme_decrypt_result))
+                   .toUtf8();
     return kFAILED;
   }
 
@@ -1315,7 +1378,13 @@ auto VerifyEMLRegions(int channel, const QByteArray& raw, const EMailPart& root,
     auto ret = GFGpgVerifyDataN(
         channel, signed_bytes.constData(), signed_bytes.size(),
         signature_bytes.constData(), signature_bytes.size(), &s);
-    if (ret != 0 || s == nullptr) continue;
+    if (ret != 0 || s == nullptr) {
+      // One region failing is not the walk failing: the others are still worth
+      // verifying, and this one is reported as unverified. The result still
+      // has to be reclaimed before moving on.
+      TakeSdkFailure(s, &GFGpgVerifyResult::gpgme_verify_result);
+      continue;
+    }
 
     const auto err = s->gpgme_error;
     const auto capsule_id = UDUP(s->capsule_id);
