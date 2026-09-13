@@ -337,7 +337,6 @@ TEST_F(CryptoBoundaryTest, EncryptingPassesTheBodyOctetsWhole) {
       << "the plaintext was cut at the embedded NUL before encryption";
 }
 
-
 TEST_F(CryptoBoundaryTest, AnOversizedDecryptedPlaintextIsRefused) {
   // The ceiling on the way in bounds the CIPHERTEXT. An OpenPGP compressed
   // packet a few megabytes long expands to gigabytes, so the expansion has to
@@ -373,7 +372,6 @@ TEST_F(CryptoBoundaryTest, AnOversizedDecryptedPlaintextIsRefused) {
       << "the oversized plaintext was carried forward anyway";
 }
 
-
 // --- bounded verification work ----------------------------------------------
 
 namespace {
@@ -390,15 +388,17 @@ auto ManySignedRegions(int count) -> QByteArray {
   for (int i = 0; i < count; ++i) {
     const auto b = QByteArray("sig") + QByteArray::number(i);
     eml += "--outer\r\n";
-    eml += "Content-Type: multipart/signed; micalg=pgp-sha256; "
-           "protocol=\"application/pgp-signature\"; boundary=\"" + b +
-           "\"\r\n\r\n";
+    eml +=
+        "Content-Type: multipart/signed; micalg=pgp-sha256; "
+        "protocol=\"application/pgp-signature\"; boundary=\"" +
+        b + "\"\r\n\r\n";
     eml += "--" + b + "\r\n";
     eml += "Content-Type: text/plain\r\n\r\npart\r\n";
     eml += "--" + b + "\r\n";
     eml += "Content-Type: application/pgp-signature\r\n\r\n";
-    eml += "-----BEGIN PGP SIGNATURE-----\r\naGVsbG8=\r\n"
-           "-----END PGP SIGNATURE-----\r\n";
+    eml +=
+        "-----BEGIN PGP SIGNATURE-----\r\naGVsbG8=\r\n"
+        "-----END PGP SIGNATURE-----\r\n";
     eml += "--" + b + "--\r\n";
   }
   eml += "--outer--\r\n";
@@ -461,12 +461,153 @@ TEST_F(CryptoBoundaryTest, EachRegionIsVerifiedOnItsOwnExactBytes) {
 
   ASSERT_EQ(Get().verify.size(), regions.size());
   for (int i = 0; i < regions.size(); ++i) {
-    const auto expected =
-        raw.mid(static_cast<int>(regions[i].raw_offset),
-                static_cast<int>(regions[i].raw_length));
+    const auto expected = raw.mid(static_cast<int>(regions[i].raw_offset),
+                                  static_cast<int>(regions[i].raw_length));
     EXPECT_EQ(Get().verify[i].data, expected)
         << "region " << i << " was verified on the wrong bytes";
   }
 }
 
 }  // namespace
+
+// --- decrypt then verify -----------------------------------------------------
+//
+// An encrypted message that is not signed is the ordinary case. The operation
+// used to route its plaintext into VerifyEMLData() unconditionally, which
+// refuses anything that is not multipart/signed -- and that refusal was
+// reported as a failure of the whole operation, with no data on the callback,
+// so the host discarded the plaintext the user had just decrypted.
+
+namespace {
+
+/// A PGP/MIME encrypted message. The ciphertext is a stub; what comes back out
+/// of the fake engine is whatever the test put in `decrypt_output`.
+auto EncryptedMessage() -> QByteArray {
+  QByteArray eml;
+  eml += "From: Alice <alice@example.com>\r\n";
+  eml += "To: Bob <bob@example.com>\r\n";
+  eml += "Subject: ...\r\n";
+  eml += "MIME-Version: 1.0\r\n";
+  eml +=
+      "Content-Type: multipart/encrypted; "
+      "protocol=\"application/pgp-encrypted\"; boundary=\"encb\"\r\n";
+  eml += "\r\n--encb\r\n";
+  eml += "Content-Type: application/pgp-encrypted\r\n\r\n";
+  eml += "Version: 1\r\n";
+  eml += "\r\n--encb\r\n";
+  eml += "Content-Type: application/octet-stream\r\n\r\n";
+  eml +=
+      "-----BEGIN PGP MESSAGE-----\r\nc3R1Yg==\r\n"
+      "-----END PGP MESSAGE-----\r\n";
+  eml += "\r\n--encb--\r\n";
+  return eml;
+}
+
+/// An ordinary, unsigned message carrying one attachment.
+auto UnsignedInnerMessage() -> QByteArray {
+  QByteArray inner;
+  inner += "From: Alice <alice@example.com>\r\n";
+  inner += "To: Bob <bob@example.com>\r\n";
+  inner += "Subject: the real subject\r\n";
+  inner += "MIME-Version: 1.0\r\n";
+  inner += "Content-Type: multipart/mixed; boundary=\"inb\"\r\n";
+  inner += "\r\n--inb\r\n";
+  inner += "Content-Type: text/plain; charset=utf-8\r\n\r\n";
+  inner += "the secret\r\n";
+  inner += "--inb\r\n";
+  inner +=
+      "Content-Type: application/pdf; name=\"report.pdf\"\r\n"
+      "Content-Disposition: attachment; filename=\"report.pdf\"\r\n\r\n";
+  inner += "PDFBYTES\r\n";
+  inner += "--inb--\r\n";
+  return inner;
+}
+
+}  // namespace
+
+TEST_F(CryptoBoundaryTest, VerifyRefusesAnUnsignedMessage) {
+  // The reason the old decrypt-and-verify lost the plaintext. This is correct
+  // behaviour for VerifyEMLData on its own -- the mistake was treating it as a
+  // failure of the whole operation.
+  EMailMetaData meta;
+  QString error;
+  gpgme_error_t err = 0;
+  QString capsule;
+
+  EXPECT_EQ(VerifyEMLData(0, UnsignedInnerMessage(), meta, error, err, capsule),
+            kEML_FAILED);
+}
+
+TEST_F(CryptoBoundaryTest, DecryptOfAnUnsignedMessageKeepsThePlaintext) {
+  Get().decrypt_output = UnsignedInnerMessage();
+
+  EMailMetaData meta;
+  QByteArray out;
+  gpgme_error_t err = 0;
+  QString capsule;
+
+  ASSERT_EQ(DecryptEMLData(0, EncryptedMessage(), meta, out, err, capsule),
+            kSUCCESS);
+
+  // The plaintext survives, and the operation must not go on to call the
+  // top-level verify with it.
+  EXPECT_TRUE(out.contains("the secret"));
+  EXPECT_EQ(PlanVerifyAfterDecrypt(out), EMailPostDecryptPlan::kNOT_SIGNED);
+
+  // One walk, one listing. Handing this same object to a verify afterwards was
+  // what listed the attachment twice.
+  ASSERT_EQ(meta.attachments.size(), 1);
+  EXPECT_EQ(meta.attachments.first().filename, QString("report.pdf"));
+}
+
+TEST_F(CryptoBoundaryTest, AVerifyAfterADecryptListsEachAttachmentOnce) {
+  // The signed case: decrypt fills one object, verify fills its own, and the
+  // merge joins them. Both walked the same bytes, so a concatenation here is
+  // exactly the duplication this replaced.
+  QByteArray inner;
+  inner += "From: Alice <alice@example.com>\r\n";
+  inner += "MIME-Version: 1.0\r\n";
+  inner +=
+      "Content-Type: multipart/signed; micalg=pgp-sha256; "
+      "protocol=\"application/pgp-signature\"; boundary=\"sb\"\r\n";
+  inner += "\r\n--sb\r\n";
+  inner += "Content-Type: multipart/mixed; boundary=\"mb\"\r\n";
+  inner += "\r\n--mb\r\n";
+  inner += "Content-Type: text/plain\r\n\r\ninner body\r\n";
+  inner += "--mb\r\n";
+  inner +=
+      "Content-Type: application/pdf; name=\"a.pdf\"\r\n"
+      "Content-Disposition: attachment; filename=\"a.pdf\"\r\n\r\n";
+  inner += "BYTES\r\n";
+  inner += "--mb--\r\n";
+  inner += "\r\n--sb\r\n";
+  inner += "Content-Type: application/pgp-signature\r\n\r\n";
+  inner += "-----BEGIN PGP SIGNATURE-----\r\nx\r\n";
+  inner += "-----END PGP SIGNATURE-----\r\n";
+  inner += "\r\n--sb--\r\n";
+
+  Get().decrypt_output = inner;
+
+  EMailMetaData decrypted;
+  QByteArray out;
+  gpgme_error_t err = 0;
+  QString capsule;
+  ASSERT_EQ(DecryptEMLData(0, EncryptedMessage(), decrypted, out, err, capsule),
+            kSUCCESS);
+  ASSERT_EQ(PlanVerifyAfterDecrypt(out), EMailPostDecryptPlan::kVERIFY);
+
+  EMailMetaData verified;
+  QString error;
+  ASSERT_EQ(VerifyEMLData(0, out, verified, error, err, capsule), kSUCCESS);
+
+  const auto before = decrypted.attachments.size();
+  MergeVerifiedMetaData(decrypted, verified);
+
+  EXPECT_EQ(decrypted.attachments.size(), before);
+  ASSERT_EQ(decrypted.attachments.size(), 1);
+  EXPECT_EQ(decrypted.attachments.first().filename, QString("a.pdf"));
+
+  // And the signature side arrived.
+  EXPECT_FALSE(decrypted.signed_entity_digest.isEmpty());
+  EXPECT_EQ(decrypted.micalg, QString("pgp-sha256"));
+}

@@ -34,8 +34,8 @@
 
 #include "EMailAccountSettingsPage.h"
 #include "EMailAccountStore.h"
-#include "EMailSecret.h"
 #include "EMailImapController.h"
+#include "EMailSecret.h"
 #include "EMailSendDialog.h"
 
 // qt
@@ -147,12 +147,11 @@ auto BuildAttachmentCard(const EMailMetaData& m) -> QJsonObject {
     auto description =
         QString("%1, %2").arg(att.mime_type, FormatSize(att.data.size()));
     if (att.is_openpgp_key) {
-      description +=
-          QApplication::translate("EMailModule", ", an OpenPGP key");
+      description += QApplication::translate("EMailModule", ", an OpenPGP key");
     }
     if (!att.inside_signed_part) {
       description += QApplication::translate("EMailModule",
-                                              ", not covered by the signature");
+                                             ", not covered by the signature");
     }
 
     fields.append({name, description});
@@ -1660,7 +1659,8 @@ auto DoDecryptVerifyEMLData(int channel, const QByteArray& data,
                             QString& result_detail, QString& result_cards,
                             QByteArray& eml_data, QString& error_string,
                             EMailMetaData& meta_data,
-                            QByteArray& decrypt_info_json) -> int {
+                            QByteArray& decrypt_info_json,
+                            EMailPostDecryptPlan& plan) -> int {
   QString decrypt_cards;
   if (DoDecryptEMLData(channel, data, event, result_status, result_detail,
                        decrypt_cards, eml_data, meta_data,
@@ -1668,17 +1668,51 @@ auto DoDecryptVerifyEMLData(int channel, const QByteArray& data,
     return -1;
   }
 
+  // The decrypt has succeeded and the plaintext is in hand. Whether there is
+  // anything to VERIFY is a separate question, and answering it "no" must not
+  // cost the user the plaintext they have just paid a passphrase for.
+  //
+  // VerifyEMLData() refuses any message whose outermost layer is not
+  // multipart/signed, and that refusal used to be treated as a failure of the
+  // whole operation: the callback carried no data, so the host -- which writes
+  // the editor only when data is present -- discarded the plaintext and showed
+  // an RFC 3156 lecture instead. An encrypted message that is not signed is
+  // the ordinary case, not a fault.
+  plan = PlanVerifyAfterDecrypt(eml_data);
+  if (plan != EMailPostDecryptPlan::kVERIFY) {
+    result_cards = decrypt_cards;
+    const auto note =
+        plan == EMailPostDecryptPlan::kNOT_SIGNED
+            ? QApplication::translate(
+                  "EMailModule",
+                  "This message is not signed, so there is no signature to "
+                  "check. It was decrypted successfully.")
+            : QApplication::translate(
+                  "EMailModule",
+                  "The decrypted content is not a MIME message, so there is no "
+                  "signature to check. It was decrypted successfully.");
+    result_detail = note + "\n" + result_detail;
+    return kSUCCESS;
+  }
+
   int t_result_status = 0;
   QString t_result_detail;
   QString verify_cards;
+
+  // Its OWN metadata object, not the one the decrypt filled. Both walk the
+  // same plaintext and ExtractParts() only ever appends, so sharing one object
+  // listed every attachment twice.
+  EMailMetaData verified_meta;
 
   // UTF-8, not Latin-1: this is the decrypted plaintext and the signature
   // inside it is checked against these exact bytes. See DoEncryptSignEMLData.
   if (DoVerifyEMLData(channel, eml_data, event, t_result_status,
                       t_result_detail, verify_cards, error_string,
-                      meta_data) != kSUCCESS) {
+                      verified_meta) != kSUCCESS) {
     return -1;
   }
+
+  MergeVerifiedMetaData(meta_data, verified_meta);
 
   result_status = WorseStatus(t_result_status, result_status);
   result_detail = t_result_detail + "\n" + result_detail;
@@ -1707,12 +1741,14 @@ REGISTER_EVENT_HANDLER(
       QString result_cards;
 
       QByteArray decrypt_info_json;
+      auto plan = EMailPostDecryptPlan::kVERIFY;
       if (DoDecryptVerifyEMLData(channel, data, event, result_status,
                                  result_detail, result_cards, eml_data,
-                                 error_string, meta_data,
-                                 decrypt_info_json) != kSUCCESS) {
+                                 error_string, meta_data, decrypt_info_json,
+                                 plan) != kSUCCESS) {
         return -1;
       }
+      const bool verified = plan == EMailPostDecryptPlan::kVERIFY;
 
       QString email_info;
       email_info.append("# E-Mail Information\n\n");
@@ -1740,16 +1776,27 @@ REGISTER_EVENT_HANDLER(
 
       email_info.append("# OpenPGP Information\n\n");
 
-      email_info.append(
-          QString("- %1: %2\n")
-              .arg(QApplication::translate(
-                  "EMailModule", "Digest of Signed MIME Entity (SHA-256)"))
-              .arg(meta_data.signed_entity_digest));
-      email_info.append(
-          QString("- %1: %2\n")
-              .arg(QApplication::translate("EMailModule",
-                                           "Declared Signature Hash (micalg)"))
-              .arg(meta_data.micalg));
+      // Only when something actually verified. An unsigned message has no
+      // signed entity and no declared hash, and printing those labels with
+      // nothing after them reads as a missing answer rather than as the
+      // absence of a question.
+      if (!verified) {
+        email_info.append(QString("- %1\n").arg(QApplication::translate(
+            "EMailModule",
+            "This message was decrypted. It carries no signature, so nothing "
+            "here says who sent it.")));
+      } else {
+        email_info.append(
+            QString("- %1: %2\n")
+                .arg(QApplication::translate(
+                    "EMailModule", "Digest of Signed MIME Entity (SHA-256)"))
+                .arg(meta_data.signed_entity_digest));
+        email_info.append(
+            QString("- %1: %2\n")
+                .arg(QApplication::translate(
+                    "EMailModule", "Declared Signature Hash (micalg)"))
+                .arg(meta_data.micalg));
+      }
 
       // Without this, a message whose line endings were rewritten after
       // signing reads exactly like a forged one, and the user has no way to
@@ -1770,7 +1817,7 @@ REGISTER_EVENT_HANDLER(
 
       email_info.append("#" + result_detail + "\n");
 
-      auto dv_meta_cards = BuildReadMetaCards(meta_data, true);
+      auto dv_meta_cards = BuildReadMetaCards(meta_data, verified);
       const auto dv_recipient_card =
           BuildRecipientCheckCard(meta_data, decrypt_info_json);
       if (!dv_recipient_card.isEmpty()) dv_meta_cards.append(dv_recipient_card);

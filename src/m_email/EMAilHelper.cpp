@@ -1172,6 +1172,77 @@ auto ClassifyOpenPGPStructure(const EMailPart& root,
   return EMailSecurityState::kPLAIN;
 }
 
+auto PlanVerifyAfterDecrypt(const QByteArray& plaintext)
+    -> EMailPostDecryptPlan {
+  if (plaintext.trimmed().isEmpty()) return EMailPostDecryptPlan::kUNREADABLE;
+
+  vmime::shared_ptr<vmime::message> message;
+  if (!CheckIfEMLMessage(plaintext, message) || !message) {
+    return EMailPostDecryptPlan::kUNREADABLE;
+  }
+
+  // The outermost layer and nothing else. VerifyEMLData() refuses anything
+  // whose top-level content type is not multipart/signed, so that single
+  // question decides whether handing it over can produce an answer at all.
+  //
+  // A message that CLAIMS multipart/signed and is malformed in some other way
+  // -- a missing protocol parameter, an unusable micalg -- still goes to the
+  // verify on purpose: the refusal it returns names what is wrong, and that
+  // diagnosis is worth more than silently calling the message unsigned.
+  if (PartContentType(message) == "multipart/signed") {
+    return EMailPostDecryptPlan::kVERIFY;
+  }
+
+  return EMailPostDecryptPlan::kNOT_SIGNED;
+}
+
+void MergeVerifiedMetaData(EMailMetaData& decrypted,
+                           const EMailMetaData& verified) {
+  // Only the verify produces these; there is nothing on the decrypt side to
+  // weigh them against.
+  decrypted.micalg = verified.micalg;
+  decrypted.signed_entity_digest = verified.signed_entity_digest;
+  decrypted.signed_entity_digest_algo = verified.signed_entity_digest_algo;
+  decrypted.signed_entity_non_canonical = verified.signed_entity_non_canonical;
+  decrypted.signature_regions = verified.signature_regions;
+  if (!verified.public_keys.isEmpty()) {
+    decrypted.public_keys = verified.public_keys;
+  }
+
+  // Headers prefer the verified side where it has them: those are the headers
+  // that travelled inside the ciphertext, and they are the ones an outer
+  // envelope cannot have rewritten.
+  const auto prefer = [](QString& into, const QString& from) {
+    if (!from.isEmpty()) into = from;
+  };
+  const auto prefer_list = [](QStringList& into, const QStringList& from) {
+    if (!from.isEmpty()) into = from;
+  };
+
+  prefer(decrypted.from, verified.from);
+  prefer(decrypted.subject, verified.subject);
+  prefer(decrypted.reply_to, verified.reply_to);
+  prefer(decrypted.organization, verified.organization);
+  prefer(decrypted.message_id, verified.message_id);
+  prefer(decrypted.in_reply_to, verified.in_reply_to);
+  prefer_list(decrypted.to, verified.to);
+  prefer_list(decrypted.cc, verified.cc);
+  prefer_list(decrypted.bcc_header, verified.bcc_header);
+  prefer_list(decrypted.references, verified.references);
+  if (verified.datetime.isValid()) decrypted.datetime = verified.datetime;
+
+  // Content is NEVER concatenated. Both sides walked the same plaintext, so
+  // appending one to the other is what listed every attachment twice; the
+  // verified side is consulted only where the decrypt found nothing at all.
+  if (decrypted.body.isEmpty() && !verified.body.isEmpty()) {
+    decrypted.body = verified.body;
+    decrypted.body_content_type = verified.body_content_type;
+  }
+  if (decrypted.attachments.isEmpty() && !verified.attachments.isEmpty()) {
+    decrypted.attachments = verified.attachments;
+  }
+}
+
 auto AddressOfUid(const QString& uid) -> QString {
   QString name;
   QString email;

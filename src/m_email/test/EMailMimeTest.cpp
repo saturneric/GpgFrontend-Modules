@@ -1208,3 +1208,170 @@ TEST(EMailMimeTest, SuggestedNameAvoidsReservedDeviceNames) {
   EXPECT_NE(SuggestedEMailFileName("NUL").toUpper(), QString("NUL.EML"));
   EXPECT_NE(SuggestedEMailFileName("CON").toUpper(), QString("CON.EML"));
 }
+
+// --- decrypt-then-verify -----------------------------------------------------
+//
+// What happens to a plaintext AFTER it has been decrypted is a policy decision,
+// and it used to live inside the module event handler where nothing could test
+// it. The rule it got wrong: an encrypted message that is not signed is the
+// ordinary case, and "there is no signature to check" must never be reported as
+// a failure of the operation -- the handler discarded the plaintext when it
+// was, which cost the user the message they had just decrypted.
+
+namespace {
+
+auto EncryptedThenPlaintext(const QByteArray& inner) -> QByteArray {
+  return inner;
+}
+
+auto SignedPlaintext() -> QByteArray {
+  QByteArray eml;
+  eml += "From: alice@example.com\r\n";
+  eml += "To: bob@example.com\r\n";
+  eml += "MIME-Version: 1.0\r\n";
+  eml +=
+      "Content-Type: multipart/signed; micalg=pgp-sha256; "
+      "protocol=\"application/pgp-signature\"; boundary=\"b\"\r\n";
+  eml += "\r\n";
+  eml += "--b\r\n";
+  eml += "Content-Type: text/plain\r\n\r\n";
+  eml += "hello\r\n";
+  eml += "--b\r\n";
+  eml += "Content-Type: application/pgp-signature\r\n\r\n";
+  eml += "-----BEGIN PGP SIGNATURE-----\r\nx\r\n";
+  eml += "-----END PGP SIGNATURE-----\r\n";
+  eml += "--b--\r\n";
+  return eml;
+}
+
+auto UnsignedPlaintext() -> QByteArray {
+  QByteArray eml;
+  eml += "From: alice@example.com\r\n";
+  eml += "To: bob@example.com\r\n";
+  eml += "Subject: inner\r\n";
+  eml += "MIME-Version: 1.0\r\n";
+  eml += "Content-Type: text/plain; charset=utf-8\r\n";
+  eml += "\r\n";
+  eml += "the secret\r\n";
+  return eml;
+}
+
+}  // namespace
+
+TEST(EMailMimeTest, AnUnsignedPlaintextIsNotSomethingToVerify) {
+  // The case the whole change exists for. Nothing here is an error: the
+  // decrypt worked and there is simply no signature.
+  EXPECT_EQ(PlanVerifyAfterDecrypt(EncryptedThenPlaintext(UnsignedPlaintext())),
+            EMailPostDecryptPlan::kNOT_SIGNED);
+}
+
+TEST(EMailMimeTest, ASignedPlaintextIsHandedToTheVerify) {
+  EXPECT_EQ(PlanVerifyAfterDecrypt(SignedPlaintext()),
+            EMailPostDecryptPlan::kVERIFY);
+}
+
+TEST(EMailMimeTest, AMalformedSignedPlaintextStillReachesTheVerify) {
+  // It CLAIMS multipart/signed and is missing the protocol parameter. The
+  // verify refuses it and names what is wrong, and that diagnosis is worth
+  // more than quietly calling the message unsigned.
+  QByteArray eml;
+  eml += "From: alice@example.com\r\n";
+  eml += "MIME-Version: 1.0\r\n";
+  eml += "Content-Type: multipart/signed; boundary=\"b\"\r\n";
+  eml += "\r\n--b\r\nContent-Type: text/plain\r\n\r\nhi\r\n--b--\r\n";
+
+  EXPECT_EQ(PlanVerifyAfterDecrypt(eml), EMailPostDecryptPlan::kVERIFY);
+}
+
+TEST(EMailMimeTest, PlaintextThatIsNotAMessageIsUnreadableNotUnsigned) {
+  EXPECT_EQ(PlanVerifyAfterDecrypt(QByteArray()),
+            EMailPostDecryptPlan::kUNREADABLE);
+  EXPECT_EQ(PlanVerifyAfterDecrypt("   \r\n  "),
+            EMailPostDecryptPlan::kUNREADABLE);
+  EXPECT_EQ(PlanVerifyAfterDecrypt("just some words, no headers at all"),
+            EMailPostDecryptPlan::kUNREADABLE);
+}
+
+TEST(EMailMimeTest, NestedSignatureDoesNotForceATopLevelVerify) {
+  // A signature deeper inside is the per-region walk's business. Sending this
+  // to VerifyEMLData would only produce a refusal.
+  QByteArray eml;
+  eml += "From: alice@example.com\r\n";
+  eml += "MIME-Version: 1.0\r\n";
+  eml += "Content-Type: multipart/mixed; boundary=\"out\"\r\n";
+  eml += "\r\n--out\r\n";
+  eml +=
+      "Content-Type: multipart/signed; micalg=pgp-sha256; "
+      "protocol=\"application/pgp-signature\"; boundary=\"in\"\r\n";
+  eml += "\r\n--in\r\nContent-Type: text/plain\r\n\r\nhi\r\n--in\r\n";
+  eml += "Content-Type: application/pgp-signature\r\n\r\nSIG\r\n--in--\r\n";
+  eml += "\r\n--out--\r\n";
+
+  EXPECT_EQ(PlanVerifyAfterDecrypt(eml), EMailPostDecryptPlan::kNOT_SIGNED);
+}
+
+TEST(EMailMimeTest, MergingVerifiedMetaDataDoesNotDuplicateAttachments) {
+  // Decrypt and verify walk the SAME plaintext, and ExtractParts() only ever
+  // appends. Sharing one metadata object between them listed every attachment
+  // twice; this is the join that replaced it.
+  EMailMetaData decrypted;
+  decrypted.body = "body";
+  decrypted.body_content_type = "text/plain";
+  for (const auto* name : {"a.pdf", "b.png"}) {
+    EMailAttachment att;
+    att.filename = name;
+    att.data = "x";
+    decrypted.attachments.append(att);
+  }
+
+  EMailMetaData verified = decrypted;  // the same walk, done again
+  verified.signed_entity_digest = "abcd";
+  verified.signed_entity_digest_algo = "SHA-256";
+  verified.micalg = "pgp-sha256";
+
+  MergeVerifiedMetaData(decrypted, verified);
+
+  ASSERT_EQ(decrypted.attachments.size(), 2);
+  EXPECT_EQ(decrypted.attachments[0].filename, QString("a.pdf"));
+  EXPECT_EQ(decrypted.attachments[1].filename, QString("b.png"));
+  EXPECT_EQ(decrypted.body, QByteArray("body"));
+
+  // The signature side is what the verify was for.
+  EXPECT_EQ(decrypted.signed_entity_digest, QString("abcd"));
+  EXPECT_EQ(decrypted.micalg, QString("pgp-sha256"));
+}
+
+TEST(EMailMimeTest, MergingPrefersTheHeadersFromInsideTheCiphertext) {
+  // The inner headers are the ones an outer envelope cannot have rewritten.
+  EMailMetaData decrypted;
+  decrypted.from = "outer@example.com";
+  decrypted.subject = "...";
+  decrypted.to = QStringList{"outer-to@example.com"};
+
+  EMailMetaData verified;
+  verified.from = "inner@example.com";
+  verified.subject = "the real subject";
+  verified.to = QStringList{"inner-to@example.com"};
+
+  MergeVerifiedMetaData(decrypted, verified);
+
+  EXPECT_EQ(decrypted.from, QString("inner@example.com"));
+  EXPECT_EQ(decrypted.subject, QString("the real subject"));
+  EXPECT_EQ(decrypted.to, QStringList{"inner-to@example.com"});
+}
+
+TEST(EMailMimeTest, MergingKeepsWhatTheVerifyNeverSaw) {
+  // A verify that reports nothing must not blank out what the decrypt found.
+  EMailMetaData decrypted;
+  decrypted.from = "alice@example.com";
+  decrypted.subject = "kept";
+  decrypted.body = "kept body";
+  decrypted.encrypted_data = "CIPHER";
+
+  MergeVerifiedMetaData(decrypted, EMailMetaData{});
+
+  EXPECT_EQ(decrypted.from, QString("alice@example.com"));
+  EXPECT_EQ(decrypted.subject, QString("kept"));
+  EXPECT_EQ(decrypted.body, QByteArray("kept body"));
+  EXPECT_EQ(decrypted.encrypted_data, QByteArray("CIPHER"));
+}

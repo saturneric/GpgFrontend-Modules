@@ -362,6 +362,52 @@ auto ClassifyOpenPGPStructure(const EMailPart& root,
     -> EMailSecurityState;
 
 /**
+ * @brief What a decrypt-and-verify should do with the plaintext it just got.
+ *
+ * Verification applies to a signed message. Plaintext that carries no
+ * signature is the ordinary case, not a failure: the decrypt succeeded and
+ * there is simply nothing to check. This is modelled as its own answer rather
+ * than as a verify error so that a caller cannot mistake "nothing to verify"
+ * for "verification failed" and discard a plaintext the user has just paid a
+ * passphrase for.
+ */
+enum class EMailPostDecryptPlan : uint8_t {
+  kVERIFY = 0,  ///< outermost layer is multipart/signed: verify it
+  kNOT_SIGNED,  ///< a readable message with no signature layer on top
+  kUNREADABLE,  ///< not parseable as a message; nothing can be verified
+};
+
+/**
+ * @brief Decides whether @p plaintext, as it came out of a decrypt, is
+ * something VerifyEMLData() can act on.
+ *
+ * Only the OUTERMOST layer is considered, because that is all VerifyEMLData()
+ * examines -- it refuses anything whose top-level content type is not
+ * multipart/signed before any cryptography happens. A signature nested deeper
+ * is the per-region walk's business (see VerifyEMLRegions) and is not a reason
+ * to run, and fail, the top-level verify.
+ */
+auto PlanVerifyAfterDecrypt(const QByteArray& plaintext)
+    -> EMailPostDecryptPlan;
+
+/**
+ * @brief Folds what a verify learned into what a decrypt already produced.
+ *
+ * Decrypt and verify each walk the same plaintext, so handing ONE metadata
+ * object to both appends every attachment twice -- ExtractParts() only ever
+ * appends. Instead the verify runs against its own object and this merges the
+ * two.
+ *
+ * The signature-side fields come from @p verified, since only the verify
+ * produced them. Header fields prefer @p verified where it has them: those are
+ * the headers that travelled inside the ciphertext, and they are the ones
+ * worth believing. Content -- body and attachments -- is kept from
+ * @p decrypted and is never concatenated.
+ */
+void MergeVerifiedMetaData(EMailMetaData& decrypted,
+                           const EMailMetaData& verified);
+
+/**
  * @brief Every node of @p root, pre-order, as flat pointers.
  *
  * Convenience for views and tests that need to walk the tree without
