@@ -619,15 +619,12 @@ void EMailSecurityView::add_findings_section(
   }
 }
 
-void EMailSecurityView::SetMessage(EMailSecurityState state,
-                                   const QList<EMailSignatureRegion>& regions,
-                                   const QList<EMailSignatureResult>& results,
-                                   const QList<EMailRecipientRow>& recipients,
-                                   const QStringList& addresses,
-                                   const QString& from, int channel,
-                                   const QList<EMailFinding>& findings,
-                                   EMailVerifyState verify_state,
-                                   bool message_carries_key) {
+void EMailSecurityView::SetMessage(
+    EMailSecurityState state, const QList<EMailSignatureRegion>& regions,
+    const QList<EMailSignatureResult>& results,
+    const QList<EMailRecipientRow>& recipients, const QStringList& addresses,
+    const QString& from, int channel, const QList<EMailFinding>& findings,
+    EMailVerifyState verify_state, bool message_carries_key) {
   verify_state_ = verify_state;
   from_ = from;
   message_carries_key_ = message_carries_key;

@@ -1533,9 +1533,9 @@ void EMailPageView::refresh_raw_lock_ui() {
                "edited.");
         break;
       case EMailLockReason::kPROTECTED:
-        notice = tr(
-            "Read-only. These bytes are protected. Remove the signature, or "
-            "decrypt the message, to edit them.");
+        notice =
+            tr("Read-only. These bytes are protected. Remove the signature, or "
+               "decrypt the message, to edit them.");
         break;
       case EMailLockReason::kNONE:
         notice = tr("Read-only. Unlock to edit the message source directly.");
@@ -2989,10 +2989,10 @@ void EMailPageView::attach_paths(const QStringList& paths) {
       continue;
     }
     if (admission == EMailFileAdmission::kTOO_LARGE) {
-      refused.append(tr("%1 is too large (%2); the most that can be attached "
-                        "is %3")
-                         .arg(path, HumanSize(size),
-                              HumanSize(kMaxReadFileSize)));
+      refused.append(
+          tr("%1 is too large (%2); the most that can be attached "
+             "is %3")
+              .arg(path, HumanSize(size), HumanSize(kMaxReadFileSize)));
       continue;
     }
     if (admission != EMailFileAdmission::kOK) {

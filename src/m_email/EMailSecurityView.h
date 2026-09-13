@@ -92,8 +92,7 @@ class EMailSecurityView : public QWidget {
                   const QList<EMailSignatureResult>& results,
                   const QList<EMailRecipientRow>& recipients,
                   const QStringList& addresses, const QString& from,
-                  int channel,
-                  const QList<EMailFinding>& findings,
+                  int channel, const QList<EMailFinding>& findings,
                   EMailVerifyState verify_state, bool message_carries_key);
 
   void Clear();

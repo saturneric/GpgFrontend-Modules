@@ -71,7 +71,7 @@ auto Elide(const QString& data) -> QString { return Elide(data.toUtf8()); }
  * @return the engine's message, or an empty string when it gave none.
  */
 template <typename ResultT, typename HandleT>
-auto TakeSdkFailure(ResultT*& s, HandleT ResultT::*handle) -> QString {
+auto TakeSdkFailure(ResultT*& s, HandleT ResultT::* handle) -> QString {
   if (s == nullptr) return {};
 
   // Read before the struct goes; UDUP takes ownership of each buffer, and a

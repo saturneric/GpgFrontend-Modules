@@ -28,9 +28,9 @@
 
 #pragma once
 
-#include "EMailSecret.h"
-
 #include <QString>
+
+#include "EMailSecret.h"
 
 /**
  * @brief Where mail passwords live, and whether they may live there at all.

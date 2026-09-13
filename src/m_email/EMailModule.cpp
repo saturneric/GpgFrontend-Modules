@@ -1965,8 +1965,8 @@ REGISTER_EVENT_HANDLER(
       // truncated .eml behind if the write fails halfway.
       QSaveFile file(filename);
       if (!file.open(QIODevice::WriteOnly)) {
-        WarnOnGui(page, QApplication::translate(
-                            "EMailModule", "Cannot write file %1:\n%2.")
+        WarnOnGui(page, QApplication::translate("EMailModule",
+                                                "Cannot write file %1:\n%2.")
                             .arg(filename)
                             .arg(file.errorString()));
         CB_ERR(event, -1, "cannot open file for writing");
@@ -1977,8 +1977,8 @@ REGISTER_EVENT_HANDLER(
       RunOnGui([]() { QApplication::restoreOverrideCursor(); });
 
       if (!written) {
-        WarnOnGui(page, QApplication::translate(
-                            "EMailModule", "Cannot write file %1:\n%2.")
+        WarnOnGui(page, QApplication::translate("EMailModule",
+                                                "Cannot write file %1:\n%2.")
                             .arg(filename)
                             .arg(file.errorString()));
         CB_ERR(event, -1, "writing file failed");
@@ -2015,9 +2015,8 @@ REGISTER_EVENT_HANDLER(
       QByteArray raw;
       QString read_error;
       qint64 file_size = 0;
-      const auto admission =
-          ReadFileWithin(file_path, kMaxEMLFileSize, raw, read_error,
-                         file_size);
+      const auto admission = ReadFileWithin(file_path, kMaxEMLFileSize, raw,
+                                            read_error, file_size);
 
       if (admission == EMailFileAdmission::kNOT_REGULAR) {
         WarnOnGui(nullptr,
@@ -2042,8 +2041,8 @@ REGISTER_EVENT_HANDLER(
       }
 
       if (admission != EMailFileAdmission::kOK) {
-        WarnOnGui(nullptr, QApplication::translate(
-                               "EMailModule", "Cannot read file %1:\n%2.")
+        WarnOnGui(nullptr, QApplication::translate("EMailModule",
+                                                   "Cannot read file %1:\n%2.")
                                .arg(file_path)
                                .arg(read_error));
         CB_ERR(event, -1, "cannot read file");
