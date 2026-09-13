@@ -89,6 +89,17 @@ struct MailError {
   /// none.
   int status_code{0};
 
+  /// The certificate THIS connection was offered, when the failure was about
+  /// one. Carried with the error rather than looked up afterwards: it used to
+  /// live in one process-global slot that every connection wrote to, so a
+  /// settings-page probe and a mailbox browser running at the same time
+  /// overwrote each other -- and the "trust this certificate?" question could
+  /// show one server's fingerprint while pinning it to another account.
+  QString cert_fingerprint;
+  /// A human description of that certificate: validity dates, subject, and
+  /// whether it names the host that was asked for.
+  QString cert_summary;
+
   /// Whether trying again unchanged could plausibly work. A 4xx is transient;
   /// a wrong password is not.
   bool transient{false};
@@ -104,6 +115,21 @@ struct MailError {
     return category == MailErrorCategory::kTLS_UNTRUSTED;
   }
 };
+
+/**
+ * @brief Records on @p error the certificate the failed connection was offered.
+ *
+ * Called with the slot that connection's own verifier wrote to, so what ends
+ * up on the error describes the server that actually refused -- which a
+ * process-wide "last seen certificate" could not promise once two connections
+ * could be in flight at once.
+ */
+inline void MailAttachCertificate(MailError& error, const QString& fingerprint,
+                                  const QString& summary) {
+  if (fingerprint.isEmpty()) return;
+  error.cert_fingerprint = fingerprint;
+  error.cert_summary = summary;
+}
 
 Q_DECLARE_METATYPE(MailError)
 

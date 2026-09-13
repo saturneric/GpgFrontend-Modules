@@ -33,14 +33,14 @@
 #include <QList>
 #include <QMetaType>
 #include <QObject>
+#include <QString>
 #include <optional>
 #include <string>
-#include <QString>
 
 #include "EMailAccountModel.h"
-#include "EMailSecret.h"
 #include "EMailCancelToken.h"
 #include "EMailNetError.h"
+#include "EMailSecret.h"
 
 /**
  * @brief One folder, as far as a picker needs to know.
@@ -176,7 +176,8 @@ class EMailImapWorker : public QObject {
    *
    * Emits SignalConnected or SignalFailed.
    */
-  void Connect(quint64 seq, const MailAccountConfig& account, EMailSecretPtr password);
+  void Connect(quint64 seq, const MailAccountConfig& account,
+               EMailSecretPtr password);
 
   /// List every selectable folder. Emits SignalFolders or SignalFailed.
   void ListFolders(quint64 seq);

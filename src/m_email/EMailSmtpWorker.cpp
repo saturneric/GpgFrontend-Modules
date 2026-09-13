@@ -132,7 +132,6 @@ void EMailSmtpWorker::TestConnection(quint64 seq,
   // while this request was still queued was aimed at THIS operation and must
   // survive until the guard below sees it.
   token_->Begin(seq);
-  EMailTlsSetup::ClearLastSeen();
 
   const auto& config = account.smtp;
 
@@ -140,7 +139,6 @@ void EMailSmtpWorker::TestConnection(quint64 seq,
   receipt.host =
       QString("%1:%2").arg(config.host).arg(config.EffectivePort(false));
   receipt.security = SecurityLabel(config.tls);
-
 
   // A stop that arrived while this request was still queued applies to it.
   // Nothing has been written yet, so this is a clean stop with nothing in
@@ -157,6 +155,11 @@ void EMailSmtpWorker::TestConnection(quint64 seq,
     return;
   }
 
+  // Declared out here so the catch below can read it: what the verifier
+  // records belongs to this connection attempt, and is the only honest source
+  // for the fingerprint the user may be offered a pin for.
+  EMailTlsSetup::SeenCertificatePtr seen;
+
   auto timeouts = vmime::make_shared<EMailTimeoutHandlerFactory>(token_, 30);
 
   try {
@@ -169,8 +172,9 @@ void EMailSmtpWorker::TestConnection(quint64 seq,
     auto transport = session->getTransport(url);
     transport->setTimeoutHandlerFactory(timeouts);
 
-    EMailTlsSetup::Apply(session, transport,
-                         QString("transport.%1").arg(protocol), config, false);
+    seen = EMailTlsSetup::Apply(session, transport,
+                                QString("transport.%1").arg(protocol), config,
+                                false);
 
     transport->setAuthenticator(vmime::make_shared<SecureAuthenticator>(
         config.username, password, cleartext));
@@ -196,6 +200,10 @@ void EMailSmtpWorker::TestConnection(quint64 seq,
   } catch (const vmime::exception& e) {
     receipt.error = ClassifyVmimeException(e, MailStage::kCONNECT,
                                            timeouts->LastWasCancelled());
+    // From THIS connection's verifier; see EMailTlsSetup::SeenCertificate.
+    if (seen) {
+      MailAttachCertificate(receipt.error, seen->fingerprint, seen->summary);
+    }
     emit SignalFinished(seq, receipt);
   } catch (const std::exception& e) {
     receipt.error = MailInternalError(QString::fromUtf8(e.what()));
@@ -207,7 +215,6 @@ void EMailSmtpWorker::Submit(quint64 seq, const MailAccountConfig& account,
                              EMailSecretPtr password,
                              const EMailOutgoingMessage& message) {
   token_->Begin(seq);
-  EMailTlsSetup::ClearLastSeen();
 
   const auto& config = account.smtp;
 
@@ -216,7 +223,6 @@ void EMailSmtpWorker::Submit(quint64 seq, const MailAccountConfig& account,
   receipt.host =
       QString("%1:%2").arg(config.host).arg(config.EffectivePort(false));
   receipt.security = SecurityLabel(config.tls);
-
 
   // A stop that arrived while this request was still queued applies to it.
   // Nothing has been written yet, so this is a clean stop with nothing in
@@ -239,6 +245,11 @@ void EMailSmtpWorker::Submit(quint64 seq, const MailAccountConfig& account,
     return;
   }
 
+  // Declared out here so the catch below can read it: what the verifier
+  // records belongs to this connection attempt, and is the only honest source
+  // for the fingerprint the user may be offered a pin for.
+  EMailTlsSetup::SeenCertificatePtr seen;
+
   auto timeouts = vmime::make_shared<EMailTimeoutHandlerFactory>(token_, 60);
   BodyProgress progress;
   auto stage = MailStage::kCONNECT;
@@ -255,8 +266,9 @@ void EMailSmtpWorker::Submit(quint64 seq, const MailAccountConfig& account,
     transport = session->getTransport(url);
     transport->setTimeoutHandlerFactory(timeouts);
 
-    EMailTlsSetup::Apply(session, transport,
-                         QString("transport.%1").arg(protocol), config, false);
+    seen = EMailTlsSetup::Apply(session, transport,
+                                QString("transport.%1").arg(protocol), config,
+                                false);
 
     transport->setAuthenticator(vmime::make_shared<SecureAuthenticator>(
         config.username, password, cleartext));
@@ -305,7 +317,6 @@ void EMailSmtpWorker::Submit(quint64 seq, const MailAccountConfig& account,
     emit SignalFinished(seq, receipt);
     return;
   } catch (const vmime::exception& e) {
-
     // The heart of the ambiguity handling. Once the body has been fully
     // written, a socket-level failure means we do not know whether the server
     // took the message -- so the stage handed to the classifier changes, and

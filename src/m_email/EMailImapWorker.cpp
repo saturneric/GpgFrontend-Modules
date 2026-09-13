@@ -29,11 +29,12 @@
 #include "EMailImapWorker.h"
 
 #include <QCoreApplication>
+#include <algorithm>
+#include <optional>
+#include <string>
 #include <vmime/net/imap/IMAPFolder.hpp>
 #include <vmime/net/imap/IMAPSearchAttributes.hpp>
 #include <vmime/security/defaultAuthenticator.hpp>
-#include <optional>
-#include <string>
 
 #include "EMailTlsSetup.h"
 #include "GFModuleCommonUtils.hpp"
@@ -243,7 +244,6 @@ class BoundedOutputStream : public vmime::utility::outputStream {
   size_t written_{0};
 };
 
-
 auto NormalizeMessageId(const QString& raw) -> QString {
   auto value = raw.trimmed();
   if (value.startsWith('<')) value.remove(0, 1);
@@ -398,7 +398,6 @@ void EMailImapWorker::Connect(quint64 seq, const MailAccountConfig& account,
     return;
   }
 
-  EMailTlsSetup::ClearLastSeen();
   impl_->account = account;
 
   const auto& config = account.imap;
@@ -411,8 +410,14 @@ void EMailImapWorker::Connect(quint64 seq, const MailAccountConfig& account,
     return;
   }
 
+  // Declared out here so the catch below can read it: what the verifier
+  // records belongs to this connection attempt, and is the only honest source
+  // for the fingerprint the user may be offered a pin for.
+  EMailTlsSetup::SeenCertificatePtr seen;
+
   try {
     impl_->session = vmime::net::session::create();
+
     impl_->timeouts =
         vmime::make_shared<EMailTimeoutHandlerFactory>(token_, 30);
 
@@ -423,8 +428,9 @@ void EMailImapWorker::Connect(quint64 seq, const MailAccountConfig& account,
     impl_->store = impl_->session->getStore(url);
     impl_->store->setTimeoutHandlerFactory(impl_->timeouts);
 
-    EMailTlsSetup::Apply(impl_->session, impl_->store,
-                         QString("store.%1").arg(protocol), config, true);
+    seen =
+        EMailTlsSetup::Apply(impl_->session, impl_->store,
+                             QString("store.%1").arg(protocol), config, true);
 
     impl_->store->setAuthenticator(vmime::make_shared<SecureAuthenticator>(
         config.username, password, cleartext));
@@ -444,6 +450,9 @@ void EMailImapWorker::Connect(quint64 seq, const MailAccountConfig& account,
     const auto cancelled =
         impl_->timeouts && impl_->timeouts->LastWasCancelled();
     auto error = ClassifyVmimeException(e, MailStage::kCONNECT, cancelled);
+    // From THIS connection's verifier, so the fingerprint the user is shown
+    // and offered a pin for belongs to the server that actually refused.
+    if (seen) MailAttachCertificate(error, seen->fingerprint, seen->summary);
     impl_->Close();
     emit SignalFailed(seq, error);
   } catch (const std::exception& e) {
@@ -771,9 +780,8 @@ void EMailImapWorker::FetchMessage(quint64 seq, const QString& folder_path,
     // meant asking for a POSITION: an expunge by another client renumbers
     // everything after it, so the row the user clicked and the message that
     // came back could be two different messages, with nothing to say so.
-    auto messages = folder->getMessages(
-        vmime::net::messageSet::byUID(static_cast<vmime::net::message::uid>(
-            std::to_string(uid))));
+    auto messages = folder->getMessages(vmime::net::messageSet::byUID(
+        static_cast<vmime::net::message::uid>(std::to_string(uid))));
     if (messages.empty()) {
       // A UID that no longer resolves means the message is gone, which is a
       // different thing from a fetch failing and is worth saying so.
@@ -803,11 +811,29 @@ void EMailImapWorker::FetchMessage(quint64 seq, const QString& folder_path,
       return;
     }
 
+    // Two ceilings, and the body has to respect both.
+    //
+    // The first is this application's own limit, which owes nothing to
+    // anything the server said. The second is the server's own claim plus a
+    // margin: it has just told us how big this message is, and a body that
+    // runs well past that is either a server that is wrong about its own
+    // mailbox or one that is trying something. Without either, the check above
+    // was the ONLY bound and it was made of the server's own number -- so a
+    // server that under-reported streamed as much as it liked into a stream
+    // that would grow until the process was killed.
+    //
+    // The margin is generous because servers do miscount, usually over line
+    // endings, and being refused a message you can see in another client would
+    // be a worse failure than accepting a few kilobytes too many.
+    constexpr size_t kFetchSizeSlack = 64U * 1024U;
+    const auto claimed = static_cast<size_t>(message->getSize());
+    auto limit = static_cast<size_t>(kMailMaxMessageSize);
+    if (claimed > 0) {
+      limit = std::min(limit, claimed + kFetchSizeSlack);
+    }
+
     std::ostringstream stream;
-    // Bounded, because the check above trusted the server's own account of how
-    // big this message is. If it was wrong, this is what stops it.
-    BoundedOutputStream out(stream,
-                            static_cast<size_t>(kMailMaxMessageSize));
+    BoundedOutputStream out(stream, limit);
 
     // peek = true is the whole point: opening a message here must not be a
     // change to the mailbox, and the folder being read-only means the server
@@ -879,8 +905,8 @@ void EMailImapWorker::FindInSentFolder(quint64 seq, const QString& message_id) {
     }
 
     vmime::net::imap::IMAPSearchAttributes attributes;
-    attributes.add(
-        vmime::net::imap::IMAPSearchTokenFactory::HEADER("Message-ID", *needle));
+    attributes.add(vmime::net::imap::IMAPSearchTokenFactory::HEADER(
+        "Message-ID", *needle));
     auto uids = imap->getMessageUIDsMatchingSearchAttributes(attributes);
 
     emit SignalSentLookup(seq, true, !uids.empty(), path);
