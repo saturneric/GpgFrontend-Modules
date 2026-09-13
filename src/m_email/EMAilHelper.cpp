@@ -1172,6 +1172,147 @@ auto ClassifyOpenPGPStructure(const EMailPart& root,
   return EMailSecurityState::kPLAIN;
 }
 
+auto CheckBeforeExport(const QByteArray& source) -> EMailExportCheck {
+  EMailExportCheck check;
+
+  vmime::shared_ptr<vmime::message> parsed;
+  if (!CheckIfEMLMessage(source, parsed)) return check;
+
+  EMailPart root;
+  QList<EMailSignatureRegion> regions;
+  if (ParseMimeTree(parsed, source, root, regions) != 0) return check;
+
+  EMailMetaData meta;
+  GetEMLMetaData(parsed, meta);
+
+  for (const auto& finding : PreflightMessage(meta, root, regions, {})) {
+    const auto line = QString("%1 - %2").arg(finding.title, finding.detail);
+    if (finding.level == EMailFindingLevel::kRISK) {
+      check.risks.append(line);
+    } else if (finding.level == EMailFindingLevel::kWARN) {
+      check.notes.append(line);
+    }
+  }
+
+  // Notes alone are not worth interrupting a save for; the Security tab
+  // already carries them.
+  check.needs_confirmation = !check.risks.isEmpty();
+  return check;
+}
+
+namespace {
+
+/// Mirrors GpgSigValidity, grouped by what it means for the person reading.
+///
+/// 1 is the one worth naming: GpgVerifyResultAnalyse sets kVALID_WITH_ISSUES
+/// exactly when gpgme reports GPGME_SIGSUM_RED, which means the signature is
+/// BAD. Its label reads "valid, with issues", and that wording plus a warning
+/// colour is how a forged signature came to look like a minor quibble.
+auto BadgeForValidity(int validity) -> EMailBadgeState {
+  switch (validity) {
+    case 0:  // fully valid
+    case 2:  // valid, key not fully trusted
+      return EMailBadgeState::kSIGNED_GOOD;
+    case 4:  // public key missing
+      return EMailBadgeState::kSIGNED_UNKNOWN_KEY;
+    case 6:  // signature expired
+    case 7:  // signing key expired
+      return EMailBadgeState::kSIGNED_EXPIRED;
+    case 1:  // GPGME_SIGSUM_RED -- a bad signature
+    case 3:  // invalid
+    case 5:  // signing key revoked
+      return EMailBadgeState::kSIGNED_BAD;
+    default:
+      // -1 is the default in EMailSignatureResult, chosen so that an absent
+      // or unparseable field does not read as fully valid. Anything else is
+      // a value this build does not know, which is not a reason to reassure.
+      return EMailBadgeState::kSIGNED_UNKNOWN_KEY;
+  }
+}
+
+}  // namespace
+
+auto SignerMatchesAddress(const EMailSignatureResult& result,
+                          const QString& address) -> bool {
+  const auto wanted = AddressOfUid(address);
+  const auto signer = AddressOfUid(result.uid);
+
+  // Nothing to disagree with. A result carrying no UID is the unknown-key
+  // case, which the badge already reports on its own; calling it a mismatch
+  // as well would say the same thing twice and in stronger words.
+  if (wanted.isEmpty() || signer.isEmpty()) return true;
+
+  return wanted.compare(signer, Qt::CaseInsensitive) == 0;
+}
+
+auto BadgeForSignature(const EMailSignatureResult& result, const QString& from)
+    -> EMailBadgeState {
+  const auto by_validity = BadgeForValidity(result.validity);
+  if (by_validity != EMailBadgeState::kSIGNED_GOOD) return by_validity;
+
+  // Only now. Identity is a question about a signature that verified; asking
+  // it of a broken one answers nothing and buries the real problem.
+  return SignerMatchesAddress(result, from) ? EMailBadgeState::kSIGNED_GOOD
+                                            : EMailBadgeState::kSIGNED_MISMATCH;
+}
+
+auto DeriveSecurityBadge(EMailSecurityState structure,
+                         EMailVerifyState verify_state,
+                         const QList<EMailSignatureResult>& results,
+                         const QString& from) -> EMailBadgeState {
+  switch (structure) {
+    case EMailSecurityState::kMALFORMED_PGP:
+      return EMailBadgeState::kMALFORMED;
+    case EMailSecurityState::kPLAIN:
+      return EMailBadgeState::kNOT_PROTECTED;
+    case EMailSecurityState::kENCRYPTED:
+      return EMailBadgeState::kENCRYPTED_ONLY;
+    case EMailSecurityState::kSIGNED:
+    case EMailSecurityState::kSIGNED_ENCRYPTED:
+      break;
+  }
+
+  // Structurally signed. Everything below turns on what verification found,
+  // and until it has run the honest answer is that nobody has looked.
+  if (verify_state != EMailVerifyState::kVERIFIED || results.isEmpty()) {
+    return EMailBadgeState::kSIGNED_UNVERIFIED;
+  }
+
+  // The worst signature decides. A message carrying one good signature and
+  // one bad one is not a good message, and reporting the best of them is how
+  // an attacker gets a second attempt.
+  auto worst = EMailBadgeState::kSIGNED_GOOD;
+  for (const auto& result : results) {
+    worst = std::max(worst, BadgeForSignature(result, from));
+  }
+  return worst;
+}
+
+auto ToneForBadge(EMailBadgeState state) -> EMailBadgeTone {
+  switch (state) {
+    case EMailBadgeState::kSIGNED_GOOD:
+      return EMailBadgeTone::kGOOD;
+
+    case EMailBadgeState::kSIGNED_BAD:
+    case EMailBadgeState::kMALFORMED:
+      return EMailBadgeTone::kDANGER;
+
+    case EMailBadgeState::kSIGNED_MISMATCH:
+    case EMailBadgeState::kSIGNED_EXPIRED:
+    case EMailBadgeState::kSIGNED_UNKNOWN_KEY:
+    case EMailBadgeState::kSIGNED_UNVERIFIED:
+      return EMailBadgeTone::kWARN;
+
+    case EMailBadgeState::kNOT_PROTECTED:
+    case EMailBadgeState::kENCRYPTED_ONLY:
+      // Neither is a fault. An unprotected message is the ordinary case, and
+      // painting it as a warning trains people to ignore the warnings that
+      // matter. Encryption with no signature is exactly what it says.
+      return EMailBadgeTone::kMUTED;
+  }
+  return EMailBadgeTone::kMUTED;
+}
+
 auto PlanVerifyAfterDecrypt(const QByteArray& plaintext)
     -> EMailPostDecryptPlan {
   if (plaintext.trimmed().isEmpty()) return EMailPostDecryptPlan::kUNREADABLE;
@@ -1892,6 +2033,16 @@ auto ExtractParts(const vmime::shared_ptr<vmime::message>& message,
   }
 
   return 0;
+}
+
+auto DocumentUnchangedOnFailure(const QByteArray& original) -> QByteArray {
+  return original;
+}
+
+auto DecodePartContent(const vmime::shared_ptr<const vmime::bodyPart>& part)
+    -> QByteArray {
+  if (!part) return {};
+  return DecodePart(part);
 }
 
 auto BuildInnerPartHeader(const vmime::shared_ptr<vmime::header>& source)

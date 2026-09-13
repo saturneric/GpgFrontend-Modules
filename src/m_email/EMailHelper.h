@@ -408,6 +408,56 @@ void MergeVerifiedMetaData(EMailMetaData& decrypted,
                            const EMailMetaData& verified);
 
 /**
+ * @brief What ONE signature is worth.
+ *
+ * Validity first, identity only if that came back good: "signed by someone
+ * else" is a meaningful warning about a valid signature and a distraction on a
+ * broken one.
+ *
+ * @param result one reported signature
+ * @param from the message's From address; empty skips the identity check
+ */
+auto BadgeForSignature(const EMailSignatureResult& result, const QString& from)
+    -> EMailBadgeState;
+
+/**
+ * @brief What the badge may say, given the structure AND the verification.
+ *
+ * The worst outcome across every signature wins, because a message is only as
+ * trustworthy as its weakest one. Identity is checked only once the
+ * cryptography has come back good: "signed by someone else" is a meaningful
+ * warning about a valid signature, and a meaningless one about a broken one.
+ *
+ * @param structure what the MIME tree claims
+ * @param verify_state how far verification has got
+ * @param results every signature reported, across all regions
+ * @param from the message's From address, for the consistency check
+ */
+auto DeriveSecurityBadge(EMailSecurityState structure,
+                         EMailVerifyState verify_state,
+                         const QList<EMailSignatureResult>& results,
+                         const QString& from) -> EMailBadgeState;
+
+/// The tone @p state should be drawn in.
+auto ToneForBadge(EMailBadgeState state) -> EMailBadgeTone;
+
+/**
+ * @brief Whether @p result was made by a key that speaks for @p address.
+ *
+ * A CONSISTENCY check and nothing more. A signature that matches the From
+ * address proves only that the two agree; anyone may put any address in a
+ * From header and sign with a key whose UID carries the same one. What it is
+ * good for is the other direction: a valid signature by a key that claims a
+ * DIFFERENT address is worth stopping on, because that is what a transplanted
+ * signature looks like.
+ *
+ * Compares bare addresses, case-insensitively. An empty address or a result
+ * with no UID cannot disagree with anything and so does not.
+ */
+auto SignerMatchesAddress(const EMailSignatureResult& result,
+                          const QString& address) -> bool;
+
+/**
  * @brief Every node of @p root, pre-order, as flat pointers.
  *
  * Convenience for views and tests that need to walk the tree without
@@ -549,6 +599,30 @@ auto LooksLikeSpoofedAddress(const QString& address) -> bool;
 auto PreflightMessage(const EMailMetaData& meta, const EMailPart& root,
                       const QList<EMailSignatureRegion>& regions,
                       const QStringList& compose_bcc) -> QList<EMailFinding>;
+
+/**
+ * @brief What a last look before a message is written out came up with.
+ *
+ * Separated from the dialog that shows it so the decision can be made where
+ * the message is -- off the GUI thread, and under test -- rather than inside a
+ * widget. @ref needs_confirmation is the whole policy: notes alone are not
+ * worth interrupting a save for, since the Security tab already carries them.
+ */
+struct EMailExportCheck {
+  bool needs_confirmation{false};
+  QStringList risks;  ///< kRISK findings, rendered one per entry
+  QStringList notes;  ///< kWARN findings, same
+};
+
+/**
+ * @brief Runs the export preflight over @p source and sorts what it found.
+ *
+ * Parses, walks and inspects; no widgets and no SDK, so this runs on whatever
+ * thread the caller is already on. Anything unparseable comes back as "nothing
+ * to say" -- a message this code cannot read is not a message it can make
+ * claims about, and refusing to save it would be worse than saving it.
+ */
+auto CheckBeforeExport(const QByteArray& source) -> EMailExportCheck;
 
 /**
  * @brief Which kind of new message to derive from an existing one.
@@ -727,6 +801,39 @@ auto UniqueAttachmentFileNames(const QList<EMailAttachment>& attachments,
  * @return the generated header block
  */
 auto BuildInnerPartHeader(const vmime::shared_ptr<vmime::header>& source)
+    -> QByteArray;
+
+/**
+ * @brief The document an operation must hand back when it produced none.
+ *
+ * The host writes the `data` parameter of a result straight into the editor,
+ * so whatever a FAILING operation puts there replaces what the user was
+ * working on. The only correct answer is the document it was given, byte for
+ * byte.
+ *
+ * This exists because encrypt used to answer with a base64 rendering of the
+ * document instead -- so cancelling a passphrase prompt, or encrypting to a
+ * key that could not be found, silently replaced a composed message with a
+ * screen of base64 and marked it modified. Sign and decrypt already returned
+ * the bytes unchanged; the point of naming the rule is that all of them
+ * follow the same one.
+ */
+auto DocumentUnchangedOnFailure(const QByteArray& original) -> QByteArray;
+
+/**
+ * @brief The DECODED content of a leaf part.
+ *
+ * The bytes the part actually carries, with its Content-Transfer-Encoding
+ * undone. Never vmime's body::generate(), which produces the WIRE form: for a
+ * base64 or quoted-printable part that is the encoded text, and handing it to
+ * an OpenPGP engine as if it were the payload makes a perfectly good signature
+ * or ciphertext fail as bad data.
+ *
+ * Anything that goes to the crypto engine must come through here.
+ *
+ * @param part a leaf part; a multipart or a null pointer yields an empty array
+ */
+auto DecodePartContent(const vmime::shared_ptr<const vmime::bodyPart>& part)
     -> QByteArray;
 
 /**
