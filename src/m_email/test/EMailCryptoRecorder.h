@@ -83,6 +83,16 @@ struct Recording {
   bool fail_next{false};
   /// What the engine "said". Empty models the paths that set no message.
   QByteArray fail_error_string;
+
+  /// What the analysis reports, one entry per verify call, in order.
+  ///
+  /// A message can carry several signature regions and they do not have to
+  /// agree -- a good outer signature over a forged inner one is the whole
+  /// reason the aggregation rules exist. Leave it empty for the default single
+  /// good-shaped signature; queue entries to give each region its own answer.
+  /// Running out falls back to the default rather than failing, so a test only
+  /// has to describe the regions it cares about.
+  QList<QByteArray> verify_info_json;
 };
 
 /// Buffers the fake SDK has handed out and not had back. A result struct that

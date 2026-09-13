@@ -113,11 +113,9 @@ TEST_F(CryptoBoundaryTest, AnEmbeddedNulDoesNotTruncateWhatIsVerified) {
   const auto expected = SignedEntityOf(eml);
   ASSERT_TRUE(expected.contains('\0'));
 
-  EMailMetaData meta;
+  EMailVerificationResult verification;
   QString error;
-  gpgme_error_t err = 0;
-  QString capsule;
-  VerifyEMLData(0, eml, meta, error, err, capsule);
+  VerifyEMLMessage(0, eml, verification, error);
 
   ASSERT_EQ(Get().verify.size(), 1);
   // The whole point: every octet the signature is claimed to cover must have
@@ -143,8 +141,9 @@ TEST_F(CryptoBoundaryTest, AnEmbeddedNulSurvivesPerRegionVerification) {
   ASSERT_TRUE(CheckIfEMLMessage(eml, message));
   ASSERT_EQ(ParseMimeTree(message, eml, root, regions), 0);
 
-  QList<EMailSignatureResult> results;
-  VerifyEMLRegions(0, eml, root, regions, results);
+  EMailVerificationResult verification;
+  QString error;
+  VerifyEMLMessage(0, eml, verification, error);
 
   ASSERT_EQ(Get().verify.size(), 1);
   EXPECT_EQ(Get().verify.first().data, expected);
@@ -165,11 +164,9 @@ TEST_F(CryptoBoundaryTest, IllFormedUtf8IsNotRewrittenBeforeVerification) {
   const auto eml = SignedMessage(entity);
   const auto expected = SignedEntityOf(eml);
 
-  EMailMetaData meta;
+  EMailVerificationResult verification;
   QString error;
-  gpgme_error_t err = 0;
-  QString capsule;
-  VerifyEMLData(0, eml, meta, error, err, capsule);
+  VerifyEMLMessage(0, eml, verification, error);
 
   ASSERT_EQ(Get().verify.size(), 1);
   EXPECT_EQ(Get().verify.first().data, expected);
@@ -181,11 +178,9 @@ TEST_F(CryptoBoundaryTest, TheSignatureBlobItselfIsPassedVerbatim) {
   QByteArray entity = "Content-Type: text/plain\r\n\r\nhello";
   const auto eml = SignedMessage(entity);
 
-  EMailMetaData meta;
+  EMailVerificationResult verification;
   QString error;
-  gpgme_error_t err = 0;
-  QString capsule;
-  VerifyEMLData(0, eml, meta, error, err, capsule);
+  VerifyEMLMessage(0, eml, verification, error);
 
   ASSERT_EQ(Get().verify.size(), 1);
   EXPECT_TRUE(
@@ -205,11 +200,9 @@ TEST_F(CryptoBoundaryTest, TheDisplayedDigestCoversExactlyTheVerifiedBytes) {
 
   const auto eml = SignedMessage(entity);
 
-  EMailMetaData meta;
+  EMailVerificationResult verification;
   QString error;
-  gpgme_error_t err = 0;
-  QString capsule;
-  VerifyEMLData(0, eml, meta, error, err, capsule);
+  VerifyEMLMessage(0, eml, verification, error);
 
   ASSERT_EQ(Get().verify.size(), 1);
   const auto verified_digest =
@@ -220,8 +213,8 @@ TEST_F(CryptoBoundaryTest, TheDisplayedDigestCoversExactlyTheVerifiedBytes) {
   // meta_data carries the digest the UI presents as "the bytes the signature
   // covers". If it is computed over a different range than GPG saw, the card
   // is telling the user something untrue.
-  ASSERT_FALSE(meta.signed_entity_digest.isEmpty());
-  EXPECT_EQ(meta.signed_entity_digest.toLower(),
+  ASSERT_FALSE(verification.meta.signed_entity_digest.isEmpty());
+  EXPECT_EQ(verification.meta.signed_entity_digest.toLower(),
             QString::fromLatin1(verified_digest).toLower());
 }
 
@@ -234,11 +227,9 @@ TEST_F(CryptoBoundaryTest, ALargeEntityIsPassedWholeOrRefusedNeverTruncated) {
   const auto eml = SignedMessage(entity);
   const auto expected = SignedEntityOf(eml);
 
-  EMailMetaData meta;
+  EMailVerificationResult verification;
   QString error;
-  gpgme_error_t err = 0;
-  QString capsule;
-  const auto ret = VerifyEMLData(0, eml, meta, error, err, capsule);
+  const auto ret = VerifyEMLMessage(0, eml, verification, error);
 
   if (ret == kSUCCESS || !Get().verify.isEmpty()) {
     ASSERT_EQ(Get().verify.size(), 1);
@@ -421,10 +412,11 @@ TEST_F(CryptoBoundaryTest, VerificationStopsAtTheRegionBudget) {
   ASSERT_GT(regions.size(), kMaxVerifiedRegions)
       << "the fixture did not produce enough regions to test the cap";
 
-  QList<EMailSignatureResult> results;
-  const auto verified = VerifyEMLRegions(0, raw, root, regions, results);
+  EMailVerificationResult verification;
+  QString error;
+  ASSERT_EQ(VerifyEMLMessage(0, raw, verification, error), kSUCCESS);
 
-  EXPECT_LE(verified, kMaxVerifiedRegions);
+  EXPECT_LE(verification.verdicts.size(), kMaxVerifiedRegions);
   EXPECT_LE(Get().verify.size(), kMaxVerifiedRegions)
       << "more GPG calls were made than the budget allows";
 }
@@ -440,10 +432,12 @@ TEST_F(CryptoBoundaryTest, AnOrdinaryMessageIsNotAffectedByTheBudget) {
   ASSERT_TRUE(CheckIfEMLMessage(raw, message));
   ASSERT_EQ(ParseMimeTree(message, raw, root, regions), 0);
 
-  QList<EMailSignatureResult> results;
-  const auto verified = VerifyEMLRegions(0, raw, root, regions, results);
+  EMailVerificationResult verification;
+  QString error;
+  ASSERT_EQ(VerifyEMLMessage(0, raw, verification, error), kSUCCESS);
 
-  EXPECT_EQ(verified, regions.size()) << "a normal message was cut short";
+  EXPECT_EQ(verification.verdicts.size(), regions.size())
+      << "a normal message was cut short";
 }
 
 TEST_F(CryptoBoundaryTest, EachRegionIsVerifiedOnItsOwnExactBytes) {
@@ -456,8 +450,9 @@ TEST_F(CryptoBoundaryTest, EachRegionIsVerifiedOnItsOwnExactBytes) {
   ASSERT_TRUE(CheckIfEMLMessage(raw, message));
   ASSERT_EQ(ParseMimeTree(message, raw, root, regions), 0);
 
-  QList<EMailSignatureResult> results;
-  VerifyEMLRegions(0, raw, root, regions, results);
+  EMailVerificationResult verification;
+  QString error;
+  ASSERT_EQ(VerifyEMLMessage(0, raw, verification, error), kSUCCESS);
 
   ASSERT_EQ(Get().verify.size(), regions.size());
   for (int i = 0; i < regions.size(); ++i) {
@@ -529,12 +524,10 @@ TEST_F(CryptoBoundaryTest, VerifyRefusesAnUnsignedMessage) {
   // The reason the old decrypt-and-verify lost the plaintext. This is correct
   // behaviour for VerifyEMLData on its own -- the mistake was treating it as a
   // failure of the whole operation.
-  EMailMetaData meta;
+  EMailVerificationResult verification;
   QString error;
-  gpgme_error_t err = 0;
-  QString capsule;
 
-  EXPECT_EQ(VerifyEMLData(0, UnsignedInnerMessage(), meta, error, err, capsule),
+  EXPECT_EQ(VerifyEMLMessage(0, UnsignedInnerMessage(), verification, error),
             kEML_FAILED);
 }
 
@@ -596,12 +589,12 @@ TEST_F(CryptoBoundaryTest, AVerifyAfterADecryptListsEachAttachmentOnce) {
             kSUCCESS);
   ASSERT_EQ(PlanVerifyAfterDecrypt(out), EMailPostDecryptPlan::kVERIFY);
 
-  EMailMetaData verified;
+  EMailVerificationResult verification;
   QString error;
-  ASSERT_EQ(VerifyEMLData(0, out, verified, error, err, capsule), kSUCCESS);
+  ASSERT_EQ(VerifyEMLMessage(0, out, verification, error), kSUCCESS);
 
   const auto before = decrypted.attachments.size();
-  MergeVerifiedMetaData(decrypted, verified);
+  MergeVerifiedMetaData(decrypted, verification.meta);
 
   EXPECT_EQ(decrypted.attachments.size(), before);
   ASSERT_EQ(decrypted.attachments.size(), 1);
@@ -690,12 +683,10 @@ TEST_F(CryptoBoundaryTest, ABase64SignaturePartIsDecodedBeforeVerifying) {
   const QByteArray armor(kArmoredSignature);
   const auto encoded = armor.toBase64();
 
-  EMailMetaData meta;
+  EMailVerificationResult verification;
   QString error;
-  gpgme_error_t err = 0;
-  QString capsule;
-  VerifyEMLData(0, SignedMessageWithEncodedSignature("base64", encoded), meta,
-                error, err, capsule);
+  VerifyEMLMessage(0, SignedMessageWithEncodedSignature("base64", encoded),
+                   verification, error);
 
   ASSERT_EQ(Get().verify.size(), 1);
   const auto handed = Get().verify.first().signature;
@@ -714,13 +705,11 @@ TEST_F(CryptoBoundaryTest, AQuotedPrintableSignaturePartIsDecoded) {
   QByteArray encoded = armor;
   encoded.replace("=", "=3D");
 
-  EMailMetaData meta;
+  EMailVerificationResult verification;
   QString error;
-  gpgme_error_t err = 0;
-  QString capsule;
-  VerifyEMLData(0,
-                SignedMessageWithEncodedSignature("quoted-printable", encoded),
-                meta, error, err, capsule);
+  VerifyEMLMessage(
+      0, SignedMessageWithEncodedSignature("quoted-printable", encoded),
+      verification, error);
 
   ASSERT_EQ(Get().verify.size(), 1);
   const auto handed = Get().verify.first().signature;
@@ -756,12 +745,10 @@ TEST_F(CryptoBoundaryTest, AnUnencodedSignaturePartIsStillPassedVerbatim) {
   // form is its literal bytes.
   const QByteArray armor(kArmoredSignature);
 
-  EMailMetaData meta;
+  EMailVerificationResult verification;
   QString error;
-  gpgme_error_t err = 0;
-  QString capsule;
-  VerifyEMLData(0, SignedMessageWithEncodedSignature("7bit", armor), meta,
-                error, err, capsule);
+  VerifyEMLMessage(0, SignedMessageWithEncodedSignature("7bit", armor),
+                   verification, error);
 
   ASSERT_EQ(Get().verify.size(), 1);
   EXPECT_EQ(Get().verify.first().signature, armor);
@@ -936,7 +923,7 @@ TEST_F(CryptoBoundaryTest, AFailedEncryptReclaimsItsResultAndSaysWhy) {
   EXPECT_EQ(crypto_recorder::OutstandingAllocations(), before);
 }
 
-TEST_F(CryptoBoundaryTest, AFailedVerifyReclaimsItsResultAndSaysWhy) {
+TEST_F(CryptoBoundaryTest, AFailedVerifyReclaimsItsResultAndSaysSoPerRegion) {
   QByteArray entity;
   entity += "Content-Type: text/plain\r\n\r\nhi";
   const auto eml = SignedMessage(entity);
@@ -946,13 +933,29 @@ TEST_F(CryptoBoundaryTest, AFailedVerifyReclaimsItsResultAndSaysWhy) {
 
   const auto before = crypto_recorder::OutstandingAllocations();
 
-  EMailMetaData meta;
+  EMailVerificationResult verification;
   QString error;
-  gpgme_error_t err = 0;
-  QString capsule;
-  EXPECT_EQ(VerifyEMLData(0, eml, meta, error, err, capsule), kFAILED);
 
-  EXPECT_TRUE(error.contains("Engine unavailable")) << error.toStdString();
+  // The PASS ran. An engine that could not answer is a property of the region
+  // it could not answer for, not a failure of the operation: the walk goes on
+  // to the other regions, and every surface is told which regions could not
+  // be checked rather than being handed one blanket refusal.
+  EXPECT_EQ(VerifyEMLMessage(0, eml, verification, error), kSUCCESS);
+
+  ASSERT_EQ(verification.verdicts.size(), 1);
+
+  // Execution and verdict are answers to different questions, and this is the
+  // case that separates them: nothing here says anything about the signature.
+  EXPECT_EQ(verification.verdicts.first().exec, EMailVerifyExec::kENGINE_ERROR);
+  EXPECT_EQ(verification.verdicts.first().verdict,
+            EMailBadgeState::kSIGNED_ERROR);
+  EXPECT_EQ(verification.overall, EMailBadgeState::kSIGNED_ERROR);
+
+  // Not dropped. A region the engine failed on used to vanish from the
+  // results, which reads to every consumer as a message with one signature
+  // fewer -- a failure presented as an absence.
+  EXPECT_TRUE(verification.signatures.isEmpty());
+
   EXPECT_EQ(crypto_recorder::OutstandingAllocations(), before);
 }
 

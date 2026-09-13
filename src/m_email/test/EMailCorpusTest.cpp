@@ -495,7 +495,7 @@ TEST(EMailCorpusTest, ASignatureOverCiphertextIsMarkedAsCoveringCiphertext) {
   ASSERT_NE(blob, nullptr);
   EXPECT_EQ(blob->covered_by_regions, QList<int>({regions[0].region_id}));
 
-  const auto findings = InspectMessage({}, root, regions, raw);
+  const auto findings = InspectMessage({}, root, regions);
   bool warned = false;
   for (const auto& f : findings) {
     if (f.title.contains("encrypted data only")) warned = true;
@@ -1326,6 +1326,32 @@ TEST(EMailCorpusTest, AnOrdinaryMessageGainsNoThreadingHeaders) {
 
 namespace {
 
+/// What a verification of @p raw would have found about each region's bytes.
+///
+/// The canonical-form question is the VERIFIER's to answer -- it decides it on
+/// the exact slice it hands the engine -- and InspectMessage reports what it
+/// found rather than scanning the document a second time. This stands in for
+/// that verification in the tests that do not run one.
+auto VerdictsFor(const QByteArray& raw,
+                 const QList<EMailSignatureRegion>& regions)
+    -> QList<EMailRegionVerdict> {
+  QList<EMailRegionVerdict> verdicts;
+  for (const auto& region : regions) {
+    if (region.raw_offset < 0 || region.raw_length <= 0) continue;
+    if (region.raw_offset + region.raw_length > raw.size()) continue;
+
+    EMailRegionVerdict verdict;
+    verdict.region_id = region.region_id;
+    verdict.nesting_depth = region.nesting_depth;
+    verdict.covers_ciphertext_only = region.covers_ciphertext_only;
+    verdict.signed_bytes_non_canonical = HasBareLineFeeds(
+        raw.mid(static_cast<int>(region.raw_offset),
+                static_cast<int>(region.raw_length)));
+    verdicts.append(verdict);
+  }
+  return verdicts;
+}
+
 auto InspectCorpus(const QString& name) -> QList<EMailFinding> {
   QByteArray raw;
   vmime::shared_ptr<vmime::message> message;
@@ -1339,7 +1365,7 @@ auto InspectCorpus(const QString& name) -> QList<EMailFinding> {
   EXPECT_EQ(GetEMLMetaData(message, meta), 0);
   EXPECT_EQ(ExtractParts(message, meta), 0);
 
-  return InspectMessage(meta, root, regions, raw);
+  return InspectMessage(meta, root, regions, VerdictsFor(raw, regions));
 }
 
 auto HasFinding(const QList<EMailFinding>& findings, const QString& fragment)
@@ -1618,9 +1644,12 @@ TEST(EMailCorpusTest, IntactSignedMessagesAreNotAccusedOfBeingRewritten) {
   }
 }
 
-TEST(EMailCorpusTest, TheCheckNeedsTheOriginalBytesToSayAnything) {
-  // Called without the document, it reports nothing rather than guessing --
-  // the signed bytes are the only thing that can answer the question.
+TEST(EMailCorpusTest, TheCheckNeedsAVerificationToSayAnything) {
+  // Called without a verification, it reports nothing rather than guessing.
+  // Whether a signature's bytes were still canonical is decided by the
+  // verifier, on the slice it actually handed the engine; working it out here
+  // as well would be a second opinion that can differ from the verdict the
+  // user is shown beside it.
   QByteArray raw;
   vmime::shared_ptr<vmime::message> message;
   ASSERT_TRUE(ParseCorpus("golden/16-signed-lf-mangled.eml", raw, message));
@@ -1632,8 +1661,9 @@ TEST(EMailCorpusTest, TheCheckNeedsTheOriginalBytesToSayAnything) {
   ASSERT_EQ(GetEMLMetaData(message, meta), 0);
 
   EXPECT_FALSE(HasFinding(InspectMessage(meta, root, regions), "canonical"));
-  EXPECT_TRUE(
-      HasFinding(InspectMessage(meta, root, regions, raw), "canonical"));
+  EXPECT_TRUE(HasFinding(
+      InspectMessage(meta, root, regions, VerdictsFor(raw, regions)),
+      "canonical"));
 }
 
 // --- lifting a protected layer off a message -------------------------------

@@ -327,11 +327,20 @@ int GFAnalyseVerifyResultInfoByCapsule(int, gpgme_error_t, char* capsule_id,
   if (capsule_id != nullptr) GFFreeMemory(capsule_id);
   if (analyse != nullptr) *analyse = GFModuleStrDup("");
   if (cards != nullptr) *cards = GFModuleStrDup("[]");
-  // One good signature, so ParseSignatureResults has something to walk.
+
+  // One good signature, so ParseSignatureResults has something to walk --
+  // unless the test queued an answer for this call. Regions are analysed in
+  // the order they are verified, so the queue is consumed the same way.
   if (info_json != nullptr) {
-    *info_json = GFModuleStrDup(
-        R"({"signatures":[{"status":"good","fingerprint":"DEADBEEF",)"
-        R"("hash_algo":"SHA256","uid":"Test <t@example.com>"}]})");
+    auto& recording = crypto_recorder::Get();
+    if (!recording.verify_info_json.isEmpty()) {
+      const auto queued = recording.verify_info_json.takeFirst();
+      *info_json = GFModuleStrDup(queued.constData());
+    } else {
+      *info_json = GFModuleStrDup(
+          R"({"signatures":[{"status":"good","fingerprint":"DEADBEEF",)"
+          R"("hash_algo":"SHA256","uid":"Test <t@example.com>"}]})");
+    }
   }
   return 0;
 }

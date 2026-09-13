@@ -25,7 +25,7 @@
 
 # Unit tests for the SDK-free MIME code of the e-mail module.
 #
-# EMAilHelper.cpp deliberately carries no GF SDK symbol -- it logs through an
+# EMailHelper.cpp deliberately carries no GF SDK symbol -- it logs through an
 # injected sink instead -- so it can be compiled straight into a plain gtest
 # binary with nothing but Qt Core and vmime behind it. That is the whole reason
 # the split exists; keep it that way, or this target stops linking.
@@ -49,7 +49,7 @@ add_executable(gf_mod_email_test
   EMailCorpusTest.cpp
   EMailPublicCorpusTest.cpp
   EMailTransportTest.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/../EMAilHelper.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/../EMailHelper.cpp
   # The transport's decision-making, none of which needs a socket or a widget:
   # account policy, envelope construction, Message-ID, and the error taxonomy.
   # Kept SDK-free for exactly this reason.
@@ -145,9 +145,15 @@ set_target_properties(gf_mod_email_net_test PROPERTIES
 
 add_executable(gf_mod_email_crypto_test
   EMailCryptoBoundaryTest.cpp
+  # One verification, one result, every surface quoting it: the aggregation
+  # rules, the staleness anchor, the wire form, and the whole-message walk.
+  # Here rather than in gf_mod_email_test because the walk needs the recording
+  # fake engine that only this target supplies.
+  EMailVerifyUnificationTest.cpp
   EMailCryptoSdkStubs.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../EMailBasicGpgOpera.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/../EMAilHelper.cpp)
+  ${CMAKE_CURRENT_SOURCE_DIR}/../EMailVerificationPayload.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/../EMailHelper.cpp)
 
 target_include_directories(gf_mod_email_crypto_test PRIVATE
   "${CMAKE_CURRENT_SOURCE_DIR}/.."
@@ -192,7 +198,7 @@ if(GPGFRONTEND_MODULES_BUILD_FUZZERS)
   else()
     add_executable(gf_mod_email_fuzz
       EMailMimeFuzz.cpp
-      ${CMAKE_CURRENT_SOURCE_DIR}/../EMAilHelper.cpp)
+      ${CMAKE_CURRENT_SOURCE_DIR}/../EMailHelper.cpp)
 
     target_include_directories(gf_mod_email_fuzz PRIVATE
       "${CMAKE_CURRENT_SOURCE_DIR}/.."
