@@ -282,13 +282,20 @@ void EMailSecurityView::show_row_menu(const QPoint& pos) {
     }
   }
 
-  // Only once something has already tried. Before that the tab runs a
-  // verification on its own when it is opened, and offering to repeat work
-  // that has not happened yet would be a control that means nothing.
+  // Offered whenever there is something to check. Opening this tab no longer
+  // verifies the message behind the user's back -- looking at a message is
+  // not asking for a crypto operation -- so this is where the asking happens,
+  // and a tab that says nothing has verified it yet has to offer the way to.
+  //
+  // The wording follows the state: "again" is a promise that work was already
+  // done, and on a message nothing has checked it would be a lie.
   QAction* verify_again = nullptr;
-  if (has_regions_ && verify_state_ != EMailVerifyState::kNOT_ATTEMPTED) {
+  if (has_regions_) {
     menu.addSeparator();
-    verify_again = menu.addAction(tr("Verify Again"));
+    verify_again =
+        menu.addAction(verify_state_ == EMailVerifyState::kNOT_ATTEMPTED
+                           ? tr("Verify Signatures")
+                           : tr("Verify Again"));
   }
 
   auto* chosen = menu.exec(tree_->viewport()->mapToGlobal(pos));
