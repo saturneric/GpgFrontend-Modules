@@ -159,7 +159,30 @@ enum class EMailBadgeState : uint8_t {
   kSIGNED_EXPIRED,      ///< verified against an expired signature or key
   kSIGNED_UNKNOWN_KEY,  ///< checked; the key is not in the keyring
   kSIGNED_MISMATCH,     ///< verified, but not by the address it comes from
-  kSIGNED_BAD,          ///< bad, invalid or made by a revoked key
+
+  /// The check was attempted and could not produce an answer -- the engine
+  /// failed, or a signature part yielded no result at all. Distinct from
+  /// kSIGNED_UNVERIFIED, which means nobody has looked yet, and ranked below
+  /// kSIGNED_BAD, because a definite forgery outranks an inconclusive check.
+  /// This is the BADGE's word for it; whether a check ran at all is carried
+  /// separately in EMailVerifyExec and is never inferred from this order.
+  kSIGNED_ERROR,
+  kSIGNED_BAD,  ///< bad, invalid or made by a revoked key
+};
+
+/**
+ * @brief Whether the check RAN. Never a verdict about a signature.
+ *
+ * Execution and cryptography are different questions, and collapsing them
+ * loses the only distinction that tells a user whether to try again: "we
+ * checked and it is bad" is final, "we could not check" is not. The badge
+ * needs one word for both (kSIGNED_ERROR); everything that has to tell them
+ * apart reads this instead.
+ */
+enum class EMailVerifyExec : uint8_t {
+  kOK = 0,        ///< the engine produced a cryptographic answer
+  kENGINE_ERROR,  ///< the verify call itself failed
+  kNO_RESULT,     ///< the call returned, reporting no signature at all
 };
 
 /**
@@ -200,6 +223,29 @@ struct EMailSignatureResult {
   /// Set when the region's declared_micalg disagrees with hash_algo.
   bool micalg_mismatch{false};
 };
+
+/**
+ * @brief What one verification pass found about one region.
+ *
+ * The per-region half of EMailVerificationResult: one entry per region that
+ * was looked at, joined to EMailSignatureRegion and EMailSignatureResult by
+ * @ref region_id -- never by list position.
+ */
+struct EMailRegionVerdict {
+  int region_id{-1};
+  int nesting_depth{};
+  bool covers_ciphertext_only{false};
+
+  /// The bytes this region covers were not in MIME canonical form when they
+  /// were verified. Decided by the verifier, on the exact slice it handed the
+  /// engine, so that no consumer has to re-derive it and reach a different
+  /// answer. It EXPLAINS a failure; it never rescues one.
+  bool signed_bytes_non_canonical{false};
+
+  EMailVerifyExec exec{EMailVerifyExec::kOK};
+  EMailBadgeState verdict{EMailBadgeState::kSIGNED_UNVERIFIED};
+};
+
 
 /**
  * @brief One recipient an encrypted message was actually encrypted to.
@@ -394,4 +440,42 @@ struct EMailMetaData {
   QByteArray body;            ///< decoded text body, UTF-8
   QString body_content_type;  ///< e.g. "text/plain"
   QList<EMailAttachment> attachments;
+};
+
+/**
+ * @brief Everything one verification pass found, for every consumer.
+ *
+ * There is exactly one of these per verification, and the status report, the
+ * security badge, the security details and the attachment list all read it
+ * rather than each asking the engine a question of their own. Two verifiers
+ * over two byte sequences is how the same message came to be reported as
+ * verified in one place and forged in another.
+ */
+struct EMailVerificationResult {
+  EMailVerifyState state{EMailVerifyState::kNOT_ATTEMPTED};
+
+  /// The one summary every surface quotes. Produced by AggregateVerification()
+  /// and never recomputed by a consumer.
+  EMailBadgeState overall{EMailBadgeState::kNOT_PROTECTED};
+
+  QList<EMailSignatureRegion> regions;
+  QList<EMailRegionVerdict> verdicts;
+  QList<EMailSignatureResult> signatures;  ///< across ALL regions
+  EMailMetaData meta;
+
+  /// Both taken over the exact bytes this result was produced from -- the same
+  /// representation that was verified, never a re-encoded or re-canonicalized
+  /// copy of it. A result only describes the document it still matches; see
+  /// VerificationMatchesSource().
+  qint64 source_length{0};
+  QByteArray source_sha256;
+
+  // The engine's own analysis of the region that decided `overall`, kept so
+  // the status report describes the same signature the badge does rather than
+  // asking the engine a second question. Report-side only: these do NOT
+  // travel to the page, which renders from the fields above.
+  int report_status{0};
+  QString report_detail;
+  QString report_cards;
+  QByteArray report_info_json;
 };
