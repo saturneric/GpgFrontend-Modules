@@ -73,11 +73,15 @@ auto MayPersistSilently() -> bool;
 /**
  * @brief Store a password for an account.
  *
+ * Takes the secret itself rather than a QString: a QString cannot be erased
+ * once anything shares its buffer, so rendering a password back into one on
+ * the way to storage undoes the reason EMailSecret exists.
+ *
  * @param account_id stable account id
- * @param password the secret; wiped by the caller afterwards
+ * @param password the secret; the caller keeps ownership
  * @return true on success
  */
-auto Save(const QString& account_id, const QString& password) -> bool;
+auto Save(const QString& account_id, const EMailSecret& password) -> bool;
 
 /**
  * @brief Read a stored password.

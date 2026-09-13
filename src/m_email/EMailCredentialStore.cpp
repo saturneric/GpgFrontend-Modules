@@ -66,7 +66,7 @@ auto MayPersistSilently() -> bool {
          protection == ProtectionLevel::kPIN;
 }
 
-auto Save(const QString& account_id, const QString& password) -> bool {
+auto Save(const QString& account_id, const EMailSecret& password) -> bool {
   if (account_id.isEmpty()) return false;
 
   // Storing is not optional: there is no password prompt anywhere, so an
@@ -88,8 +88,14 @@ auto Save(const QString& account_id, const QString& password) -> bool {
   // Both arguments are handed over owned, from the allocators the SDK will
   // release them through: the key ordinary, the secret secure. Passing a
   // QByteArray's internal pointer here would have the SDK free memory Qt owns.
+  auto* secret = password.ToSecureCString();
+  if (secret == nullptr) {
+    LOG_ERROR("could not allocate a secure buffer for a mail credential");
+    return false;
+  }
+
   const auto result =
-      GFSecDurableCacheSave(QDUP(CredentialKey(account_id)), QSECDUP(password));
+      GFSecDurableCacheSave(QDUP(CredentialKey(account_id)), secret);
 
   if (result != 0) LOG_ERROR("failed to store mail credential");
   return result == 0;
