@@ -28,6 +28,8 @@
 
 #include "EMailHelper.h"
 
+#include <QFile>
+#include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -1204,10 +1206,13 @@ namespace {
 
 /// Mirrors GpgSigValidity, grouped by what it means for the person reading.
 ///
-/// 1 is the one worth naming: GpgVerifyResultAnalyse sets kVALID_WITH_ISSUES
+/// 1 is the one worth naming. GpgVerifyResultAnalyse sets kVALID_WITH_ISSUES
 /// exactly when gpgme reports GPGME_SIGSUM_RED, which means the signature is
-/// BAD. Its label reads "valid, with issues", and that wording plus a warning
-/// colour is how a forged signature came to look like a minor quibble.
+/// BAD -- and 0 is kFULLY_VALID, 2 is kVALID_NOT_FULLY_TRUSTED, so 1 sits
+/// between two genuine outcomes and reads like a near miss. It has been taken
+/// for one twice: once by a `validity <= 2` test that painted it like a clean
+/// signature, and again by the label "valid, with issues" beside it. The
+/// grouping here is the single answer both of those needed.
 auto BadgeForValidity(int validity) -> EMailBadgeState {
   switch (validity) {
     case 0:  // fully valid
@@ -2033,6 +2038,57 @@ auto ExtractParts(const vmime::shared_ptr<vmime::message>& message,
   }
 
   return 0;
+}
+
+auto ReadFileWithin(const QString& path, qint64 max_bytes, QByteArray& out,
+                    QString& error, qint64& size) -> EMailFileAdmission {
+  out.clear();
+  error.clear();
+  size = 0;
+
+  const QFileInfo info(path);
+
+  // A file that is not there is a different answer from one of the wrong
+  // kind, and the system has a better sentence for it than this code does.
+  if (!info.exists()) {
+    QFile probe(path);
+    probe.open(QIODevice::ReadOnly);
+    error = probe.errorString();
+    return EMailFileAdmission::kUNREADABLE;
+  }
+
+  // First, and not as an optimisation. Everything below assumes the size it
+  // is told means something, and for a FIFO or a device node it does not.
+  if (!info.isFile()) return EMailFileAdmission::kNOT_REGULAR;
+
+  size = info.size();
+  if (size > max_bytes) return EMailFileAdmission::kTOO_LARGE;
+
+  QFile file(path);
+  // NOT QIODevice::Text: line endings are content here. A PGP/MIME signature
+  // covers the exact octets of a message in canonical CRLF form, and an
+  // attachment is whatever bytes the user chose.
+  if (!file.open(QIODevice::ReadOnly)) {
+    error = file.errorString();
+    return EMailFileAdmission::kUNREADABLE;
+  }
+
+  // Again, on the handle this time. The path was looked at a moment ago and
+  // may not name the same file now.
+  size = file.size();
+  if (size > max_bytes) return EMailFileAdmission::kTOO_LARGE;
+
+  // Bounded rather than readAll(): the size above is what the filesystem says,
+  // and a file being appended to while it is read would otherwise have no
+  // limit at all.
+  out = file.read(max_bytes);
+  if (out.size() < size) {
+    error = file.errorString();
+    out.clear();
+    return EMailFileAdmission::kUNREADABLE;
+  }
+
+  return EMailFileAdmission::kOK;
 }
 
 auto DocumentUnchangedOnFailure(const QByteArray& original) -> QByteArray {

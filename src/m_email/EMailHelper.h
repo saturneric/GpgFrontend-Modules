@@ -804,6 +804,50 @@ auto BuildInnerPartHeader(const vmime::shared_ptr<vmime::header>& source)
     -> QByteArray;
 
 /**
+ * @brief Largest single file this module will read in from disk.
+ *
+ * Applies to an attachment being added and to a .eml being opened. It is not
+ * about what a filesystem can hold: a message is refused at
+ * kMaxParseInputBytes, and base64 makes an attachment a third larger on the
+ * way in, so a file past this could never be sent or reopened anyway. Saying
+ * so when the file is chosen is kinder than saying it after the read.
+ */
+constexpr qint64 kMaxReadFileSize = 48LL * 1024 * 1024;
+
+/**
+ * @brief Why a file may not be taken in.
+ */
+enum class EMailFileAdmission : uint8_t {
+  kOK = 0,
+  kNOT_REGULAR,  ///< a directory, FIFO, socket, device node or /proc entry
+  kTOO_LARGE,
+  kUNREADABLE,  ///< permissions, or it went away between look and open
+};
+
+/**
+ * @brief Reads @p path in full, if it is an ordinary file within @p max_bytes.
+ *
+ * The one place the guards live, because the same three of them are needed
+ * wherever a file enters this module and getting any one wrong has the same
+ * consequence.
+ *
+ * A FIFO, a device node or a /proc entry reports a size of 0 and would sail
+ * straight through a ceiling check, then block forever or grow without bound
+ * inside readAll(). So the kind of file is settled first. The size is then
+ * checked TWICE, once against the path and again on the open handle, because
+ * those are not necessarily the same file and not necessarily the same length
+ * -- a path can be replaced between the two.
+ *
+ * @param path the file to read
+ * @param max_bytes the ceiling, in bytes
+ * @param out receives the content only on kOK
+ * @param error receives the system's reason, for kUNREADABLE
+ * @param size receives the size that was refused, for kTOO_LARGE
+ */
+auto ReadFileWithin(const QString& path, qint64 max_bytes, QByteArray& out,
+                    QString& error, qint64& size) -> EMailFileAdmission;
+
+/**
  * @brief The document an operation must hand back when it produced none.
  *
  * The host writes the `data` parameter of a result straight into the editor,

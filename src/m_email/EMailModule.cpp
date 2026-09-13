@@ -2006,17 +2006,20 @@ REGISTER_EVENT_HANDLER(
       if (event["file_path"].isEmpty()) CB_ERR(event, -1, "file_path is empty");
 
       auto file_path = event.value("file_path", "");
-      QFileInfo file_info(file_path);
 
-      // A 1 MB ceiling used to stand here, which refused any message with a
-      // real attachment. What it was actually protecting was the synchronous
-      // parse of untrusted input, and that is now bounded properly by the
-      // depth, part-count and decoded-size limits in ExtractParts -- so the
-      // ceiling can be about memory alone.
-      // A FIFO, a device node or /proc entry reports size 0 and would sail
-      // through the ceiling below, then block or grow without bound inside
-      // readAll() -- on the GUI thread, where the read actually happens.
-      if (!file_info.isFile()) {
+      // Read HERE, on the module thread, and through the one helper that knows
+      // the guards. This is file IO, which is precisely the work not to hand
+      // the GUI thread -- and the kind of file has to be settled before the
+      // read, because a FIFO, a device node or a /proc entry reports a size of
+      // 0 and would then block forever or grow without bound inside it.
+      QByteArray raw;
+      QString read_error;
+      qint64 file_size = 0;
+      const auto admission =
+          ReadFileWithin(file_path, kMaxEMLFileSize, raw, read_error,
+                         file_size);
+
+      if (admission == EMailFileAdmission::kNOT_REGULAR) {
         WarnOnGui(nullptr,
                   QApplication::translate(
                       "EMailModule",
@@ -2026,16 +2029,24 @@ REGISTER_EVENT_HANDLER(
         CB_ERR(event, -1, "not a regular file");
       }
 
-      if (file_info.size() > kMaxEMLFileSize) {
+      if (admission == EMailFileAdmission::kTOO_LARGE) {
         WarnOnGui(nullptr,
                   QApplication::translate(
                       "EMailModule",
                       "The file %1 is too large (%2) to be opened. The maximum "
                       "allowed size is %3.")
                       .arg(file_path)
-                      .arg(QLocale().formattedDataSize(file_info.size()))
+                      .arg(QLocale().formattedDataSize(file_size))
                       .arg(QLocale().formattedDataSize(kMaxEMLFileSize)));
         CB_ERR(event, -1, "file too large");
+      }
+
+      if (admission != EMailFileAdmission::kOK) {
+        WarnOnGui(nullptr, QApplication::translate(
+                               "EMailModule", "Cannot read file %1:\n%2.")
+                               .arg(file_path)
+                               .arg(read_error));
+        CB_ERR(event, -1, "cannot read file");
       }
 
       auto* edit = GFUIGetGUIObjectAs<QWidget>("main_window_edit");
@@ -2049,46 +2060,15 @@ REGISTER_EVENT_HANDLER(
                "QWidget");
       }
 
-      // Run in GUI thread to avoid blocking the main thread
+      // Only the tab is built on the GUI thread now: the bytes are already in
+      // hand, so nothing here reads a file or blocks on one.
       QMetaObject::invokeMethod(QCoreApplication::instance(), [=]() -> void {
-        QFileInfo file_info(file_path);
-        QFile file(file_path);
-        // NOT QIODevice::Text. Text mode translates CRLF to LF on the way
-        // in, and a PGP/MIME signature covers the exact octets of the message
-        // in canonical CRLF form -- so reading it that way silently destroys
-        // every signature in the file before anything has a chance to check
-        // one.
-        if (!file.open(QIODevice::ReadOnly)) {
-          WarnOnGui(nullptr, QApplication::translate(
-                                 "EMailModule", "Cannot read file %1:\n%2.")
-                                 .arg(file_path)
-                                 .arg(file.errorString()));
-          return;
-        }
-
-        // Checked again on the OPEN handle. The size test above ran on the
-        // module thread against a path; this runs against the file actually
-        // opened, which is not necessarily the same one and not necessarily
-        // the same length.
-        if (file.size() > kMaxEMLFileSize) {
-          WarnOnGui(
-              nullptr,
-              QApplication::translate(
-                  "EMailModule",
-                  "The file %1 is too large (%2) to be opened. The maximum "
-                  "allowed size is %3.")
-                  .arg(file_path)
-                  .arg(QLocale().formattedDataSize(file.size()))
-                  .arg(QLocale().formattedDataSize(kMaxEMLFileSize)));
-          return;
-        }
-
         QWidget* page = nullptr;
 
         auto ok = QMetaObject::invokeMethod(
             edit, "SlotNewCustomTab", Qt::DirectConnection,
             Q_RETURN_ARG(QWidget*, page), Q_ARG(QString, "email"),
-            Q_ARG(QString, file_info.fileName()),
+            Q_ARG(QString, QFileInfo(file_path).fileName()),
             Q_ARG(QIcon, QIcon(":/icons/email.png")),
             Q_ARG(QString, ":/icons/email.png"));
 
@@ -2107,8 +2087,6 @@ REGISTER_EVENT_HANDLER(
           CB_ERR_NO_RET(event, -1, "invoke GetTextPage failed");
           return;
         }
-
-        const auto raw = file.readAll();
 
         // Handed over as bytes so the page can record which line endings the
         // message arrived with and reproduce them when it is read back or
