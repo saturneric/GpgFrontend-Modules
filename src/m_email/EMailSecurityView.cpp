@@ -113,14 +113,41 @@ auto DescribeValidity(int validity) -> QString {
   }
 }
 
-auto ValidityIsGood(int validity) -> bool {
-  // 0 is kFULLY_VALID and 2 is kVALID_NOT_FULLY_TRUSTED -- both are genuine
-  // signatures. 1 is kVALID_WITH_ISSUES, which is NOT one:
-  // GpgVerifyResultAnalyse sets it exactly when gpgme reports GPGME_SIGSUM_RED,
-  // meaning the signature is bad. It used to fall inside a "validity <= 2" test
-  // and so was painted like a clean signature, contradicting the "valid, with
-  // issues" label beside it -- and the colour is what gets read at a glance.
-  return validity == 0 || validity == 2;
+/// The wording for one signature, once it has been judged.
+///
+/// Falls back to the raw validity description for the outcomes that have no
+/// better name, so nothing is lost by routing through the badge.
+auto DescribeSignature(EMailBadgeState badge, int validity) -> QString {
+  switch (badge) {
+    case EMailBadgeState::kSIGNED_BAD:
+      // Named for what it is. "valid, with issues" -- the label validity 1
+      // used to carry -- describes a bad signature as a near miss.
+      return validity == 5
+                 ? QApplication::translate("EMailSecurityView",
+                                           "bad signature: signing key revoked")
+                 : QApplication::translate("EMailSecurityView",
+                                           "BAD signature: it does not match "
+                                           "these bytes");
+    case EMailBadgeState::kSIGNED_MISMATCH:
+      return QApplication::translate("EMailSecurityView",
+                                     "valid, but signed by another address");
+    default:
+      return DescribeValidity(validity);
+  }
+}
+
+/// How loudly to show one signature.
+auto ToneForSignature(EMailBadgeState badge) -> EMailTone {
+  switch (ToneForBadge(badge)) {
+    case EMailBadgeTone::kGOOD:
+      return EMailTone::kGOOD;
+    case EMailBadgeTone::kDANGER:
+      return EMailTone::kDANGER;
+    case EMailBadgeTone::kWARN:
+    case EMailBadgeTone::kMUTED:
+      break;
+  }
+  return EMailTone::kWARN;
 }
 
 }  // namespace
@@ -358,11 +385,29 @@ void EMailSecurityView::add_signature_section(
       auto* item = new QTreeWidgetItem(region_item);
       item->setText(kColItem,
                     result.uid.isEmpty() ? tr("Unknown signer") : result.uid);
-      item->setText(kColValue, DescribeValidity(result.validity));
-      EMailSetCellTone(
-          item, kColValue,
-          ValidityIsGood(result.validity) ? EMailTone::kGOOD : EMailTone::kWARN,
-          this);
+      // Judged the same way the badge on the message surface is, so the two
+      // can never disagree about the same signature.
+      //
+      // The tone matters as much as the words. Validity 1 is
+      // GPGME_SIGSUM_RED -- a BAD signature -- and it used to be painted the
+      // same amber as a missing key and labelled "valid, with issues", which
+      // made a forgery read as a minor quibble. kDANGER exists for exactly
+      // this and was not being used for any signature at all.
+      const auto badge = BadgeForSignature(result, from_);
+      item->setText(kColValue, DescribeSignature(badge, result.validity));
+      EMailSetCellTone(item, kColValue, ToneForSignature(badge), this);
+
+      if (badge == EMailBadgeState::kSIGNED_MISMATCH) {
+        auto* warn = new QTreeWidgetItem(item);
+        warn->setText(kColItem, tr("Different address"));
+        warn->setText(
+            kColValue,
+            tr("the signature is valid, but the key belongs to %1 while this "
+               "message says it is from %2. A valid signature says who signed "
+               "the bytes, not who sent the message.")
+                .arg(AddressOfUid(result.uid), AddressOfUid(from_)));
+        EMailSetCellTone(warn, kColValue, EMailTone::kWARN, this);
+      }
 
       const auto detail = [&](const QString& name, const QString& value) {
         if (value.isEmpty()) return;
@@ -578,11 +623,13 @@ void EMailSecurityView::SetMessage(EMailSecurityState state,
                                    const QList<EMailSignatureRegion>& regions,
                                    const QList<EMailSignatureResult>& results,
                                    const QList<EMailRecipientRow>& recipients,
-                                   const QStringList& addresses, int channel,
+                                   const QStringList& addresses,
+                                   const QString& from, int channel,
                                    const QList<EMailFinding>& findings,
                                    EMailVerifyState verify_state,
                                    bool message_carries_key) {
   verify_state_ = verify_state;
+  from_ = from;
   message_carries_key_ = message_carries_key;
   has_regions_ = !regions.isEmpty();
   // Kept because the headline's colour depends on it and these arguments are

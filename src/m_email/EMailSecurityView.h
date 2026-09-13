@@ -91,7 +91,8 @@ class EMailSecurityView : public QWidget {
                   const QList<EMailSignatureRegion>& regions,
                   const QList<EMailSignatureResult>& results,
                   const QList<EMailRecipientRow>& recipients,
-                  const QStringList& addresses, int channel,
+                  const QStringList& addresses, const QString& from,
+                  int channel,
                   const QList<EMailFinding>& findings,
                   EMailVerifyState verify_state, bool message_carries_key);
 
@@ -137,6 +138,11 @@ class EMailSecurityView : public QWidget {
   auto add_group(const QString& title, const QString& id) -> QTreeWidgetItem*;
   /// The tree's own menu, for the row at @p pos.
   void show_row_menu(const QPoint& pos);
+
+  /// The From address, for the signer consistency check. A signature that
+  /// names a different address than the message claims to come from is what a
+  /// transplanted signature looks like.
+  QString from_;
 
   /// Kept because the menu's offers depend on them and SetMessage's arguments
   /// are not otherwise retained.
