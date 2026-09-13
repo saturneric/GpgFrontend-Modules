@@ -55,6 +55,7 @@
 #include <QStandardPaths>
 #include <QString>
 #include <QTextDocument>
+#include <QThread>
 
 #include "EMailPageView.h"
 
@@ -65,6 +66,7 @@
 #define VMIME_STATIC
 #endif
 #include <algorithm>
+#include <functional>
 #include <vmime/vmime.hpp>
 
 // vmime extend
@@ -471,52 +473,67 @@ auto GFUnregisterModule() -> int {
 
 namespace {
 
+/**
+ * @brief Runs @p fn on the GUI thread and waits for it.
+ *
+ * Module event handlers do NOT run on the GUI thread -- they run on the
+ * module task runner (see GlobalModuleContext) -- and a QWidget may only be
+ * created, shown or read from the thread that owns it. Every widget touch in
+ * this file goes through here.
+ *
+ * Already-on-the-GUI-thread is handled rather than assumed away, because the
+ * same helpers are called from inside blocks that have already hopped over.
+ * A blocking queued connection to oneself is a deadlock, not a no-op.
+ */
+void RunOnGui(const std::function<void()>& fn) {
+  auto* app = QCoreApplication::instance();
+  if (app == nullptr || QThread::currentThread() == app->thread()) {
+    fn();
+    return;
+  }
+  QMetaObject::invokeMethod(app, fn, Qt::BlockingQueuedConnection);
+}
+
+/// A warning box, raised from whichever thread happens to be reporting.
+void WarnOnGui(QWidget* parent, const QString& text) {
+  RunOnGui([parent, text]() {
+    QMessageBox::warning(
+        parent, QApplication::translate("EMailModule", "Warning"), text);
+  });
+}
+
 // The preflight dialog: what the user should know before this message leaves.
 //
 // Shown only when there is something to say, and it never refuses the save --
 // the decision is the user's, and a check that blocks gets worked around
 // rather than read. Returns false when the user chooses not to write the file.
-auto ConfirmExport(QWidget* parent, const QByteArray& source) -> bool {
-  vmime::shared_ptr<vmime::message> parsed;
-  if (!CheckIfEMLMessage(source, parsed)) return true;
+//
+// The decision itself is CheckBeforeExport(), which parses and inspects the
+// message and knows nothing about widgets. Only the asking lives here, and
+// only that part goes to the GUI thread: parsing a message the user just
+// composed is not work the GUI thread should be doing.
+auto ConfirmExport(QWidget* parent, const EMailExportCheck& check) -> bool {
+  if (!check.needs_confirmation) return true;
 
-  EMailPart root;
-  QList<EMailSignatureRegion> regions;
-  if (ParseMimeTree(parsed, source, root, regions) != 0) return true;
-
-  EMailMetaData meta;
-  GetEMLMetaData(parsed, meta);
-
-  const auto findings = PreflightMessage(meta, root, regions, {});
-
-  QStringList risks;
-  QStringList notes;
-  for (const auto& finding : findings) {
-    const auto line = QString("%1 - %2").arg(finding.title, finding.detail);
-    if (finding.level == EMailFindingLevel::kRISK) {
-      risks.append(line);
-    } else if (finding.level == EMailFindingLevel::kWARN) {
-      notes.append(line);
+  bool accepted = false;
+  RunOnGui([&]() {
+    QMessageBox box(parent);
+    box.setIcon(QMessageBox::Warning);
+    box.setWindowTitle(
+        QApplication::translate("EMailModule", "Check before exporting"));
+    box.setText(QApplication::translate(
+        "EMailModule",
+        "Something about this message is worth checking before you save it."));
+    box.setInformativeText(check.risks.join("\n\n"));
+    if (!check.notes.isEmpty()) {
+      box.setDetailedText(check.notes.join("\n\n"));
     }
-  }
+    box.setStandardButtons(QMessageBox::Save | QMessageBox::Cancel);
+    box.setDefaultButton(QMessageBox::Cancel);
 
-  // Notes alone are not worth interrupting a save for; the Security tab
-  // already carries them.
-  if (risks.isEmpty()) return true;
-
-  QMessageBox box(parent);
-  box.setIcon(QMessageBox::Warning);
-  box.setWindowTitle(
-      QApplication::translate("EMailModule", "Check before exporting"));
-  box.setText(QApplication::translate(
-      "EMailModule",
-      "Something about this message is worth checking before you save it."));
-  box.setInformativeText(risks.join("\n\n"));
-  if (!notes.isEmpty()) box.setDetailedText(notes.join("\n\n"));
-  box.setStandardButtons(QMessageBox::Save | QMessageBox::Cancel);
-  box.setDefaultButton(QMessageBox::Cancel);
-
-  return box.exec() == QMessageBox::Save;
+    accepted = box.exec() == QMessageBox::Save;
+  });
+  return accepted;
 }
 
 // Where a Save dialog should open. Falls back to the home directory only if
@@ -1296,7 +1313,7 @@ auto DoEncryptEMLData(int channel, const QStringList& encrypt_keys,
     CB(event, GFGetModuleID(),
        {
            {"ret", QString::number(0)},
-           {"data", QString::fromLatin1(body_data.toBase64())},
+           {"data", DocumentUnchangedOnFailure(body_data)},
            {"result_status", QString::number(-1)},
            {"result", ErrorHelper(ret, QString::fromUtf8(eml_data))},
        });
@@ -1322,7 +1339,7 @@ auto DoEncryptEMLData(int channel, const QStringList& encrypt_keys,
     CB(event, GFGetModuleID(),
        {
            {"ret", QString::number(0)},
-           {"data", QString::fromLatin1(body_data.toBase64())},
+           {"data", DocumentUnchangedOnFailure(body_data)},
            {"result_status", QString::number(result_status)},
            {"result", result_detail},
            {"result_cards",
@@ -1350,7 +1367,7 @@ auto DoEncryptPlainText(int channel, const QStringList& encrypt_keys,
     CB(event, GFGetModuleID(),
        {
            {"ret", QString::number(0)},
-           {"data", QString::fromLatin1(body_data.toBase64())},
+           {"data", DocumentUnchangedOnFailure(body_data)},
            {"result_status", QString::number(-1)},
            {"result", ErrorHelper(ret, QString::fromUtf8(eml_data))},
        });
@@ -1364,7 +1381,7 @@ auto DoEncryptPlainText(int channel, const QStringList& encrypt_keys,
     CB(event, GFGetModuleID(),
        {
            {"ret", QString::number(0)},
-           {"data", QString::fromLatin1(body_data.toBase64())},
+           {"data", DocumentUnchangedOnFailure(body_data)},
            {"result_status", QString::number(-1)},
            {"result", ErrorHelper(ret, QString::fromUtf8(eml_data))},
        });
@@ -1390,7 +1407,7 @@ auto DoEncryptPlainText(int channel, const QStringList& encrypt_keys,
     CB(event, GFGetModuleID(),
        {
            {"ret", QString::number(0)},
-           {"data", QString::fromLatin1(body_data.toBase64())},
+           {"data", DocumentUnchangedOnFailure(body_data)},
            {"result_status", QString::number(result_status)},
            {"result", result_detail},
            {"result_cards",
@@ -1917,16 +1934,28 @@ REGISTER_EVENT_HANDLER(
         CB_ERR(event, -1, "invoke GetTextPage failed");
       }
 
+      // Reading a QTextDocument is a GUI-thread operation, and the user may
+      // be typing into this one. Only the read hops over; everything done to
+      // the text afterwards is ordinary work on a copy.
+      QString text;
+      RunOnGui([&]() { text = text_edit->toPlainText(); });
+
       // Normalize to LF first: the editor may already hold CRLF, and blindly
       // expanding every "\n" then turns each of those into CRCRLF.
-      auto text = text_edit->toPlainText();
       text.replace("\r\n", "\n");
       text.replace("\n", "\r\n");
+
+      const auto bytes = text.toUtf8();
 
       // Last look before the bytes leave. Deliberately after the content is
       // assembled and before anything is written, so what is checked is
       // exactly what would be saved.
-      if (!ConfirmExport(page, text.toUtf8())) {
+      //
+      // The inspection runs HERE, on the module thread: it parses and walks a
+      // message of whatever size the user has composed, and that is not work
+      // to hand the GUI thread. Only the question that follows is a dialog.
+      const auto check = CheckBeforeExport(bytes);
+      if (!ConfirmExport(page, check)) {
         LOG_INFO("user cancelled the save after the export check");
         CB_SUCC(event);
       }
@@ -1936,34 +1965,33 @@ REGISTER_EVENT_HANDLER(
       // truncated .eml behind if the write fails halfway.
       QSaveFile file(filename);
       if (!file.open(QIODevice::WriteOnly)) {
-        QMessageBox::warning(
-            page, QApplication::translate("EMailModule", "Warning"),
-            QApplication::translate("EMailModule", "Cannot write file %1:\n%2.")
-                .arg(filename)
-                .arg(file.errorString()));
+        WarnOnGui(page, QApplication::translate(
+                            "EMailModule", "Cannot write file %1:\n%2.")
+                            .arg(filename)
+                            .arg(file.errorString()));
         CB_ERR(event, -1, "cannot open file for writing");
       }
 
-      QApplication::setOverrideCursor(Qt::WaitCursor);
-      const auto bytes = text.toUtf8();
+      RunOnGui([]() { QApplication::setOverrideCursor(Qt::WaitCursor); });
       const bool written = file.write(bytes) == bytes.size() && file.commit();
-      QApplication::restoreOverrideCursor();
+      RunOnGui([]() { QApplication::restoreOverrideCursor(); });
 
       if (!written) {
-        QMessageBox::warning(
-            page, QApplication::translate("EMailModule", "Warning"),
-            QApplication::translate("EMailModule", "Cannot write file %1:\n%2.")
-                .arg(filename)
-                .arg(file.errorString()));
+        WarnOnGui(page, QApplication::translate(
+                            "EMailModule", "Cannot write file %1:\n%2.")
+                            .arg(filename)
+                            .arg(file.errorString()));
         CB_ERR(event, -1, "writing file failed");
       }
 
-      QTextDocument* document = text_edit->document();
-
-      document->setModified(false);
-
-      int cur_index = tab_widget->currentIndex();
-      tab_widget->setTabText(cur_index, QFileInfo(filename).fileName());
+      // The document's modified flag and the tab's label are widget state, and
+      // the two belong together: a tab renamed without its flag cleared, or the
+      // reverse, is a half-saved file as far as the user can see.
+      const auto shown = QFileInfo(filename).fileName();
+      RunOnGui([&]() {
+        text_edit->document()->setModified(false);
+        tab_widget->setTabText(tab_widget->currentIndex(), shown);
+      });
 
       QMetaObject::invokeMethod(page, "SetFilePath",
                                 Qt::BlockingQueuedConnection,
@@ -1989,26 +2017,24 @@ REGISTER_EVENT_HANDLER(
       // through the ceiling below, then block or grow without bound inside
       // readAll() -- on the GUI thread, where the read actually happens.
       if (!file_info.isFile()) {
-        QMessageBox::warning(
-            nullptr, QApplication::translate("EMailModule", "Warning"),
-            QApplication::translate(
-                "EMailModule",
-                "%1 is not an ordinary file, so it cannot be opened as a "
-                "message.")
-                .arg(file_path));
+        WarnOnGui(nullptr,
+                  QApplication::translate(
+                      "EMailModule",
+                      "%1 is not an ordinary file, so it cannot be opened as a "
+                      "message.")
+                      .arg(file_path));
         CB_ERR(event, -1, "not a regular file");
       }
 
       if (file_info.size() > kMaxEMLFileSize) {
-        QMessageBox::warning(
-            nullptr, QApplication::translate("EMailModule", "Warning"),
-            QApplication::translate(
-                "EMailModule",
-                "The file %1 is too large (%2) to be opened. The maximum "
-                "allowed size is %3.")
-                .arg(file_path)
-                .arg(QLocale().formattedDataSize(file_info.size()))
-                .arg(QLocale().formattedDataSize(kMaxEMLFileSize)));
+        WarnOnGui(nullptr,
+                  QApplication::translate(
+                      "EMailModule",
+                      "The file %1 is too large (%2) to be opened. The maximum "
+                      "allowed size is %3.")
+                      .arg(file_path)
+                      .arg(QLocale().formattedDataSize(file_info.size()))
+                      .arg(QLocale().formattedDataSize(kMaxEMLFileSize)));
         CB_ERR(event, -1, "file too large");
       }
 
@@ -2033,12 +2059,10 @@ REGISTER_EVENT_HANDLER(
         // every signature in the file before anything has a chance to check
         // one.
         if (!file.open(QIODevice::ReadOnly)) {
-          QMessageBox::warning(
-              nullptr, QApplication::translate("EMailModule", "Warning"),
-              QApplication::translate("EMailModule",
-                                      "Cannot read file %1:\n%2.")
-                  .arg(file_path)
-                  .arg(file.errorString()));
+          WarnOnGui(nullptr, QApplication::translate(
+                                 "EMailModule", "Cannot read file %1:\n%2.")
+                                 .arg(file_path)
+                                 .arg(file.errorString()));
           return;
         }
 
@@ -2047,8 +2071,8 @@ REGISTER_EVENT_HANDLER(
         // opened, which is not necessarily the same one and not necessarily
         // the same length.
         if (file.size() > kMaxEMLFileSize) {
-          QMessageBox::warning(
-              nullptr, QApplication::translate("EMailModule", "Warning"),
+          WarnOnGui(
+              nullptr,
               QApplication::translate(
                   "EMailModule",
                   "The file %1 is too large (%2) to be opened. The maximum "
