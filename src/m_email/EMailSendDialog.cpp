@@ -30,6 +30,7 @@
 
 #include <QApplication>
 #include <QClipboard>
+#include <QCloseEvent>
 #include <QComboBox>
 #include <QFontDatabase>
 #include <QFormLayout>
@@ -37,7 +38,6 @@
 #include <QIcon>
 #include <QKeyEvent>
 #include <QLabel>
-#include <QCloseEvent>
 #include <QMessageBox>
 #include <QMouseEvent>
 #include <QPlainTextEdit>
@@ -337,9 +337,8 @@ auto EMailSendDialog::build_result_card() -> QFrame* {
 
   // A click that lands on a button never reaches the dialog's own
   // mousePressEvent, so each of these says for itself that someone is here.
-  for (auto* button :
-       {details_button_, copy_evidence_button_, stop_confirm_button_,
-        stop_send_button_}) {
+  for (auto* button : {details_button_, copy_evidence_button_,
+                       stop_confirm_button_, stop_send_button_}) {
     connect(button, &QToolButton::clicked, this,
             &EMailSendDialog::cancel_auto_close);
   }
@@ -608,11 +607,10 @@ void EMailSendDialog::begin_sent_copy() {
             if (seq != seq_ || confirm_state_ == ConfirmState::kSTOPPED) {
               return;
             }
-            QMetaObject::invokeMethod(imap_worker_, "SaveToSentFolder",
-                                      Qt::QueuedConnection,
-                                      Q_ARG(quint64, seq_),
-                                      Q_ARG(QString, message_.message_id),
-                                      Q_ARG(QByteArray, message_.eml));
+            QMetaObject::invokeMethod(
+                imap_worker_, "SaveToSentFolder", Qt::QueuedConnection,
+                Q_ARG(quint64, seq_), Q_ARG(QString, message_.message_id),
+                Q_ARG(QByteArray, message_.eml));
           });
   imap_thread_->start();
 

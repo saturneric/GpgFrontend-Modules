@@ -514,7 +514,7 @@ auto EMailPageView::build_message_surface() -> QWidget* {
 
   // Separator is shown rather than assumed: the old dialog explained it in a
   // tips label the user had to find first.
-  const auto multi = tr("separate several addresses with \";\"");
+  const auto multi = tr("Separate several addresses with \";\"");
   to_edit_->setPlaceholderText(multi);
   cc_edit_->setToolTip(multi);
   // Said plainly, because the behaviour is deliberate and would otherwise
@@ -1930,8 +1930,8 @@ void EMailPageView::refresh_locked_capability(const QStringList& named) {
     if (!mine.isEmpty()) {
       EMailSetLabelColor(locked_capability_, MutedColor(this));
       locked_capability_->setText(
-          tr("The recipients are not named, so whether you can open this "
-             "cannot be told until you try."));
+          tr("The recipients are not named, so there is no way to tell "
+             "whether you can open this until you try."));
     }
     return;
   }
@@ -2136,11 +2136,10 @@ void EMailPageView::refresh_security() {
   addresses += compose_.bcc;
   if (!message_.from.isEmpty()) addresses.append(message_.from);
 
-  const auto findings =
-      tree_root_.content_type.isEmpty()
-          ? QList<EMailFinding>{}
-          : InspectMessage(message_, tree_root_, regions_,
-                           cached_verification_.verdicts);
+  const auto findings = tree_root_.content_type.isEmpty()
+                            ? QList<EMailFinding>{}
+                            : InspectMessage(message_, tree_root_, regions_,
+                                             cached_verification_.verdicts);
 
   security_view_->SetMessage(
       security_state_, regions_, cached_verification_.signatures,
@@ -2891,7 +2890,7 @@ void EMailPageView::slot_send_message() {
   EMailOutgoingMessage message;
   if (!BuildOutgoing(message)) {
     QMessageBox::warning(
-        this, tr("Cannot send"),
+        this, tr("Cannot Send"),
         tr("This message needs a sender and at least one recipient before it "
            "can be sent."));
     return;

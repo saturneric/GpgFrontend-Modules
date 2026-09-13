@@ -707,7 +707,7 @@ void EMailAccountSettingsPage::refresh_validation() {
     }
     problems.append(
         tr("Another account already uses this address. They cannot be told "
-           "apart where accounts are offered."));
+           "apart wherever accounts are offered."));
     break;
   }
 

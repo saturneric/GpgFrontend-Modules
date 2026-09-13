@@ -1836,9 +1836,9 @@ auto InspectMessage(const EMailMetaData& meta, const EMailPart& root,
          QObject::tr("Signed part no longer in canonical form"),
          QObject::tr(
              "The signed part contains line endings that are not CRLF, which "
-             "is not the form a signature is computed over. Something rewrote "
-             "this message after it was signed, normally a program that "
-             "changed line endings while saving or copying it rather than an "
+             "is not the form the signature was computed over. Something "
+             "rewrote this message after it was signed, usually a program "
+             "that changed line endings while saving or copying it, not an "
              "attack. The signature cannot verify against these bytes, and "
              "importing the sender's key will not change that. Checking it "
              "needs the original, unmodified message.")});
@@ -1870,7 +1870,7 @@ auto InspectMessage(const EMailMetaData& meta, const EMailPart& root,
     if (!LooksLikeSpoofedAddress(address)) continue;
     findings.append(
         {EMailFindingLevel::kRISK, QObject::tr("Address may be disguised"),
-         QObject::tr("The domain in \"%1\" uses characters that can be drawn "
+         QObject::tr("The domain in \"%1\" uses characters that can be made "
                      "to look like a different, familiar address.")
              .arg(address)});
   }
@@ -1885,8 +1885,8 @@ auto InspectMessage(const EMailMetaData& meta, const EMailPart& root,
         reply_domain.compare(from_domain, Qt::CaseInsensitive) != 0) {
       findings.append(
           {EMailFindingLevel::kWARN, QObject::tr("Replies go somewhere else"),
-           QObject::tr("This message is from \"%1\" but replies would be sent "
-                       "to \"%2\", which is a different domain.")
+           QObject::tr("This message is from \"%1\", but replies would be "
+                       "sent to \"%2\", which is a different domain.")
                .arg(from_domain, reply_domain)});
     }
   }
@@ -2055,7 +2055,7 @@ auto PreflightMessage(const EMailMetaData& meta, const EMailPart& root,
     if (!LooksLikeSpoofedAddress(address)) continue;
     findings.append(
         {EMailFindingLevel::kRISK, QObject::tr("Recipient may be disguised"),
-         QObject::tr("The domain in \"%1\" uses characters that can be drawn "
+         QObject::tr("The domain in \"%1\" uses characters that can be made "
                      "to look like a different address. Check it before "
                      "sending.")
              .arg(address)});

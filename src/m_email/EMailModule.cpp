@@ -288,19 +288,22 @@ auto BuildRecipientCheckCard(const EMailMetaData& m,
         fields.append(
             {row.address,
              QApplication::translate(
-                 "EMailModule", "in %1, but not encrypted to it: cannot read")
+                 "EMailModule",
+                 "in %1, but not encrypted to it: they cannot read this "
+                 "message")
                  .arg(row.header_field)});
         break;
       case RecipientMatch::kENCRYPTED_NOT_ADDRESSED:
         fields.append({row.info.uid.isEmpty() ? row.info.key_id : row.info.uid,
                        QApplication::translate(
-                           "EMailModule", "encrypted to, not in the headers")});
+                           "EMailModule",
+                           "encrypted to, but not listed in the headers")});
         break;
       case RecipientMatch::kHIDDEN_RECIPIENT:
         fields.append(
             {QApplication::translate("EMailModule", "Hidden recipient"),
              QApplication::translate("EMailModule",
-                                     "the sender withheld this key id")});
+                                     "the sender withheld this key ID")});
         break;
     }
   }
@@ -861,9 +864,10 @@ auto ReportDescriptionFor(const EMailVerificationResult& result) -> QString {
           ? QApplication::translate(
                 "EMailModule",
                 " The bytes the signature covers were rewritten after it was "
-                "made -- their line endings are no longer CRLF -- which is "
-                "usually a program that changed them while saving or copying "
-                "the message. Checking the signature needs the original.")
+                "made: their line endings are no longer CRLF. This is "
+                "usually caused by a program that changed them while saving "
+                "or copying the message. Checking the signature requires "
+                "the original bytes.")
           : QString();
 
   switch (result.overall) {
@@ -920,9 +924,9 @@ auto ReportDescriptionFor(const EMailVerificationResult& result) -> QString {
     case EMailBadgeState::kENCRYPTED_ONLY:
       return QApplication::translate(
           "EMailModule",
-          "The signatures in this message cover ciphertext rather than the "
-          "content you read. They say who wrapped the encrypted part, and "
-          "nothing about who wrote what is inside it.");
+          "The signatures in this message cover the encrypted data rather "
+          "than the content you read. They confirm who encrypted the "
+          "message, but say nothing about who wrote what is inside it.");
 
     case EMailBadgeState::kSIGNED_UNVERIFIED:
     case EMailBadgeState::kNOT_PROTECTED:

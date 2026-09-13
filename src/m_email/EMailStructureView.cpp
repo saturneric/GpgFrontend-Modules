@@ -222,7 +222,7 @@ void EMailStructureView::save_part(const EMailPart& part) {
                   file.write(part.data) == part.data.size() && file.commit();
   if (!ok) {
     QMessageBox::warning(this, tr("Save Part"),
-                         tr("Cannot write %1.").arg(path));
+                         tr("Could not write %1.").arg(path));
   }
 }
 

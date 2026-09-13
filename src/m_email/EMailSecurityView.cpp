@@ -95,7 +95,7 @@ auto DescribeValidity(int validity) -> QString {
       return QApplication::translate("EMailSecurityView", "valid, with issues");
     case 2:
       return QApplication::translate("EMailSecurityView",
-                                     "valid, key not fully trusted");
+                                     "valid, but key not fully trusted");
     case 3:
       return QApplication::translate("EMailSecurityView", "invalid");
     case 4:
@@ -439,7 +439,7 @@ void EMailSecurityView::add_signature_section(
         auto* warn = new QTreeWidgetItem(item);
         warn->setText(kColItem, tr("Hash mismatch"));
         warn->setText(kColValue,
-                      tr("the message declares %1 but the signature used %2")
+                      tr("the message declares %1, but the signature used %2")
                           .arg(region.declared_micalg, result.hash_algo));
         EMailSetCellTone(warn, kColValue, EMailTone::kWARN, this);
       }
@@ -475,7 +475,7 @@ void EMailSecurityView::add_recipient_section(
         item->setText(kColItem, row.address);
         item->setText(
             kColValue,
-            tr("in %1, but not encrypted to it: they cannot read this")
+            tr("in %1, but not encrypted to it: they cannot read this message")
                 .arg(row.header_field));
         EMailSetCellTone(item, kColValue, EMailTone::kWARN, this);
         break;
@@ -493,8 +493,9 @@ void EMailSecurityView::add_recipient_section(
 
       case RecipientMatch::kHIDDEN_RECIPIENT:
         item->setText(kColItem, tr("Hidden recipient"));
-        item->setText(kColValue,
-                      tr("the sender chose not to record who this is"));
+        item->setText(
+            kColValue,
+            tr("the sender chose not to record who this recipient is"));
         EMailSetCellTone(item, kColValue, EMailTone::kMUTED, this);
         break;
     }
@@ -658,7 +659,7 @@ void EMailSecurityView::SetMessage(
       break;
     case EMailSecurityState::kMALFORMED_PGP:
       headline_->setText(
-          tr("This message claims to use OpenPGP but its "
+          tr("This message claims to use OpenPGP, but its "
              "structure does not follow RFC 3156."));
       break;
   }

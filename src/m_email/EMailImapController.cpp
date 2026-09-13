@@ -696,7 +696,7 @@ void EMailImapController::connect_to_selected_account() {
     disable_account(account.id, tr("no password is stored"));
     status_label_->setText(
         tr("No password is stored for this account. Set one in Settings, "
-           "under Mail Accounts, then use Try Again."));
+           "under Mail Accounts, then use Refresh."));
     refresh_idle_state();
     return;
   }
@@ -958,7 +958,7 @@ void EMailImapController::refresh_detail() {
 
   if (summary.TooLarge()) {
     detail_note_->setText(
-        tr("This message is larger than this application will open, so it "
+        tr("This message is too large for this application to open, so it "
            "cannot be imported."));
     EMailSetLabelColor(detail_note_, EMailWarningColor(detail_note_));
     detail_note_frame_->setVisible(true);

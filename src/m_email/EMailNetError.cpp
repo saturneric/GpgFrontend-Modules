@@ -186,10 +186,10 @@ auto ClassifySmtpCommand(const vmime::exceptions::command_error& e,
   if (verb == "DATA") {
     out.category = MailErrorCategory::kSMTP_DATA_REJECTED;
     out.title = Tr("The server rejected the message");
-    out.detail = Tr(
-        "The outgoing server accepted the sender and recipients but refused "
-        "the message itself. Its reply is shown below and usually says why, "
-        "commonly a size limit or a content policy.");
+    out.detail =
+        Tr("The outgoing server accepted the sender and recipients but refused "
+           "the message itself. Its reply is shown below and usually explains "
+           "why, often because of a size limit or a content policy.");
     return;
   }
 
