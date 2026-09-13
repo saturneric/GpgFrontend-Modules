@@ -455,6 +455,9 @@ class EMailPageView : public QWidget {
   /// is actually looked at. Deferred rather than done on load because a message
   /// may carry several signatures and most are never opened; verifying
   /// reads the message and writes nothing, so it is safe to run here.
+  /// What the security surface may claim, from structure AND verification.
+  [[nodiscard]] auto security_badge() const -> EMailBadgeState;
+
   void ensure_regions_verified();
   /// Verifies every signed region now, whatever has been tried before, and
   /// records which of EMailVerifyState the outcome was. Runs on this thread.

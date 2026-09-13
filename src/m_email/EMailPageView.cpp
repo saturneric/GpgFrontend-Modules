@@ -1663,6 +1663,13 @@ void EMailPageView::run_verification() {
   verify_state_ = signature_results_.isEmpty()
                       ? EMailVerifyState::kATTEMPTED_EMPTY
                       : EMailVerifyState::kVERIFIED;
+
+  // What the message surface is entitled to say has just changed. Without
+  // this the badge kept the structural wording it was given at load time, so
+  // a signature that turned out to be bad went on reading as "Signed" for as
+  // long as the tab stayed open.
+  refresh_security_button();
+  refresh_attachments();
 }
 
 void EMailPageView::slot_derive_message(int mode) {
@@ -2099,7 +2106,7 @@ void EMailPageView::refresh_security() {
           : InspectMessage(message_, tree_root_, regions_, last_source_);
 
   security_view_->SetMessage(security_state_, regions_, signature_results_,
-                             recipient_rows_, addresses,
+                             recipient_rows_, addresses, message_.from,
                              GFGpgCurrentGpgContextChannel(), findings,
                              verify_state_, !message_key_parts().isEmpty());
 }
@@ -2252,21 +2259,31 @@ void EMailPageView::install_address_hints() {
   }
 }
 
+auto EMailPageView::security_badge() const -> EMailBadgeState {
+  // Structure AND cryptography. The badge used to be derived from structure
+  // alone, so a multipart/signed whose signature part held forty bytes of
+  // garbage read as "Signed", in the same accent colour as a verified one,
+  // and nothing on the message surface ever contradicted it.
+  return DeriveSecurityBadge(security_state_, verify_state_, signature_results_,
+                             message_.from);
+}
+
 void EMailPageView::paint_security_button() {
   // Colour only. Split from refresh_security_button() because that one also
   // rebuilds the menu and announces that the available operations changed,
   // and a theme change must not claim either of those happened.
   QColor colour = MutedColor(this);
-  switch (security_state_) {
-    case EMailSecurityState::kENCRYPTED:
-    case EMailSecurityState::kSIGNED:
-    case EMailSecurityState::kSIGNED_ENCRYPTED:
+  switch (ToneForBadge(security_badge())) {
+    case EMailBadgeTone::kGOOD:
       colour = AccentColor(this, true);
       break;
-    case EMailSecurityState::kMALFORMED_PGP:
+    case EMailBadgeTone::kWARN:
       colour = EMailWarningColor(this);
       break;
-    case EMailSecurityState::kPLAIN:
+    case EMailBadgeTone::kDANGER:
+      colour = EMailToneColor(this, EMailTone::kDANGER);
+      break;
+    case EMailBadgeTone::kMUTED:
       break;
   }
 
@@ -2279,24 +2296,49 @@ void EMailPageView::refresh_security_button() {
   QString text;
   QString icon;
 
-  switch (security_state_) {
-    case EMailSecurityState::kENCRYPTED:
+  const bool encrypted =
+      security_state_ == EMailSecurityState::kENCRYPTED ||
+      security_state_ == EMailSecurityState::kSIGNED_ENCRYPTED;
+
+  switch (security_badge()) {
+    case EMailBadgeState::kENCRYPTED_ONLY:
       text = tr("Encrypted");
       icon = ":/icons/lock.png";
       break;
-    case EMailSecurityState::kSIGNED:
-      text = tr("Signed");
+    case EMailBadgeState::kSIGNED_UNVERIFIED:
+      // What is actually known at this point: the message CARRIES a
+      // signature. Whether it is any good is a separate question that has
+      // not been asked yet, and the wording must not answer it.
+      text = encrypted ? tr("Encrypted, signature not checked")
+                       : tr("Signature not checked");
       icon = ":/icons/signature.png";
       break;
-    case EMailSecurityState::kSIGNED_ENCRYPTED:
-      text = tr("Encrypted and signed");
-      icon = ":/icons/lock.png";
+    case EMailBadgeState::kSIGNED_GOOD:
+      text = encrypted ? tr("Encrypted, signature verified")
+                       : tr("Signature verified");
+      icon = ":/icons/signature.png";
       break;
-    case EMailSecurityState::kMALFORMED_PGP:
+    case EMailBadgeState::kSIGNED_MISMATCH:
+      text = tr("Signed by a different address");
+      icon = ":/icons/warning.png";
+      break;
+    case EMailBadgeState::kSIGNED_EXPIRED:
+      text = tr("Signature or key expired");
+      icon = ":/icons/warning.png";
+      break;
+    case EMailBadgeState::kSIGNED_UNKNOWN_KEY:
+      text = tr("Signed by an unknown key");
+      icon = ":/icons/warning.png";
+      break;
+    case EMailBadgeState::kSIGNED_BAD:
+      text = tr("Bad signature");
+      icon = ":/icons/warning.png";
+      break;
+    case EMailBadgeState::kMALFORMED:
       text = tr("Malformed OpenPGP structure");
       icon = ":/icons/warning.png";
       break;
-    case EMailSecurityState::kPLAIN:
+    case EMailBadgeState::kNOT_PROTECTED:
       // Stated plainly and quietly. An unprotected message is the ordinary
       // case, not a fault, and painting it as a warning would train the user
       // to ignore the one that matters.
@@ -2614,8 +2656,31 @@ void EMailPageView::refresh_attachments() {
     item->setTextAlignment(kColSize, Qt::AlignRight | Qt::AlignVCenter);
 
     if (att.inside_signed_part) {
-      item->setText(kColSigned, tr("signed"));
-      EMailSetCellTone(item, kColSigned, EMailTone::kGOOD, this);
+      // inside_signed_part is set while PARSING: it says the part sits within
+      // a multipart/signed subtree, not that anything verified. Saying
+      // "signed" in green on that basis is the attachment-row version of the
+      // badge bug -- a part inside a subtree whose signature is forged, or
+      // whose key is missing, was labelled exactly like a checked one.
+      //
+      // So the claim is only as strong as what has actually been checked.
+      const auto badge = security_badge();
+      if (badge == EMailBadgeState::kSIGNED_GOOD) {
+        item->setText(kColSigned, tr("signed"));
+        EMailSetCellTone(item, kColSigned, EMailTone::kGOOD, this);
+      } else if (badge == EMailBadgeState::kSIGNED_UNVERIFIED) {
+        item->setText(kColSigned, tr("signed, not checked"));
+        EMailSetCellTone(item, kColSigned, EMailTone::kMUTED, this);
+      } else {
+        // The signature covering it came back bad, unknown or mismatched.
+        // Whatever the Security tab says about that signature is what this
+        // part is worth, and it is not a green tick.
+        item->setText(kColSigned, tr("signature not good"));
+        EMailSetCellTone(item, kColSigned,
+                         badge == EMailBadgeState::kSIGNED_BAD
+                             ? EMailTone::kDANGER
+                             : EMailTone::kWARN,
+                         this);
+      }
       any_signed_info = true;
     } else {
       // Not painted red: nothing here is broken and nothing is irreversible.
@@ -2906,23 +2971,39 @@ void EMailPageView::attach_paths(const QStringList& paths) {
   QStringList refused;
 
   for (const auto& path : paths) {
-    // Directories arrive from a drop as readily as files do, and reading one
-    // yields nothing useful.
-    if (QFileInfo(path).isDir()) {
-      refused.append(tr("%1 is a folder").arg(path));
+    // The same guards the .eml open path uses, for the same reason. A drop
+    // hands over whatever the user dragged: a folder, a FIFO, a device node.
+    // The kind of file has to be settled BEFORE anything is read, because
+    // those report a size of 0 and then block forever or grow without bound
+    // inside the read -- here, on the GUI thread, with no way to cancel.
+    QByteArray data;
+    QString error;
+    qint64 size = 0;
+    const auto admission =
+        ReadFileWithin(path, kMaxReadFileSize, data, error, size);
+
+    if (admission == EMailFileAdmission::kNOT_REGULAR) {
+      refused.append(QFileInfo(path).isDir()
+                         ? tr("%1 is a folder").arg(path)
+                         : tr("%1 is not an ordinary file").arg(path));
       continue;
     }
-
-    QFile file(path);
-    if (!file.open(QIODevice::ReadOnly)) {
-      refused.append(tr("%1: %2").arg(path, file.errorString()));
+    if (admission == EMailFileAdmission::kTOO_LARGE) {
+      refused.append(tr("%1 is too large (%2); the most that can be attached "
+                        "is %3")
+                         .arg(path, HumanSize(size),
+                              HumanSize(kMaxReadFileSize)));
+      continue;
+    }
+    if (admission != EMailFileAdmission::kOK) {
+      refused.append(tr("%1: %2").arg(path, error));
       continue;
     }
 
     EMailAttachment att;
     att.filename = QFileInfo(path).fileName();
     att.mime_type = GuessMimeType(path);
-    att.data = file.readAll();
+    att.data = data;
     att.disposition = "attachment";
     // Composed here, so it will be inside whatever this message gets signed
     // with. Nothing is claimed about a signature that does not exist yet.
@@ -2930,8 +3011,13 @@ void EMailPageView::attach_paths(const QStringList& paths) {
     message_.attachments.append(att);
   }
 
-  refresh_attachments();
-  mark_dirty();
+  // Only when something actually arrived. A drop where every file was refused
+  // left the document marked modified, so closing the tab then asked whether
+  // to save a change that had never been made.
+  if (refused.size() < paths.size()) {
+    refresh_attachments();
+    mark_dirty();
+  }
 
   if (!refused.isEmpty()) {
     QMessageBox::warning(
