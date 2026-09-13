@@ -73,7 +73,21 @@ struct Recording {
   QByteArray encrypt_output{
       "-----BEGIN PGP MESSAGE-----\nstub\n"
       "-----END PGP MESSAGE-----\n"};
+
+  /// Makes the next crypto call fail the way the REAL SDK fails: it allocates
+  /// its result struct before it can know whether the operation will work, so
+  /// a non-zero return still comes back with a live struct -- and, on most of
+  /// those paths, with the engine's own account of what went wrong in it. A
+  /// caller that only checks the return code leaks the struct and loses the
+  /// explanation. See src/sdk/GFSDKGpg.cpp.
+  bool fail_next{false};
+  /// What the engine "said". Empty models the paths that set no message.
+  QByteArray fail_error_string;
 };
+
+/// Buffers the fake SDK has handed out and not had back. A result struct that
+/// a failure path forgot to reclaim shows up here.
+auto OutstandingAllocations() -> int;
 
 void Reset();
 auto Get() -> Recording&;

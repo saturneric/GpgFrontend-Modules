@@ -1375,3 +1375,230 @@ TEST(EMailMimeTest, MergingKeepsWhatTheVerifyNeverSaw) {
   EXPECT_EQ(decrypted.body, QByteArray("kept body"));
   EXPECT_EQ(decrypted.encrypted_data, QByteArray("CIPHER"));
 }
+
+// --- what a failed operation leaves behind ----------------------------------
+
+TEST(EMailMimeTest, AFailedOperationLeavesTheDocumentByteIdentical) {
+  // The host writes the result's data straight into the editor, so a failing
+  // operation's payload REPLACES what the user was composing. Encrypt used to
+  // answer with a base64 rendering of it, which is how a cancelled passphrase
+  // prompt turned a message into a screen of base64.
+  QByteArray original;
+  original += "From: a@example.com\r\n";
+  original += "Subject: \xC3\xA9t\xC3\xA9\r\n";  // UTF-8, not ASCII
+  original += "\r\n";
+  original += "body with an embedded ";
+  original += '\0';
+  original += " NUL and a trailing space \r\n";
+
+  const auto kept = DocumentUnchangedOnFailure(original);
+
+  EXPECT_EQ(kept, original);
+  EXPECT_NE(kept, original.toBase64());
+  EXPECT_TRUE(kept.contains('\0'));
+}
+
+TEST(EMailMimeTest, AFailedOperationDoesNotInventAnEmptyDocument) {
+  // Handing back nothing would be its own kind of loss: the host writes what
+  // it is given, so an empty payload empties the tab.
+  const QByteArray original("composed text");
+  EXPECT_FALSE(DocumentUnchangedOnFailure(original).isEmpty());
+}
+
+// --- what the security surface may claim -------------------------------------
+//
+// The badge was derived from ClassifyOpenPGPStructure() alone, which does no
+// cryptography. A multipart/signed whose signature part held forty bytes of
+// garbage therefore read as "Signed", in the accent colour, and nothing on the
+// message surface ever said otherwise -- the honest wording lived in a Security
+// tab the user had to go and open.
+
+namespace {
+
+auto Sig(int validity, const QString& uid = "Alice <alice@example.com>")
+    -> EMailSignatureResult {
+  EMailSignatureResult r;
+  r.validity = validity;
+  r.uid = uid;
+  return r;
+}
+
+constexpr auto kFrom = "Alice <alice@example.com>";
+
+}  // namespace
+
+TEST(EMailMimeTest, AStructurallySignedMessageIsNotYetAVerifiedOne) {
+  // The whole point. Nothing has looked at it, so nothing may say it is good.
+  EXPECT_EQ(DeriveSecurityBadge(EMailSecurityState::kSIGNED,
+                                EMailVerifyState::kNOT_ATTEMPTED, {}, kFrom),
+            EMailBadgeState::kSIGNED_UNVERIFIED);
+
+  // A verification that ran and found nothing is equally not a good verdict.
+  EXPECT_EQ(DeriveSecurityBadge(EMailSecurityState::kSIGNED,
+                                EMailVerifyState::kATTEMPTED_EMPTY, {}, kFrom),
+            EMailBadgeState::kSIGNED_UNVERIFIED);
+}
+
+TEST(EMailMimeTest, AVerifiedSignatureIsTheOnlyThingCalledGood) {
+  for (const auto validity : {0, 2}) {
+    EXPECT_EQ(DeriveSecurityBadge(EMailSecurityState::kSIGNED,
+                                  EMailVerifyState::kVERIFIED, {Sig(validity)},
+                                  kFrom),
+              EMailBadgeState::kSIGNED_GOOD)
+        << "validity " << validity;
+    EXPECT_EQ(ToneForBadge(EMailBadgeState::kSIGNED_GOOD),
+              EMailBadgeTone::kGOOD);
+  }
+}
+
+TEST(EMailMimeTest, ARedSignatureIsBadNotAMinorIssue) {
+  // validity 1 is GPGME_SIGSUM_RED. It was labelled "valid, with issues" and
+  // painted the same amber as a missing key.
+  const auto badge =
+      DeriveSecurityBadge(EMailSecurityState::kSIGNED,
+                          EMailVerifyState::kVERIFIED, {Sig(1)}, kFrom);
+
+  EXPECT_EQ(badge, EMailBadgeState::kSIGNED_BAD);
+  EXPECT_EQ(ToneForBadge(badge), EMailBadgeTone::kDANGER);
+}
+
+TEST(EMailMimeTest, AnInvalidOrRevokedSignatureIsAlsoBad) {
+  for (const auto validity : {3, 5}) {
+    EXPECT_EQ(DeriveSecurityBadge(EMailSecurityState::kSIGNED,
+                                  EMailVerifyState::kVERIFIED, {Sig(validity)},
+                                  kFrom),
+              EMailBadgeState::kSIGNED_BAD)
+        << "validity " << validity;
+  }
+}
+
+TEST(EMailMimeTest, AMissingKeyIsItsOwnAnswerAndNotAForgery) {
+  const auto badge =
+      DeriveSecurityBadge(EMailSecurityState::kSIGNED,
+                          EMailVerifyState::kVERIFIED, {Sig(4)}, kFrom);
+
+  EXPECT_EQ(badge, EMailBadgeState::kSIGNED_UNKNOWN_KEY);
+  // Worth checking, not an alarm: importing a key resolves it.
+  EXPECT_EQ(ToneForBadge(badge), EMailBadgeTone::kWARN);
+}
+
+TEST(EMailMimeTest, AnExpiredSignatureIsDistinguishedFromABadOne) {
+  for (const auto validity : {6, 7}) {
+    EXPECT_EQ(DeriveSecurityBadge(EMailSecurityState::kSIGNED,
+                                  EMailVerifyState::kVERIFIED, {Sig(validity)},
+                                  kFrom),
+              EMailBadgeState::kSIGNED_EXPIRED)
+        << "validity " << validity;
+  }
+}
+
+TEST(EMailMimeTest, AnUnknownValidityIsNeverTreatedAsGood) {
+  // -1 is the default in EMailSignatureResult precisely so that an absent or
+  // unparseable field cannot read as fully valid.
+  for (const auto validity : {-1, 99}) {
+    EXPECT_NE(DeriveSecurityBadge(EMailSecurityState::kSIGNED,
+                                  EMailVerifyState::kVERIFIED, {Sig(validity)},
+                                  kFrom),
+              EMailBadgeState::kSIGNED_GOOD)
+        << "validity " << validity;
+  }
+}
+
+TEST(EMailMimeTest, TheWorstSignatureDecides) {
+  // One good signature beside one bad one is not a good message. Reporting the
+  // best of them would let an attacker simply add a second signature.
+  EXPECT_EQ(
+      DeriveSecurityBadge(EMailSecurityState::kSIGNED,
+                          EMailVerifyState::kVERIFIED, {Sig(0), Sig(1)}, kFrom),
+      EMailBadgeState::kSIGNED_BAD);
+
+  EXPECT_EQ(
+      DeriveSecurityBadge(EMailSecurityState::kSIGNED,
+                          EMailVerifyState::kVERIFIED, {Sig(0), Sig(4)}, kFrom),
+      EMailBadgeState::kSIGNED_UNKNOWN_KEY);
+}
+
+TEST(EMailMimeTest, AValidSignatureByAnotherAddressIsFlagged) {
+  // The transplanted-signature shape: the cryptography is fine and the key
+  // belongs to somebody else entirely.
+  const auto badge = DeriveSecurityBadge(
+      EMailSecurityState::kSIGNED, EMailVerifyState::kVERIFIED,
+      {Sig(0, "Mallory <mallory@evil.example>")}, kFrom);
+
+  EXPECT_EQ(badge, EMailBadgeState::kSIGNED_MISMATCH);
+  EXPECT_EQ(ToneForBadge(badge), EMailBadgeTone::kWARN);
+}
+
+TEST(EMailMimeTest, IdentityIsCheckedOnlyAfterTheCryptographyPasses) {
+  // A bad signature by another address is reported as bad. Leading with the
+  // address would bury the fact that the signature does not verify at all.
+  EXPECT_EQ(DeriveSecurityBadge(
+                EMailSecurityState::kSIGNED, EMailVerifyState::kVERIFIED,
+                {Sig(1, "Mallory <mallory@evil.example>")}, kFrom),
+            EMailBadgeState::kSIGNED_BAD);
+}
+
+TEST(EMailMimeTest, MatchingAddressesAreComparedNotStringified) {
+  // Display names and case differ constantly and mean nothing; the address is
+  // what is being compared.
+  EXPECT_TRUE(SignerMatchesAddress(Sig(0, "A. Person <ALICE@Example.COM>"),
+                                   "alice@example.com"));
+  EXPECT_TRUE(SignerMatchesAddress(Sig(0, "alice@example.com"), kFrom));
+  EXPECT_FALSE(SignerMatchesAddress(Sig(0, "alice@example.com.evil"),
+                                    "alice@example.com"));
+}
+
+TEST(EMailMimeTest, AnAddressThatCannotBeComparedIsNotCalledAMismatch) {
+  // A result with no UID is the unknown-key case, which the badge already
+  // reports on its own. Calling it a mismatch as well would say the same thing
+  // twice, and in stronger words than the evidence supports.
+  EXPECT_TRUE(SignerMatchesAddress(Sig(0, ""), kFrom));
+  EXPECT_TRUE(SignerMatchesAddress(Sig(0), ""));
+}
+
+TEST(EMailMimeTest, AnUnprotectedMessageIsStatedQuietly) {
+  const auto badge = DeriveSecurityBadge(
+      EMailSecurityState::kPLAIN, EMailVerifyState::kNOT_ATTEMPTED, {}, kFrom);
+
+  EXPECT_EQ(badge, EMailBadgeState::kNOT_PROTECTED);
+  // Not a fault. Painting the ordinary case as a warning is how people learn
+  // to ignore the warnings that matter.
+  EXPECT_EQ(ToneForBadge(badge), EMailBadgeTone::kMUTED);
+}
+
+TEST(EMailMimeTest, EncryptionAloneSaysNothingAboutWhoSent) {
+  const auto badge =
+      DeriveSecurityBadge(EMailSecurityState::kENCRYPTED,
+                          EMailVerifyState::kNOT_ATTEMPTED, {}, kFrom);
+
+  EXPECT_EQ(badge, EMailBadgeState::kENCRYPTED_ONLY);
+  EXPECT_EQ(ToneForBadge(badge), EMailBadgeTone::kMUTED);
+}
+
+TEST(EMailMimeTest, ASignedAndEncryptedMessageIsStillJudgedOnItsSignature) {
+  EXPECT_EQ(DeriveSecurityBadge(EMailSecurityState::kSIGNED_ENCRYPTED,
+                                EMailVerifyState::kNOT_ATTEMPTED, {}, kFrom),
+            EMailBadgeState::kSIGNED_UNVERIFIED);
+
+  EXPECT_EQ(DeriveSecurityBadge(EMailSecurityState::kSIGNED_ENCRYPTED,
+                                EMailVerifyState::kVERIFIED, {Sig(0)}, kFrom),
+            EMailBadgeState::kSIGNED_GOOD);
+}
+
+TEST(EMailMimeTest, AMalformedStructureIsReportedAsWrong) {
+  const auto badge =
+      DeriveSecurityBadge(EMailSecurityState::kMALFORMED_PGP,
+                          EMailVerifyState::kNOT_ATTEMPTED, {}, kFrom);
+
+  EXPECT_EQ(badge, EMailBadgeState::kMALFORMED);
+  EXPECT_EQ(ToneForBadge(badge), EMailBadgeTone::kDANGER);
+}
+
+TEST(EMailMimeTest, ResultsWithoutAVerifiedStateAreNotTrusted) {
+  // Results present but the state says the walk never completed: the results
+  // cannot be the whole story, so they must not produce a good verdict.
+  EXPECT_EQ(
+      DeriveSecurityBadge(EMailSecurityState::kSIGNED,
+                          EMailVerifyState::kNOT_ATTEMPTED, {Sig(0)}, kFrom),
+      EMailBadgeState::kSIGNED_UNVERIFIED);
+}

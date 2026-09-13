@@ -30,8 +30,14 @@
 
 #include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QRegularExpression>
 #include <QSet>
+#include <QTemporaryDir>
+
+#ifdef Q_OS_UNIX
+#include <sys/stat.h>
+#endif
 
 #include "EMailHelper.h"
 #include "EMailModel.h"
@@ -2009,3 +2015,196 @@ TEST(EMailCorpusTest, EncryptedMessagesAreClassifiedBeforeAnyDecryption) {
     }
   }
 }
+
+// --- the export check -------------------------------------------------------
+//
+// What a save should stop and ask about. This used to live inside the module
+// event handler, tangled up with building a QMessageBox, which meant the
+// policy could not be tested and the parse ran on whichever thread the dialog
+// happened to want. The decision is now its own function.
+
+TEST(EMailCorpusTest, ExportCheckAsksAboutAMessageCarryingABccHeader) {
+  QByteArray eml;
+  eml += "From: a@example.com\r\n";
+  eml += "To: b@example.com\r\n";
+  eml += "Bcc: blind@example.com\r\n";
+  eml += "Subject: s\r\n";
+  eml += "MIME-Version: 1.0\r\n";
+  eml += "Content-Type: text/plain\r\n\r\n";
+  eml += "body\r\n";
+
+  const auto check = CheckBeforeExport(eml);
+
+  EXPECT_TRUE(check.needs_confirmation);
+  EXPECT_FALSE(check.risks.isEmpty());
+}
+
+TEST(EMailCorpusTest, ExportCheckStaysQuietAboutAnOrdinaryMessage) {
+  QByteArray eml;
+  eml += "From: a@example.com\r\n";
+  eml += "To: b@example.com\r\n";
+  eml += "Subject: s\r\n";
+  eml += "MIME-Version: 1.0\r\n";
+  eml += "Content-Type: text/plain\r\n\r\n";
+  eml += "body\r\n";
+
+  const auto check = CheckBeforeExport(eml);
+
+  // It has notes -- an unsigned message is worth a word -- but a note is not
+  // worth interrupting a save for, and interrupting for one is how a check
+  // gets clicked through without being read.
+  EXPECT_FALSE(check.needs_confirmation);
+  EXPECT_TRUE(check.risks.isEmpty());
+}
+
+TEST(EMailCorpusTest, ExportCheckDoesNotBlockWhatItCannotRead) {
+  // A message this code cannot parse is not one it can make claims about, and
+  // refusing to save it would be worse than saving it.
+  for (const auto& source : {QByteArray(), QByteArray("not a message at all"),
+                             QByteArray("\r\n\r\n")}) {
+    const auto check = CheckBeforeExport(source);
+    EXPECT_FALSE(check.needs_confirmation);
+    EXPECT_TRUE(check.risks.isEmpty());
+    EXPECT_TRUE(check.notes.isEmpty());
+  }
+}
+
+TEST(EMailCorpusTest, ExportCheckSortsFindingsByHowMuchTheyMatter) {
+  QByteArray eml;
+  eml += "From: a@example.com\r\n";
+  eml += "Bcc: blind@example.com\r\n";
+  eml += "MIME-Version: 1.0\r\n";
+  eml += "Content-Type: text/plain\r\n\r\n";
+  eml += "body\r\n";
+
+  const auto check = CheckBeforeExport(eml);
+
+  // Risks are what the dialog leads with; notes go behind "Show Details".
+  EXPECT_TRUE(check.needs_confirmation);
+  for (const auto& line : check.risks) EXPECT_FALSE(line.isEmpty());
+  for (const auto& line : check.notes) EXPECT_FALSE(line.isEmpty());
+}
+
+// --- taking a file in -------------------------------------------------------
+//
+// Attaching a file and opening a .eml are the two places something from
+// outside enters this module, and they need the same three guards. The open
+// path had them and said why; the attach path rejected only directories and
+// then called readAll() on the GUI thread -- so dropping a FIFO or /dev/zero
+// onto a compose window hung or exhausted the application with no way to
+// cancel. Both now go through one helper, and this is its contract.
+
+namespace {
+
+auto ReadOf(const QString& path, qint64 max_bytes, QByteArray& out)
+    -> EMailFileAdmission {
+  QString error;
+  qint64 size = 0;
+  return ReadFileWithin(path, max_bytes, out, error, size);
+}
+
+}  // namespace
+
+TEST(EMailCorpusTest, AnOrdinaryFileIsReadByteForByte) {
+  QTemporaryDir dir;
+  ASSERT_TRUE(dir.isValid());
+
+  QByteArray written("bytes\r\nwith a ");
+  written += '\0';
+  written += " NUL and no trailing newline";
+
+  const auto path = dir.filePath("m.eml");
+  QFile file(path);
+  ASSERT_TRUE(file.open(QIODevice::WriteOnly));
+  ASSERT_EQ(file.write(written), written.size());
+  file.close();
+
+  QByteArray out;
+  EXPECT_EQ(ReadOf(path, kMaxReadFileSize, out), EMailFileAdmission::kOK);
+  EXPECT_EQ(out, written);
+}
+
+TEST(EMailCorpusTest, ADirectoryIsRefusedRatherThanRead) {
+  QTemporaryDir dir;
+  ASSERT_TRUE(dir.isValid());
+
+  QByteArray out;
+  EXPECT_EQ(ReadOf(dir.path(), kMaxReadFileSize, out),
+            EMailFileAdmission::kNOT_REGULAR);
+  EXPECT_TRUE(out.isEmpty());
+}
+
+TEST(EMailCorpusTest, AFileOverTheCeilingIsRefusedWithItsSize) {
+  QTemporaryDir dir;
+  ASSERT_TRUE(dir.isValid());
+
+  const auto path = dir.filePath("big.bin");
+  QFile file(path);
+  ASSERT_TRUE(file.open(QIODevice::WriteOnly));
+  ASSERT_EQ(file.write(QByteArray(4096, 'x')), 4096);
+  file.close();
+
+  QByteArray out;
+  QString error;
+  qint64 size = 0;
+  EXPECT_EQ(ReadFileWithin(path, 1024, out, error, size),
+            EMailFileAdmission::kTOO_LARGE);
+  EXPECT_EQ(size, 4096) << "the refusal has to be able to say how big it was";
+  EXPECT_TRUE(out.isEmpty());
+}
+
+TEST(EMailCorpusTest, AFileThatIsNotThereSaysSoRatherThanBlamingItsKind) {
+  QTemporaryDir dir;
+  ASSERT_TRUE(dir.isValid());
+
+  QByteArray out;
+  QString error;
+  qint64 size = 0;
+  EXPECT_EQ(ReadFileWithin(dir.filePath("absent"), kMaxReadFileSize, out, error,
+                           size),
+            EMailFileAdmission::kUNREADABLE);
+  EXPECT_FALSE(error.isEmpty());
+}
+
+TEST(EMailCorpusTest, AnEmptyFileIsOrdinaryAndNotAnError) {
+  QTemporaryDir dir;
+  ASSERT_TRUE(dir.isValid());
+
+  const auto path = dir.filePath("empty");
+  QFile file(path);
+  ASSERT_TRUE(file.open(QIODevice::WriteOnly));
+  file.close();
+
+  QByteArray out;
+  EXPECT_EQ(ReadOf(path, kMaxReadFileSize, out), EMailFileAdmission::kOK);
+  EXPECT_TRUE(out.isEmpty());
+}
+
+#ifdef Q_OS_UNIX
+TEST(EMailCorpusTest, AFifoIsRefusedInsteadOfBlockingForever) {
+  // The one that mattered. A FIFO reports a size of 0, so it sails through any
+  // ceiling check, and the read then blocks until somebody writes to the other
+  // end -- which, on the GUI thread, is the whole application stopped with no
+  // way to cancel.
+  QTemporaryDir dir;
+  ASSERT_TRUE(dir.isValid());
+
+  const auto path = dir.filePath("pipe");
+  ASSERT_EQ(::mkfifo(path.toLocal8Bit().constData(), 0600), 0);
+
+  QByteArray out;
+  EXPECT_EQ(ReadOf(path, kMaxReadFileSize, out),
+            EMailFileAdmission::kNOT_REGULAR);
+  EXPECT_TRUE(out.isEmpty());
+}
+
+TEST(EMailCorpusTest, ADeviceNodeIsRefusedInsteadOfGrowingWithoutBound) {
+  // /dev/zero is an endless stream reporting a size of 0.
+  QByteArray out;
+  if (!QFileInfo::exists("/dev/zero")) GTEST_SKIP() << "no /dev/zero here";
+
+  EXPECT_EQ(ReadOf("/dev/zero", kMaxReadFileSize, out),
+            EMailFileAdmission::kNOT_REGULAR);
+  EXPECT_TRUE(out.isEmpty());
+}
+#endif

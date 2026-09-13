@@ -39,12 +39,11 @@
 // this class exists is recorded rather than asserted. The rest hold
 // EMailSecret to the behaviour that replaces it.
 
+#include <GFSDKBasic.h>
 #include <gtest/gtest.h>
 
 #include <QString>
 #include <cstring>
-
-#include <GFSDKBasic.h>
 
 #include "EMailSecret.h"
 
@@ -161,6 +160,49 @@ TEST(EMailSecretTest, ASecretIsNotCopyable) {
   static_assert(std::is_move_constructible_v<EMailSecret>);
   static_assert(std::is_move_assignable_v<EMailSecret>);
   SUCCEED();
+}
+
+// --- reaching the SDK without a QString on the way --------------------------
+
+TEST(EMailSecretTest, ASecureCStringCarriesTheSecretVerbatim) {
+  // The route a stored password takes now. It used to go out as
+  // QSecStrDup(QString), which builds an unwiped QByteArray temporary on the
+  // way -- one more copy of the password than there needs to be, and one
+  // nothing can erase.
+  auto secret = EMailSecret::CopyFrom(QStringLiteral("correct-horse"));
+
+  auto* buffer = secret->ToSecureCString();
+  ASSERT_NE(buffer, nullptr);
+
+  EXPECT_EQ(std::strlen(buffer), secret->Size());
+  EXPECT_STREQ(buffer, "correct-horse");
+
+  // NUL-terminated one past the secret, so a C API can read it as a string.
+  EXPECT_EQ(buffer[secret->Size()], '\0');
+
+  GFSecFreeMemory(buffer);
+}
+
+TEST(EMailSecretTest, AnEmptySecretStillProducesAUsableString) {
+  auto secret = EMailSecret::CopyFrom(QString());
+
+  auto* buffer = secret->ToSecureCString();
+  ASSERT_NE(buffer, nullptr);
+  EXPECT_STREQ(buffer, "");
+
+  GFSecFreeMemory(buffer);
+}
+
+TEST(EMailSecretTest, NonAsciiSurvivesTheRoundTrip) {
+  // A password is whatever the user typed, and UTF-8 is not optional.
+  const QString typed = QString::fromUtf8("pa\xC3\x9Fwort-\xE9\x94\xAE");
+  auto secret = EMailSecret::CopyFrom(typed);
+
+  auto* buffer = secret->ToSecureCString();
+  ASSERT_NE(buffer, nullptr);
+  EXPECT_EQ(QString::fromUtf8(buffer), typed);
+
+  GFSecFreeMemory(buffer);
 }
 
 }  // namespace

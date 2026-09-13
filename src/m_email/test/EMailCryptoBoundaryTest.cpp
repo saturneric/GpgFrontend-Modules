@@ -611,3 +611,366 @@ TEST_F(CryptoBoundaryTest, AVerifyAfterADecryptListsEachAttachmentOnce) {
   EXPECT_FALSE(decrypted.signed_entity_digest.isEmpty());
   EXPECT_EQ(decrypted.micalg, QString("pgp-sha256"));
 }
+
+// --- transfer encoding ------------------------------------------------------
+//
+// A MIME part carries a Content-Transfer-Encoding, and the OpenPGP payload is
+// what is left AFTER undoing it. Reading the part with body::generate() yields
+// the wire form instead -- base64 text where the signature should be -- so a
+// perfectly good signature fails as bad data and the user is shown a
+// verification failure indistinguishable from a forgery.
+
+namespace {
+
+constexpr auto kArmoredSignature =
+    "-----BEGIN PGP SIGNATURE-----\r\n"
+    "\r\n"
+    "iQEzBAABCgAdFiEE\r\n"
+    "=ArMr\r\n"
+    "-----END PGP SIGNATURE-----\r\n";
+
+constexpr auto kArmoredMessage =
+    "-----BEGIN PGP MESSAGE-----\r\n"
+    "\r\n"
+    "hQEMAwAAAAAAAAAA\r\n"
+    "=CiPh\r\n"
+    "-----END PGP MESSAGE-----\r\n";
+
+/// A signed message whose SIGNATURE part is transfer-encoded.
+auto SignedMessageWithEncodedSignature(const QByteArray& cte,
+                                       const QByteArray& encoded_body)
+    -> QByteArray {
+  QByteArray eml;
+  eml += "From: Alice <alice@example.com>\r\n";
+  eml += "To: Bob <bob@example.com>\r\n";
+  eml += "MIME-Version: 1.0\r\n";
+  eml += QByteArray("Content-Type: multipart/signed; micalg=pgp-sha256; ") +
+         "protocol=\"application/pgp-signature\"; boundary=\"" + kBoundary +
+         "\"\r\n";
+  eml += "\r\n";
+  eml += QByteArray("--") + kBoundary + "\r\n";
+  eml += "Content-Type: text/plain; charset=utf-8\r\n";
+  eml += "\r\n";
+  eml += "signed body\r\n";
+  eml += QByteArray("\r\n--") + kBoundary + "\r\n";
+  eml += "Content-Type: application/pgp-signature; name=\"signature.asc\"\r\n";
+  eml += "Content-Transfer-Encoding: " + cte + "\r\n";
+  eml += "\r\n";
+  eml += encoded_body;
+  eml += QByteArray("\r\n--") + kBoundary + "--\r\n";
+  return eml;
+}
+
+/// An encrypted message whose CIPHERTEXT part is transfer-encoded.
+auto EncryptedMessageWithEncodedCiphertext(const QByteArray& cte,
+                                           const QByteArray& encoded_body)
+    -> QByteArray {
+  QByteArray eml;
+  eml += "From: Alice <alice@example.com>\r\n";
+  eml += "To: Bob <bob@example.com>\r\n";
+  eml += "MIME-Version: 1.0\r\n";
+  eml +=
+      "Content-Type: multipart/encrypted; "
+      "protocol=\"application/pgp-encrypted\"; boundary=\"encb\"\r\n";
+  eml += "\r\n--encb\r\n";
+  eml += "Content-Type: application/pgp-encrypted\r\n\r\n";
+  eml += "Version: 1\r\n";
+  eml += "\r\n--encb\r\n";
+  eml += "Content-Type: application/octet-stream\r\n";
+  eml += "Content-Transfer-Encoding: " + cte + "\r\n";
+  eml += "\r\n";
+  eml += encoded_body;
+  eml += "\r\n--encb--\r\n";
+  return eml;
+}
+
+}  // namespace
+
+TEST_F(CryptoBoundaryTest, ABase64SignaturePartIsDecodedBeforeVerifying) {
+  const QByteArray armor(kArmoredSignature);
+  const auto encoded = armor.toBase64();
+
+  EMailMetaData meta;
+  QString error;
+  gpgme_error_t err = 0;
+  QString capsule;
+  VerifyEMLData(0, SignedMessageWithEncodedSignature("base64", encoded), meta,
+                error, err, capsule);
+
+  ASSERT_EQ(Get().verify.size(), 1);
+  const auto handed = Get().verify.first().signature;
+
+  EXPECT_EQ(handed, armor);
+  // The failure this exists to catch: the base64 text reaching the engine
+  // instead of the signature it encodes.
+  EXPECT_FALSE(handed.contains(encoded))
+      << "the engine was handed the wire form, not the signature";
+}
+
+TEST_F(CryptoBoundaryTest, AQuotedPrintableSignaturePartIsDecoded) {
+  // The armor checksum line begins with '=', which is exactly the character
+  // quoted-printable escapes, so this is not a contrived case.
+  QByteArray armor(kArmoredSignature);
+  QByteArray encoded = armor;
+  encoded.replace("=", "=3D");
+
+  EMailMetaData meta;
+  QString error;
+  gpgme_error_t err = 0;
+  QString capsule;
+  VerifyEMLData(0,
+                SignedMessageWithEncodedSignature("quoted-printable", encoded),
+                meta, error, err, capsule);
+
+  ASSERT_EQ(Get().verify.size(), 1);
+  const auto handed = Get().verify.first().signature;
+
+  EXPECT_TRUE(handed.contains("=ArMr"));
+  EXPECT_FALSE(handed.contains("=3DArMr"))
+      << "the quoted-printable escaping was never undone";
+}
+
+TEST_F(CryptoBoundaryTest, ABase64CiphertextPartIsDecodedBeforeDecrypting) {
+  const QByteArray armor(kArmoredMessage);
+  const auto encoded = armor.toBase64();
+
+  Get().decrypt_output = "Content-Type: text/plain\r\n\r\nplain\r\n";
+
+  EMailMetaData meta;
+  QByteArray out;
+  gpgme_error_t err = 0;
+  QString capsule;
+  DecryptEMLData(0, EncryptedMessageWithEncodedCiphertext("base64", encoded),
+                 meta, out, err, capsule);
+
+  ASSERT_EQ(Get().decrypt.size(), 1);
+  const auto handed = Get().decrypt.first().data;
+
+  EXPECT_EQ(handed, armor);
+  EXPECT_FALSE(handed.contains(encoded))
+      << "the engine was handed the wire form, not the ciphertext";
+}
+
+TEST_F(CryptoBoundaryTest, AnUnencodedSignaturePartIsStillPassedVerbatim) {
+  // The ordinary case must be unchanged by the decode: a 7bit part's decoded
+  // form is its literal bytes.
+  const QByteArray armor(kArmoredSignature);
+
+  EMailMetaData meta;
+  QString error;
+  gpgme_error_t err = 0;
+  QString capsule;
+  VerifyEMLData(0, SignedMessageWithEncodedSignature("7bit", armor), meta,
+                error, err, capsule);
+
+  ASSERT_EQ(Get().verify.size(), 1);
+  EXPECT_EQ(Get().verify.first().signature, armor);
+}
+
+// --- Content-Type parameters ------------------------------------------------
+//
+// Wrapping a message changes what its top-level Content-Type describes, and
+// every parameter of the OLD type has to go with it: a charset belonging to a
+// text/plain body says nothing about a multipart, and a micalg naming the hash
+// of a signature that has just been sealed inside ciphertext is a claim this
+// layer cannot make.
+//
+// That happens to be free today. setValue(const string&) does not set a value;
+// it re-PARSES the field, and parameterizedHeaderField::parseImpl() resets the
+// parameter list before reading the new one. So the old parameters are gone
+// before appendParameter() adds a single one of its own, and the duplicate
+// protocol parameter this looks like it should produce never appears.
+//
+// It is free only because of that overload. The typed setValue(), taking a
+// mediaType, sets the value object and leaves the parameters untouched --
+// switching to it, which reads like a pure cleanup, would silently start
+// emitting two protocol parameters naming different protocols. RFC 2045
+// forbids the duplicate; vmime reads the last and would round-trip its own
+// output, so nothing here would notice, while a reader taking the first is
+// told a signed message arrived when an encrypted one was sent.
+//
+// These tests pin the output shape so that swap cannot be made quietly.
+
+namespace {
+
+/// The outermost Content-Type field, exactly as it was written.
+auto OuterContentTypeLine(const QByteArray& eml) -> QByteArray {
+  const auto end = eml.indexOf("\r\n\r\n");
+  const auto block = end >= 0 ? eml.left(end + 2) : eml;
+  for (const auto& field : SplitRawHeaderFields(block)) {
+    if (field.name.compare("Content-Type", Qt::CaseInsensitive) == 0) {
+      return field.raw_line;
+    }
+  }
+  return {};
+}
+
+auto CountOf(const QByteArray& haystack, const QByteArray& needle) -> int {
+  int n = 0;
+  for (auto at = haystack.indexOf(needle); at >= 0;
+       at = haystack.indexOf(needle, at + needle.size())) {
+    ++n;
+  }
+  return n;
+}
+
+auto MetaForSigning() -> EMailMetaData {
+  EMailMetaData meta;
+  meta.from = "alice@example.com";
+  meta.to = QStringList{"bob@example.com"};
+  meta.subject = "s";
+  return meta;
+}
+
+}  // namespace
+
+TEST_F(CryptoBoundaryTest, SigningDoesNotLeaveACharsetOnTheMultipart) {
+  // The charset belonged to the text/plain body, which is now one part down.
+  // On a multipart/signed it describes nothing at all.
+  QByteArray eml;
+  gpgme_error_t err = 0;
+  QString capsule;
+  ASSERT_EQ(SignPlainText(0, "DEADBEEF", MetaForSigning(), "hello", eml, err,
+                          capsule),
+            kSUCCESS);
+
+  const auto line = OuterContentTypeLine(eml);
+  ASSERT_FALSE(line.isEmpty());
+  EXPECT_TRUE(line.contains("multipart/signed")) << line.constData();
+  EXPECT_FALSE(line.contains("charset")) << line.constData();
+  EXPECT_EQ(CountOf(line, "protocol="), 1) << line.constData();
+}
+
+TEST_F(CryptoBoundaryTest, EncryptingASignedMessageEmitsOneProtocol) {
+  // The exact shape encrypt-and-sign produces, asserted on a message that
+  // really does arrive carrying a protocol and a micalg of its own.
+  QByteArray signed_eml;
+  gpgme_error_t err = 0;
+  QString capsule;
+  ASSERT_EQ(SignPlainText(0, "DEADBEEF", MetaForSigning(), "hello", signed_eml,
+                          err, capsule),
+            kSUCCESS);
+  ASSERT_TRUE(OuterContentTypeLine(signed_eml).contains("micalg"));
+
+  vmime::shared_ptr<vmime::message> parsed;
+  ASSERT_TRUE(CheckIfEMLMessage(signed_eml, parsed));
+
+  QByteArray encrypted_eml;
+  ASSERT_EQ(EncryptEMLData(0, QStringList{"DEADBEEF"}, parsed, signed_eml,
+                           encrypted_eml, err, capsule),
+            kSUCCESS);
+
+  const auto line = OuterContentTypeLine(encrypted_eml);
+  ASSERT_FALSE(line.isEmpty());
+
+  EXPECT_TRUE(line.contains("multipart/encrypted")) << line.constData();
+  EXPECT_EQ(CountOf(line, "protocol="), 1) << line.constData();
+  EXPECT_TRUE(line.contains("application/pgp-encrypted")) << line.constData();
+  EXPECT_FALSE(line.contains("application/pgp-signature")) << line.constData();
+
+  // The micalg described the signature that is now sealed inside the
+  // ciphertext. Leaving it on the outside announces a hash for a signature
+  // this layer does not have.
+  EXPECT_FALSE(line.contains("micalg")) << line.constData();
+}
+
+TEST_F(CryptoBoundaryTest, EncryptingStillCarriesItsOwnBoundary) {
+  // The other direction: whatever clears the old parameters must not take the
+  // new ones with it. A multipart with no boundary is unreadable.
+  QByteArray eml;
+  gpgme_error_t err = 0;
+  QString capsule;
+  ASSERT_EQ(EncryptPlainText(0, QStringList{"DEADBEEF"}, MetaForSigning(),
+                             "hello", eml, err, capsule),
+            kSUCCESS);
+
+  const auto line = OuterContentTypeLine(eml);
+  EXPECT_TRUE(line.contains("multipart/encrypted")) << line.constData();
+  EXPECT_TRUE(line.contains("boundary=")) << line.constData();
+  EXPECT_EQ(CountOf(line, "protocol="), 1) << line.constData();
+  EXPECT_FALSE(line.contains("charset")) << line.constData();
+}
+
+// --- results handed back with a failure -------------------------------------
+//
+// The SDK allocates its result struct before it can know whether the operation
+// will succeed, so a non-zero return still comes back with a live struct --
+// and usually with the engine's own account of what went wrong inside it.
+// Checking only the return code leaked the struct and left the user with
+// "Operation Failed." where a reason existed.
+
+TEST_F(CryptoBoundaryTest, AFailedSignReclaimsItsResultAndSaysWhy) {
+  Get().fail_next = true;
+  Get().fail_error_string = "No secret key for DEADBEEF";
+
+  const auto before = crypto_recorder::OutstandingAllocations();
+
+  QByteArray eml;
+  gpgme_error_t err = 0;
+  QString capsule;
+  EXPECT_EQ(SignPlainText(0, "DEADBEEF", MetaForSigning(), "hello", eml, err,
+                          capsule),
+            kFAILED);
+
+  EXPECT_TRUE(QString::fromUtf8(eml).contains("No secret key for DEADBEEF"))
+      << "the engine's reason never reached the user: " << eml.constData();
+  EXPECT_EQ(crypto_recorder::OutstandingAllocations(), before)
+      << "the result the SDK allocated alongside the failure was never freed";
+}
+
+TEST_F(CryptoBoundaryTest, AFailedEncryptReclaimsItsResultAndSaysWhy) {
+  Get().fail_next = true;
+  Get().fail_error_string = "Unusable public key";
+
+  const auto before = crypto_recorder::OutstandingAllocations();
+
+  QByteArray eml;
+  gpgme_error_t err = 0;
+  QString capsule;
+  EXPECT_EQ(EncryptPlainText(0, QStringList{"DEADBEEF"}, MetaForSigning(),
+                             "hello", eml, err, capsule),
+            kFAILED);
+
+  EXPECT_TRUE(QString::fromUtf8(eml).contains("Unusable public key"))
+      << eml.constData();
+  EXPECT_EQ(crypto_recorder::OutstandingAllocations(), before);
+}
+
+TEST_F(CryptoBoundaryTest, AFailedVerifyReclaimsItsResultAndSaysWhy) {
+  QByteArray entity;
+  entity += "Content-Type: text/plain\r\n\r\nhi";
+  const auto eml = SignedMessage(entity);
+
+  Get().fail_next = true;
+  Get().fail_error_string = "Engine unavailable";
+
+  const auto before = crypto_recorder::OutstandingAllocations();
+
+  EMailMetaData meta;
+  QString error;
+  gpgme_error_t err = 0;
+  QString capsule;
+  EXPECT_EQ(VerifyEMLData(0, eml, meta, error, err, capsule), kFAILED);
+
+  EXPECT_TRUE(error.contains("Engine unavailable")) << error.toStdString();
+  EXPECT_EQ(crypto_recorder::OutstandingAllocations(), before);
+}
+
+TEST_F(CryptoBoundaryTest, AFailureWithNoMessageStillReadsAsAFailure) {
+  // Two of the SDK's failure paths set no message at all. Saying nothing is
+  // better than inventing a cause, but it must still read as a failure.
+  Get().fail_next = true;
+  Get().fail_error_string = {};
+
+  const auto before = crypto_recorder::OutstandingAllocations();
+
+  QByteArray eml;
+  gpgme_error_t err = 0;
+  QString capsule;
+  EXPECT_EQ(SignPlainText(0, "DEADBEEF", MetaForSigning(), "hello", eml, err,
+                          capsule),
+            kFAILED);
+
+  EXPECT_TRUE(QString::fromUtf8(eml).contains("Failed")) << eml.constData();
+  EXPECT_EQ(crypto_recorder::OutstandingAllocations(), before);
+}

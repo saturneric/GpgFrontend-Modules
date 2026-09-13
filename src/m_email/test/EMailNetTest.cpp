@@ -145,7 +145,6 @@ auto TrySmtp(const QStringList& mechanisms, const QString& password,
   return attempt;
 }
 
-
 /// The outcome of a real submission against the fake server.
 struct SubmitAttempt {
   bool finished{false};
@@ -218,8 +217,7 @@ auto Submit(FakeSmtpServer::AfterBody after_body, bool cancel_at_body = false,
     });
   }
 
-  worker.Submit(1, account, EMailSecret::CopyFrom("correct-horse"),
-                message);
+  worker.Submit(1, account, EMailSecret::CopyFrom("correct-horse"), message);
 
   stop_watching.store(true);
   if (canceller.joinable()) canceller.join();
@@ -355,12 +353,10 @@ TEST(EMailSmtpNetTest, ACancelBeforeAnythingIsSentIsACleanStop) {
 TEST(EMailSmtpNetTest, AnAmbiguousOutcomeIsNeverMarkedRetryable) {
   // Whatever else happens, nothing may invite an automatic resend after the
   // body is on the wire.
-  for (const auto after :
-       {FakeSmtpServer::AfterBody::kDropConnection,
-        FakeSmtpServer::AfterBody::kStall}) {
-    const auto attempt =
-        Submit(after, /*cancel_at_body=*/after ==
-                          FakeSmtpServer::AfterBody::kStall);
+  for (const auto after : {FakeSmtpServer::AfterBody::kDropConnection,
+                           FakeSmtpServer::AfterBody::kStall}) {
+    const auto attempt = Submit(
+        after, /*cancel_at_body=*/after == FakeSmtpServer::AfterBody::kStall);
     ASSERT_TRUE(attempt.finished);
     if (attempt.receipt.ambiguous) {
       EXPECT_FALSE(attempt.receipt.error.transient)
@@ -798,4 +794,234 @@ TEST_F(EMailImapNetTest, SearchResultsAreNewestFirst) {
   auto sorted = seen;
   std::sort(sorted.begin(), sorted.end(), std::greater<>());
   EXPECT_EQ(seen, sorted);
+}
+
+// --- identity, not position -------------------------------------------------
+//
+// A sequence number is where a message sits in the folder right now; a UID is
+// which message it is. Rows carried the sequence number in their uid field and
+// a fetch addressed by it, so an expunge by another client renumbered
+// everything after it and the row the user clicked and the message that came
+// back were two different messages, with nothing to say so.
+
+TEST_F(EMailImapNetTest, ARowCarriesTheRealUidNotItsPosition) {
+  server_.search_uids = {7};
+  worker_.ListFolders(2);
+  worker_.ListMessages(3, "INBOX", 0, 50, 0);
+
+  ASSERT_FALSE(page_.rows.isEmpty());
+  for (const auto& row : page_.rows) {
+    // The fake answers each FETCH with "UID <n>" for the number asked about,
+    // so uid and seq agree here -- what matters is that the UID came from the
+    // server's UID field and is recorded as its own thing.
+    EXPECT_NE(row.uid, 0U);
+    EXPECT_NE(row.seq, 0U);
+  }
+}
+
+TEST_F(EMailImapNetTest, AMessageIsFetchedByUid) {
+  worker_.ListFolders(2);
+  server_.ResetCommands();
+  worker_.FetchMessage(3, "INBOX", 1);
+
+  bool by_uid = false;
+  for (const auto& command : server_.Commands()) {
+    if (command.contains("BODY.PEEK[]", Qt::CaseInsensitive) ||
+        command.contains("BODY[]", Qt::CaseInsensitive)) {
+      by_uid =
+          command.section(' ', 1, 1).compare("UID", Qt::CaseInsensitive) == 0;
+    }
+  }
+
+  EXPECT_TRUE(by_uid)
+      << "the body fetch addressed a position rather than a message";
+}
+
+// --- the server's own account of the size is not a bound --------------------
+
+TEST_F(EMailImapNetTest, AMessageLargerThanItClaimedIsCutOff) {
+  // The size check before a fetch reads RFC822.SIZE, which is what the SERVER
+  // says. This fake reports 120 bytes and then sends megabytes, which is all
+  // it takes: the receiving stream had no bound of its own, and the only
+  // timeout in the way is reset by every read.
+  server_.message_body = QByteArray(4 * 1024 * 1024, 'A');
+
+  worker_.ListFolders(2);
+  last_error_ = {};
+  bool fetched = false;
+  QObject::connect(&worker_, &EMailImapWorker::SignalMessageFetched, &worker_,
+                   [&fetched](quint64, const QByteArray&) { fetched = true; });
+
+  worker_.FetchMessage(3, "INBOX", 1);
+
+  EXPECT_FALSE(fetched) << "an over-long body was accepted in full";
+  EXPECT_FALSE(last_error_.title.isEmpty())
+      << "the refusal has to reach the user";
+}
+
+TEST_F(EMailImapNetTest, AnOrdinaryMessageIsStillFetchedWhole) {
+  // The bound must not cost the ordinary case.
+  QByteArray fetched;
+  QObject::connect(
+      &worker_, &EMailImapWorker::SignalMessageFetched, &worker_,
+      [&fetched](quint64, const QByteArray& raw) { fetched = raw; });
+
+  worker_.ListFolders(2);
+  worker_.FetchMessage(3, "INBOX", 1);
+
+  EXPECT_EQ(fetched, server_.message_body);
+}
+
+// --- what may be put inside an IMAP quoted string ---------------------------
+
+TEST(EMailImapQuotingTest, OrdinaryTextPassesThrough) {
+  const auto quoted = ImapQuotable("invoice");
+  ASSERT_TRUE(quoted.has_value());
+  EXPECT_EQ(*quoted, "invoice");
+}
+
+TEST(EMailImapQuotingTest, AQuoteIsEscapedRatherThanEndingTheString) {
+  // Unescaped, `a" BODY "b` turns SUBJECT "a" BODY "b" into two search terms.
+  const auto quoted = ImapQuotable(R"(a" BODY "b)");
+  ASSERT_TRUE(quoted.has_value());
+  EXPECT_EQ(*quoted, R"(a\" BODY \"b)");
+}
+
+TEST(EMailImapQuotingTest, ABackslashIsEscapedToo) {
+  const auto quoted = ImapQuotable(R"(back\slash)");
+  ASSERT_TRUE(quoted.has_value());
+  EXPECT_EQ(*quoted, R"(back\\slash)");
+}
+
+TEST(EMailImapQuotingTest, LineBreaksAreRefusedNotEscaped) {
+  // A CRLF ends the COMMAND. There is no escaping that makes it safe, so the
+  // only correct answer is to refuse to send it.
+  EXPECT_FALSE(ImapQuotable("a\r\nA001 LOGOUT").has_value());
+  EXPECT_FALSE(ImapQuotable("a\nb").has_value());
+  EXPECT_FALSE(ImapQuotable("a\rb").has_value());
+}
+
+TEST(EMailImapQuotingTest, ControlCharactersAreRefused) {
+  EXPECT_FALSE(ImapQuotable(QString("a") + QChar(0x00) + "b").has_value());
+  EXPECT_FALSE(ImapQuotable(QString("a") + QChar(0x7F)).has_value());
+}
+
+TEST(EMailImapQuotingTest, NonAsciiIsRefusedBecauseAQuotedStringIs7Bit) {
+  // Sending 8-bit bytes without a CHARSET argument -- which vmime cannot emit
+  // -- is a protocol violation servers may reject outright. Refusing is
+  // honest; silently sending something the server may misread is not.
+  EXPECT_FALSE(ImapQuotable(QString::fromUtf8("caf\xC3\xA9")).has_value());
+}
+
+TEST(EMailImapQuotingTest, AnEmptyStringIsStillQuotable) {
+  const auto quoted = ImapQuotable("");
+  ASSERT_TRUE(quoted.has_value());
+  EXPECT_TRUE(quoted->empty());
+}
+
+TEST(EMailImapQuotingTest, AHostileMessageIdCannotReachTheCommand) {
+  // The one that is not about typing. A Message-ID is read out of message
+  // bytes on the byte-preserving send path, so it is chosen by whoever wrote
+  // that message.
+  EXPECT_FALSE(ImapQuotable("x@y\r\nA001 DELETE \"INBOX\"").has_value());
+
+  const auto quoted = ImapQuotable(R"(x"@y)");
+  ASSERT_TRUE(quoted.has_value());
+  EXPECT_EQ(*quoted, R"(x\"@y)");
+}
+
+// --- the certificate belongs to the connection that saw it ------------------
+//
+// What a verifier observed used to go into one process-global slot that every
+// verification in the process wrote to. Two connections in flight -- a
+// settings-page probe and a mailbox browser, which is an ordinary thing to
+// have at once -- overwrote each other, so the "trust this certificate?"
+// question could show one server's fingerprint and pin it to another account.
+
+namespace {
+
+/// One SMTP connection test with the pin under the test's control.
+auto TrySmtpWithPin(const QString& pin) -> SmtpAttempt {
+  FakeSmtpServer server;
+  server.mechanisms = QStringList{"PLAIN"};
+  server.use_tls = true;
+  if (!server.listen(QHostAddress::LocalHost, 0)) return {};
+
+  ServerThread<FakeSmtpServer> running(&server);
+
+  MailAccountConfig account;
+  account.id = "test";
+  account.address = "me@example.org";
+  account.smtp.enabled = true;
+  account.smtp.host = "127.0.0.1";
+  account.smtp.port = server.serverPort();
+  account.smtp.tls = MailTlsMode::kIMPLICIT;
+  account.smtp.username = "user";
+  account.smtp.pinned_cert_sha256 = pin;
+
+  EMailSmtpWorker worker;
+  SmtpAttempt attempt;
+  QObject::connect(&worker, &EMailSmtpWorker::SignalFinished, &worker,
+                   [&attempt](quint64, const EMailSendReceipt& receipt) {
+                     attempt.accepted = receipt.accepted;
+                     attempt.error = receipt.error;
+                   });
+
+  // The password the fake accepts, so that anything this test reports is
+  // about the certificate and not about the credentials.
+  worker.TestConnection(1, account, EMailSecret::CopyFrom("correct-horse"));
+  attempt.commands = server.Commands();
+  return attempt;
+}
+
+}  // namespace
+
+TEST(EMailSmtpNetTest, AnUntrustedCertificateIsRefusedAndNamed) {
+  // No pin, and the fake is self-signed: no authority vouches for it.
+  const auto attempt = TrySmtpWithPin({});
+
+  EXPECT_FALSE(attempt.accepted);
+  ASSERT_TRUE(attempt.error.IsError());
+  EXPECT_TRUE(attempt.error.IsPinnable())
+      << "an untrusted chain is exactly the case a pin exists for";
+
+  // And it names the certificate THIS connection was offered, which is what
+  // makes offering a pin for it honest.
+  EXPECT_EQ(attempt.error.cert_fingerprint, FakeSmtpServer::Fingerprint());
+  EXPECT_FALSE(attempt.error.cert_summary.isEmpty());
+}
+
+TEST(EMailSmtpNetTest, AWrongPinDoesNotExcuseAnUntrustedCertificate) {
+  // A pin is a way to trust ONE certificate, not a way to stop checking.
+  const auto attempt = TrySmtpWithPin(QString(64, 'a'));
+
+  EXPECT_FALSE(attempt.accepted);
+  ASSERT_TRUE(attempt.error.IsError());
+
+  // The fingerprint reported is the server's own, not the one that was asked
+  // for -- otherwise the dialog would offer to pin a certificate nobody sent.
+  EXPECT_EQ(attempt.error.cert_fingerprint, FakeSmtpServer::Fingerprint());
+  EXPECT_NE(attempt.error.cert_fingerprint, QString(64, 'a'));
+}
+
+TEST(EMailSmtpNetTest, TheRightPinIsStillAccepted) {
+  // The change must not have broken the case that works.
+  const auto attempt = TrySmtpWithPin(FakeSmtpServer::Fingerprint());
+  EXPECT_TRUE(attempt.accepted) << attempt.error.title.toStdString();
+}
+
+TEST(EMailSmtpNetTest, TwoConnectionsDoNotShareOneCertificateSlot) {
+  // The actual defect. Both run against their own server, and each error has
+  // to describe the server it came from. With a process-global slot the second
+  // attempt's verification overwrote the first's before it was ever read.
+  const auto untrusted = TrySmtpWithPin({});
+  const auto trusted = TrySmtpWithPin(FakeSmtpServer::Fingerprint());
+
+  EXPECT_FALSE(untrusted.accepted);
+  EXPECT_TRUE(trusted.accepted) << trusted.error.title.toStdString();
+
+  // The successful one carries no certificate to pin, and the failed one still
+  // carries its own.
+  EXPECT_TRUE(trusted.error.cert_fingerprint.isEmpty());
+  EXPECT_EQ(untrusted.error.cert_fingerprint, FakeSmtpServer::Fingerprint());
 }
