@@ -89,13 +89,6 @@ auto RootCertificates()
 /// The certificate the last failed verification saw, so it can be shown and
 /// offered for pinning. Guarded because a worker thread writes it and the GUI
 /// thread reads it.
-struct LastSeen {
-  QString fingerprint;
-  QString summary;
-};
-
-Q_GLOBAL_STATIC(LastSeen, last_seen)
-
 auto FingerprintOf(const vmime::shared_ptr<cert::X509Certificate>& certificate)
     -> QString {
   if (!certificate) return {};
@@ -120,14 +113,23 @@ auto FingerprintOf(const vmime::shared_ptr<cert::X509Certificate>& certificate)
  * pinned certificate to the base class as a trusted certificate, which the
  * base class checks only after validity and before hostname -- so a pinned
  * certificate that has expired, or that names another host, still fails. That
- * ordering is what keeps a pin from becoming "ignore TLS errors", and there is
- * a test over it.
+ * ordering is what keeps a pin from becoming "ignore TLS errors".
+ *
+ * Covered by EMailNetTest: an untrusted chain with no pin is refused, a wrong
+ * pin does not rescue it, and the right one is accepted. The expiry and
+ * hostname orderings are NOT covered -- a comment here used to claim they
+ * were, which is worse than saying nothing, because it is the kind of claim
+ * someone relies on instead of writing the test.
  */
 class RememberingVerifier : public cert::defaultCertificateVerifier {
  public:
   /// @param pin lowercase hex SHA-256 of the one certificate this transport
   ///   trusts beyond the system roots, or empty for "system roots only".
-  explicit RememberingVerifier(QString pin) : pin_(std::move(pin)) {}
+  /// @param seen where to record what this connection was offered. Owned by
+  ///   the caller and shared with it, so what is recorded belongs to THIS
+  ///   connection and cannot be overwritten by another one.
+  RememberingVerifier(QString pin, EMailTlsSetup::SeenCertificatePtr seen)
+      : pin_(std::move(pin)), seen_(std::move(seen)) {}
 
   void verify(const vmime::shared_ptr<cert::certificateChain>& chain,
               const vmime::string& hostname) override {
@@ -163,8 +165,8 @@ class RememberingVerifier : public cert::defaultCertificateVerifier {
     setX509TrustedCerts(trusted);
   }
 
-  static void remember(const vmime::shared_ptr<cert::certificateChain>& chain,
-                       const vmime::string& hostname) {
+  void remember(const vmime::shared_ptr<cert::certificateChain>& chain,
+                const vmime::string& hostname) {
     if (!chain || chain->getCount() == 0) return;
 
     auto leaf = vmime::dynamicCast<cert::X509Certificate>(chain->getAt(0));
@@ -176,7 +178,8 @@ class RememberingVerifier : public cert::defaultCertificateVerifier {
     // subject accessor, but it can answer the question that actually matters
     // -- whether this certificate is valid for the host being connected to --
     // so that is recorded alongside, alone with the validity window.
-    const auto issuer = QString::fromStdString(leaf->getIssuerString()).trimmed();
+    const auto issuer =
+        QString::fromStdString(leaf->getIssuerString()).trimmed();
     const auto host = QString::fromStdString(hostname);
 
     bool names_host = false;
@@ -187,24 +190,25 @@ class RememberingVerifier : public cert::defaultCertificateVerifier {
     }
 
     const auto format = [](const vmime::datetime& d) {
-      return QDate(d.getYear(), d.getMonth(), d.getDay())
-          .toString(Qt::ISODate);
+      return QDate(d.getYear(), d.getMonth(), d.getDay()).toString(Qt::ISODate);
     };
 
     QStringList lines;
     lines << QObject::tr("Issued by: %1").arg(issuer);
-    lines << (names_host
-                  ? QObject::tr("Valid for: %1").arg(host)
-                  : QObject::tr("NOT valid for %1: it names a different "
-                                "host").arg(host));
+    lines << (names_host ? QObject::tr("Valid for: %1").arg(host)
+                         : QObject::tr("NOT valid for %1: it names a different "
+                                       "host")
+                               .arg(host));
     lines << QObject::tr("Valid from %1 to %2")
                  .arg(format(leaf->getActivationDate()))
                  .arg(format(leaf->getExpirationDate()));
 
-    QMutexLocker locker(tls_mutex());
-    last_seen->fingerprint = FingerprintOf(leaf);
-    last_seen->summary = lines.join('\n');
+    if (!seen_) return;
+    seen_->fingerprint = FingerprintOf(leaf);
+    seen_->summary = lines.join('\n');
   }
+
+  EMailTlsSetup::SeenCertificatePtr seen_;
 };
 
 }  // namespace
@@ -219,11 +223,12 @@ auto ProtocolName(bool imap, MailTlsMode mode) -> QString {
   return imap ? "imap" : "smtp";
 }
 
-void Apply(const vmime::shared_ptr<vmime::net::session>& session,
+auto Apply(const vmime::shared_ptr<vmime::net::session>& session,
            const vmime::shared_ptr<vmime::net::service>& service,
-           const QString& prefix, const MailTransportConfig& config,
-           bool imap) {
-  if (!session || !service) return;
+           const QString& prefix, const MailTransportConfig& config, bool imap)
+    -> SeenCertificatePtr {
+  auto seen = std::make_shared<SeenCertificate>();
+  if (!session || !service) return seen;
 
   auto& properties = session->getProperties();
 
@@ -251,7 +256,7 @@ void Apply(const vmime::shared_ptr<vmime::net::session>& session,
     // any other host.
     properties.setProperty(tls_key, false);
     properties.setProperty(required_key, false);
-    return;
+    return seen;
   }
 
   properties.setProperty(tls_key, true);
@@ -262,10 +267,11 @@ void Apply(const vmime::shared_ptr<vmime::net::session>& session,
   properties.setProperty(required_key, true);
 
   auto verifier =
-      vmime::make_shared<RememberingVerifier>(config.pinned_cert_sha256);
+      vmime::make_shared<RememberingVerifier>(config.pinned_cert_sha256, seen);
   verifier->setX509RootCAs(RootCertificates());
 
   service->setCertificateVerifier(verifier);
+  return seen;
 }
 
 auto IsSecured(const vmime::shared_ptr<vmime::net::service>& service) -> bool {
@@ -278,22 +284,6 @@ auto IsSecured(const vmime::shared_ptr<vmime::net::service>& service) -> bool {
   // object rather than with a flag, so this is the only honest way to ask.
   return vmime::dynamicCast<const vmime::net::tls::TLSSecuredConnectionInfos>(
              infos) != nullptr;
-}
-
-auto LastSeenFingerprint() -> QString {
-  QMutexLocker locker(tls_mutex());
-  return last_seen->fingerprint;
-}
-
-auto LastSeenCertificateSummary() -> QString {
-  QMutexLocker locker(tls_mutex());
-  return last_seen->summary;
-}
-
-void ClearLastSeen() {
-  QMutexLocker locker(tls_mutex());
-  last_seen->fingerprint.clear();
-  last_seen->summary.clear();
 }
 
 }  // namespace EMailTlsSetup

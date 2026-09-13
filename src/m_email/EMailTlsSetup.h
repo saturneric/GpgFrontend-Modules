@@ -29,6 +29,7 @@
 #pragma once
 
 #include <QString>
+#include <memory>
 
 // The test target defines this on the command line; the module build does
 // not, so it is set here and guarded rather than assumed either way.
@@ -56,6 +57,25 @@
 namespace EMailTlsSetup {
 
 /**
+ * @brief The certificate ONE connection was offered.
+ *
+ * Per connection, deliberately. This used to be a single process-global slot
+ * written by every verification in the process, so two connections in flight
+ * -- a settings-page probe and a mailbox browser, say -- overwrote each
+ * other's. A mutex made that free of data races and no less wrong: the
+ * "trust this certificate?" dialog could show one server's fingerprint and
+ * then pin it to a different account.
+ */
+struct SeenCertificate {
+  /// Lowercase hex SHA-256, or empty when nothing was captured.
+  QString fingerprint;
+  /// Validity dates, subject, and whether it names the host asked for.
+  QString summary;
+};
+
+using SeenCertificatePtr = std::shared_ptr<SeenCertificate>;
+
+/**
  * @brief Apply this application's security policy to a session and service.
  *
  * Sets the transport properties that make TLS mandatory, requires
@@ -69,10 +89,14 @@ namespace EMailTlsSetup {
  * @param config the transport being connected
  * @param imap true for IMAP, false for SMTP. Only SMTP treats authentication
  *   as optional, so only SMTP needs it demanded; see the property below.
+ * @return the slot this connection's verifier records what it saw in. Keep it
+ *   for as long as the connection attempt lasts and read it if the attempt
+ *   fails on a certificate.
  */
-void Apply(const vmime::shared_ptr<vmime::net::session>& session,
+auto Apply(const vmime::shared_ptr<vmime::net::session>& session,
            const vmime::shared_ptr<vmime::net::service>& service,
-           const QString& prefix, const MailTransportConfig& config, bool imap);
+           const QString& prefix, const MailTransportConfig& config, bool imap)
+    -> SeenCertificatePtr;
 
 /**
  * @brief The vmime protocol name for a transport.
@@ -94,26 +118,5 @@ auto ProtocolName(bool imap, MailTlsMode mode) -> QString;
  * @return true when the link is TLS-protected
  */
 auto IsSecured(const vmime::shared_ptr<vmime::net::service>& service) -> bool;
-
-/**
- * @brief The SHA-256 fingerprint of the certificate a server presented.
- *
- * Only meaningful after a verification failure, and only used to offer a pin.
- *
- * @return lowercase hex fingerprint, or empty when none was captured
- */
-auto LastSeenFingerprint() -> QString;
-
-/**
- * @brief A human description of the certificate a server presented.
- *
- * Shown before the user is asked to trust it, because a fingerprint alone is
- * not something anyone can make a decision about.
- */
-auto LastSeenCertificateSummary() -> QString;
-
-/// Forget the captured certificate. Called before each connection attempt so a
-/// stale one can never be offered for the wrong server.
-void ClearLastSeen();
 
 }  // namespace EMailTlsSetup
