@@ -126,6 +126,25 @@ class EMailPageView : public QWidget {
   void NotifyKeyringChanged();  // NOLINT
 
   /**
+   * @brief Takes a verification the host performed as this message's answer.
+   *
+   * The consuming half of the one-verification contract: the badge, the
+   * attachment list and the Security section all render what arrives here,
+   * and this view never asks an engine anything itself. Two verifiers over
+   * two byte sequences is how the status report came to call a message
+   * verified while this surface called it forged.
+   *
+   * Refuses rather than guesses. A payload this build cannot fully read, or
+   * one produced for bytes this document no longer holds -- it may have been
+   * edited while the answer was in flight -- is dropped, leaving the surface
+   * saying what it honestly knows instead of showing a verdict about a
+   * different message.
+   *
+   * @param payload the wire form; see EMailVerificationPayload.h
+   */
+  void ApplyVerificationResult(const QByteArray& payload);  // NOLINT
+
+  /**
    * @brief Takes the host's raw document editor and presents it as a mode.
    *
    * Optional half of the page/view contract: a page that finds this member
@@ -451,17 +470,23 @@ class EMailPageView : public QWidget {
   /// operation have established. Read-only: it never writes the document, so
   /// opening the section cannot change the bytes.
   void refresh_security();
-  /// Verifies each signature region, once, the first time the Security section
-  /// is actually looked at. Deferred rather than done on load because a message
-  /// may carry several signatures and most are never opened; verifying
-  /// reads the message and writes nothing, so it is safe to run here.
   /// What the security surface may claim, from structure AND verification.
+  /// Quotes the cached result rather than deriving a second opinion.
   [[nodiscard]] auto security_badge() const -> EMailBadgeState;
 
-  void ensure_regions_verified();
-  /// Verifies every signed region now, whatever has been tried before, and
-  /// records which of EMailVerifyState the outcome was. Runs on this thread.
-  void run_verification();
+  /// Asks the HOST to verify this message. Nothing here performs the
+  /// verification: there is one verification in this application and the host
+  /// owns starting it, so that the status report and this surface can never
+  /// end up describing the same message differently.
+  ///
+  /// Only ever in response to the user asking. Looking at a message is not
+  /// asking for a crypto operation.
+  void request_verification();
+
+  /// Forgets the cached answer, and any request waiting to fill it. For when
+  /// the document or the keyring beneath it has changed and the answer is
+  /// about neither of them any more.
+  void discard_verification();
   /// Chooses between the formatted and plain renderings of the body, and
   /// shows the toggle only when the message actually offers both.
   void refresh_body_view();
@@ -485,11 +510,16 @@ class EMailPageView : public QWidget {
   EMailPart tree_root_;
   QList<EMailSignatureRegion> regions_;
   EMailSecurityState security_state_{EMailSecurityState::kPLAIN};
-  /// Verification results, each already stamped with the region whose bytes
-  /// produced it. Empty until an operation has actually run.
-  QList<EMailSignatureResult> signature_results_;
+  /// The one verification answer this view renders from -- the badge, the
+  /// attachment list and the Security section all read it, and none of them
+  /// works anything out for itself. Produced by the host, not here. Empty
+  /// until a verification the user asked for has come back.
+  EMailVerificationResult cached_verification_;
+  /// A request is out and its answer has not arrived. Guards against asking
+  /// twice for one document; cleared on EVERY way the request can end,
+  /// including the ones where no answer ever comes.
+  bool verification_pending_{false};
   QList<EMailRecipientRow> recipient_rows_;
-  EMailVerifyState verify_state_{EMailVerifyState::kNOT_ATTEMPTED};
   /// Whether edits have left the inspection views describing an older document
   /// than the one the editor now holds.
   bool inspection_stale_{false};

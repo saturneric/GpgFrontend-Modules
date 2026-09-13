@@ -78,6 +78,7 @@
 #include "EMailSecurityView.h"
 #include "EMailSendDialog.h"
 #include "EMailStructureView.h"
+#include "EMailVerificationPayload.h"
 #include "EMailViewLayout.h"
 #include "EMailViewStyle.h"
 #include "GFModuleCommonUtils.hpp"
@@ -383,12 +384,10 @@ void EMailPageView::build_details_dialog() {
   details_tabs_->addTab(header_view_, tr("Headers"));
 
   // The security view can ask for the two things it used to only describe.
+  // Asking is all it does: the answer arrives at ApplyVerificationResult()
+  // and repaints everything, whichever of the ways to ask was used.
   connect(security_view_, &EMailSecurityView::SignalVerifyAgainRequested, this,
-          [this]() {
-            run_verification();
-            refresh_security();
-            refresh_attachments();
-          });
+          [this]() { request_verification(); });
   connect(security_view_, &EMailSecurityView::SignalImportMessageKeysRequested,
           this, &EMailPageView::import_message_keys);
 
@@ -1011,7 +1010,12 @@ void EMailPageView::sync_details() {
           true, details_tabs_->currentWidget() == security_view_)) {
     return;
   }
-  ensure_regions_verified();
+
+  // Shows what is known; it does not go and find out. Opening a tab used to
+  // verify the message, which meant looking at it started a crypto operation
+  // -- a wait dialog and a status report the user never asked for -- and gave
+  // this view a verification of its own, disagreeing with the host's. Until
+  // the user asks, the honest answer is that nobody has checked.
   refresh_security();
 }
 
@@ -1392,9 +1396,8 @@ void EMailPageView::refresh_structure() {
   // Results belong to the document that produced them. A new load has not
   // verified anything yet, and carrying the previous message's verdicts over
   // would be worse than showing none.
-  signature_results_.clear();
+  discard_verification();
   recipient_rows_.clear();
-  verify_state_ = EMailVerifyState::kNOT_ATTEMPTED;
 
   vmime::shared_ptr<vmime::message> parsed;
   if (!CheckIfEMLMessage(last_source_, parsed)) {
@@ -1573,18 +1576,23 @@ void EMailNotifyKeyringChanged() {
 void EMailPageView::NotifyKeyringChanged() {
   if (regions_.isEmpty()) return;
 
-  // The previous answers were about a keyring that no longer exists.
-  verify_state_ = EMailVerifyState::kNOT_ATTEMPTED;
-  signature_results_.clear();
+  // The previous answer was about a keyring that no longer exists: a signature
+  // reported as unverifiable because the key was missing becomes verifiable
+  // the moment that key is imported, and showing the old answer afterwards is
+  // showing something that is no longer true.
+  //
+  // DISCARDED, not redone. Importing a key is not asking to verify, and a
+  // keyring refresh reaching every open message must not set a crypto
+  // operation running behind each of them. The surface goes back to saying
+  // nobody has checked, which is now the case, and the user can ask.
+  discard_verification();
+  refresh_security_button();
+  refresh_attachments();
 
-  // Only redo the work now if it is being looked at; otherwise the next visit
-  // to the Security tab picks it up, which is where the verification is
-  // normally triggered anyway.
   if (EMailNeedsSecurityRefresh(
           details_visible(),
           details_tabs_ != nullptr &&
               details_tabs_->currentWidget() == security_view_)) {
-    ensure_regions_verified();
     refresh_security();
   }
 }
@@ -1635,34 +1643,61 @@ void EMailPageView::sync_inspection() {
   apply_content_lock();
 }
 
-void EMailPageView::ensure_regions_verified() {
-  if (verify_state_ != EMailVerifyState::kNOT_ATTEMPTED || regions_.isEmpty() ||
-      last_source_.isEmpty()) {
+void EMailPageView::discard_verification() {
+  cached_verification_ = {};
+
+  // Whatever was in flight was about the document as it was. Cleared with the
+  // answer it would have filled, so a request that is now meaningless cannot
+  // leave this page unable to make another one.
+  verification_pending_ = false;
+}
+
+void EMailPageView::request_verification() {
+  if (verification_pending_) return;
+  if (regions_.isEmpty() || last_source_.isEmpty()) return;
+
+  // Asked for through the host, like every other crypto operation this view
+  // offers. There is ONE verification in this application and the host owns
+  // starting it: a second one here, over this view's own copy of the bytes,
+  // is what let the status report and this surface describe the same message
+  // differently.
+  verification_pending_ = true;
+  emit SignalCryptoOperationRequested("verify");
+}
+
+void EMailPageView::ApplyVerificationResult(const QByteArray& payload) {
+  // Terminal either way: whatever happens below, this page is free to ask
+  // again afterwards. A request that could never be answered must not leave
+  // the view permanently silent.
+  verification_pending_ = false;
+
+  if (payload.isEmpty()) {
+    // The request ended without an answer -- refused before it reached the
+    // engine, or cancelled. Nothing to render; what matters is that the page
+    // has been released to ask again, which happened above.
+    MLogDebug("a verification request ended without a result");
     return;
   }
 
-  // Once per load, unless asked again. A verification that produced nothing is
-  // still an answer, and repeating it on every focus would re-run the engine
-  // for no new information -- but it is an answer the user is now able to tell
-  // apart from "not tried yet", and so is able to ask to have taken again.
-  run_verification();
-}
+  EMailVerificationResult result;
+  if (!DecodeVerificationPayload(payload, result)) {
+    // A payload from a build that means something different by it, or one that
+    // did not survive the trip. Half of a verdict is worse than none: it would
+    // be rendered as though it were the whole answer.
+    MLogWarn("discarding a verification result that could not be read");
+    return;
+  }
 
-void EMailPageView::run_verification() {
-  // Can wait on the agent, on this thread.
-  const EMailBusyCursor busy;
+  // An answer about bytes that are no longer here. The document can be edited,
+  // or the tab switched, between asking and being answered, and painting the
+  // old verdict onto the new bytes tells the user something about a message
+  // that is not in front of them.
+  if (!VerificationMatchesSource(result, last_source_)) {
+    MLogWarn("discarding a verification result for a different document");
+    return;
+  }
 
-  signature_results_.clear();
-  VerifyEMLRegions(GFGpgCurrentGpgContextChannel(), last_source_, tree_root_,
-                   regions_, signature_results_);
-
-  // The distinction the Security tab needs: a signed message with no results
-  // after a verification has been attempted is a different thing from one
-  // nothing has looked at yet, and saying "nothing has verified it yet" for
-  // both left the user with no way to know which they were reading.
-  verify_state_ = signature_results_.isEmpty()
-                      ? EMailVerifyState::kATTEMPTED_EMPTY
-                      : EMailVerifyState::kVERIFIED;
+  cached_verification_ = result;
 
   // What the message surface is entitled to say has just changed. Without
   // this the badge kept the structural wording it was given at load time, so
@@ -1670,6 +1705,7 @@ void EMailPageView::run_verification() {
   // long as the tab stayed open.
   refresh_security_button();
   refresh_attachments();
+  refresh_security();
 }
 
 void EMailPageView::slot_derive_message(int mode) {
@@ -2103,12 +2139,14 @@ void EMailPageView::refresh_security() {
   const auto findings =
       tree_root_.content_type.isEmpty()
           ? QList<EMailFinding>{}
-          : InspectMessage(message_, tree_root_, regions_, last_source_);
+          : InspectMessage(message_, tree_root_, regions_,
+                           cached_verification_.verdicts);
 
-  security_view_->SetMessage(security_state_, regions_, signature_results_,
-                             recipient_rows_, addresses, message_.from,
-                             GFGpgCurrentGpgContextChannel(), findings,
-                             verify_state_, !message_key_parts().isEmpty());
+  security_view_->SetMessage(
+      security_state_, regions_, cached_verification_.signatures,
+      recipient_rows_, addresses, message_.from,
+      GFGpgCurrentGpgContextChannel(), findings, cached_verification_.state,
+      !message_key_parts().isEmpty());
 }
 
 /**
@@ -2264,8 +2302,19 @@ auto EMailPageView::security_badge() const -> EMailBadgeState {
   // alone, so a multipart/signed whose signature part held forty bytes of
   // garbage read as "Signed", in the same accent colour as a verified one,
   // and nothing on the message surface ever contradicted it.
-  return DeriveSecurityBadge(security_state_, verify_state_, signature_results_,
-                             message_.from);
+  //
+  // Quoted, never recomputed: a verification produced this, and the status
+  // report quotes the same one. Deriving a second opinion here is exactly how
+  // this surface came to call a message forged while the report called it
+  // verified.
+  if (cached_verification_.state != EMailVerifyState::kNOT_ATTEMPTED) {
+    return cached_verification_.overall;
+  }
+
+  // Nothing has verified this document. Structure is all that can honestly be
+  // said about it, which is what this answers with an empty result.
+  return DeriveSecurityBadge(security_state_, EMailVerifyState::kNOT_ATTEMPTED,
+                             {}, message_.from);
 }
 
 void EMailPageView::paint_security_button() {
@@ -2332,6 +2381,13 @@ void EMailPageView::refresh_security_button() {
       break;
     case EMailBadgeState::kSIGNED_BAD:
       text = tr("Bad signature");
+      icon = ":/icons/warning.png";
+      break;
+    case EMailBadgeState::kSIGNED_ERROR:
+      // Not the same claim as a bad signature, and not the same as one nobody
+      // has looked at. The check was made and could not produce an answer,
+      // which is the one outcome trying again might change.
+      text = tr("Signature could not be checked");
       icon = ":/icons/warning.png";
       break;
     case EMailBadgeState::kMALFORMED:
@@ -2429,6 +2485,10 @@ void EMailPageView::rebuild_security_menu() {
     open_details(section);
   };
   const auto request = [this](const QString& op) {
+    // Verify goes through the one place that tracks a request in flight, so
+    // that the badge's own menu, the Security tab's button and the toolbar are
+    // all the same single request rather than three ways to start three.
+    if (op == "verify") return request_verification();
     emit SignalCryptoOperationRequested(op);
   };
 
@@ -2662,7 +2722,10 @@ void EMailPageView::refresh_attachments() {
       // badge bug -- a part inside a subtree whose signature is forged, or
       // whose key is missing, was labelled exactly like a checked one.
       //
-      // So the claim is only as strong as what has actually been checked.
+      // So the claim is only as strong as what has actually been checked --
+      // and it is the SAME answer the badge and the status report quote,
+      // because all three read the one verification rather than each working
+      // something out for itself.
       const auto badge = security_badge();
       if (badge == EMailBadgeState::kSIGNED_GOOD) {
         item->setText(kColSigned, tr("signed"));
@@ -2670,6 +2733,11 @@ void EMailPageView::refresh_attachments() {
       } else if (badge == EMailBadgeState::kSIGNED_UNVERIFIED) {
         item->setText(kColSigned, tr("signed, not checked"));
         EMailSetCellTone(item, kColSigned, EMailTone::kMUTED, this);
+      } else if (badge == EMailBadgeState::kSIGNED_ERROR) {
+        // The check ran and could not answer. Saying "not good" here would
+        // report an inconclusive check as evidence against the part.
+        item->setText(kColSigned, tr("signed, could not be checked"));
+        EMailSetCellTone(item, kColSigned, EMailTone::kWARN, this);
       } else {
         // The signature covering it came back bad, unknown or mismatched.
         // Whatever the Security tab says about that signature is what this
@@ -2893,9 +2961,8 @@ void EMailPageView::WipeContent() {
   wipe_tree(tree_root_);
   tree_root_ = EMailPart{};
   regions_.clear();
-  signature_results_.clear();
+  discard_verification();
   recipient_rows_.clear();
-  verify_state_ = EMailVerifyState::kNOT_ATTEMPTED;
   inspection_stale_ = false;
   security_state_ = EMailSecurityState::kPLAIN;
   view_state_ = EMailViewState{};
@@ -2937,7 +3004,13 @@ void EMailPageView::slot_selection_changed() {
   const auto selected = attachment_list_->selectedItems().size();
   const auto total = attachment_list_->topLevelItemCount();
 
-  remove_button_->setEnabled(selected > 0);
+  // Selection alone is not enough to remove a part: a signed or encrypted
+  // message does not change, and this runs AFTER apply_content_lock() on every
+  // refresh, so without the lock here it handed the button straight back.
+  // Saving a part out does not change the message, so those two only follow
+  // the selection.
+  const auto locked = content_lock() != EMailLockReason::kNONE;
+  remove_button_->setEnabled(selected > 0 && !locked);
   save_button_->setEnabled(selected > 0);
   save_all_button_->setEnabled(total > 0);
 
