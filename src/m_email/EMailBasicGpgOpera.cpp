@@ -897,19 +897,62 @@ auto SignEMLData(int channel, const QString& key,
   return kFAILED;
 }
 
-auto VerifyEMLData(int channel, const QByteArray& data,
-                   EMailMetaData& meta_data, QString& error_string,
-                   gpgme_error_t& err, QString& capsule_id) -> int {
-  vmime::string vmime_data(data.constData(), data.size());
+namespace {
 
-  auto message = vmime::make_shared<vmime::message>();
-  try {
-    message->parse(vmime_data);
-  } catch (const vmime::exception& e) {
-    FLOG_DEBUG("error when parsing vmime data: %1", e.what());
-    error_string = "Error when parsing eml raw data";
+/// The headers and parts of a message, whatever shape it is.
+///
+/// Shared by the strict RFC 3156 path below and by the messages that carry
+/// signed parts without being one themselves -- a signed attachment inside an
+/// ordinary multipart/mixed, say. Those have headers worth reporting too, and
+/// the walk verifies them either way.
+auto FillMessageMeta(const vmime::shared_ptr<vmime::message>& message,
+                     EMailMetaData& meta_data, QString& error_string) -> int {
+  auto header = message->getHeader();
+
+  // Walk the message for everything it carries. This used to enumerate the
+  // attachments and then skip every one that was not an OpenPGP key, so a
+  // signed message with a document attached showed the user nothing at all.
+  if (ExtractParts(message, meta_data) != 0) {
+    error_string = "Message structure exceeds the supported parsing limits";
     return kEML_FAILED;
   }
+
+  QStringList public_keys_buffer;
+  for (const auto& att : meta_data.attachments) {
+    if (att.is_openpgp_key) public_keys_buffer.append(QString(att.data));
+  }
+
+  meta_data.from = ExtractFieldValueMailBox(header, vmime::fields::FROM);
+  meta_data.to =
+      ExtractFieldValueAddressListItems(header, vmime::fields::TO);
+  meta_data.cc =
+      ExtractFieldValueAddressListItems(header, vmime::fields::CC);
+  meta_data.bcc_header =
+      ExtractFieldValueAddressListItems(header, vmime::fields::BCC);
+  meta_data.reply_to =
+      ExtractFieldValueMailBox(header, vmime::fields::REPLY_TO);
+  meta_data.organization =
+      ExtractFieldValueText(header, vmime::fields::ORGANIZATION);
+  meta_data.subject = ExtractFieldValueText(header, vmime::fields::SUBJECT);
+  meta_data.datetime = ExtractFieldValueDateTime(header, vmime::fields::DATE);
+  meta_data.public_keys = public_keys_buffer.join("\n");
+  meta_data.mime = {};
+  meta_data.signature = {};
+  return kSUCCESS;
+}
+
+/// The RFC 3156 half of a verify: does this message's outermost structure hold
+/// up, and what do its headers say. Split out of VerifyEMLMessage() so the
+/// region walk below reads as the one thing it does.
+///
+/// No cryptography happens here. The refusals it returns are what the status
+/// report shows when a message cannot be verified at all -- naming what is
+/// wrong is worth more than silently reporting "unsigned".
+auto ValidateSignedStructure(const QByteArray& data,
+                             const vmime::shared_ptr<vmime::message>& message,
+                             EMailMetaData& meta_data, QString& error_string)
+    -> int {
+  vmime::string vmime_data(data.constData(), data.size());
 
   auto header = message->getHeader();
 
@@ -973,23 +1016,6 @@ auto VerifyEMLData(int channel, const QByteArray& data,
     return kEML_FAILED;
   }
 
-  auto from_field_value_text =
-      ExtractFieldValueMailBox(header, vmime::fields::FROM);
-  auto to_field_value_text =
-      ExtractFieldValueAddressListItems(header, vmime::fields::TO);
-  auto cc_field_value_text =
-      ExtractFieldValueAddressListItems(header, vmime::fields::CC);
-  auto bcc_field_value_text =
-      ExtractFieldValueAddressListItems(header, vmime::fields::BCC);
-  auto date_field_value =
-      ExtractFieldValueDateTime(header, vmime::fields::DATE);
-  auto subject_field_value_text =
-      ExtractFieldValueText(header, vmime::fields::SUBJECT);
-  auto reply_to_field_value_text =
-      ExtractFieldValueMailBox(header, vmime::fields::REPLY_TO);
-  auto organization_text =
-      ExtractFieldValueText(header, vmime::fields::ORGANIZATION);
-
   auto body = message->getBody();
   auto content_type = body->getContentType();
   auto part_count = body->getPartCount();
@@ -1034,21 +1060,8 @@ auto VerifyEMLData(int channel, const QByteArray& data,
     return kEML_FAILED;
   }
 
-  // Walk the signed part for everything it carries. This used to enumerate the
-  // attachments and then skip every one that was not an OpenPGP key, so a
-  // signed message with a document attached showed the user nothing at all.
-  if (ExtractParts(message, meta_data) != 0) {
-    error_string = "Message structure exceeds the supported parsing limits";
-    return kEML_FAILED;
-  }
-
-  QStringList public_keys_buffer;
-  for (const auto& att : meta_data.attachments) {
-    if (att.is_openpgp_key) public_keys_buffer.append(QString(att.data));
-  }
-
-  FLOG_DEBUG("mime part info, attachment count: %1, attached public keys: %2",
-             meta_data.attachments.size(), public_keys_buffer.size());
+  FLOG_DEBUG("mime part info, attachment count: %1",
+             meta_data.attachments.size());
 
   /*
    * The second body MUST contain the OpenPGP digital signature. It MUST
@@ -1081,49 +1094,248 @@ auto VerifyEMLData(int channel, const QByteArray& data,
   FLOG_DEBUG("body part of signature content: %1",
              Elide(part_sign_body_content));
 
-  // The SDK sets *ps = nullptr and returns non-zero when it cannot
-  // allocate the result, so both must be checked before the first
-  // dereference below -- not after it, as this used to.
-  GFGpgVerifyResult* s = nullptr;
-  auto ret = GFGpgVerifyDataN(channel, part_mime_content_text.constData(),
-                              part_mime_content_text.size(),
-                              part_sign_body_content.constData(),
-                              part_sign_body_content.size(), &s);
-  if (ret != 0 || s == nullptr) {
-    error_string = SdkFailureText(
-        "Verify", TakeSdkFailure(s, &GFGpgVerifyResult::gpgme_verify_result));
-    return kFAILED;
+  // What only the RFC 3156 shape can say. The rest of the headers were filled
+  // in before this ran, for every message shape alike.
+  meta_data.micalg = prm_micalg_value;
+  meta_data.signed_entity_digest = part_mime_content_hash.toHex();
+  meta_data.signed_entity_digest_algo = "SHA-256";
+  return kSUCCESS;
+}
+
+/// The engine's own analysis of one region, kept for the status report.
+struct RegionReport {
+  int region_id{-1};
+  int status{0};
+  QString detail;
+  QString cards;
+  QByteArray info_json;
+};
+
+/// Verifies one region on its own bytes and says what came back.
+///
+/// The bytes are handed over AS THEY STAND. Nothing here canonicalizes, pads
+/// or repairs them: a signature covers exact octets, and a verifier that
+/// quietly repaired them would report a good signature over a document that
+/// does not have one.
+auto VerifyOneRegion(int channel, const QByteArray& raw,
+                     const QList<const EMailPart*>& flat,
+                     const EMailSignatureRegion& region, const QString& from,
+                     QList<EMailSignatureResult>& signatures,
+                     RegionReport& report) -> EMailRegionVerdict {
+  EMailRegionVerdict verdict;
+  verdict.region_id = region.region_id;
+  verdict.nesting_depth = region.nesting_depth;
+  verdict.covers_ciphertext_only = region.covers_ciphertext_only;
+
+  const auto unusable = [&verdict](const char* why) {
+    // Recorded, not skipped. A region the walk could not hand to the engine
+    // used to vanish from the results entirely, which reads to every consumer
+    // as a message with one signature fewer -- an engine failure presented as
+    // an absence.
+    MimeLog(QString("signature region %1 cannot be verified: %2")
+                .arg(verdict.region_id)
+                .arg(QString::fromLatin1(why)));
+    verdict.exec = EMailVerifyExec::kNO_RESULT;
+    verdict.verdict = EMailBadgeState::kSIGNED_ERROR;
+    return verdict;
+  };
+
+  if (region.raw_offset < 0 || region.raw_length <= 0 ||
+      region.raw_offset + region.raw_length > raw.size()) {
+    return unusable("its byte range is not inside the document");
+  }
+  if (region.signature_part_index < 0 ||
+      region.signature_part_index >= flat.size()) {
+    return unusable("it has no signature part beside it");
   }
 
-  err = s->gpgme_error;
-  capsule_id = UDUP(s->capsule_id);
-  auto gpg_error_string = UDUP(s->error_string);
+  // A view, not a copy: nothing below mutates it, and the SDK copies what it
+  // is given. Nested regions overlap, so copying each one made the work a
+  // multiple of the message size for no benefit.
+  const auto signed_bytes =
+      QByteArray::fromRawData(raw.constData() + region.raw_offset,
+                              static_cast<qsizetype>(region.raw_length));
+  const auto signature_bytes = flat[region.signature_part_index]->data;
+  if (signature_bytes.trimmed().isEmpty()) {
+    return unusable("its signature part is empty");
+  }
+
+  // Decided here, on the exact slice the engine is about to be given, so that
+  // no consumer has to scan the document again and reach a different answer.
+  // It EXPLAINS a failure below; it never rescues one.
+  verdict.signed_bytes_non_canonical = HasBareLineFeeds(signed_bytes);
+
+  GFGpgVerifyResult* s = nullptr;
+  auto ret = GFGpgVerifyDataN(channel, signed_bytes.constData(),
+                              signed_bytes.size(), signature_bytes.constData(),
+                              signature_bytes.size(), &s);
+  if (ret != 0 || s == nullptr) {
+    // One region failing is not the walk failing: the others are still worth
+    // verifying. The result still has to be reclaimed before moving on.
+    TakeSdkFailure(s, &GFGpgVerifyResult::gpgme_verify_result);
+    verdict.exec = EMailVerifyExec::kENGINE_ERROR;
+    verdict.verdict = EMailBadgeState::kSIGNED_ERROR;
+    return verdict;
+  }
+
+  const auto err = s->gpgme_error;
+  const auto capsule_id = UDUP(s->capsule_id);
 
   GFGpgFreeResult(s->gpgme_verify_result);
   GFFreeMemory(s);
 
-  if (err != GPG_ERR_NO_ERROR) {
-    error_string = "Verify Failed: " + gpg_error_string;
-    return kGPG_FAILED;
+  // The structured form AND the report text, from the one call: a per-
+  // signature view cannot be rebuilt by re-reading prose, and the capsule is
+  // consumed here, so everything anyone needs has to come out of it now.
+  const char* analyse = nullptr;
+  const char* cards = nullptr;
+  const char* info_json = nullptr;
+  report.region_id = region.region_id;
+  report.status = GFAnalyseVerifyResultInfoByCapsule(
+      channel, err, QDUP(capsule_id), &analyse, &cards, &info_json);
+  report.detail = UnStrDup(analyse);
+  report.cards = UnStrDup(cards);
+  report.info_json = UnStrDup(info_json).toUtf8();
+
+  auto region_results = ParseSignatureResults(report.info_json, region.region_id);
+  CheckMicalgAgreement(region_results, region);
+
+  if (region_results.isEmpty()) {
+    // The call came back and reported no signature at all. Not "unsigned":
+    // this region carries a signature part, and something about it could not
+    // be read.
+    verdict.exec = EMailVerifyExec::kNO_RESULT;
+    verdict.verdict = EMailBadgeState::kSIGNED_ERROR;
+    return verdict;
   }
 
-  meta_data.from = from_field_value_text;
-  meta_data.to = to_field_value_text;
-  meta_data.cc = cc_field_value_text;
-  meta_data.bcc_header = bcc_field_value_text;
-  meta_data.reply_to = reply_to_field_value_text;
-  meta_data.organization = organization_text;
-  meta_data.subject = subject_field_value_text;
-  meta_data.datetime = date_field_value;
-  meta_data.micalg = prm_micalg_value;
-  meta_data.public_keys = public_keys_buffer.join("\n");
-  meta_data.mime = {};
-  meta_data.signed_entity_digest = part_mime_content_hash.toHex();
-  meta_data.signed_entity_digest_algo = "SHA-256";
-  meta_data.signed_entity_non_canonical =
-      HasBareLineFeeds(part_mime_content_text);
-  meta_data.signature = {};
-  return 0;
+  // The worst signature decides the region. A region carrying one good
+  // signature and one bad one is not a good region, and reporting the best of
+  // them is how an attacker gets a second attempt.
+  auto worst = EMailBadgeState::kSIGNED_GOOD;
+  for (const auto& result : region_results) {
+    worst = std::max(worst, BadgeForSignature(result, from));
+  }
+
+  verdict.exec = EMailVerifyExec::kOK;
+  verdict.verdict = worst;
+  signatures.append(region_results);
+  return verdict;
+}
+
+}  // namespace
+
+auto VerifyEMLMessage(int channel, const QByteArray& raw,
+                      EMailVerificationResult& out, QString& error_string)
+    -> int {
+  out = {};
+
+  // Taken over the bytes as given, before anything looks at them: this is what
+  // ties the answer to the document it is an answer about.
+  out.source_length = static_cast<qint64>(raw.size());
+  out.source_sha256 = QCryptographicHash::hash(raw, QCryptographicHash::Sha256);
+
+  auto message = vmime::make_shared<vmime::message>();
+  try {
+    vmime::string vmime_data(raw.constData(), raw.size());
+    message->parse(vmime_data);
+  } catch (const vmime::exception& e) {
+    FLOG_DEBUG("error when parsing vmime data: %1", e.what());
+    error_string = "Error when parsing eml raw data";
+    return kEML_FAILED;
+  }
+
+  EMailPart root;
+  QList<EMailSignatureRegion> regions;
+  if (ParseMimeTree(message, raw, root, regions) != 0) {
+    error_string = "Message structure exceeds the supported parsing limits";
+    return kEML_FAILED;
+  }
+
+  if (FillMessageMeta(message, out.meta, error_string) != kSUCCESS) {
+    return kEML_FAILED;
+  }
+
+  // The strict reading applies to a message that CLAIMS to be one: it is what
+  // produces the micalg, the digest of the signed entity, and the refusals
+  // that name what is wrong with a malformed one.
+  //
+  // A message that makes no such claim is not refused out of hand, as long as
+  // it carries signed regions somewhere inside it -- a signed part forwarded
+  // inside an ordinary multipart/mixed is a real message, and verifying its
+  // regions is exactly what this walk is for. Refusing those was the old
+  // outermost-only verify's limitation, and unifying on it would have lost
+  // every verdict the security surface used to show for them.
+  const auto outermost_claims_signed = root.content_type == "multipart/signed";
+  if (outermost_claims_signed || regions.isEmpty()) {
+    auto ret = ValidateSignedStructure(raw, message, out.meta, error_string);
+    if (ret != kSUCCESS) return ret;
+  }
+
+  const auto structure = ClassifyOpenPGPStructure(root, regions);
+  out.regions = regions;
+
+  const auto flat = FlattenMimeTree(root);
+  QList<RegionReport> reports;
+  int verified = 0;
+
+  for (const auto& region : regions) {
+    // Each region below costs a blocking GPG call, so the number of them is a
+    // multiplier on how long this can be made to take. Stopping here leaves
+    // the rest unreported rather than unverified-but-claimed.
+    if (verified >= kMaxVerifiedRegions) {
+      MimeLog(QString("stopping after %1 signature regions; %2 were offered")
+                  .arg(kMaxVerifiedRegions)
+                  .arg(regions.size()));
+      break;
+    }
+
+    RegionReport report;
+    out.verdicts.append(VerifyOneRegion(channel, raw, flat, region,
+                                        out.meta.from, out.signatures, report));
+    if (report.region_id >= 0) reports.append(report);
+    ++verified;
+  }
+
+  out.overall = AggregateVerification(structure, regions, out.verdicts);
+  out.state = out.verdicts.isEmpty() ? EMailVerifyState::kATTEMPTED_EMPTY
+                                     : EMailVerifyState::kVERIFIED;
+
+  // The message-level flag follows the regions that DECIDED the verdict. A
+  // rewrite inside quoted content is worth reporting on that content, and is
+  // not a reason to tell the user this message's own signed bytes were
+  // touched.
+  out.meta.signed_entity_non_canonical = false;
+  for (const auto& verdict : out.verdicts) {
+    if (verdict.covers_ciphertext_only) continue;
+    if (!verdict.signed_bytes_non_canonical) continue;
+    out.meta.signed_entity_non_canonical = true;
+    break;
+  }
+
+  // The analysis the status report quotes comes from the region that decided
+  // the verdict, so the report and the badge are describing the same
+  // signature rather than two different ones.
+  for (const auto& verdict : out.verdicts) {
+    if (verdict.verdict != out.overall) continue;
+    for (const auto& report : reports) {
+      if (report.region_id != verdict.region_id) continue;
+      out.report_status = report.status;
+      out.report_detail = report.detail;
+      out.report_cards = report.cards;
+      out.report_info_json = report.info_json;
+      break;
+    }
+    break;
+  }
+  if (out.report_detail.isEmpty() && !reports.isEmpty()) {
+    out.report_status = reports.front().status;
+    out.report_detail = reports.front().detail;
+    out.report_cards = reports.front().cards;
+    out.report_info_json = reports.front().info_json;
+  }
+
+  return kSUCCESS;
 }
 
 auto DecryptEMLData(int channel, const QByteArray& data,
@@ -1334,80 +1546,4 @@ auto DecryptEMLData(int channel, const QByteArray& data,
   }
 
   return kSUCCESS;
-}
-auto VerifyEMLRegions(int channel, const QByteArray& raw, const EMailPart& root,
-                      const QList<EMailSignatureRegion>& regions,
-                      QList<EMailSignatureResult>& results) -> int {
-  if (raw.isEmpty() || regions.isEmpty()) return 0;
-
-  const auto flat = FlattenMimeTree(root);
-  int verified = 0;
-
-  for (const auto& region : regions) {
-    // Each region below costs a blocking GPG call on the GUI thread, so the
-    // number of them is a multiplier on how long this window can be made to
-    // stop responding. Stopping here leaves the rest reported as unverified,
-    // which is honest; verifying them would not be, because nothing would
-    // still be watching by then.
-    if (verified >= kMaxVerifiedRegions) {
-      MimeLog(QString("stopping after %1 signature regions; %2 were offered")
-                  .arg(kMaxVerifiedRegions)
-                  .arg(regions.size()));
-      break;
-    }
-
-    if (region.raw_offset < 0 || region.raw_length <= 0) continue;
-    if (region.raw_offset + region.raw_length > raw.size()) continue;
-    if (region.signature_part_index < 0 ||
-        region.signature_part_index >= flat.size()) {
-      // A signed container with no signature beside it. The structure view
-      // already says so; there is nothing here to hand an engine.
-      continue;
-    }
-
-    // A view, not a copy: nothing below mutates it, and the SDK copies what it
-    // is given. Nested regions overlap, so copying each one made the work a
-    // multiple of the message size for no benefit.
-    const auto signed_bytes =
-        QByteArray::fromRawData(raw.constData() + region.raw_offset,
-                                static_cast<qsizetype>(region.raw_length));
-    const auto signature_bytes = flat[region.signature_part_index]->data;
-    if (signature_bytes.trimmed().isEmpty()) continue;
-
-    GFGpgVerifyResult* s = nullptr;
-    auto ret = GFGpgVerifyDataN(
-        channel, signed_bytes.constData(), signed_bytes.size(),
-        signature_bytes.constData(), signature_bytes.size(), &s);
-    if (ret != 0 || s == nullptr) {
-      // One region failing is not the walk failing: the others are still worth
-      // verifying, and this one is reported as unverified. The result still
-      // has to be reclaimed before moving on.
-      TakeSdkFailure(s, &GFGpgVerifyResult::gpgme_verify_result);
-      continue;
-    }
-
-    const auto err = s->gpgme_error;
-    const auto capsule_id = UDUP(s->capsule_id);
-
-    GFGpgFreeResult(s->gpgme_verify_result);
-    GFFreeMemory(s);
-
-    // The structured form, not the report: a per-signature view cannot be
-    // rebuilt by re-reading prose. The capsule is consumed here, so everything
-    // needed has to come out of this one call.
-    const char* analyse = nullptr;
-    const char* info_json = nullptr;
-    GFAnalyseVerifyResultInfoByCapsule(channel, err, QDUP(capsule_id), &analyse,
-                                       nullptr, &info_json);
-
-    auto region_results =
-        ParseSignatureResults(UnStrDup(info_json).toUtf8(), region.region_id);
-    CheckMicalgAgreement(region_results, region);
-    results.append(region_results);
-
-    GFFreeMemory(const_cast<char*>(analyse));
-    ++verified;
-  }
-
-  return verified;
 }

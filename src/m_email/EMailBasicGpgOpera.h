@@ -99,42 +99,40 @@ auto SignEMLData(int channel, const QString& key,
     -> int;
 
 /**
- * @brief Verifies every signature region in a parsed message.
+ * @brief Verifies a message. The only verification there is.
  *
- * VerifyEMLData() checks the message against RFC 3156 and verifies its
- * outermost signature; that stays the primary path and the source of the
- * operation's status. This walks the regions the tree found and verifies each
- * one on ITS OWN bytes, which is the only way a nested or countersigned
- * message reports more than its outer signature.
+ * Replaces the pair this used to be -- an RFC 3156 check of the outermost
+ * signature that produced the operation's status, and a separate per-region
+ * walk that produced the security surface's state. Two verifiers over two
+ * byte sequences meant the same message could be reported as verified in one
+ * place and forged in another, which is precisely what happened.
  *
- * Each result is stamped with the region_id whose bytes produced it, at the
- * call site that passed those bytes in -- results are never matched to regions
- * by position, since one region can yield several signatures or none.
+ * One pass, one answer: parses @p raw once, walks EVERY signature region the
+ * tree yields, verifies each on its own byte slice, and fills @p out with the
+ * per-region verdicts, every signature reported, the message's headers, and
+ * the one aggregated summary every consumer quotes.
  *
- * Results whose hash algorithm disagrees with the region's declared micalg are
- * flagged rather than reconciled.
+ * The bytes are judged AS THEY STAND. Each region is handed to the engine as
+ * the exact slice of @p raw it occupies -- never canonicalized, re-encoded or
+ * repaired first. Bytes whose line endings were rewritten after signing
+ * cannot verify, and a verifier that quietly repaired them would report a
+ * good signature over a document that does not have one. The rewrite is
+ * recorded instead, as EMailRegionVerdict::signed_bytes_non_canonical, so the
+ * failure can be EXPLAINED without being excused.
+ *
+ * Each signature is stamped with the region_id whose bytes produced it -- they
+ * are never matched to regions by position, since one region can yield several
+ * or none -- and results whose hash algorithm disagrees with the region's
+ * declared micalg are flagged rather than reconciled.
  *
  * @param channel GPG context channel
- * @param raw the ORIGINAL message bytes the tree was parsed from
- * @param root the parsed tree
- * @param regions the regions found in @p root
- * @param results receives every signature reported, across all regions
- * @return the number of regions that could be verified, or -1 on a bad argument
+ * @param raw the message, exactly as it is to be judged
+ * @param out receives everything this pass found
+ * @return kSUCCESS, or one of the EMailGpgOperaResult failures
  */
-auto VerifyEMLRegions(int channel, const QByteArray& raw, const EMailPart& root,
-                      const QList<EMailSignatureRegion>& regions,
-                      QList<EMailSignatureResult>& results) -> int;
-
-/**
- * @brief
- *
- * @param data
- * @param error_string
- * @return int
- */
-auto VerifyEMLData(int channel, const QByteArray& data,
-                   EMailMetaData& meta_data, QString& error_string,
-                   gpgme_error_t& err, QString& capsule_id) -> int;
+auto VerifyEMLMessage(int channel, const QByteArray& raw,
+                      EMailVerificationResult& out, QString& error_string)
+    -> int;
 
 /**
  * @brief
