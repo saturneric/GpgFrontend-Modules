@@ -1071,7 +1071,9 @@ void EMailImapController::slot_next_page() {
   // The next page starts just past the oldest row on this one. Recorded so
   // that coming back to this position later asks the server the same question
   // rather than a reconstructed guess.
-  const auto next_start = rows_.last().uid;
+  // The paging CURSOR, not the identity: a position in the folder as it was
+  // when this page was listed. See EMailMessageSummary::seq.
+  const auto next_start = rows_.last().seq;
   ++page_index_;
   if (page_starts_.size() <= page_index_) {
     page_starts_.append(next_start);
