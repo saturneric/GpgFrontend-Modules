@@ -438,6 +438,57 @@ auto DeriveSecurityBadge(EMailSecurityState structure,
                          const QList<EMailSignatureResult>& results,
                          const QString& from) -> EMailBadgeState;
 
+/**
+ * @brief The one summary a verification pass is entitled to claim.
+ *
+ * THE aggregation policy. It lives here, alone, because the status report and
+ * the security badge each deriving their own summary is exactly how the same
+ * message came to read as verified in one place and forged in another.
+ *
+ * The rules, in order:
+ *
+ * - No regions at all: kNOT_PROTECTED when the structure says the message is
+ *   plain, kMALFORMED when it claimed to be signed and no region resolved.
+ * - Every region covers ciphertext only: kENCRYPTED_ONLY. A signature over
+ *   ciphertext says who wrapped a blob, not who wrote what the user reads.
+ * - Otherwise the CANDIDATE SET decides: the regions that do not cover
+ *   ciphertext only, at the SHALLOWEST nesting depth among those. The overall
+ *   state is the worst verdict in that set, over the kSIGNED_* order.
+ * - Siblings at the candidate depth are combined worst-wins: a message is only
+ *   as good as the weakest signature actually covering what is shown.
+ * - Regions NESTED below the candidate depth never change the answer. A bad
+ *   signature on a message quoted inside this one is not this message's
+ *   signature going bad; it is reported in the details, on its own terms.
+ * - A region whose check could not run (EMailVerifyExec other than kOK) takes
+ *   part like any other verdict, as kSIGNED_ERROR. It is never dropped, which
+ *   is what used to happen and what let an engine failure read as "unsigned".
+ *
+ * Pure, and deliberately free of GPG: this is the half that can be pinned by
+ * a test without an engine, a keyring or a widget.
+ *
+ * @param structure what the MIME tree claims, for the no-region cases
+ * @param regions every region found while parsing
+ * @param verdicts one per region that was looked at, joined by region_id
+ */
+auto AggregateVerification(EMailSecurityState structure,
+                           const QList<EMailSignatureRegion>& regions,
+                           const QList<EMailRegionVerdict>& verdicts)
+    -> EMailBadgeState;
+
+/**
+ * @brief Whether @p result still describes @p source.
+ *
+ * A verification answers for the bytes it was given and for no others. The
+ * document can be edited, or the tab switched, between asking and being
+ * answered, and rendering the old answer against the new bytes would show the
+ * user a verdict about a message that is no longer in front of them.
+ *
+ * Compares the length and digest the verifier recorded over the exact bytes
+ * it verified. Pure, so the rule can be tested without a widget.
+ */
+auto VerificationMatchesSource(const EMailVerificationResult& result,
+                               const QByteArray& source) -> bool;
+
 /// The tone @p state should be drawn in.
 auto ToneForBadge(EMailBadgeState state) -> EMailBadgeTone;
 
@@ -550,15 +601,22 @@ auto UnwrapProtectedLayer(const EMailPart& root, const QByteArray& raw,
  * patterns have innocent explanations and a tool that cries wolf gets ignored
  * exactly when it is right.
  *
+ * Findings ABOUT a verification -- whether the bytes a signature covers were
+ * still canonical when it ran -- are reported from @p verdicts rather than
+ * worked out again here. Nothing in this function may reach a conclusion
+ * about a signature that the verifier did not reach: two places deciding why
+ * a signature failed is two places that can disagree.
+ *
  * @param meta parsed headers
  * @param root the parsed tree
  * @param regions signature regions found in @p root
- * @param raw the original document, needed to read the signed bytes
- *            themselves; omit it to skip the checks that require them
+ * @param verdicts what a verification found, when one has run; omit it to
+ *                 skip the findings that only a verification can support
  */
 auto InspectMessage(const EMailMetaData& meta, const EMailPart& root,
                     const QList<EMailSignatureRegion>& regions,
-                    const QByteArray& raw = {}) -> QList<EMailFinding>;
+                    const QList<EMailRegionVerdict>& verdicts = {})
+    -> QList<EMailFinding>;
 
 /**
  * @brief Whether @p bytes contain a line feed that is not part of a CRLF pair.

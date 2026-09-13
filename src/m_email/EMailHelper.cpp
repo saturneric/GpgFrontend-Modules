@@ -28,6 +28,7 @@
 
 #include "EMailHelper.h"
 
+#include <QCryptographicHash>
 #include <QFile>
 #include <QFileInfo>
 #include <QJsonArray>
@@ -37,6 +38,7 @@
 #include <QTimeZone>
 #include <QUrl>
 #include <algorithm>
+#include <limits>
 
 namespace {
 MimeLogFn g_mime_log_sink = nullptr;
@@ -1293,6 +1295,77 @@ auto DeriveSecurityBadge(EMailSecurityState structure,
   return worst;
 }
 
+auto AggregateVerification(EMailSecurityState structure,
+                           const QList<EMailSignatureRegion>& regions,
+                           const QList<EMailRegionVerdict>& verdicts)
+    -> EMailBadgeState {
+  // Nothing to combine. What the message IS decides, which is the structural
+  // question DeriveSecurityBadge() answers for an unverified message too.
+  if (regions.isEmpty()) {
+    switch (structure) {
+      case EMailSecurityState::kPLAIN:
+        return EMailBadgeState::kNOT_PROTECTED;
+      case EMailSecurityState::kENCRYPTED:
+        return EMailBadgeState::kENCRYPTED_ONLY;
+      case EMailSecurityState::kMALFORMED_PGP:
+      case EMailSecurityState::kSIGNED:
+      case EMailSecurityState::kSIGNED_ENCRYPTED:
+        // It said it was signed and not one region resolved. That is the
+        // structure failing to hold up, not a message with no signature.
+        return EMailBadgeState::kMALFORMED;
+    }
+    return EMailBadgeState::kNOT_PROTECTED;
+  }
+
+  // The candidate depth: the shallowest region that covers something other
+  // than ciphertext. Anything deeper is content this message CARRIES rather
+  // than content it vouches for.
+  //
+  // Taken from the REGIONS, which are what the message structurally has, not
+  // from the verdicts, which are only what was looked at. Reading it off the
+  // verdicts made a message nothing had verified yet indistinguishable from
+  // one whose every signature was over ciphertext.
+  auto candidate_depth = std::numeric_limits<int>::max();
+  for (const auto& region : regions) {
+    if (region.covers_ciphertext_only) continue;
+    candidate_depth = std::min(candidate_depth, region.nesting_depth);
+  }
+
+  if (candidate_depth == std::numeric_limits<int>::max()) {
+    // Every signature is over ciphertext. Nothing signed the plaintext the
+    // user ends up reading, and saying "signed" here would claim otherwise.
+    // The signatures are still reported; they are just not this.
+    return EMailBadgeState::kENCRYPTED_ONLY;
+  }
+
+  // Worst-wins across the candidate set. Siblings at that depth are combined;
+  // nested regions are not, and neither are the ciphertext-only ones.
+  auto worst = EMailBadgeState::kSIGNED_GOOD;
+  auto any = false;
+  for (const auto& verdict : verdicts) {
+    if (verdict.covers_ciphertext_only) continue;
+    if (verdict.nesting_depth != candidate_depth) continue;
+    worst = std::max(worst, verdict.verdict);
+    any = true;
+  }
+
+  // A candidate region exists in the parse but nothing looked at it -- the
+  // walk stopped on its ceiling, say. Nobody has checked, and that is the
+  // honest word for it.
+  return any ? worst : EMailBadgeState::kSIGNED_UNVERIFIED;
+}
+
+auto VerificationMatchesSource(const EMailVerificationResult& result,
+                               const QByteArray& source) -> bool {
+  // A result that recorded nothing cannot vouch for anything. Treated as a
+  // mismatch on purpose: the alternative is accepting an unanchored verdict.
+  if (result.source_sha256.isEmpty()) return false;
+  if (result.source_length != static_cast<qint64>(source.size())) return false;
+
+  return result.source_sha256 ==
+         QCryptographicHash::hash(source, QCryptographicHash::Sha256);
+}
+
 auto ToneForBadge(EMailBadgeState state) -> EMailBadgeTone {
   switch (state) {
     case EMailBadgeState::kSIGNED_GOOD:
@@ -1306,6 +1379,11 @@ auto ToneForBadge(EMailBadgeState state) -> EMailBadgeTone {
     case EMailBadgeState::kSIGNED_EXPIRED:
     case EMailBadgeState::kSIGNED_UNKNOWN_KEY:
     case EMailBadgeState::kSIGNED_UNVERIFIED:
+      return EMailBadgeTone::kWARN;
+
+    case EMailBadgeState::kSIGNED_ERROR:
+      // A check that could not run is not evidence of anything, so it is not
+      // drawn as one. It is louder than "not checked yet" only in wording.
       return EMailBadgeTone::kWARN;
 
     case EMailBadgeState::kNOT_PROTECTED:
@@ -1739,25 +1817,19 @@ auto HasBareLineFeeds(const QByteArray& bytes) -> bool {
 
 auto InspectMessage(const EMailMetaData& meta, const EMailPart& root,
                     const QList<EMailSignatureRegion>& regions,
-                    const QByteArray& raw) -> QList<EMailFinding> {
+                    const QList<EMailRegionVerdict>& verdicts)
+    -> QList<EMailFinding> {
   QList<EMailFinding> findings;
 
   // --- the signed bytes are still the signed bytes -------------------------
 
-  for (const auto& region : regions) {
-    if (raw.isEmpty() || region.raw_offset < 0 || region.raw_length <= 0) {
-      continue;
-    }
-    if (region.raw_offset + region.raw_length > raw.size()) continue;
-
-    // A view, not a copy. HasBareLineFeeds only reads, and nested regions
-    // overlap, so copying each one made this a multiple of the message size --
-    // on every load, tab switch, keyring change and re-verify.
-    if (!HasBareLineFeeds(QByteArray::fromRawData(
-            raw.constData() + region.raw_offset,
-            static_cast<qsizetype>(region.raw_length)))) {
-      continue;
-    }
+  // REPORTED, not re-derived. This used to scan the document itself, which
+  // meant two places decided whether a signature's bytes were canonical -- and
+  // two places that can disagree about why a signature failed will eventually
+  // do so. The verifier decides it, on the exact slice it handed the engine,
+  // and this says what the verifier found.
+  for (const auto& verdict : verdicts) {
+    if (!verdict.signed_bytes_non_canonical) continue;
 
     findings.append(
         {EMailFindingLevel::kWARN,
