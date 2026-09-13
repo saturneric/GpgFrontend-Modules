@@ -195,7 +195,7 @@ class RememberingVerifier : public cert::defaultCertificateVerifier {
     lines << QObject::tr("Issued by: %1").arg(issuer);
     lines << (names_host
                   ? QObject::tr("Valid for: %1").arg(host)
-                  : QObject::tr("NOT valid for %1 -- it names a different "
+                  : QObject::tr("NOT valid for %1: it names a different "
                                 "host").arg(host));
     lines << QObject::tr("Valid from %1 to %2")
                  .arg(format(leaf->getActivationDate()))

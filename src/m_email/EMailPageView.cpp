@@ -743,7 +743,7 @@ auto EMailPageView::build_message_surface() -> QWidget* {
       QStringLiteral("dialog-information"), QIcon(":/icons/detail.png")));
   // The ellipsis is doing its usual job: this opens a window rather than
   // changing anything here.
-  details_button_->setText(tr("Details…"));
+  details_button_->setText(tr("Details..."));
   details_button_->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
   details_button_->setAutoRaise(true);
   details_button_->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_D));
@@ -904,7 +904,7 @@ auto EMailPageView::build_message_surface() -> QWidget* {
 
   add_button_ = make_attachment_action(
       QStringLiteral("mail-attachment"), ":/icons/attachment.png",
-      tr("Attach File…"),
+      tr("Attach File..."),
       tr("Add one or more files to this message. Files can also be dropped "
          "onto the message."),
       QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_A));
@@ -915,11 +915,11 @@ auto EMailPageView::build_message_surface() -> QWidget* {
       QStringLiteral("list-remove"), ":/icons/remove.png", tr("Remove"),
       tr("Take the selected attachments out of this message."));
   save_button_ = make_attachment_action(
-      QStringLiteral("document-save"), ":/icons/filesave.png", tr("Save…"),
+      QStringLiteral("document-save"), ":/icons/filesave.png", tr("Save..."),
       tr("Write the selected attachments to a folder."));
   save_all_button_ = make_attachment_action(
       QStringLiteral("document-save-all"), ":/icons/save-all.png",
-      tr("Save All…"), tr("Write every attachment to a folder."));
+      tr("Save All..."), tr("Write every attachment to a folder."));
 
   buttons->addWidget(add_button_);
   buttons->addWidget(remove_button_);
@@ -1186,7 +1186,7 @@ void EMailPageView::apply_content_lock() {
           icon = ":/icons/signature.png";
           notice =
               tr("This message is signed. Remove the signature before editing "
-                 "it -- an edit under a signature reads as a forgery.");
+                 "it. An edit under a signature reads as a forgery.");
           break;
       }
       break;
@@ -1534,7 +1534,7 @@ void EMailPageView::refresh_raw_lock_ui() {
         break;
       case EMailLockReason::kPROTECTED:
         notice = tr(
-            "Read-only. These bytes are protected -- remove the signature, or "
+            "Read-only. These bytes are protected. Remove the signature, or "
             "decrypt the message, to edit them.");
         break;
       case EMailLockReason::kNONE:
@@ -1727,8 +1727,8 @@ void EMailPageView::slot_derive_message(int mode) {
     QMessageBox::warning(
         this, what,
         tr("The new message could not be assembled. This usually means a part "
-           "of the original could not be re-encoded -- an attachment, most "
-           "often.") +
+           "of the original could not be re-encoded, most often an "
+           "attachment.") +
             intact);
     return;
   }
@@ -1978,7 +1978,7 @@ auto EMailPageView::refuse_when_locked(const QString& what) -> bool {
   // removing the signature is how that becomes possible.
   if (QMessageBox::question(
           this, tr("Message Is Signed"),
-          tr("This message is signed, so it cannot be changed -- an edit "
+          tr("This message is signed, so it cannot be changed: an edit "
              "under a signature reads as a forgery.\n\nRemove the signature "
              "and make it an ordinary message?"),
           QMessageBox::Yes | QMessageBox::Cancel,
@@ -2909,13 +2909,13 @@ void EMailPageView::attach_paths(const QStringList& paths) {
     // Directories arrive from a drop as readily as files do, and reading one
     // yields nothing useful.
     if (QFileInfo(path).isDir()) {
-      refused.append(tr("%1 -- a folder").arg(path));
+      refused.append(tr("%1 is a folder").arg(path));
       continue;
     }
 
     QFile file(path);
     if (!file.open(QIODevice::ReadOnly)) {
-      refused.append(tr("%1 -- %2").arg(path, file.errorString()));
+      refused.append(tr("%1: %2").arg(path, file.errorString()));
       continue;
     }
 

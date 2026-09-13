@@ -490,7 +490,7 @@ void EMailSendDialog::refresh_account_state() {
   }
 
   account_detail_label_->setText(
-      tr("%1 port %2 - %3")
+      tr("%1 port %2 · %3")
           .arg(account.smtp.host)
           .arg(account.smtp.EffectivePort(false))
           .arg(MailTlsModeToString(account.smtp.tls)));
@@ -713,7 +713,7 @@ void EMailSendDialog::closeEvent(QCloseEvent* event) {
   box.setText(tr("This message is still being sent."));
   box.setInformativeText(
       tr("The server may already have accepted it. If you close this window "
-         "now, you will not find out whether it was delivered -- and sending "
+         "now, you will not find out whether it was delivered, and sending "
          "it again could deliver it twice."));
   auto* wait = box.addButton(tr("Keep Waiting"), QMessageBox::RejectRole);
   auto* close = box.addButton(tr("Close Anyway"), QMessageBox::DestructiveRole);
@@ -763,11 +763,11 @@ void EMailSendDialog::refresh_result() {
     accepted_label_->setText(
         tr("Unknown. The connection was lost after the message had been sent, "
            "so the server may or may not have accepted it. Check the Sent "
-           "folder or the recipient before sending again -- resending may "
+           "folder or the recipient before sending again: resending may "
            "deliver it twice."));
   } else if (receipt_.accepted) {
     accepted_dot_->SetState(EMailStatusState::kGOOD);
-    accepted_label_->setText(tr("Yes -- accepted by outgoing mail server"));
+    accepted_label_->setText(tr("Yes, accepted by the outgoing mail server"));
   } else if (receipt_.error.IsError()) {
     accepted_dot_->SetState(EMailStatusState::kBAD);
     auto text = receipt_.error.title;
@@ -794,9 +794,9 @@ void EMailSendDialog::refresh_result() {
       // whether their server keeps its own copies, or this program does it.
       sent_copy_label_->setText(
           already_filed_by_server_
-              ? tr("Yes -- your mail server had already filed it in %1")
+              ? tr("Yes, your mail server had already filed it in %1")
                     .arg(sent_folder_)
-              : tr("Yes -- saved to %1").arg(sent_folder_));
+              : tr("Yes, saved to %1").arg(sent_folder_));
       break;
     case ConfirmState::kUNAVAILABLE:
       sent_copy_dot_->SetState(EMailStatusState::kUNKNOWN);
@@ -811,7 +811,7 @@ void EMailSendDialog::refresh_result() {
     case ConfirmState::kSTOPPED:
       sent_copy_dot_->SetState(EMailStatusState::kUNKNOWN);
       sent_copy_label_->setText(
-          tr("Stopped -- no copy was kept. The message was still sent."));
+          tr("Stopped: no copy was kept. The message was still sent."));
       break;
   }
 

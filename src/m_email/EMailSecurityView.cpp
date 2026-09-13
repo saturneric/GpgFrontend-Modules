@@ -350,7 +350,7 @@ void EMailSecurityView::add_signature_section(
           verify_state == EMailVerifyState::kNOT_ATTEMPTED
               ? tr("this section is signed, but nothing has verified it yet")
               : tr("this section is signed, but verifying it produced no "
-                   "result -- the signing key may not be in your keyring"));
+                   "result: the signing key may not be in your keyring"));
       EMailSetCellTone(none, kColValue, EMailTone::kMUTED, this);
     }
 
@@ -421,9 +421,10 @@ void EMailSecurityView::add_recipient_section(
         // The only genuine warning in this section: this person was told the
         // message is for them and cannot open it.
         item->setText(kColItem, row.address);
-        item->setText(kColValue,
-                      tr("in %1, but NOT encrypted to - they cannot read this")
-                          .arg(row.header_field));
+        item->setText(
+            kColValue,
+            tr("in %1, but not encrypted to it: they cannot read this")
+                .arg(row.header_field));
         EMailSetCellTone(item, kColValue, EMailTone::kWARN, this);
         break;
 

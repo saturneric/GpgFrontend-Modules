@@ -147,11 +147,12 @@ auto BuildAttachmentCard(const EMailMetaData& m) -> QJsonObject {
     auto description =
         QString("%1, %2").arg(att.mime_type, FormatSize(att.data.size()));
     if (att.is_openpgp_key) {
-      description += QApplication::translate("EMailModule", " — OpenPGP key");
+      description +=
+          QApplication::translate("EMailModule", ", an OpenPGP key");
     }
     if (!att.inside_signed_part) {
-      description +=
-          QApplication::translate("EMailModule", " — NOT covered by signature");
+      description += QApplication::translate("EMailModule",
+                                              ", not covered by the signature");
     }
 
     fields.append({name, description});
@@ -284,8 +285,8 @@ auto BuildRecipientCheckCard(const EMailMetaData& m,
         any_warning = true;
         fields.append(
             {row.address,
-             QApplication::translate("EMailModule",
-                                     "in %1 but NOT encrypted to - cannot read")
+             QApplication::translate(
+                 "EMailModule", "in %1, but not encrypted to it: cannot read")
                  .arg(row.header_field)});
         break;
       case RecipientMatch::kENCRYPTED_NOT_ADDRESSED:

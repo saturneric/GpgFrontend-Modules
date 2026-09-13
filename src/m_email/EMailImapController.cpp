@@ -246,7 +246,7 @@ void EMailImapController::refresh_account_availability() {
         account.Label().isEmpty() ? account.imap.host : account.Label();
 
     account_combo_->setItemText(
-        i, usable ? label : QString("%1  —  %2").arg(label, reason));
+        i, usable ? label : QString("%1: %2").arg(label, reason));
 
     // A configuration problem cannot be retried from here and the entry is
     // closed off. A recorded FAILURE can: the password may have been set in
@@ -949,7 +949,7 @@ void EMailImapController::refresh_detail() {
                         ? QLocale().toString(summary.date, QLocale::LongFormat)
                         : tr("Date not stated");
   detail_stamp_->setText(
-      QString("%1  -  %2").arg(when, EMailHumanSize(summary.size)));
+      QString("%1  ·  %2").arg(when, EMailHumanSize(summary.size)));
 
   detail_id_full_ = summary.message_id;
   refresh_message_id();

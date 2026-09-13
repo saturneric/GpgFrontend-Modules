@@ -495,7 +495,7 @@ void EMailAccountSettingsPage::refresh_list() {
     // Which account is the default was decided somewhere and shown nowhere.
     const auto is_default = !default_id_.isEmpty() && account.id == default_id_;
     account_list_->addItem(is_default
-                               ? tr("%1  (default)").arg(label_for(account))
+                               ? tr("%1 (default)").arg(label_for(account))
                                : label_for(account));
   }
   if (row >= 0 && row < accounts_.size()) account_list_->setCurrentRow(row);
@@ -517,7 +517,7 @@ auto EMailAccountSettingsPage::row_text_for(
   // the "(default)" marker the rebuild had put there.
   const auto label = label_for(account);
   return !default_id_.isEmpty() && account.id == default_id_
-             ? tr("%1  (default)").arg(label)
+             ? tr("%1 (default)").arg(label)
              : label;
 }
 
@@ -691,7 +691,7 @@ void EMailAccountSettingsPage::refresh_validation() {
 
   if (!account.imap.enabled && !account.smtp.enabled) {
     problems.append(
-        tr("Turn on receiving, sending, or both -- an account that does "
+        tr("Turn on receiving, sending, or both. An account that does "
            "neither cannot be used."));
   }
 
