@@ -47,10 +47,6 @@
 
 namespace {
 
-auto Tr(const char* text) -> QString {
-  return QCoreApplication::translate("EMailTransport", text);
-}
-
 /// Whatever the library said, trimmed of anything that could be a secret.
 ///
 /// vmime puts the failing command into command_error, and for SMTP that text
@@ -88,19 +84,23 @@ auto ClassifyCertificate(const vmime::exception& e, MailError& out) -> bool {
 
   if (dynamic_cast<const serverIdentityException*>(&e) != nullptr) {
     out.category = MailErrorCategory::kTLS_HOSTNAME;
-    out.title = Tr("The server's certificate is for a different host");
-    out.detail =
-        Tr("The certificate the server presented does not name the host you "
-           "configured. This is what an interception looks like, so the "
-           "connection was refused. Check the host name for a typo.");
+    out.title = QCoreApplication::translate(
+        "EMailTransport", "The server's certificate is for a different host");
+    out.detail = QCoreApplication::translate(
+        "EMailTransport",
+        "The certificate the server presented does not name the host you "
+        "configured. This is what an interception looks like, so the "
+        "connection was refused. Check the host name for a typo.");
     return true;
   }
 
   if (dynamic_cast<const certificateExpiredException*>(&e) != nullptr ||
       dynamic_cast<const certificateNotYetValidException*>(&e) != nullptr) {
     out.category = MailErrorCategory::kTLS_EXPIRED;
-    out.title = Tr("The server's certificate is not currently valid");
-    out.detail = Tr(
+    out.title = QCoreApplication::translate(
+        "EMailTransport", "The server's certificate is not currently valid");
+    out.detail = QCoreApplication::translate(
+        "EMailTransport",
         "The certificate has expired or is not valid yet. If your computer's "
         "clock is wrong, fix that first; otherwise the server's certificate "
         "needs renewing. This cannot be bypassed by trusting the certificate.");
@@ -111,8 +111,10 @@ auto ClassifyCertificate(const vmime::exception& e, MailError& out) -> bool {
       dynamic_cast<const certificateIssuerVerificationException*>(&e) !=
           nullptr) {
     out.category = MailErrorCategory::kTLS_UNTRUSTED;
-    out.title = Tr("The server's certificate is not trusted");
-    out.detail = Tr(
+    out.title = QCoreApplication::translate(
+        "EMailTransport", "The server's certificate is not trusted");
+    out.detail = QCoreApplication::translate(
+        "EMailTransport",
         "The certificate was not issued by an authority your system trusts. "
         "That is expected for a self-hosted server with its own certificate. "
         "You can examine it and choose to trust this exact certificate for "
@@ -122,19 +124,23 @@ auto ClassifyCertificate(const vmime::exception& e, MailError& out) -> bool {
 
   if (dynamic_cast<const unsupportedCertificateTypeException*>(&e) != nullptr) {
     out.category = MailErrorCategory::kTLS_HANDSHAKE;
-    out.title = Tr("The server's certificate could not be read");
-    out.detail =
-        Tr("The certificate is of a type this application cannot "
-           "verify, so the connection was refused.");
+    out.title = QCoreApplication::translate(
+        "EMailTransport", "The server's certificate could not be read");
+    out.detail = QCoreApplication::translate(
+        "EMailTransport",
+        "The certificate is of a type this application cannot "
+        "verify, so the connection was refused.");
     return true;
   }
 
   if (dynamic_cast<const certificateException*>(&e) != nullptr) {
     out.category = MailErrorCategory::kTLS_HANDSHAKE;
-    out.title = Tr("The server's certificate was rejected");
-    out.detail =
-        Tr("The certificate could not be verified, so the connection "
-           "was refused.");
+    out.title = QCoreApplication::translate(
+        "EMailTransport", "The server's certificate was rejected");
+    out.detail = QCoreApplication::translate(
+        "EMailTransport",
+        "The certificate could not be verified, so the connection "
+        "was refused.");
     return true;
   }
 
@@ -159,24 +165,31 @@ auto ClassifySmtpCommand(const vmime::exceptions::command_error& e,
 
   if (verb == "MAIL") {
     out.category = MailErrorCategory::kSMTP_SENDER_REJECTED;
-    out.title = Tr("The server rejected the sender address");
-    out.detail =
-        Tr("The outgoing server would not accept mail from this address. It "
-           "usually means the address does not match the account you signed in "
-           "with.");
+    out.title = QCoreApplication::translate(
+        "EMailTransport", "The server rejected the sender address");
+    out.detail = QCoreApplication::translate(
+        "EMailTransport",
+        "The outgoing server would not accept mail from this address. It "
+        "usually means the address does not match the account you signed in "
+        "with.");
     return;
   }
 
   if (verb == "RCPT") {
     out.category = MailErrorCategory::kSMTP_RECIPIENT_REJECTED;
     const auto address = AddressInCommand(e.command());
-    out.title = address.isEmpty()
-                    ? Tr("The server rejected a recipient")
-                    : Tr("The server rejected the recipient %1").arg(address);
+    out.title =
+        address.isEmpty()
+            ? QCoreApplication::translate("EMailTransport",
+                                          "The server rejected a recipient")
+            : QCoreApplication::translate(
+                  "EMailTransport", "The server rejected the recipient %1")
+                  .arg(address);
 
     // Stated plainly because the intuition is wrong: vmime abandons the whole
     // submission at the first bad RCPT, so this is not a partial delivery.
-    out.detail = Tr(
+    out.detail = QCoreApplication::translate(
+        "EMailTransport",
         "The message was not sent to anyone. The server refused this "
         "recipient, and sending stops at the first refusal. Correct or remove "
         "the address and send again.");
@@ -185,50 +198,62 @@ auto ClassifySmtpCommand(const vmime::exceptions::command_error& e,
 
   if (verb == "DATA") {
     out.category = MailErrorCategory::kSMTP_DATA_REJECTED;
-    out.title = Tr("The server rejected the message");
-    out.detail =
-        Tr("The outgoing server accepted the sender and recipients but refused "
-           "the message itself. Its reply is shown below and usually explains "
-           "why, often because of a size limit or a content policy.");
+    out.title = QCoreApplication::translate("EMailTransport",
+                                            "The server rejected the message");
+    out.detail = QCoreApplication::translate(
+        "EMailTransport",
+        "The outgoing server accepted the sender and recipients but refused "
+        "the message itself. Its reply is shown below and usually explains "
+        "why, often because of a size limit or a content policy.");
     return;
   }
 
   if (verb == "STARTTLS") {
     out.category = MailErrorCategory::kTLS_HANDSHAKE;
-    out.title = Tr("The server refused to start an encrypted connection");
-    out.detail =
-        Tr("The connection was closed rather than continued unencrypted. Check "
-           "whether this server expects a different security setting or port.");
+    out.title = QCoreApplication::translate(
+        "EMailTransport",
+        "The server refused to start an encrypted connection");
+    out.detail = QCoreApplication::translate(
+        "EMailTransport",
+        "The connection was closed rather than continued unencrypted. Check "
+        "whether this server expects a different security setting or port.");
     return;
   }
 
   if (verb == "LOGIN" || verb == "AUTH") {
     out.category = MailErrorCategory::kAUTH;
-    out.title = Tr("Sign-in was refused");
-    out.detail = Tr("The server did not accept the username and password.");
+    out.title =
+        QCoreApplication::translate("EMailTransport", "Sign-in was refused");
+    out.detail = QCoreApplication::translate(
+        "EMailTransport",
+        "The server did not accept the username and password.");
     return;
   }
 
   if (verb == "LIST" || verb == "SELECT" || verb == "EXAMINE") {
     out.category = MailErrorCategory::kFOLDER;
-    out.title = Tr("The folder could not be opened");
+    out.title = QCoreApplication::translate("EMailTransport",
+                                            "The folder could not be opened");
     return;
   }
 
   if (verb == "SEARCH" || verb == "UID") {
     out.category = MailErrorCategory::kLISTING;
-    out.title = Tr("The search could not be completed");
+    out.title = QCoreApplication::translate(
+        "EMailTransport", "The search could not be completed");
     return;
   }
 
   if (verb == "FETCH") {
     out.category = MailErrorCategory::kFETCH;
-    out.title = Tr("The message could not be retrieved");
+    out.title = QCoreApplication::translate(
+        "EMailTransport", "The message could not be retrieved");
     return;
   }
 
   out.category = MailErrorCategory::kLISTING;
-  out.title = Tr("The server rejected a command");
+  out.title = QCoreApplication::translate("EMailTransport",
+                                          "The server rejected a command");
 }
 
 }  // namespace
@@ -248,7 +273,8 @@ auto ClassifyVmimeException(const vmime::exception& e, MailStage stage,
   // which is the whole reason this category exists.
   if (stage == MailStage::kSUBMIT_FINAL) {
     out.category = MailErrorCategory::kSMTP_AMBIGUOUS;
-    out.title = Tr("The outcome is unknown");
+    out.title =
+        QCoreApplication::translate("EMailTransport", "The outcome is unknown");
     out.transient = false;
     return out;
   }
@@ -259,7 +285,7 @@ auto ClassifyVmimeException(const vmime::exception& e, MailStage stage,
   // deliberate stop a server fault would be a lie.
   if (cancelled) {
     out.category = MailErrorCategory::kCANCELLED;
-    out.title = Tr("Stopped");
+    out.title = QCoreApplication::translate("EMailTransport", "Stopped");
     return out;
   }
 
@@ -274,7 +300,8 @@ auto ClassifyVmimeException(const vmime::exception& e, MailStage stage,
 
   if (dynamic_cast<const ex::operation_timed_out*>(&e) != nullptr) {
     out.category = MailErrorCategory::kTIMEOUT;
-    out.title = Tr("The server stopped responding");
+    out.title = QCoreApplication::translate("EMailTransport",
+                                            "The server stopped responding");
     out.transient = true;
     return out;
   }
@@ -288,8 +315,10 @@ auto ClassifyVmimeException(const vmime::exception& e, MailStage stage,
 
   if (dynamic_cast<const ex::authentication_error*>(&e) != nullptr) {
     out.category = MailErrorCategory::kAUTH;
-    out.title = Tr("Sign-in was refused");
-    out.detail = Tr(
+    out.title =
+        QCoreApplication::translate("EMailTransport", "Sign-in was refused");
+    out.detail = QCoreApplication::translate(
+        "EMailTransport",
         "The server did not accept the username and password. If this account "
         "belongs to a provider that requires signing in through its own web "
         "page, an ordinary password will not work and you will need an "
@@ -304,7 +333,8 @@ auto ClassifyVmimeException(const vmime::exception& e, MailStage stage,
           const vmime::net::smtp::SMTPMessageSizeExceedsCurLimitsException*>(
           &e) != nullptr) {
     out.category = MailErrorCategory::kSMTP_DATA_REJECTED;
-    out.title = Tr("The message is too large for this server");
+    out.title = QCoreApplication::translate(
+        "EMailTransport", "The message is too large for this server");
     return out;
   }
 
@@ -312,7 +342,8 @@ auto ClassifyVmimeException(const vmime::exception& e, MailStage stage,
       dynamic_cast<const ex::invalid_folder_name*>(&e) != nullptr ||
       dynamic_cast<const ex::folder_already_open*>(&e) != nullptr) {
     out.category = MailErrorCategory::kFOLDER;
-    out.title = Tr("The folder could not be opened");
+    out.title = QCoreApplication::translate("EMailTransport",
+                                            "The folder could not be opened");
     return out;
   }
 
@@ -320,7 +351,8 @@ auto ClassifyVmimeException(const vmime::exception& e, MailStage stage,
       dynamic_cast<const ex::unfetched_object*>(&e) != nullptr ||
       dynamic_cast<const ex::partial_fetch_not_supported*>(&e) != nullptr) {
     out.category = MailErrorCategory::kFETCH;
-    out.title = Tr("The message could not be retrieved");
+    out.title = QCoreApplication::translate(
+        "EMailTransport", "The message could not be retrieved");
     return out;
   }
 
@@ -328,7 +360,8 @@ auto ClassifyVmimeException(const vmime::exception& e, MailStage stage,
       dynamic_cast<const ex::connection_greeting_error*>(&e) != nullptr) {
     out.category = stage == MailStage::kCONNECT ? MailErrorCategory::kCONNECT
                                                 : MailErrorCategory::kLISTING;
-    out.title = Tr("The server sent an unexpected response");
+    out.title = QCoreApplication::translate(
+        "EMailTransport", "The server sent an unexpected response");
     return out;
   }
 
@@ -341,26 +374,32 @@ auto ClassifyVmimeException(const vmime::exception& e, MailStage stage,
     const auto text = out.protocol_detail.toLower();
     if (text.contains("resolve")) {
       out.category = MailErrorCategory::kDNS;
-      out.title = Tr("The server could not be found");
-      out.detail = Tr(
+      out.title = QCoreApplication::translate("EMailTransport",
+                                              "The server could not be found");
+      out.detail = QCoreApplication::translate(
+          "EMailTransport",
           "The host name did not resolve. Check it for a typo and check that "
           "this computer is online.");
       return out;
     }
 
     out.category = MailErrorCategory::kCONNECT;
-    out.title = Tr("The server could not be reached");
-    out.detail =
-        Tr("The host resolved but refused or ignored the connection. Check the "
-           "port and security settings, and whether a firewall is in the way.");
+    out.title = QCoreApplication::translate("EMailTransport",
+                                            "The server could not be reached");
+    out.detail = QCoreApplication::translate(
+        "EMailTransport",
+        "The host resolved but refused or ignored the connection. Check the "
+        "port and security settings, and whether a firewall is in the way.");
     out.transient = true;
     return out;
   }
 
   if (dynamic_cast<const ex::tls_exception*>(&e) != nullptr) {
     out.category = MailErrorCategory::kTLS_HANDSHAKE;
-    out.title = Tr("The encrypted connection could not be established");
-    out.detail = Tr(
+    out.title = QCoreApplication::translate(
+        "EMailTransport", "The encrypted connection could not be established");
+    out.detail = QCoreApplication::translate(
+        "EMailTransport",
         "The server and this application could not agree on how to secure the "
         "connection. A server that only offers outdated encryption will fail "
         "here, which is deliberate.");
@@ -376,15 +415,20 @@ auto ClassifyVmimeException(const vmime::exception& e, MailStage stage,
 
   out.category = stage == MailStage::kCONNECT ? MailErrorCategory::kCONNECT
                                               : MailErrorCategory::kLISTING;
-  out.title = Tr("The operation failed");
+  out.title =
+      QCoreApplication::translate("EMailTransport", "The operation failed");
   return out;
 }
 
 auto MailTlsRequiredError(const QString& host) -> MailError {
   MailError out;
   out.category = MailErrorCategory::kTLS_REQUIRED;
-  out.title = Tr("%1 would not start an encrypted connection").arg(host);
-  out.detail = Tr(
+  out.title =
+      QCoreApplication::translate("EMailTransport",
+                                  "%1 would not start an encrypted connection")
+          .arg(host);
+  out.detail = QCoreApplication::translate(
+      "EMailTransport",
       "The connection was closed rather than continued unencrypted, so your "
       "password was never sent. Check whether this server expects a different "
       "security setting or a different port.");
@@ -394,14 +438,15 @@ auto MailTlsRequiredError(const QString& host) -> MailError {
 auto MailCancelledError() -> MailError {
   MailError out;
   out.category = MailErrorCategory::kCANCELLED;
-  out.title = Tr("Stopped");
+  out.title = QCoreApplication::translate("EMailTransport", "Stopped");
   return out;
 }
 
 auto MailInternalError(const QString& what) -> MailError {
   MailError out;
   out.category = MailErrorCategory::kINTERNAL;
-  out.title = Tr("Something went wrong inside this application");
+  out.title = QCoreApplication::translate(
+      "EMailTransport", "Something went wrong inside this application");
   out.protocol_detail = what;
   return out;
 }
