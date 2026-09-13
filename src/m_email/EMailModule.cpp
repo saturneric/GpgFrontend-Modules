@@ -78,6 +78,7 @@
 //
 #include "EMailBasicGpgOpera.h"
 #include "EMailHelper.h"
+#include "EMailVerificationPayload.h"
 
 GF_MODULE_API_DEFINE_V2("com.bktus.gpgfrontend.module.email", "Email", "2.0.0",
                         "Everything related to E-Mails.", "Saturneric")
@@ -317,7 +318,8 @@ auto BuildRecipientCheckCard(const EMailMetaData& m,
 auto BuildResultCardsParam(const QString& operation,
                            const QJsonArray& meta_cards,
                            const QString& crypto_cards_json,
-                           const QByteArray& info_json = {}) -> QString {
+                           const QByteArray& info_json = {},
+                           const QString& description = {}) -> QString {
   QJsonArray cards = meta_cards;
   if (!crypto_cards_json.isEmpty()) {
     const auto doc = QJsonDocument::fromJson(crypto_cards_json.toUtf8());
@@ -801,56 +803,38 @@ REGISTER_EVENT_HANDLER(MAINWINDOW_MENU_MOUNTED, [](const MEvent& event) -> int {
 
 namespace {
 
+/// What the status board should make of a verification.
+///
+/// Derived from the ONE aggregated verdict, never from a second question put
+/// to the engine: the board saying "success" while the badge beside it says
+/// "bad signature" is the whole reason this path was unified.
+auto ReportStatusFor(EMailBadgeState overall) -> int {
+  switch (overall) {
+    case EMailBadgeState::kSIGNED_GOOD:
+      return 1;
+
+    case EMailBadgeState::kSIGNED_BAD:
+    case EMailBadgeState::kSIGNED_ERROR:
+    case EMailBadgeState::kMALFORMED:
+      return -1;
+
+    case EMailBadgeState::kSIGNED_EXPIRED:
+    case EMailBadgeState::kSIGNED_UNKNOWN_KEY:
+    case EMailBadgeState::kSIGNED_MISMATCH:
+    case EMailBadgeState::kSIGNED_UNVERIFIED:
+    case EMailBadgeState::kNOT_PROTECTED:
+    case EMailBadgeState::kENCRYPTED_ONLY:
+      // Checked, with something worth saying about it. Not a failure: the
+      // operation did what was asked, and the report says what it found.
+      return 0;
+  }
+  return 0;
+}
+
 auto DoVerifyEMLData(int channel, const QByteArray& data, const MEvent& event,
-                     int& result_status, QString& result_detail,
-                     QString& result_cards, QString& error_string,
-                     EMailMetaData& meta_data) -> int {
-  gpg_error_t err;
-  QString capsule_id;
-  auto ret =
-      VerifyEMLData(channel, data, meta_data, error_string, err, capsule_id);
-  if (ret == kFAILED || ret == kEML_FAILED) {
-    CB(event, GFGetModuleID(),
-       {
-           {"ret", QString::number(0)},
-           {"result_status", QString::number(-1)},
-           {"result", ErrorHelper(ret, error_string)},
-       });
-    return ret;
-  }
-
-  QByteArray info_json;
-  const char* tmp = nullptr;
-  const char* cards_tmp = nullptr;
-  const char* info_tmp = nullptr;
-  // The Info variant, not the plain one: the structured description
-  // and details are what let a FAILURE explain itself, and without
-  // them the board can only fall back to "<operation> failed."
-  result_status = GFAnalyseVerifyResultInfoByCapsule(
-      channel, err, QDUP(capsule_id), &tmp, &cards_tmp, &info_tmp);
-  result_detail = UnStrDup(tmp);
-  result_cards = UnStrDup(cards_tmp);
-  info_json = UnStrDup(info_tmp).toUtf8();
-
-  if (ret == kGPG_FAILED) {
-    // The operation failed, and the ANALYSIS of that failure is exactly what
-    // the user needs -- which key was wanted, what the engine said. Those
-    // cards were just built above; dropping them here is what left a failed
-    // decrypt showing raw report text where every other outcome shows a
-    // structured card.
-    CB(event, GFGetModuleID(),
-       {
-           {"ret", QString::number(0)},
-           {"result_status", QString::number(result_status)},
-           {"result", result_detail},
-           {"result_cards",
-            BuildResultCardsParam(
-                QApplication::translate("EMailModule", "Verify E-Mail"), {},
-                result_cards, info_json)},
-       });
-    return ret;
-  }
-
+                     QString& error_string, EMailVerificationResult& result)
+    -> int {
+  auto ret = VerifyEMLMessage(channel, data, result, error_string);
   if (ret != kSUCCESS) {
     CB(event, GFGetModuleID(),
        {
@@ -872,15 +856,15 @@ REGISTER_EVENT_HANDLER(
       auto channel = event.value("channel", "0").toInt();
       auto data = QByteArray::fromBase64(QString(event["data"]).toLatin1());
 
-      EMailMetaData meta_data;
       QString error_string;
-      int result_status = 0;
-      QString result_detail;
-      QString result_cards;
-      if (DoVerifyEMLData(channel, data, event, result_status, result_detail,
-                          result_cards, error_string, meta_data) != kSUCCESS) {
+      EMailVerificationResult result;
+      if (DoVerifyEMLData(channel, data, event, error_string, result) !=
+          kSUCCESS) {
         return -1;
       }
+
+      const auto& meta_data = result.meta;
+      const auto result_status = ReportStatusFor(result.overall);
 
       QString email_info;
       email_info.append("# E-Mail Information\n\n");
@@ -936,11 +920,11 @@ REGISTER_EVENT_HANDLER(
 
       email_info.append("\n");
 
-      email_info.append("#" + result_detail + "\n");
+      email_info.append("#" + result.report_detail + "\n");
 
       const auto result_cards_param = BuildResultCardsParam(
           QApplication::translate("EMailModule", "Verify E-Mail"),
-          BuildReadMetaCards(meta_data, true), result_cards);
+          BuildReadMetaCards(meta_data, true), result.report_cards);
 
       // callback
       CB(event, GFGetModuleID(),
@@ -949,6 +933,11 @@ REGISTER_EVENT_HANDLER(
              {"result_status", QString::number(result_status)},
              {"result", email_info},
              {"result_cards", result_cards_param},
+             // The same answer the report above was written from, on its way
+             // to the message surface. One verification, one result: the badge
+             // and the attachment list render THIS rather than asking the
+             // engine a question of their own and disagreeing with the board.
+             {"verification", EncodeVerificationPayload(result)},
          });
       return 0;
     });
@@ -1712,28 +1701,24 @@ auto DoDecryptVerifyEMLData(int channel, const QByteArray& data,
     return kSUCCESS;
   }
 
-  int t_result_status = 0;
-  QString t_result_detail;
-  QString verify_cards;
-
-  // Its OWN metadata object, not the one the decrypt filled. Both walk the
-  // same plaintext and ExtractParts() only ever appends, so sharing one object
-  // listed every attachment twice.
-  EMailMetaData verified_meta;
+  // Its OWN result, not the one the decrypt filled. Both walk the same
+  // plaintext and ExtractParts() only ever appends, so sharing one metadata
+  // object listed every attachment twice.
+  EMailVerificationResult verification;
 
   // UTF-8, not Latin-1: this is the decrypted plaintext and the signature
   // inside it is checked against these exact bytes. See DoEncryptSignEMLData.
-  if (DoVerifyEMLData(channel, eml_data, event, t_result_status,
-                      t_result_detail, verify_cards, error_string,
-                      verified_meta) != kSUCCESS) {
+  if (DoVerifyEMLData(channel, eml_data, event, error_string, verification) !=
+      kSUCCESS) {
     return -1;
   }
 
-  MergeVerifiedMetaData(meta_data, verified_meta);
+  MergeVerifiedMetaData(meta_data, verification.meta);
 
-  result_status = WorseStatus(t_result_status, result_status);
-  result_detail = t_result_detail + "\n" + result_detail;
-  result_cards = MergeCardArrays(verify_cards, decrypt_cards);
+  result_status =
+      WorseStatus(ReportStatusFor(verification.overall), result_status);
+  result_detail = verification.report_detail + "\n" + result_detail;
+  result_cards = MergeCardArrays(verification.report_cards, decrypt_cards);
 
   return kSUCCESS;
 }
