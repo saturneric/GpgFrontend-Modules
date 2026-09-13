@@ -135,6 +135,48 @@ struct EMailSignatureRegion {
 };
 
 /**
+ * @brief What the security surface is entitled to claim about a message.
+ *
+ * Structure alone can say a message CARRIES a signature. It cannot say the
+ * signature is good, and it certainly cannot say who sent the message -- the
+ * badge used to be derived from ClassifyOpenPGPStructure() and nothing else,
+ * so a multipart/signed whose signature part held forty bytes of garbage read
+ * as "Signed" in the same accent colour as a verified one.
+ *
+ * The states below are ordered by how much is known and how badly it went.
+ */
+enum class EMailBadgeState : uint8_t {
+  kNOT_PROTECTED = 0,  ///< no OpenPGP structure at all
+  kMALFORMED,          ///< claims OpenPGP; the structure does not hold up
+  kENCRYPTED_ONLY,     ///< encrypted, with nothing signed
+  kSIGNED_UNVERIFIED,  ///< carries a signature nothing has checked yet
+
+  // The signed outcomes, ordered worst-last. A message is only as good as its
+  // weakest signature, so combining several is a maximum over this order --
+  // reporting the best of them is how a second signature becomes a second
+  // attempt.
+  kSIGNED_GOOD,         ///< checked, and it verified
+  kSIGNED_EXPIRED,      ///< verified against an expired signature or key
+  kSIGNED_UNKNOWN_KEY,  ///< checked; the key is not in the keyring
+  kSIGNED_MISMATCH,     ///< verified, but not by the address it comes from
+  kSIGNED_BAD,          ///< bad, invalid or made by a revoked key
+};
+
+/**
+ * @brief How loudly to say it.
+ *
+ * kDANGER is reserved for a message that is actively wrong, so that it keeps
+ * meaning something. A missing key and a forged signature used to share one
+ * amber, which made the amber unreadable.
+ */
+enum class EMailBadgeTone : uint8_t {
+  kMUTED = 0,  ///< ordinary, not a fault
+  kGOOD,
+  kWARN,
+  kDANGER,
+};
+
+/**
  * @brief One concrete verification result over one region.
  *
  * A region may carry more than one signature, so the relationship is
