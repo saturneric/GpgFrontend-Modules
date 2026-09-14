@@ -55,6 +55,51 @@ struct EMailFolderInfo {
 Q_DECLARE_METATYPE(EMailFolderInfo)
 
 /**
+ * @brief What a folder looked like, in the terms IMAP can compare cheaply.
+ *
+ * Read with STATUS, which needs no folder open and fetches no envelope, so
+ * asking "has anything changed here" costs one round trip rather than a page
+ * of headers.
+ *
+ * @ref uid_validity is the one that matters most: when a server changes it,
+ * every UID previously handed out for that mailbox means something else, so a
+ * cache keyed on those UIDs is not stale but WRONG, and must be dropped whole
+ * rather than merged.
+ */
+struct EMailFolderValidators {
+  /// Whether the server answered at all. A false here is not an error the user
+  /// needs to see: it simply means nothing can be reused and the listing is
+  /// fetched the ordinary way.
+  bool known{false};
+
+  quint32 uid_validity{0};
+  quint32 uid_next{0};       ///< rises when mail arrives
+  quint64 message_count{0};  ///< falls when mail is expunged
+
+  /// Rises on any change INCLUDING a flag change, so it catches a message
+  /// marked read in another client -- which none of the fields above can. Only
+  /// servers advertising CONDSTORE report it; 0 means "not offered", and is
+  /// then left out of the comparison rather than treated as a change.
+  quint64 highest_mod_seq{0};
+
+  /// Every field above agreeing is what makes a cached listing reusable.
+  [[nodiscard]] auto SameAs(const EMailFolderValidators& other) const -> bool {
+    if (!known || !other.known) return false;
+    if (uid_validity != other.uid_validity) return false;
+    if (uid_next != other.uid_next) return false;
+    if (message_count != other.message_count) return false;
+    // Compared only when both sides have it; a server that stopped offering
+    // CONDSTORE must not invalidate everything it ever cached.
+    if (highest_mod_seq != 0 && other.highest_mod_seq != 0 &&
+        highest_mod_seq != other.highest_mod_seq) {
+      return false;
+    }
+    return true;
+  }
+};
+Q_DECLARE_METATYPE(EMailFolderValidators)
+
+/**
  * @brief One row of the message list.
  *
  * Everything here comes from an envelope fetch. There is deliberately no body,
@@ -127,6 +172,11 @@ struct EMailMessagePage {
   /// True when the session cap stopped the load rather than the mailbox
   /// running out. The picker says so and asks the user to search.
   bool capped{false};
+
+  /// What the folder looked like as these rows were read, so a later visit can
+  /// ask whether it still looks that way. Captured here rather than by a
+  /// separate STATUS because the folder is already open at this point.
+  EMailFolderValidators validators;
 };
 Q_DECLARE_METATYPE(EMailMessagePage)
 
@@ -203,6 +253,16 @@ class EMailImapWorker : public QObject {
   void SearchMessages(quint64 seq, const QString& folder, const QString& query,
                       int page_size);
 
+  /**
+   * @brief Report @p folder's STATUS, for deciding whether a cache still holds.
+   *
+   * Never fails loudly: a server that will not answer, or a folder that has
+   * gone, emits an EMailFolderValidators with `known` false, which the caller
+   * reads as "fetch it the ordinary way". Asking whether a shortcut is
+   * available must not be able to break the path that does not take it.
+   */
+  void FolderStatus(quint64 seq, const QString& folder);
+
   /// Fetch one complete message, byte-exact and without setting \Seen.
   void FetchMessage(quint64 seq, const QString& folder, quint64 uid);
 
@@ -242,6 +302,8 @@ class EMailImapWorker : public QObject {
   void SignalFolders(quint64 seq, const QList<EMailFolderInfo>& folders);
   void SignalMessages(quint64 seq, const EMailMessagePage& page);
   void SignalMessageFetched(quint64 seq, const QByteArray& raw_eml);
+  void SignalFolderStatus(quint64 seq, const QString& folder,
+                          const EMailFolderValidators& validators);
 
   /**
    * @brief How much of a message body has arrived.

@@ -1801,11 +1801,11 @@ void EMailPageView::slot_derive_message(int mode) {
   if (title.isEmpty()) title = tr("untitled.eml");
 
   QWidget* page = nullptr;
-  QMetaObject::invokeMethod(
-      edit, "SlotNewCustomTab", Qt::DirectConnection,
-      Q_RETURN_ARG(QWidget*, page), Q_ARG(QString, "email"),
-      Q_ARG(QString, title), Q_ARG(QIcon, QIcon(":/icons/email.png")),
-      Q_ARG(QString, ":/icons/email.png"));
+  QMetaObject::invokeMethod(edit, "SlotNewCustomTab", Qt::DirectConnection,
+                            Q_RETURN_ARG(QWidget*, page),
+                            Q_ARG(QString, "email"), Q_ARG(QString, title),
+                            Q_ARG(QIcon, QIcon(":/icons/email.png")),
+                            Q_ARG(QString, ":/icons/email.png"));
 
   if (page == nullptr) {
     MLogWarn("the host did not create a tab for the derived message");

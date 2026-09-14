@@ -440,6 +440,7 @@ auto GFRegisterModule() -> int {
   qRegisterMetaType<QList<EMailFolderInfo>>("QList<EMailFolderInfo>");
   qRegisterMetaType<EMailMessageSummary>("EMailMessageSummary");
   qRegisterMetaType<EMailMessagePage>("EMailMessagePage");
+  qRegisterMetaType<EMailFolderValidators>("EMailFolderValidators");
   qRegisterMetaType<EMailOutgoingMessage>("EMailOutgoingMessage");
   qRegisterMetaType<EMailSendReceipt>("EMailSendReceipt");
   // Crosses a thread boundary as a queued signal argument, so it has to be

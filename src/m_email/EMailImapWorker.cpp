@@ -33,6 +33,7 @@
 #include <optional>
 #include <string>
 #include <vmime/net/imap/IMAPFolder.hpp>
+#include <vmime/net/imap/IMAPFolderStatus.hpp>
 #include <vmime/net/imap/IMAPSearchAttributes.hpp>
 #include <vmime/security/defaultAuthenticator.hpp>
 
@@ -563,6 +564,74 @@ auto SummarizeMessage(const vmime::shared_ptr<vmime::net::message>& message)
 
 }  // namespace
 
+namespace {
+
+/// The comparable facts about an open or named folder, or an unknown-valued
+/// EMailFolderValidators when the server will not say.
+auto ReadFolderValidators(const vmime::shared_ptr<vmime::net::folder>& folder)
+    -> EMailFolderValidators {
+  if (!folder) return {};
+
+  try {
+    auto status = folder->getStatus();
+    if (!status) return {};
+
+    EMailFolderValidators validators;
+    validators.known = true;
+    validators.message_count = static_cast<quint64>(status->getMessageCount());
+
+    // The UID fields are IMAP's, not the generic folder interface's.
+    auto imap_status =
+        vmime::dynamicCast<vmime::net::imap::IMAPFolderStatus>(status);
+    if (imap_status) {
+      validators.uid_validity =
+          static_cast<quint32>(imap_status->getUIDValidity());
+      validators.uid_next = static_cast<quint32>(imap_status->getUIDNext());
+      validators.highest_mod_seq =
+          static_cast<quint64>(imap_status->getHighestModSeq());
+    }
+
+    // A server that reports no UIDVALIDITY has given nothing a cache can be
+    // keyed on, whatever else it said.
+    if (validators.uid_validity == 0) return {};
+
+    return validators;
+  } catch (...) {
+    return {};
+  }
+}
+
+}  // namespace
+
+void EMailImapWorker::FolderStatus(quint64 seq, const QString& folder_path) {
+  const CancelScope cancel_scope(token_, seq, impl_->timeouts);
+
+  // Nothing to report, and deliberately not an error: the caller's fallback is
+  // to fetch the listing, which is exactly what it would have done anyway.
+  if (cancel_scope.Cancelled() || !impl_->store) {
+    emit SignalFolderStatus(seq, folder_path, {});
+    return;
+  }
+
+  try {
+    // STATUS does not need the folder selected, so this must not open one --
+    // opening is what the round trip is being spent to avoid. An already-open
+    // folder is reused rather than fetched again, because a second live object
+    // on the same path is what OpenFolderReadOnly() exists to prevent.
+    vmime::shared_ptr<vmime::net::folder> folder;
+    if (impl_->folder && impl_->folder_path == folder_path) {
+      folder = impl_->folder;
+    } else {
+      folder = impl_->store->getFolder(vmime::utility::path::fromString(
+          folder_path.toStdString(), "/", vmime::charsets::UTF_8));
+    }
+
+    emit SignalFolderStatus(seq, folder_path, ReadFolderValidators(folder));
+  } catch (...) {
+    emit SignalFolderStatus(seq, folder_path, {});
+  }
+}
+
 void EMailImapWorker::ListMessages(quint64 seq, const QString& folder_path,
                                    quint64 before_seq, int page_size,
                                    int retained) {
@@ -586,6 +655,11 @@ void EMailImapWorker::ListMessages(quint64 seq, const QString& folder_path,
     const auto size = MailClampPageSize(page_size);
 
     EMailMessagePage page;
+    // Read once, here, and carried on every return path below: these rows and
+    // the validators that describe them have to come from the same moment, or
+    // a later visit would compare its STATUS against a folder state that was
+    // never the one these rows were read from.
+    page.validators = ReadFolderValidators(folder);
     if (total == 0) {
       emit SignalMessages(seq, page);
       return;

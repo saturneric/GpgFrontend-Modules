@@ -246,7 +246,6 @@ struct EMailRegionVerdict {
   EMailBadgeState verdict{EMailBadgeState::kSIGNED_UNVERIFIED};
 };
 
-
 /**
  * @brief One recipient an encrypted message was actually encrypted to.
  *

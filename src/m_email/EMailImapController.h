@@ -28,6 +28,7 @@
 
 #pragma once
 
+#include <QDateTime>
 #include <QDialog>
 #include <QHash>
 #include <QList>
@@ -82,6 +83,10 @@ class EMailImapController : public QDialog {
 
  protected:
   void closeEvent(QCloseEvent* event) override;
+
+  /// Every dismissal -- Close, Escape, accept -- passes through here, which
+  /// closeEvent() does not: reject() never delivers one.
+  void done(int result) override;
   void changeEvent(QEvent* event) override;
   /// Watches the Message-ID label so its elision follows the pane's width.
   auto eventFilter(QObject* watched, QEvent* event) -> bool override;
@@ -139,23 +144,74 @@ class EMailImapController : public QDialog {
    * marked provisional until a refresh confirms them, so a stale row is never
    * mistaken for current server state.
    */
-  struct AccountViewState {
-    QList<EMailFolderInfo> folders;
+  /// One folder's page, and the folder state it was read under.
+  struct FolderViewState {
     QList<EMailMessageSummary> rows;
-    QString folder;
-    QString search;
     QList<quint64> page_starts;
     int page_index{0};
     int remaining{0};
+
+    /// Compared against a fresh STATUS to decide whether `rows` may be shown
+    /// as current.
+    EMailFolderValidators validators;
+
+    /// Orders eviction when the cap below is reached: the folders a user
+    /// actually moves between are the ones worth keeping.
+    QDateTime used_at;
   };
+
+  struct AccountViewState {
+    QList<EMailFolderInfo> folders;
+    QString folder;  ///< the one that was on screen last
+    QString search;
+
+    /// Per folder, so moving between folders and back does not re-fetch each
+    /// time. Bounded by kMaxCachedFolders; these are envelopes, never bodies.
+    QHash<QString, FolderViewState> views;
+  };
+
+  /// How many folders' listings are worth keeping per account. Each is a page
+  /// of envelopes -- subject, sender, date -- so this is kilobytes, not
+  /// megabytes; the cap exists so a user who walks a large folder tree does
+  /// not accumulate without bound.
+  static constexpr int kMaxCachedFolders = 12;
 
   /// Marks accounts the controller cannot use, with the reason.
   void refresh_account_availability();
   /// Disables one account after it has failed, so it is not retried blindly.
   void disable_account(const QString& account_id, const QString& reason);
   void remember_current_account();
+  /// Files the folder currently on screen into @p state, evicting the least
+  /// recently used once the cap is reached.
+  void remember_current_folder(AccountViewState& state);
+  /// Shows the cached page for @p folder and asks the server to vouch for it.
+  /// Returns false when there is nothing usable cached.
+  auto restore_cached_folder(const QString& folder) -> bool;
+  /// Asks the server to vouch for the cached page now on screen. Returns false
+  /// when there is nothing cached to vouch for, and the caller must fetch.
+  auto probe_cached_folder() -> bool;
+  /**
+   * @brief The cached views, one per account, for the life of the process.
+   *
+   * Deliberately NOT a member: this dialog is created fresh on every open and
+   * destroyed with WA_DeleteOnClose, so a cache living in the instance died
+   * with it and the second open paid for the same folder listing and the same
+   * page of envelopes as the first.
+   *
+   * In memory only. Nothing here reaches disk, so a mailbox's subjects and
+   * senders do not outlive the program that was asked to show them.
+   */
+  static auto view_cache() -> QHash<QString, AccountViewState>&;
+
+  /// The account that was open when the picker was last dismissed, so the next
+  /// open returns to it rather than to the configured default.
+  static auto last_account() -> QString&;
+
   /// Restores a cached view for @p account_id, if there is one.
   auto restore_cached_account(const QString& account_id) -> bool;
+  /// Handles a STATUS reply: either adopts the cached rows or fetches a page.
+  void handle_folder_status(quint64 seq, const QString& folder,
+                            const EMailFolderValidators& validators);
 
   void refresh_detail();
   /// Shows the list or the sentence standing in for it.
@@ -177,7 +233,24 @@ class EMailImapController : public QDialog {
   QList<MailAccountConfig> accounts_;
   QList<EMailFolderInfo> folders_;
   QList<EMailMessageSummary> rows_;
-  QHash<QString, AccountViewState> cache_;
+  /// Whether the rows on screen came from the cache and have since been
+  /// confirmed current by a STATUS that matched. They are then as good as
+  /// freshly fetched, so they are drawn normally rather than dimmed.
+  bool cache_confirmed_{false};
+
+  /// The validators the cached rows were fetched under, and the ones the
+  /// server reports now. Equal means the cached page is still the page.
+  EMailFolderValidators cached_validators_;
+  EMailFolderValidators folder_validators_;
+
+  /// The folder the cached rows belong to. The picker may open on a different
+  /// folder than the one that was cached, and rows from one folder must never
+  /// be vouched for by another folder's STATUS.
+  QString cached_folder_;
+
+  /// The folder a pending STATUS is asking about, so a late reply for a folder
+  /// the user has already left is ignored rather than acted on.
+  QString status_probe_folder_;
   QString current_account_id_;
   /// Accounts that cannot be browsed, and why. Keyed by account id.
   /// The empty-state widgets, kept so a theme change can recolour them.

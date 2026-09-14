@@ -32,9 +32,9 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QJsonArray>
-#include <QLocale>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QLocale>
 #include <QRegularExpression>
 #include <QTimeZone>
 #include <QUrl>
@@ -1729,7 +1729,8 @@ auto FindEncryptedCiphertextPart(const EMailPart& root) -> const EMailPart* {
   // whose recipients can be read with any confidence.
   if (root.content_type == "multipart/encrypted" && root.children.size() == 2) {
     const auto& body = root.children.at(1);
-    if (body.content_type == "application/octet-stream" && !body.data.isEmpty()) {
+    if (body.content_type == "application/octet-stream" &&
+        !body.data.isEmpty()) {
       return &body;
     }
   }
@@ -1799,7 +1800,8 @@ auto TabTitleForSubject(const QString& subject) -> QString {
   // other tab off the bar.
   constexpr int kMaxTabTitleChars = 40;
   if (title.size() > kMaxTabTitleChars) {
-    title = title.left(kMaxTabTitleChars - 1).trimmed() + QString(QChar(0x2026));
+    title =
+        title.left(kMaxTabTitleChars - 1).trimmed() + QString(QChar(0x2026));
   }
 
   return title;
@@ -1834,8 +1836,8 @@ auto BuildQuotedBody(const EMailMetaData& source, EMailReplyMode mode)
     if (source.datetime.isValid()) {
       const auto when = QLocale::system().toString(
           source.datetime.toLocalTime(), QLocale::ShortFormat);
-      out += "\n" +
-             QObject::tr("On %1, %2 wrote:").arg(when, source.from) + "\n";
+      out +=
+          "\n" + QObject::tr("On %1, %2 wrote:").arg(when, source.from) + "\n";
     } else {
       out += "\n" + QObject::tr("%1 wrote:").arg(source.from) + "\n";
     }

@@ -162,12 +162,22 @@ EMailImapController::EMailImapController(QWidget* parent) : QDialog(parent) {
 
   refresh_account_availability();
 
+  // Where the user was last time, in preference to the configured default:
+  // reopening the picker is almost always a return to what was being read, and
+  // the default account is a statement about SENDING. A remembered account
+  // that has since been removed or become unusable simply does not match, and
+  // the default is used as before.
   const auto preferred = EMailAccountStore::DefaultAccount();
+  const auto& remembered = last_account();
   int start = -1;
   for (int i = 0; i < accounts_.size(); ++i) {
     if (unusable_.contains(accounts_.at(i).id)) continue;
     if (start < 0) start = i;
-    if (accounts_.at(i).id == preferred.id) {
+    if (!remembered.isEmpty() && accounts_.at(i).id == remembered) {
+      start = i;
+      break;
+    }
+    if (remembered.isEmpty() && accounts_.at(i).id == preferred.id) {
       start = i;
       break;
     }
@@ -648,6 +658,8 @@ void EMailImapController::start_worker() {
           &EMailImapController::handle_connected);
   connect(worker_, &EMailImapWorker::SignalFolders, this,
           &EMailImapController::handle_folders);
+  connect(worker_, &EMailImapWorker::SignalFolderStatus, this,
+          &EMailImapController::handle_folder_status);
   connect(worker_, &EMailImapWorker::SignalMessages, this,
           &EMailImapController::handle_messages);
   connect(worker_, &EMailImapWorker::SignalMessageFetched, this,
@@ -696,6 +708,21 @@ void EMailImapController::closeEvent(QCloseEvent* event) {
   closing_ = true;
   if (worker_ != nullptr) worker_->Token()->CancelAll();
   QDialog::closeEvent(event);
+}
+
+void EMailImapController::done(int result) {
+  // Here rather than in closeEvent(), which is the whole reason the cache
+  // appeared not to work: the Close button and Escape both go through
+  // reject(), and reject() does NOT deliver a close event -- only the window's
+  // own X button does. done() is the one path every dismissal takes.
+  //
+  // Leaving the picker is the ordinary way to finish with it, so it is the
+  // case the cache exists to survive; remembering only on an account switch
+  // meant the cache was written by the one path a user with a single account
+  // never takes.
+  remember_current_account();
+
+  QDialog::done(result);
 }
 
 void EMailImapController::connect_to_selected_account() {
@@ -801,36 +828,78 @@ void EMailImapController::slot_refresh() {
   request_page(true);
 }
 
+auto EMailImapController::last_account() -> QString& {
+  // Alongside view_cache(), and with the same lifetime and the same reason:
+  // the dialog cannot remember anything itself, because it is destroyed every
+  // time it closes.
+  static QString account_id;
+  return account_id;
+}
+
+auto EMailImapController::view_cache() -> QHash<QString, AccountViewState>& {
+  // Function-local static: constructed on first use, never destroyed before
+  // the process ends, and only ever touched from the GUI thread (every caller
+  // is a slot on this dialog).
+  static QHash<QString, AccountViewState> cache;
+  return cache;
+}
+
+void EMailImapController::remember_current_folder(AccountViewState& state) {
+  if (current_folder_.isEmpty() || rows_.isEmpty()) return;
+
+  // Only rows the server has vouched for. Filing a provisional view would let
+  // a stale page outlive the one refresh that was going to correct it.
+  if (showing_cached_ && !cache_confirmed_) return;
+  if (!folder_validators_.known) return;
+
+  FolderViewState view;
+  view.rows = rows_;
+  view.page_starts = page_starts_;
+  view.page_index = page_index_;
+  view.remaining = remaining_;
+  view.validators = folder_validators_;
+  view.used_at = QDateTime::currentDateTimeUtc();
+  state.views.insert(current_folder_, view);
+
+  // Bounded: a user walking a large tree would otherwise keep every folder
+  // they glanced at for the life of the process.
+  while (state.views.size() > kMaxCachedFolders) {
+    QString oldest;
+    QDateTime oldest_at;
+    for (auto it = state.views.constBegin(); it != state.views.constEnd();
+         ++it) {
+      if (it.key() == current_folder_) continue;
+      if (oldest.isEmpty() || it->used_at < oldest_at) {
+        oldest = it.key();
+        oldest_at = it->used_at;
+      }
+    }
+    if (oldest.isEmpty()) break;
+    state.views.remove(oldest);
+  }
+}
+
 void EMailImapController::remember_current_account() {
   if (current_account_id_.isEmpty()) return;
 
-  // Only confirmed rows are worth keeping. Caching a provisional view would
-  // let a stale list outlive the one refresh that was going to correct it.
-  if (showing_cached_) return;
+  last_account() = current_account_id_;
 
-  AccountViewState state;
-  state.folders = folders_;
-  state.rows = rows_;
-  state.folder = current_folder_;
+  auto& state = view_cache()[current_account_id_];
+  if (!folders_.isEmpty()) state.folders = folders_;
+  if (!current_folder_.isEmpty()) state.folder = current_folder_;
   state.search = search_edit_->text();
-  state.page_starts = page_starts_;
-  state.page_index = page_index_;
-  state.remaining = remaining_;
-  cache_.insert(current_account_id_, state);
+
+  remember_current_folder(state);
 }
 
 auto EMailImapController::restore_cached_account(const QString& account_id)
     -> bool {
-  const auto it = cache_.constFind(account_id);
-  if (it == cache_.constEnd() || it->folders.isEmpty()) return false;
+  const auto& cache = view_cache();
+  const auto it = cache.constFind(account_id);
+  if (it == cache.constEnd() || it->folders.isEmpty()) return false;
 
   folders_ = it->folders;
-  rows_ = it->rows;
   current_folder_ = it->folder;
-  page_starts_ = it->page_starts;
-  page_index_ = it->page_index;
-  remaining_ = it->remaining;
-  showing_cached_ = true;
 
   folder_combo_->blockSignals(true);
   folder_combo_->clear();
@@ -841,6 +910,56 @@ auto EMailImapController::restore_cached_account(const QString& account_id)
     break;
   }
   folder_combo_->blockSignals(false);
+
+  // The folder list alone is worth showing even when that folder's page is
+  // not cached: the combo is populated and the user can choose immediately.
+  const auto view = it->views.constFind(current_folder_);
+  if (view == it->views.constEnd() || view->rows.isEmpty()) {
+    rows_.clear();
+    cached_validators_ = {};
+    cached_folder_.clear();
+    showing_cached_ = false;
+    cache_confirmed_ = false;
+    refresh_table();
+    return true;
+  }
+
+  rows_ = view->rows;
+  page_starts_ = view->page_starts;
+  page_index_ = view->page_index;
+  remaining_ = view->remaining;
+  cached_validators_ = view->validators;
+  cached_folder_ = current_folder_;
+  folder_validators_ = {};
+  showing_cached_ = true;
+  cache_confirmed_ = false;
+
+  refresh_table();
+  return true;
+}
+
+auto EMailImapController::restore_cached_folder(const QString& folder) -> bool {
+  if (current_account_id_.isEmpty() || folder.isEmpty()) return false;
+
+  const auto& cache = view_cache();
+  const auto account = cache.constFind(current_account_id_);
+  if (account == cache.constEnd()) return false;
+
+  const auto view = account->views.constFind(folder);
+  if (view == account->views.constEnd() || view->rows.isEmpty() ||
+      !view->validators.known) {
+    return false;
+  }
+
+  rows_ = view->rows;
+  page_starts_ = view->page_starts;
+  page_index_ = view->page_index;
+  remaining_ = view->remaining;
+  cached_validators_ = view->validators;
+  cached_folder_ = folder;
+  folder_validators_ = {};
+  showing_cached_ = true;
+  cache_confirmed_ = false;
 
   refresh_table();
   return true;
@@ -1072,10 +1191,23 @@ void EMailImapController::slot_folder_changed() {
   const auto index = folder_combo_->currentIndex();
   if (index < 0 || index >= folders_.size()) return;
 
+  // File the page being left before it is replaced, so coming back to it is
+  // the same cheap STATUS as coming back to the account.
+  if (!current_account_id_.isEmpty()) {
+    remember_current_folder(view_cache()[current_account_id_]);
+  }
+
   current_folder_ = folders_.at(index).path;
   searching_ = false;
   search_edit_->clear();
   showing_cached_ = false;
+  cache_confirmed_ = false;
+
+  // Shows this folder's last page immediately, provisionally, and asks the
+  // server whether it still holds. A folder the user moves back and forth
+  // between is then one round trip rather than a page of envelopes.
+  if (restore_cached_folder(current_folder_) && probe_cached_folder()) return;
+
   request_page(true);
 }
 
@@ -1206,7 +1338,65 @@ void EMailImapController::handle_folders(
   folder_combo_->blockSignals(false);
 
   current_folder_ = folders_.at(start).path;
+
+  if (probe_cached_folder()) return;
+
   request_page(true);
+}
+
+auto EMailImapController::probe_cached_folder() -> bool {
+  // A cached page for exactly this folder is worth one STATUS before it is
+  // thrown away: if nothing in the mailbox has moved, the envelopes already in
+  // hand ARE the current listing, and fetching them again would spend a page
+  // of round trips to arrive at the same rows.
+  if (worker_ == nullptr || searching_) return false;
+  if (!showing_cached_ || rows_.isEmpty()) return false;
+  if (!cached_validators_.known || current_folder_ != cached_folder_) {
+    return false;
+  }
+
+  status_probe_folder_ = current_folder_;
+  const auto probe_seq = next_seq();
+  set_busy(true, tr("Checking for new messages..."));
+  QMetaObject::invokeMethod(worker_, "FolderStatus", Qt::QueuedConnection,
+                            Q_ARG(quint64, probe_seq),
+                            Q_ARG(QString, current_folder_));
+  return true;
+}
+
+void EMailImapController::handle_folder_status(
+    quint64 seq, const QString& folder,
+    const EMailFolderValidators& validators) {
+  if (!is_current(seq)) return;
+
+  // The user moved on while this was in flight, so whatever it says is about
+  // a folder that is no longer on screen.
+  if (folder != status_probe_folder_ || folder != current_folder_) {
+    set_busy(false, {});
+    request_page(true);
+    return;
+  }
+  status_probe_folder_.clear();
+
+  folder_validators_ = validators;
+
+  // Anything other than a clean match -- a changed UIDVALIDITY, new mail, an
+  // expunge, a flag moved elsewhere, or a server that would not answer -- is
+  // handled the same way: fetch the page. The shortcut is only ever taken when
+  // the server has positively said nothing changed.
+  if (!validators.SameAs(cached_validators_)) {
+    request_page(true);
+    return;
+  }
+
+  // Confirmed current. The rows stop being provisional, so they are drawn
+  // normally rather than dimmed, and are worth caching again.
+  showing_cached_ = false;
+  cache_confirmed_ = true;
+  set_busy(false, tr("Up to date."));
+  refresh_table();
+  refresh_page_controls(false);
+  refresh_idle_state();
 }
 
 void EMailImapController::handle_messages(quint64 seq,
@@ -1224,6 +1414,13 @@ void EMailImapController::handle_messages(quint64 seq,
   // memory flat no matter how far the user pages into a large mailbox.
   rows_ = page.rows;
   remaining_ = page.remaining;
+
+  // What these rows were read under, so the next visit has something to
+  // compare a STATUS against.
+  folder_validators_ = page.validators;
+  cached_folder_ = current_folder_;
+  cached_validators_ = page.validators;
+  cache_confirmed_ = false;
 
   refresh_table();
   refresh_page_controls(page.capped);
