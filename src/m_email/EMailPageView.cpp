@@ -29,7 +29,9 @@
 #include "EMailPageView.h"
 
 #include <GFSDKGpg.h>
+#include <GFSDKGpgList.h>
 
+#include <GFSDKBuffer.hpp>
 #include <QAbstractItemView>
 #include <QApplication>
 #include <QButtonGroup>
@@ -1934,27 +1936,28 @@ void EMailPageView::refresh_locked_capability(const QStringList& named) {
   // for mail encrypted to someone else who happened to share an address.
   const auto* ciphertext = FindEncryptedCiphertextPart(tree_root_);
   if (ciphertext != nullptr) {
-    GFGpgEncRecipient* raw = nullptr;
-    int count = 0;
-    if (GFGpgSniffEncryptedRecipients(
-            GFGpgCurrentGpgContextChannel(), ciphertext->data.constData(),
-            static_cast<int>(ciphertext->data.size()), &raw, &count) == 0) {
+    auto in = GFBuf::Copy(ciphertext->data);
+    GFGpgRecipientListRef list = nullptr;
+    if (GFGpgSniffRecipients(GFGpgCurrentGpgContextChannel(), in.View(),
+                             &list) == 0) {
+      const auto count = GFGpgRecipientListCount(list);
       QList<EMailEncRecipient> recipients;
-      recipients.reserve(count);
-      for (int i = 0; i < count; ++i) {
-        // Copied rather than taken: these strings belong to the array that
-        // GFGpgFreeEncRecipients releases as a whole.
+      recipients.reserve(static_cast<qsizetype>(count));
+      for (size_t i = 0; i < count; ++i) {
+        // Copied rather than taken: every accessor here returns a BORROWED
+        // pointer that dies with the list. There is no per-element free to
+        // get wrong, and no count to hand back on release.
         recipients.append(EMailEncRecipient{
-            QString::fromUtf8(raw[i].key_id),
-            QString::fromUtf8(raw[i].pub_algo),
-            QString::fromUtf8(raw[i].fingerprint),
-            QString::fromUtf8(raw[i].uid),
-            raw[i].key_found != 0,
-            raw[i].has_secret != 0,
-            raw[i].hidden != 0,
+            QString::fromUtf8(GFGpgRecipientKeyId(list, i)),
+            QString::fromUtf8(GFGpgRecipientPubAlgo(list, i)),
+            QString::fromUtf8(GFGpgRecipientFingerprint(list, i)),
+            QString::fromUtf8(GFGpgRecipientUid(list, i)),
+            GFGpgRecipientKeyFound(list, i) != 0,
+            GFGpgRecipientHasSecret(list, i) != 0,
+            GFGpgRecipientHidden(list, i) != 0,
         });
       }
-      GFGpgFreeEncRecipients(raw, count);
+      GFGpgRecipientListRelease(list);
 
       if (!recipients.isEmpty()) {
         show_decrypt_capability(DescribeDecryptCapability(recipients));
@@ -2014,20 +2017,20 @@ void EMailPageView::refresh_locked_capability_by_address(
   // the key a message is encrypted to need not carry any of these addresses --
   // so it is reached only when the message itself could not be read, and every
   // wording below is hedged accordingly.
-  char** addresses = nullptr;
-  int count = 0;
-  if (GFGpgListKeyAddresses(GFGpgCurrentGpgContextChannel(), 1, &addresses,
-                            &count) != 0) {
+  GFStringListRef addresses = nullptr;
+  if (GFGpgListAddresses(GFGpgCurrentGpgContextChannel(), 1, &addresses) != 0) {
     locked_capability_->setVisible(false);
     return;
   }
 
   QStringList mine;
-  for (int i = 0; i < count; ++i) {
-    const auto address = AddressOfUid(QString::fromUtf8(addresses[i]));
+  const auto count = GFStringListCount(addresses);
+  for (size_t i = 0; i < count; ++i) {
+    const auto address =
+        AddressOfUid(QString::fromUtf8(GFStringListAt(addresses, i)));
     if (!address.isEmpty()) mine.append(address.toLower());
   }
-  GFGpgFreeStringArray(addresses, count);
+  GFStringListRelease(addresses);
 
   // Nothing knowable either way: no recipient is named, or the keyring holds
   // no private key at all. Saying something in that case would be inventing
@@ -2358,20 +2361,21 @@ void EMailPageView::refresh_send_state() {
  */
 void EMailPageView::install_address_hints() {
   const auto addresses = [](bool secret_only) {
-    char** raw = nullptr;
-    int count = 0;
-    if (GFGpgListKeyAddresses(GFGpgCurrentGpgContextChannel(),
-                              secret_only ? 1 : 0, &raw, &count) != 0) {
+    GFStringListRef raw = nullptr;
+    if (GFGpgListAddresses(GFGpgCurrentGpgContextChannel(), secret_only ? 1 : 0,
+                           &raw) != 0) {
       return QStringList{};
     }
 
+    const auto count = GFStringListCount(raw);
     QStringList out;
-    out.reserve(count);
-    // Copied rather than taken: UnStrDup FREES what it is handed, and these
-    // strings belong to the array that GFGpgFreeStringArray releases as a
-    // whole.
-    for (int i = 0; i < count; ++i) out.append(QString::fromUtf8(raw[i]));
-    GFGpgFreeStringArray(raw, count);
+    out.reserve(static_cast<qsizetype>(count));
+    // Copied rather than taken: the accessor returns a BORROWED pointer that
+    // dies with the list, which goes back in a single release below.
+    for (size_t i = 0; i < count; ++i) {
+      out.append(QString::fromUtf8(GFStringListAt(raw, i)));
+    }
+    GFStringListRelease(raw);
     return out;
   };
 

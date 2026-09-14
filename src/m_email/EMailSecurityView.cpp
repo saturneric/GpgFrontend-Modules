@@ -29,6 +29,7 @@
 #include "EMailSecurityView.h"
 
 #include <GFSDKGpg.h>
+#include <GFSDKGpgList.h>
 
 #include <QAbstractItemView>
 #include <QApplication>
@@ -529,9 +530,11 @@ void EMailSecurityView::add_key_section(const QStringList& addresses,
     if (email.isEmpty() || seen.contains(email)) continue;
     seen.append(email);
 
-    GFGpgKeyBrief* briefs = nullptr;
-    int count = 0;
-    GFGpgFindKeysByEmail(channel, email.toUtf8().constData(), &briefs, &count);
+    // The address stays ours: every SDK argument is borrowed, so the
+    // QByteArray below is safe to let die at the end of the statement.
+    GFGpgKeyBriefListRef briefs = nullptr;
+    GFGpgFindKeys(channel, email.toUtf8().constData(), &briefs);
+    const auto count = static_cast<int>(GFGpgKeyBriefListCount(briefs));
 
     auto* item = new QTreeWidgetItem(group);
     item->setText(kColItem, email);
@@ -542,31 +545,33 @@ void EMailSecurityView::add_key_section(const QStringList& addresses,
       // Recorded on the row so the menu knows this is an address with nothing
       // behind it, which is the one case where importing is worth offering.
       item->setData(kColItem, kRoleMissingKey, true);
-      GFGpgFreeKeyBriefs(briefs, count);
+      GFGpgKeyBriefListRelease(briefs);
       continue;
     }
 
     item->setText(kColValue,
                   count == 1 ? tr("1 key") : tr("%1 keys").arg(count));
 
-    for (int i = 0; i < count; ++i) {
-      const auto& brief = briefs[i];
-
+    for (size_t i = 0; i < static_cast<size_t>(count); ++i) {
+      // Borrowed accessors throughout: nothing here is separately releasable,
+      // so the whole list goes back in one call at the end.
       auto* key_item = new QTreeWidgetItem(item);
-      key_item->setText(kColItem, QString::fromUtf8(brief.uid));
+      key_item->setText(kColItem,
+                        QString::fromUtf8(GFGpgKeyBriefUid(briefs, i)));
 
       // Usability. Says whether the key can be used at all -- and nothing
       // whatsoever about whose key it is.
-      key_item->setText(
-          kColValue, tr("key is %1").arg(DescribeUsability(brief.usability)));
+      const auto usability = GFGpgKeyBriefUsability(briefs, i);
+      key_item->setText(kColValue,
+                        tr("key is %1").arg(DescribeUsability(usability)));
       EMailSetCellTone(
           key_item, kColValue,
-          brief.usability == kUSABLE ? EMailTone::kGOOD : EMailTone::kWARN,
-          this);
+          usability == kUSABLE ? EMailTone::kGOOD : EMailTone::kWARN, this);
 
       auto* fpr = new QTreeWidgetItem(key_item);
       fpr->setText(kColItem, tr("Fingerprint"));
-      fpr->setText(kColValue, QString::fromUtf8(brief.fingerprint));
+      fpr->setText(kColValue,
+                   QString::fromUtf8(GFGpgKeyBriefFingerprint(briefs, i)));
       EMailSetCellTone(fpr, kColItem, EMailTone::kMUTED, this);
 
       // Identity binding, kept as its own row. A usable key carrying this
@@ -574,11 +579,11 @@ void EMailSecurityView::add_key_section(const QStringList& addresses,
       // single combined verdict would bury.
       auto* identity = new QTreeWidgetItem(key_item);
       identity->setText(kColItem, tr("Identity"));
-      if (brief.matched_uid_revoked != 0) {
+      if (GFGpgKeyBriefMatchedUidRevoked(briefs, i) != 0) {
         identity->setText(
             kColValue, tr("this address is on a REVOKED user ID of the key"));
         EMailSetCellTone(identity, kColValue, EMailTone::kWARN, this);
-      } else if (brief.matched_uid_is_primary != 0) {
+      } else if (GFGpgKeyBriefMatchedUidIsPrimary(briefs, i) != 0) {
         identity->setText(kColValue, tr("this address is the key's primary "
                                         "user ID"));
         EMailSetCellTone(identity, kColValue, EMailTone::kGOOD, this);
@@ -588,7 +593,7 @@ void EMailSecurityView::add_key_section(const QStringList& addresses,
         EMailSetCellTone(identity, kColValue, EMailTone::kMUTED, this);
       }
 
-      if (brief.can_encrypt == 0) {
+      if (GFGpgKeyBriefCanEncrypt(briefs, i) == 0) {
         auto* note = new QTreeWidgetItem(key_item);
         note->setText(kColItem, tr("Note"));
         note->setText(kColValue, tr("this key cannot be used for encryption"));
@@ -596,7 +601,7 @@ void EMailSecurityView::add_key_section(const QStringList& addresses,
       }
     }
 
-    GFGpgFreeKeyBriefs(briefs, count);
+    GFGpgKeyBriefListRelease(briefs);
   }
 }
 
