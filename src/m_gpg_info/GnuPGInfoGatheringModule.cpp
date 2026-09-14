@@ -49,13 +49,16 @@
 #include <optional>
 
 #include "GFModuleCommonUtils.hpp"
+#include "GFModuleBootstrap.h"
 #include "GFModuleDefine.h"
 #include "GnupgTab.h"
 #include "GpgInfo.h"
 
-GF_MODULE_API_DEFINE_V2("com.bktus.gpgfrontend.module.gnupg_info_gathering",
-                        "GatherGnupgInfo", "1.2.2",
-                        "Try gathering gnupg information.", "Saturneric")
+// Ported to the single bootstrap symbol: this module now describes itself
+// through one versioned table instead of ten separately-resolved symbols.
+GF_MODULE_BOOTSTRAP_V2("com.bktus.gpgfrontend.module.gnupg_info_gathering",
+                       "GatherGnupgInfo", "1.2.2",
+                       "Try gathering gnupg information.", "Saturneric")
 
 DEFINE_TRANSLATIONS_STRUCTURE(ModuleGnuPGInfoGathering);
 

@@ -73,6 +73,7 @@
 #include <vmime/contentTypeField.hpp>
 
 #include "GFModuleCommonUtils.hpp"
+#include "GFModuleBootstrap.h"
 #include "GFModuleDefine.h"
 
 //
@@ -80,7 +81,7 @@
 #include "EMailHelper.h"
 #include "EMailVerificationPayload.h"
 
-GF_MODULE_API_DEFINE_V2("com.bktus.gpgfrontend.module.email", "Email", "2.0.0",
+GF_MODULE_BOOTSTRAP_V2("com.bktus.gpgfrontend.module.email", "Email", "2.0.0",
                         "Everything related to E-Mails.", "Saturneric")
 
 DEFINE_TRANSLATIONS_STRUCTURE(ModuleEMail);

@@ -34,6 +34,7 @@
 #include <QtNetwork>
 #include <QtWidgets>
 
+#include "GFModuleBootstrap.h"
 #include "GFModuleDefine.h"
 #include "GFSDKUI.h"
 #include "KeyServerList.h"
@@ -140,7 +141,7 @@ auto ConfirmHkpPublish(QWidget* parent, const QString& url) -> bool {
 }
 }  // namespace
 
-GF_MODULE_API_DEFINE_V2("com.bktus.gpgfrontend.module.key_server_sync",
+GF_MODULE_BOOTSTRAP_V2("com.bktus.gpgfrontend.module.key_server_sync",
                         "KeyServerSync", "1.3.2",
                         "Sync Information From Trusted Key Server.",
                         "Saturneric")
