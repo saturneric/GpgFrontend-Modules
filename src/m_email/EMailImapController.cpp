@@ -367,6 +367,29 @@ void EMailImapController::build_ui() {
   empty_notice_->setVisible(false);
   list_layout->addWidget(empty_notice_, 1);
 
+  // Work in progress, in the place the work will appear. Without this the
+  // empty notice held the pane while a folder was still loading, so every slow
+  // folder announced itself as empty -- a statement about the folder, made
+  // before anything had been fetched, and usually a false one.
+  loading_pane_ = new QWidget(list_side);
+  auto* loading_layout = new QVBoxLayout(loading_pane_);
+  loading_layout->setContentsMargins(24, 24, 24, 24);
+  loading_layout->setSpacing(12);
+  loading_layout->addStretch(1);
+
+  loading_label_ = EMailEmptyNotice(loading_pane_);
+  loading_layout->addWidget(loading_label_);
+
+  auto* loading_bar = new QProgressBar(loading_pane_);
+  loading_bar->setRange(0, 0);  // indeterminate: no total is known here
+  loading_bar->setTextVisible(false);
+  loading_bar->setFixedHeight(4);
+  loading_layout->addWidget(loading_bar);
+
+  loading_layout->addStretch(1);
+  loading_pane_->setVisible(false);
+  list_layout->addWidget(loading_pane_, 1);
+
   splitter_->addWidget(list_side);
 
   auto* detail_pane = build_detail_pane();
@@ -919,6 +942,9 @@ void EMailImapController::apply_colors() {
   if (empty_notice_ != nullptr) {
     EMailSetLabelColor(empty_notice_, EMailMutedColor(this));
   }
+  if (loading_label_ != nullptr) {
+    EMailSetLabelColor(loading_label_, EMailMutedColor(this));
+  }
 
   // These two say what they say in a colour that depends on the message being
   // shown, so they are asked to decide again rather than recoloured here.
@@ -1372,6 +1398,24 @@ void EMailImapController::refresh_empty_notice() {
   if (empty_notice_ == nullptr) return;
 
   const bool empty = rows_.isEmpty();
+
+  // Nothing to show YET is not the same as nothing to show. While a folder is
+  // being fetched the pane says so, in the place the messages will appear.
+  // Rows already on screen -- the cached ones -- are left alone: covering them
+  // to announce a refresh would take away what the user was reading.
+  if (busy_ && empty) {
+    list_->setVisible(false);
+    empty_notice_->setVisible(false);
+    if (loading_pane_ != nullptr) {
+      loading_label_->setText(busy_what_.isEmpty() ? tr("Loading...")
+                                                   : busy_what_);
+      loading_pane_->setVisible(true);
+    }
+    return;
+  }
+
+  if (loading_pane_ != nullptr) loading_pane_->setVisible(false);
+
   list_->setVisible(!empty);
   empty_notice_->setVisible(empty);
   if (!empty) return;
@@ -1387,6 +1431,11 @@ void EMailImapController::refresh_empty_notice() {
 
 void EMailImapController::set_busy(bool busy, const QString& what) {
   set_progress_visible(busy);
+
+  // Remembered so the left pane can say which work is in progress, in the
+  // caller's own words, rather than inventing a second vocabulary for it.
+  busy_ = busy;
+  busy_what_ = busy ? what : QString{};
 
   account_combo_->setEnabled(!busy);
   refresh_button_->setEnabled(!busy && account_combo_->currentIndex() >= 0);
@@ -1419,6 +1468,8 @@ void EMailImapController::set_busy(bool busy, const QString& what) {
     disconnect(cancel_button_, &QPushButton::clicked, nullptr, nullptr);
     connect(cancel_button_, &QPushButton::clicked, this, &QDialog::reject);
   }
+
+  refresh_empty_notice();
 }
 
 void EMailImapController::show_error(const MailError& error) {

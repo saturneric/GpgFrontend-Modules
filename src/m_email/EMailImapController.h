@@ -212,6 +212,14 @@ class EMailImapController : public QDialog {
 
   QComboBox* account_combo_{};
   QComboBox* folder_combo_{};
+
+  /// The left pane's "still fetching" state: shown in place of the empty
+  /// notice so a folder being loaded is never reported as a folder that is
+  /// empty. Its label carries whatever set_busy() was told the work is.
+  QWidget* loading_pane_{};
+  QLabel* loading_label_{};
+  bool busy_{};
+  QString busy_what_;
   QLineEdit* search_edit_{};
   QToolButton* refresh_button_{};
   QListWidget* list_{};
