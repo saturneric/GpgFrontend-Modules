@@ -114,15 +114,18 @@ inline auto GFHost() -> const GFHostApi* { return GFHostApiSlot(); }
  * subscribing to events.
  */
 #define GF_MODULE_BOOTSTRAP_V2(id, name, ver, desc, author)                  \
+  /* Identity strings are BORROWED statics, not fresh allocations.         */\
+  /* They used to be DUP(...)ed on every call because the SDK entry points  */\
+  /* they were passed to freed their arguments. Now that arguments are      */\
+  /* borrowed, allocating here would simply leak -- and GFGetModuleID() is  */\
+  /* called on the order of seventy times across the modules.               */\
   auto GFGetModuleGFSDKVersion() -> const char* {                            \
-    return DUP(GF_SDK_VERSION_STR);                                          \
+    return GF_SDK_VERSION_STR;                                               \
   }                                                                          \
   auto GFGetModuleGFSDKABIVersion() -> int { return GF_SDK_ABI_VERSION; }    \
-  auto GFGetModuleQtEnvVersion() -> const char* {                            \
-    return DUP(QT_VERSION_STR);                                              \
-  }                                                                          \
-  auto GFGetModuleID() -> const char* { return DUP((id)); }                  \
-  auto GFGetModuleVersion() -> const char* { return DUP((ver)); }            \
+  auto GFGetModuleQtEnvVersion() -> const char* { return QT_VERSION_STR; }   \
+  auto GFGetModuleID() -> const char* { return (id); }                       \
+  auto GFGetModuleVersion() -> const char* { return (ver); }                 \
   auto GFGetModuleMetaData() -> GFModuleMetaData* {                          \
     return QMapToGFModuleMetaDataList(                                       \
         {{"Name", (name)}, {"Description", (desc)}, {"Author", (author)}});  \

@@ -80,8 +80,8 @@ auto CheckUpdate(const QMap<QString, QString>& event) -> int {
     QObject::connect(
         task, &BKTUSVersionCheckTask::SignalUpgradeVersion,
         QThread::currentThread(), [event](const SoftwareVersion& sv) {
-          GFDurableCacheSave(DUP("update_checking_cache"),
-                             DUP(QJsonDocument(sv.ToJson()).toJson()));
+          GFDurableCacheSave("update_checking_cache",
+                             (QJsonDocument(sv.ToJson()).toJson()).constData());
           CB_SUCC(event);
         });
     QObject::connect(task, &BKTUSVersionCheckTask::SignalUpgradeVersion, task,
@@ -93,8 +93,8 @@ auto CheckUpdate(const QMap<QString, QString>& event) -> int {
     QObject::connect(
         task, &GitHubVersionCheckTask::SignalUpgradeVersion,
         QCoreApplication::instance(), [event](const SoftwareVersion& sv) {
-          GFDurableCacheSave(DUP("update_checking_cache"),
-                             DUP(QJsonDocument(sv.ToJson()).toJson()));
+          GFDurableCacheSave("update_checking_cache",
+                             (QJsonDocument(sv.ToJson()).toJson()).constData());
           CB_SUCC(event);
         });
     QObject::connect(task, &GitHubVersionCheckTask::SignalUpgradeVersion, task,
@@ -223,7 +223,7 @@ REGISTER_EVENT_HANDLER(APPLICATION_LOADED, [](const MEvent& event) -> int {
     CB_SUCC(event);
   }
 
-  auto cache = UDUP(GFDurableCacheGet(DUP("update_checking_cache")));
+  auto cache = UDUP(GFDurableCacheGet("update_checking_cache"));
   auto json = QJsonDocument::fromJson(cache.toUtf8());
 
   if (json.isEmpty() || !json.isObject()) {

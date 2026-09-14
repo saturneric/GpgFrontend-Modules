@@ -192,7 +192,7 @@ auto StartStartGatheringGnuPGComponentsInfo(const QString &gpgme_version,
   auto context = Context{gpgme_version, gpgconf_path};
 
   // get all components
-  GFExecuteCommandSync(QDUP(gpgconf_path), 3,
+  GFExecuteCommandSync((gpgconf_path).toUtf8().constData(), 3,
                        QStringListToCharArray({"--homedir", default_home_path,
                                                "--list-components"}),
                        GetGpgComponentInfos, &context);
@@ -202,11 +202,11 @@ auto StartStartGatheringGnuPGComponentsInfo(const QString &gpgme_version,
 
 auto StartGatheringAllGnuPGInfo() -> int {
   const auto gpgme_version = UDUP(GFModuleRetrieveRTValueOrDefault(
-      DUP("core"), DUP("gpgme.version"), DUP("0.0.0")));
+      "core", "gpgme.version", "0.0.0"));
   MLogDebug(QString("got gpgme version from rt: %1").arg(gpgme_version));
 
   const auto gpgconf_path = UDUP(GFModuleRetrieveRTValueOrDefault(
-      DUP("core"), DUP("gpgme.ctx.gpgconf_path"), DUP("")));
+      "core", "gpgme.ctx.gpgconf_path", ""));
   MLogDebug(QString("got gpgconf path from rt: %1").arg(gpgconf_path));
 
   if (gpgconf_path.isEmpty()) {
@@ -215,7 +215,7 @@ auto StartGatheringAllGnuPGInfo() -> int {
   }
 
   auto default_home_path = UDUP(GFModuleRetrieveRTValueOrDefault(
-      DUP("core"), DUP("gpgme.ctx.default_database_path"), DUP("")));
+      "core", "gpgme.ctx.default_database_path", ""));
   MLogDebug(
       QString("got default home path from rt: %1").arg(default_home_path));
 
@@ -229,14 +229,18 @@ auto StartGatheringAllGnuPGInfo() -> int {
 
   QList<GFCommandExecuteContext> exec_contexts;
 
+  // NOT borrowed: GFCommandExecuteContext is one of the few remaining
+  // structs the module hands over wholesale, and GFExecuteCommandBatchSync
+  // still reclaims its cmd and argv. The ownership rule applies to function
+  // ARGUMENTS; this field is part of a transferred struct.
   auto exec_context = GFCommandExecuteContext{
-      QDUP(gpgconf_path), 3,
+      GFModuleStrDup(gpgconf_path.toUtf8().constData()), 3,
       QStringListToCharArray({"--homedir", default_home_path, "--list-dirs"}),
       GetGpgDirectoryInfos, nullptr};
   exec_contexts.push_back(exec_context);
 
   char **components_c_array;
-  int ret = GFModuleListRTChildKeys(GFGetModuleID(), DUP("gnupg.components"),
+  int ret = GFModuleListRTChildKeys(GFGetModuleID(), "gnupg.components",
                                     &components_c_array);
   if (components_c_array == nullptr || ret == 0) return -1;
 
@@ -249,7 +253,7 @@ auto StartGatheringAllGnuPGInfo() -> int {
   for (const auto &component : components) {
     const auto *component_info_json = GFModuleRetrieveRTValueOrDefault(
         GFGetModuleID(),
-        DUP(QString("gnupg.components.%1").arg(component).toUtf8()), nullptr);
+        (QString("gnupg.components.%1").arg(component).toUtf8()).constData(), nullptr);
 
     if (component_info_json == nullptr) continue;
 
@@ -272,8 +276,9 @@ auto StartGatheringAllGnuPGInfo() -> int {
     auto *context = new (GFAllocateMemory(sizeof(Context)))
         Context{gpgme_version, gpgconf_path, component_info};
 
+    // Transferred, see the note above.
     auto exec_context = GFCommandExecuteContext{
-        QDUP(gpgconf_path), 4,
+        GFModuleStrDup(gpgconf_path.toUtf8().constData()), 4,
         QStringListToCharArray({"--homedir", default_home_path,
                                 "--list-options", component_info.name}),
         GetGpgOptionInfos, context};
@@ -282,7 +287,7 @@ auto StartGatheringAllGnuPGInfo() -> int {
 
   GFExecuteCommandBatchSync(QListToArray(exec_contexts),
                             static_cast<int>(exec_contexts.size()));
-  GFModuleUpsertRTValueBool(GFGetModuleID(), DUP("gnupg.gathering_done"), 1);
+  GFModuleUpsertRTValueBool(GFGetModuleID(), "gnupg.gathering_done", 1);
 
   return 0;
 }
@@ -370,11 +375,11 @@ void GetGpgComponentInfos(void *data, int exit_code, const char *out,
   auto const jsonlized_gpgme_component_info = c_i_gpgme.Json();
   auto const jsonlized_gpgconf_component_info = c_i_gpgconf.Json();
   GFModuleUpsertRTValue(
-      GFGetModuleID(), DUP("gnupg.components.gpgme"),
-      DUP(QJsonDocument(jsonlized_gpgme_component_info).toJson()));
+      GFGetModuleID(), "gnupg.components.gpgme",
+      (QJsonDocument(jsonlized_gpgme_component_info).toJson()).constData());
   GFModuleUpsertRTValue(
-      GFGetModuleID(), DUP("gnupg.components.gpgconf"),
-      DUP(QJsonDocument(jsonlized_gpgconf_component_info).toJson()));
+      GFGetModuleID(), "gnupg.components.gpgconf",
+      (QJsonDocument(jsonlized_gpgconf_component_info).toJson()).constData());
 
   auto line_split_list = p_out.split("\n");
 
@@ -406,19 +411,19 @@ void GetGpgComponentInfos(void *data, int exit_code, const char *out,
 
     if (component_name == "gpg") {
       version = GFModuleRetrieveRTValueOrDefault(
-          DUP("core"), DUP("gpgme.ctx.gnupg_version"), DUP("2.0.0"));
+          "core", "gpgme.ctx.gnupg_version", "2.0.0");
     }
     if (component_name == "gpg-agent") {
-      GFModuleUpsertRTValue(GFGetModuleID(), DUP("gnupg.gpg_agent_path"),
-                            DUP(QString(component_path).toUtf8()));
+      GFModuleUpsertRTValue(GFGetModuleID(), "gnupg.gpg_agent_path",
+                            (QString(component_path).toUtf8()).constData());
     }
     if (component_name == "dirmngr") {
-      GFModuleUpsertRTValue(GFGetModuleID(), DUP("gnupg.dirmngr_path"),
-                            DUP(QString(component_path).toUtf8()));
+      GFModuleUpsertRTValue(GFGetModuleID(), "gnupg.dirmngr_path",
+                            (QString(component_path).toUtf8()).constData());
     }
     if (component_name == "keyboxd") {
-      GFModuleUpsertRTValue(GFGetModuleID(), DUP("gnupg.keyboxd_path"),
-                            DUP(QString(component_path).toUtf8()));
+      GFModuleUpsertRTValue(GFGetModuleID(), "gnupg.keyboxd_path",
+                            (QString(component_path).toUtf8()).constData());
     }
 
     {
@@ -434,8 +439,8 @@ void GetGpgComponentInfos(void *data, int exit_code, const char *out,
       auto const jsonlized_component_info = c_i.Json();
       GFModuleUpsertRTValue(
           GFGetModuleID(),
-          DUP(QString("gnupg.components.%1").arg(component_name).toUtf8()),
-          DUP(QJsonDocument(jsonlized_component_info).toJson()));
+          (QString("gnupg.components.%1").arg(component_name).toUtf8()).constData(),
+          (QJsonDocument(jsonlized_component_info).toJson()).constData());
 
       component_infos.push_back(c_i);
     }
@@ -471,14 +476,14 @@ void GetGpgDirectoryInfos(void *, int exit_code, const char *out,
 
     // record gnupg home path
     if (configuration_name == "homedir") {
-      GFModuleUpsertRTValue(GFGetModuleID(), DUP("gnupg.home_path"),
-                            DUP(configuration_value.toUtf8()));
+      GFModuleUpsertRTValue(GFGetModuleID(), "gnupg.home_path",
+                            (configuration_value.toUtf8()).constData());
     }
 
     GFModuleUpsertRTValue(
         GFGetModuleID(),
-        DUP(QString("gnupg.dirs.%1").arg(configuration_name).toUtf8()),
-        DUP(configuration_value.toUtf8()));
+        (QString("gnupg.dirs.%1").arg(configuration_name).toUtf8()).constData(),
+        (configuration_value.toUtf8()).constData());
   }
 }
 
@@ -540,11 +545,11 @@ void GetGpgOptionInfos(void *data, int exit_code, const char *out,
 
     auto const jsonlized_option_info = info.Json();
     GFModuleUpsertRTValue(GFGetModuleID(),
-                          DUP(QString("gnupg.components.%1.options.%2")
+                          (QString("gnupg.components.%1.options.%2")
                                   .arg(component_name)
                                   .arg(option_name)
-                                  .toUtf8()),
-                          DUP(QJsonDocument(jsonlized_option_info).toJson()));
+                                  .toUtf8()).constData(),
+                          (QJsonDocument(jsonlized_option_info).toJson()).constData());
     options_infos.push_back(info);
   }
 

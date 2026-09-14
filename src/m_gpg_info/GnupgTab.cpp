@@ -116,13 +116,13 @@ GnupgTab::GnupgTab(QWidget* parent)
 
 void GnupgTab::slot_process_software_info() {
   const auto gnupg_version = UDUP(GFModuleRetrieveRTValueOrDefault(
-      DUP("core"), DUP("gpgme.ctx.gnupg_version"), DUP("2.0.0")));
+      "core", "gpgme.ctx.gnupg_version", "2.0.0"));
 
   ui_->gnupgVersionLabel->setText(QString("Version: %1").arg(gnupg_version));
 
   char** pl_components;
   auto pl_components_size = GFModuleListRTChildKeys(
-      GFGetModuleID(), DUP("gnupg.components"), &pl_components);
+      GFGetModuleID(), "gnupg.components", &pl_components);
 
   auto components = CharArrayToQStringList(pl_components, pl_components_size);
 
@@ -131,8 +131,8 @@ void GnupgTab::slot_process_software_info() {
   int row = 0;
   for (auto& component : components) {
     auto component_info_json_bytes = UDUP(GFModuleRetrieveRTValueOrDefault(
-        GFGetModuleID(), QDUP(QString("gnupg.components.%1").arg(component)),
-        DUP("")));
+        GFGetModuleID(), (QString("gnupg.components.%1").arg(component)).toUtf8().constData(),
+        ""));
 
     auto component_info_json =
         QJsonDocument::fromJson(component_info_json_bytes.toUtf8());
@@ -178,7 +178,7 @@ void GnupgTab::slot_process_software_info() {
 
   char** p_dirs;
   auto p_dirs_size =
-      GFModuleListRTChildKeys(GFGetModuleID(), DUP("gnupg.dirs"), &p_dirs);
+      GFModuleListRTChildKeys(GFGetModuleID(), "gnupg.dirs", &p_dirs);
   auto dirs = CharArrayToQStringList(p_dirs, p_dirs_size);
 
   ui_->directoriesDetailsTable->setRowCount(static_cast<int>(p_dirs_size));
@@ -186,7 +186,7 @@ void GnupgTab::slot_process_software_info() {
   row = 0;
   for (auto& dir : dirs) {
     const auto dir_path = UDUP(GFModuleRetrieveRTValueOrDefault(
-        GFGetModuleID(), QDUP(QString("gnupg.dirs.%1").arg(dir)), DUP("")));
+        GFGetModuleID(), (QString("gnupg.dirs.%1").arg(dir)).toUtf8().constData(), ""));
 
     if (dir_path.isEmpty()) continue;
 
@@ -209,7 +209,7 @@ void GnupgTab::slot_process_software_info() {
     char** p_options;
     auto p_options_size = GFModuleListRTChildKeys(
         GFGetModuleID(),
-        QDUP(QString("gnupg.components.%1.options").arg(component)),
+        (QString("gnupg.components.%1.options").arg(component)).toUtf8().constData(),
         &p_options);
     auto options = CharArrayToQStringList(p_options, p_options_size);
 
@@ -217,10 +217,10 @@ void GnupgTab::slot_process_software_info() {
       const auto option_info_json = QJsonDocument::fromJson(
           UDUP(GFModuleRetrieveRTValueOrDefault(
                    GFGetModuleID(),
-                   QDUP(QString("gnupg.components.%1.options.%2")
+                   (QString("gnupg.components.%1.options.%2")
                             .arg(component)
-                            .arg(option)),
-                   DUP("")))
+                            .arg(option)).toUtf8().constData(),
+                   ""))
               .toUtf8());
 
       if (!option_info_json.isObject()) continue;
@@ -241,17 +241,17 @@ void GnupgTab::slot_process_software_info() {
     char** pc_options;
     auto pc_options_size = GFModuleListRTChildKeys(
         GFGetModuleID(),
-        QDUP(QString("gnupg.components.%1.options").arg(component)),
+        (QString("gnupg.components.%1.options").arg(component)).toUtf8().constData(),
         &pc_options);
     auto c_options = CharArrayToQStringList(pc_options, pc_options_size);
 
     for (auto& option : c_options) {
       auto option_info_json_bytes = UDUP(GFModuleRetrieveRTValueOrDefault(
           GFGetModuleID(),
-          QDUP(QString("gnupg.components.%1.options.%2")
+          (QString("gnupg.components.%1.options.%2")
                    .arg(component)
-                   .arg(option)),
-          DUP("")));
+                   .arg(option)).toUtf8().constData(),
+          ""));
 
       auto option_info_json =
           QJsonDocument::fromJson(option_info_json_bytes.toUtf8());
@@ -324,8 +324,8 @@ GnupgTabWatcher::GnupgTabWatcher(GnupgTab* tab) {
 
   auto future = QtConcurrent::run(QThreadPool::globalInstance(), [=]() {
     if (StartGatheringAllGnuPGInfo() >= 0) {
-      GFModuleUpsertRTValueBool(DUP("ui"),
-                                DUP("env.state.gnupg_info_gathering"), 1);
+      GFModuleUpsertRTValueBool("ui",
+                                "env.state.gnupg_info_gathering", 1);
       emit SignalGnuPGInfoGathered();
     }
     this->deleteLater();
@@ -336,7 +336,7 @@ void GnupgTab::showEvent(QShowEvent* event) {
   QWidget::showEvent(event);
 
   int gathered = GFModuleRetrieveRTValueOrDefaultBool(
-      DUP("ui"), DUP("env.state.gnupg_info_gathering"), 0);
+      "ui", "env.state.gnupg_info_gathering", 0);
   if (gathered == 1) {
     slot_process_software_info();
   } else {

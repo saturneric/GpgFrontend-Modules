@@ -553,7 +553,7 @@ auto SignPlainText(int channel, const QString& key,
     signature_part_content_disp_header_field->setFilename(
         vmime::word(std::string{"OpenPGP_signature.asc"}));
 
-    auto public_key = UDUP(GFGpgPublicKey(channel, QDUP(key), 1));
+    auto public_key = UDUP(GFGpgPublicKey(channel, (key).toUtf8().constData(), 1));
     if (public_key.isEmpty()) {
       eml_data = "Get Public Key of Sign Key Failed";
       return kFAILED;
@@ -793,7 +793,7 @@ auto SignEMLData(int channel, const QString& key,
     signature_part_content_disp_header_field->setFilename(
         vmime::word(std::string{"OpenPGP_signature.asc"}));
 
-    auto public_key = UDUP(GFGpgPublicKey(channel, QDUP(key), 1));
+    auto public_key = UDUP(GFGpgPublicKey(channel, (key).toUtf8().constData(), 1));
     if (public_key.isEmpty()) {
       eml_data = "Get Public Key of Sign Key Failed";
       return kFAILED;
@@ -1198,7 +1198,7 @@ auto VerifyOneRegion(int channel, const QByteArray& raw,
   const char* info_json = nullptr;
   report.region_id = region.region_id;
   report.status = GFAnalyseVerifyResultInfoByCapsule(
-      channel, err, QDUP(capsule_id), &analyse, &cards, &info_json);
+      channel, err, (capsule_id).toUtf8().constData(), &analyse, &cards, &info_json);
   report.detail = UnStrDup(analyse);
   report.cards = UnStrDup(cards);
   report.info_json = UnStrDup(info_json).toUtf8();

@@ -49,14 +49,15 @@
 #define QSECDUP(v) QSecStrDup(v)
 #define UDUPN(v, n) UnBytesDup(v, n)
 
-#define LISTEN(event) GFModuleListenEvent(GFGetModuleID(), DUP(event))
+// No DUP: SDK arguments are borrowed now, so pre-allocating here would leak.
+#define LISTEN(event) GFModuleListenEvent(GFGetModuleID(), (event))
 
 #define DEFINE_TRANSLATIONS_STRUCTURE(name)                              \
   class GTrC {                                                           \
     Q_DECLARE_TR_FUNCTIONS(GTrC)                                         \
   };                                                                     \
   auto TranslatorDataReader(const char* p_l, char** p_d)->int {          \
-    auto locale = UDUP(p_l);                                             \
+    auto locale = QString::fromUtf8(p_l == nullptr ? "" : p_l);           \
     QFile f(QString(":/i18n/%2.%1.qm").arg(locale).arg(#name));          \
     if (f.exists() && f.open(QIODevice::ReadOnly)) {                     \
       auto b = f.readAll();                                              \
@@ -64,7 +65,7 @@
       return b.size();                                                   \
     }                                                                    \
     FLOG_WARN("%3 loading, locale: %1, not found", locale, f.fileName(), \
-              UDUP(GFGetModuleID()));                                    \
+              QString::fromUtf8(GFGetModuleID()));                       \
     *p_d = nullptr;                                                      \
     return 0;                                                            \
   }

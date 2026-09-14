@@ -175,7 +175,7 @@ auto AddressOfKey(int channel, const QString& key_id) -> QString {
   if (key_id.isEmpty()) return {};
 
   GFGpgKeyUID* uid = nullptr;
-  if (GFGpgKeyPrimaryUID(channel, QDUP(key_id), &uid) != 0 || uid == nullptr) {
+  if (GFGpgKeyPrimaryUID(channel, (key_id).toUtf8().constData(), &uid) != 0 || uid == nullptr) {
     return {};
   }
 
@@ -422,11 +422,11 @@ auto GFRegisterModule() -> int {
   // document -- this only supplies the widget shown on top of it, with the raw
   // MIME still one click away.
   GFUIRegisterTabPageView(
-      DUP("EMAIL"), [](void*) -> void* { return new EMailPageView(nullptr); },
+      "EMAIL", [](void*) -> void* { return new EMailPageView(nullptr); },
       nullptr);
 
   // register file extension handler
-  GFUIRegisterFileExtensionHandleEvent(DUP("eml"), DUP("EMAIL"));
+  GFUIRegisterFileExtensionHandleEvent("eml", "EMAIL");
 
   LISTEN("FILE_EXT_EMAIL_OP_OPEN_FILE");
 
@@ -458,8 +458,8 @@ auto GFRegisterModule() -> int {
       QStringList{GC_TR("mail"), GC_TR("email"),   GC_TR("imap"),
                   GC_TR("smtp"), GC_TR("account"), GC_TR("send")}
           .join('\n');
-  GFUIRegisterSettingsPage(DUP(kMailSettingsPageId), DUP("features"),
-                           DUP(GC_TR("Mail Accounts")), QDUP(keywords),
+  GFUIRegisterSettingsPage(kMailSettingsPageId, "features",
+                           GC_TR("Mail Accounts"), (keywords).toUtf8().constData(),
                            EMailAccountSettingsPageFactory, nullptr);
 
   // An imported key changes what an already-open message can be told about
@@ -473,8 +473,8 @@ auto GFActiveModule() -> int { return 0; }
 auto GFDeactivateModule() -> int {
   // A factory pointing into an unloaded shared object would crash the next
   // time an e-mail tab is opened.
-  GFUIUnregisterTabPageView(DUP("EMAIL"));
-  GFUIUnregisterSettingsPage(DUP(kMailSettingsPageId));
+  GFUIUnregisterTabPageView("EMAIL");
+  GFUIUnregisterSettingsPage(kMailSettingsPageId);
   return 0;
 }
 
@@ -1081,7 +1081,7 @@ auto DoDecryptEMLData(int channel, const QByteArray& data, const MEvent& event,
   // recipients rather than the rendered report. The capsule is consumed by
   // whichever analyse call touches it, so everything has to come from this one.
   result_status = GFAnalyseDecryptResultInfoByCapsule(
-      channel, err, QDUP(capsule_id), &tmp, &cards_tmp, &info_tmp);
+      channel, err, (capsule_id).toUtf8().constData(), &tmp, &cards_tmp, &info_tmp);
   result_detail = UnStrDup(tmp);
   result_cards = UnStrDup(cards_tmp);
   decrypt_info_json = UnStrDup(info_tmp).toUtf8();
@@ -1224,7 +1224,7 @@ auto DoSignEMLData(int channel, const QString& sign_key,
   // and details are what let a FAILURE explain itself, and without
   // them the board can only fall back to "<operation> failed."
   result_status = GFAnalyseSignResultInfoByCapsule(
-      channel, err, QDUP(capsule_id), &tmp, &cards_tmp, &info_tmp);
+      channel, err, (capsule_id).toUtf8().constData(), &tmp, &cards_tmp, &info_tmp);
   result_detail = UnStrDup(tmp);
   result_cards = UnStrDup(cards_tmp);
   info_json = UnStrDup(info_tmp).toUtf8();
@@ -1289,7 +1289,7 @@ auto DoSignPlainText(int channel, const QString& sign_key,
   // and details are what let a FAILURE explain itself, and without
   // them the board can only fall back to "<operation> failed."
   result_status = GFAnalyseSignResultInfoByCapsule(
-      channel, err, QDUP(capsule_id), &tmp, &cards_tmp, &info_tmp);
+      channel, err, (capsule_id).toUtf8().constData(), &tmp, &cards_tmp, &info_tmp);
   result_detail = UnStrDup(tmp);
   result_cards = UnStrDup(cards_tmp);
   info_json = UnStrDup(info_tmp).toUtf8();
@@ -1426,7 +1426,7 @@ auto DoEncryptEMLData(int channel, const QStringList& encrypt_keys,
   // and details are what let a FAILURE explain itself, and without
   // them the board can only fall back to "<operation> failed."
   result_status = GFAnalyseEncryptResultInfoByCapsule(
-      channel, err, QDUP(capsule_id), &tmp, &cards_tmp, &info_tmp);
+      channel, err, (capsule_id).toUtf8().constData(), &tmp, &cards_tmp, &info_tmp);
   result_detail = UnStrDup(tmp);
   result_cards = UnStrDup(cards_tmp);
   info_json = UnStrDup(info_tmp).toUtf8();
@@ -1494,7 +1494,7 @@ auto DoEncryptPlainText(int channel, const QStringList& encrypt_keys,
   // and details are what let a FAILURE explain itself, and without
   // them the board can only fall back to "<operation> failed."
   result_status = GFAnalyseEncryptResultInfoByCapsule(
-      channel, err, QDUP(capsule_id), &tmp, &cards_tmp, &info_tmp);
+      channel, err, (capsule_id).toUtf8().constData(), &tmp, &cards_tmp, &info_tmp);
   result_detail = UnStrDup(tmp);
   result_cards = UnStrDup(cards_tmp);
   info_json = UnStrDup(info_tmp).toUtf8();

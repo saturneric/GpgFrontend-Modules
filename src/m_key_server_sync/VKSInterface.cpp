@@ -71,7 +71,7 @@ void VKSInterface::GetByFingerprint(const QString& fingerprint) {
   // two of them can hold different versions of the same key.
   cache_key_ = QString("module:key-server-sync:key-data:%1:fpr:%2")
                    .arg(QUrl(target_key_server_).host(), fingerprint);
-  auto value = UDUP(GFCacheGet(QDUP(cache_key_)));
+  auto value = UDUP(GFCacheGet((cache_key_).toUtf8().constData()));
   if (!value.isEmpty()) {
     emit SignalKeyRetrieved(value);
     return;
@@ -87,7 +87,7 @@ void VKSInterface::GetByKeyId(const QString& key_id) {
   // search cache by first
   cache_key_ = QString("module:key-server-sync:key-data:%1:id:%2")
                    .arg(QUrl(target_key_server_).host(), key_id);
-  auto value = UDUP(GFCacheGet(QDUP(cache_key_)));
+  auto value = UDUP(GFCacheGet((cache_key_).toUtf8().constData()));
   if (!value.isEmpty()) {
     emit SignalKeyRetrieved(value);
     return;
@@ -156,7 +156,7 @@ void VKSInterface::on_reply_finished(QNetworkReply* reply) {
   if (url.path().contains("/vks/v1/by-fingerprint") ||
       url.path().contains("/vks/v1/by-keyid") ||
       url.path().contains("/vks/v1/by-email")) {
-    GFCacheSaveWithTTL(QDUP(cache_key_), QDUP(QString(response_data)), 300);
+    GFCacheSaveWithTTL((cache_key_).toUtf8().constData(), (QString(response_data)).toUtf8().constData(), 300);
     emit SignalKeyRetrieved(QString(response_data));
   } else if (url.path().contains("/vks/v1/upload")) {
     if (json_response.isObject()) {

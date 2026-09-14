@@ -95,7 +95,7 @@ auto Save(const QString& account_id, const EMailSecret& password) -> bool {
   }
 
   const auto result =
-      GFSecDurableCacheSave(QDUP(CredentialKey(account_id)), secret);
+      GFSecDurableCacheSave((CredentialKey(account_id)).toUtf8().constData(), secret);
 
   if (result != 0) LOG_ERROR("failed to store mail credential");
   return result == 0;
@@ -104,7 +104,7 @@ auto Save(const QString& account_id, const EMailSecret& password) -> bool {
 auto Load(const QString& account_id) -> EMailSecretPtr {
   if (account_id.isEmpty()) return std::make_shared<EMailSecret>();
 
-  auto* raw = GFSecDurableCacheGet(QDUP(CredentialKey(account_id)));
+  auto* raw = GFSecDurableCacheGet((CredentialKey(account_id)).toUtf8().constData());
   if (raw == nullptr) return std::make_shared<EMailSecret>();
 
   // AdoptCString copies the bytes out, wipes the SDK's buffer and frees it to
@@ -120,7 +120,7 @@ auto Has(const QString& account_id) -> bool {
 
 void Remove(const QString& account_id) {
   if (account_id.isEmpty()) return;
-  GFSecDurableCacheRemove(QDUP(CredentialKey(account_id)));
+  GFSecDurableCacheRemove((CredentialKey(account_id)).toUtf8().constData());
 }
 
 }  // namespace EMailCredentialStore

@@ -106,7 +106,7 @@ void UpdateTab::slot_show_version_status() {
   this->pb_->setHidden(true);
 
   auto is_loading_done = GFModuleRetrieveRTValueOrDefaultBool(
-      GFGetModuleID(), DUP("version.loading_done"), 0);
+      GFGetModuleID(), "version.loading_done", 0);
 
   if (is_loading_done == 0) {
     MLogDebug("version info loading haven't been done yet.");
@@ -128,25 +128,25 @@ void UpdateTab::slot_show_version_status() {
   }
 
   auto is_need_upgrade = GFModuleRetrieveRTValueOrDefaultBool(
-      GFGetModuleID(), DUP("version.need_upgrade"), 0);
+      GFGetModuleID(), "version.need_upgrade", 0);
 
   auto is_current_version_publish_in_remote =
       GFModuleRetrieveRTValueOrDefaultBool(
-          GFGetModuleID(), DUP("version.current_version_publish_in_remote"), 0);
+          GFGetModuleID(), "version.current_version_publish_in_remote", 0);
 
   auto is_current_commit_hash_publish_in_remote =
       GFModuleRetrieveRTValueOrDefaultBool(
-          GFGetModuleID(), DUP("version.current_commit_hash_publish_in_remote"),
+          GFGetModuleID(), "version.current_commit_hash_publish_in_remote",
           0);
 
   QString const latest_version = UDUP(GFModuleRetrieveRTValueOrDefault(
-      GFGetModuleID(), DUP("version.latest_version"), DUP("")));
+      GFGetModuleID(), "version.latest_version", ""));
 
   QString const release_note = UDUP(GFModuleRetrieveRTValueOrDefault(
-      GFGetModuleID(), DUP("version.release_note"), DUP("")));
+      GFGetModuleID(), "version.release_note", ""));
 
   QString const api = UDUP(GFModuleRetrieveRTValueOrDefault(
-      GFGetModuleID(), DUP("version.api"), DUP("Unknown")));
+      GFGetModuleID(), "version.api", "Unknown"));
 
   FLOG_INFO("latest version from remote: %1", latest_version);
 
@@ -215,7 +215,7 @@ void UpdateTab::slot_check_version_update() {
   pb_->show();
 
   auto api = UDUP(GFModuleRetrieveRTValueOrDefault(
-      DUP("ui"), DUP("settings.network.update_checking_api"), DUP("github")));
+      "ui", "settings.network.update_checking_api", "github"));
 
   if (api == "bktus") {
     auto* task = new BKTUSVersionCheckTask();
@@ -240,10 +240,10 @@ void UpdateTab::showEvent(QShowEvent* event) {
   QWidget::showEvent(event);
 
   auto is_loading_done = GFModuleRetrieveRTValueOrDefaultBool(
-      GFGetModuleID(), DUP("version.loading_done"), 0);
+      GFGetModuleID(), "version.loading_done", 0);
 
   auto prohibit = GFModuleRetrieveRTValueOrDefaultBool(
-      DUP("ui"), DUP("settings.network.prohibit_update_checking"), 0);
+      "ui", "settings.network.prohibit_update_checking", 0);
 
   if ((prohibit == 0) && is_loading_done == 0) {
     slot_check_version_update();
