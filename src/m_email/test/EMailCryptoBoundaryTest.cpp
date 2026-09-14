@@ -41,6 +41,7 @@
 #include <gtest/gtest.h>
 
 #include <QByteArray>
+#include <cstdint>
 #include <QCryptographicHash>
 
 #include "EMailBasicGpgOpera.h"
@@ -271,7 +272,7 @@ TEST_F(CryptoBoundaryTest, DecryptedOutputWithAnEmbeddedNulIsNotTruncated) {
 
   EMailMetaData meta;
   QByteArray out;
-  gpgme_error_t err = 0;
+  uint32_t err = 0;
   QString capsule;
   DecryptEMLData(0, eml, meta, out, err, capsule);
 
@@ -296,7 +297,7 @@ TEST_F(CryptoBoundaryTest, SigningPassesTheBodyOctetsWhole) {
   body += "line two";
 
   QByteArray eml;
-  gpgme_error_t err = 0;
+  uint32_t err = 0;
   QString capsule;
   SignPlainText(0, "DEADBEEF", meta, body, eml, err, capsule);
 
@@ -319,7 +320,7 @@ TEST_F(CryptoBoundaryTest, EncryptingPassesTheBodyOctetsWhole) {
   body += "secret two";
 
   QByteArray eml;
-  gpgme_error_t err = 0;
+  uint32_t err = 0;
   QString capsule;
   EncryptPlainText(0, QStringList{"DEADBEEF"}, meta, body, eml, err, capsule);
 
@@ -354,7 +355,7 @@ TEST_F(CryptoBoundaryTest, AnOversizedDecryptedPlaintextIsRefused) {
 
   EMailMetaData meta;
   QByteArray out;
-  gpgme_error_t err = 0;
+  uint32_t err = 0;
   QString capsule;
   const auto ret = DecryptEMLData(0, eml, meta, out, err, capsule);
 
@@ -536,7 +537,7 @@ TEST_F(CryptoBoundaryTest, DecryptOfAnUnsignedMessageKeepsThePlaintext) {
 
   EMailMetaData meta;
   QByteArray out;
-  gpgme_error_t err = 0;
+  uint32_t err = 0;
   QString capsule;
 
   ASSERT_EQ(DecryptEMLData(0, EncryptedMessage(), meta, out, err, capsule),
@@ -583,7 +584,7 @@ TEST_F(CryptoBoundaryTest, AVerifyAfterADecryptListsEachAttachmentOnce) {
 
   EMailMetaData decrypted;
   QByteArray out;
-  gpgme_error_t err = 0;
+  uint32_t err = 0;
   QString capsule;
   ASSERT_EQ(DecryptEMLData(0, EncryptedMessage(), decrypted, out, err, capsule),
             kSUCCESS);
@@ -727,7 +728,7 @@ TEST_F(CryptoBoundaryTest, ABase64CiphertextPartIsDecodedBeforeDecrypting) {
 
   EMailMetaData meta;
   QByteArray out;
-  gpgme_error_t err = 0;
+  uint32_t err = 0;
   QString capsule;
   DecryptEMLData(0, EncryptedMessageWithEncodedCiphertext("base64", encoded),
                  meta, out, err, capsule);
@@ -815,7 +816,7 @@ TEST_F(CryptoBoundaryTest, SigningDoesNotLeaveACharsetOnTheMultipart) {
   // The charset belonged to the text/plain body, which is now one part down.
   // On a multipart/signed it describes nothing at all.
   QByteArray eml;
-  gpgme_error_t err = 0;
+  uint32_t err = 0;
   QString capsule;
   ASSERT_EQ(SignPlainText(0, "DEADBEEF", MetaForSigning(), "hello", eml, err,
                           capsule),
@@ -832,7 +833,7 @@ TEST_F(CryptoBoundaryTest, EncryptingASignedMessageEmitsOneProtocol) {
   // The exact shape encrypt-and-sign produces, asserted on a message that
   // really does arrive carrying a protocol and a micalg of its own.
   QByteArray signed_eml;
-  gpgme_error_t err = 0;
+  uint32_t err = 0;
   QString capsule;
   ASSERT_EQ(SignPlainText(0, "DEADBEEF", MetaForSigning(), "hello", signed_eml,
                           err, capsule),
@@ -865,7 +866,7 @@ TEST_F(CryptoBoundaryTest, EncryptingStillCarriesItsOwnBoundary) {
   // The other direction: whatever clears the old parameters must not take the
   // new ones with it. A multipart with no boundary is unreadable.
   QByteArray eml;
-  gpgme_error_t err = 0;
+  uint32_t err = 0;
   QString capsule;
   ASSERT_EQ(EncryptPlainText(0, QStringList{"DEADBEEF"}, MetaForSigning(),
                              "hello", eml, err, capsule),
@@ -893,7 +894,7 @@ TEST_F(CryptoBoundaryTest, AFailedSignReclaimsItsResultAndSaysWhy) {
   const auto before = crypto_recorder::OutstandingAllocations();
 
   QByteArray eml;
-  gpgme_error_t err = 0;
+  uint32_t err = 0;
   QString capsule;
   EXPECT_EQ(SignPlainText(0, "DEADBEEF", MetaForSigning(), "hello", eml, err,
                           capsule),
@@ -912,7 +913,7 @@ TEST_F(CryptoBoundaryTest, AFailedEncryptReclaimsItsResultAndSaysWhy) {
   const auto before = crypto_recorder::OutstandingAllocations();
 
   QByteArray eml;
-  gpgme_error_t err = 0;
+  uint32_t err = 0;
   QString capsule;
   EXPECT_EQ(EncryptPlainText(0, QStringList{"DEADBEEF"}, MetaForSigning(),
                              "hello", eml, err, capsule),
@@ -968,7 +969,7 @@ TEST_F(CryptoBoundaryTest, AFailureWithNoMessageStillReadsAsAFailure) {
   const auto before = crypto_recorder::OutstandingAllocations();
 
   QByteArray eml;
-  gpgme_error_t err = 0;
+  uint32_t err = 0;
   QString capsule;
   EXPECT_EQ(SignPlainText(0, "DEADBEEF", MetaForSigning(), "hello", eml, err,
                           capsule),
