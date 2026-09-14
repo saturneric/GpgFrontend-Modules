@@ -32,6 +32,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QJsonArray>
+#include <QLocale>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QRegularExpression>
@@ -1721,6 +1722,89 @@ void BuildDerivedMetaData(const EMailMetaData& source, EMailReplyMode mode,
   }
 }
 
+auto FindEncryptedCiphertextPart(const EMailPart& root) -> const EMailPart* {
+  // RFC 3156 §4: multipart/encrypted with exactly two parts, the control part
+  // first and the ciphertext second. The same shape DecryptEMLData insists on
+  // before it hands anything to the engine -- anything looser is not a message
+  // whose recipients can be read with any confidence.
+  if (root.content_type == "multipart/encrypted" && root.children.size() == 2) {
+    const auto& body = root.children.at(1);
+    if (body.content_type == "application/octet-stream" && !body.data.isEmpty()) {
+      return &body;
+    }
+  }
+
+  for (const auto& child : root.children) {
+    if (const auto* found = FindEncryptedCiphertextPart(child)) return found;
+  }
+
+  return nullptr;
+}
+
+auto DescribeDecryptCapability(const QList<EMailEncRecipient>& recipients)
+    -> EMailDecryptCapability {
+  EMailDecryptCapability out;
+
+  // Nothing was readable out of the message. Saying "you cannot open this"
+  // here would be inventing an answer to a question that was never asked.
+  if (recipients.isEmpty()) return out;
+
+  for (const auto& recipient : recipients) {
+    if (recipient.hidden) {
+      out.has_hidden = true;
+      continue;
+    }
+    if (!recipient.has_secret) continue;
+
+    // Name the key the way the user would recognise it, falling back to the
+    // identifier the message itself carried.
+    out.holding.append(recipient.uid.isEmpty() ? recipient.key_id
+                                               : recipient.uid);
+  }
+
+  if (!out.holding.isEmpty()) {
+    out.holding.removeDuplicates();
+    out.verdict = EMailDecryptVerdict::kCAN_OPEN;
+    return out;
+  }
+
+  // A withheld recipient may perfectly well be this user, so a message
+  // carrying one is never reported as unopenable on the strength of the
+  // recipients that could be read.
+  out.verdict = out.has_hidden ? EMailDecryptVerdict::kUNKNOWN
+                               : EMailDecryptVerdict::kCANNOT_OPEN;
+  return out;
+}
+
+auto TabTitleForSubject(const QString& subject) -> QString {
+  auto title = subject;
+
+  // A Subject is a header field: it may arrive folded across lines, and a
+  // decoded encoded-word can carry control characters. Either would be drawn
+  // into the tab bar verbatim.
+  title.replace(QRegularExpression("\\s+"), " ");
+  title.remove(QRegularExpression("[\\x00-\\x1F\\x7F]"));
+  title = title.trimmed();
+
+  // The tab bar spells "unsaved" with a leading asterisk, so a subject that
+  // starts with one would claim the tab is dirty before anything is typed.
+  while (title.startsWith('*')) {
+    title.remove(0, 1);
+    title = title.trimmed();
+  }
+
+  if (title.isEmpty()) return {};
+
+  // Long enough to tell two replies apart, short enough not to push every
+  // other tab off the bar.
+  constexpr int kMaxTabTitleChars = 40;
+  if (title.size() > kMaxTabTitleChars) {
+    title = title.left(kMaxTabTitleChars - 1).trimmed() + QString(QChar(0x2026));
+  }
+
+  return title;
+}
+
 auto BuildQuotedBody(const EMailMetaData& source, EMailReplyMode mode)
     -> QByteArray {
   const auto text = QString::fromUtf8(source.body);
@@ -1731,7 +1815,9 @@ auto BuildQuotedBody(const EMailMetaData& source, EMailReplyMode mode)
     if (!source.to.isEmpty()) out += "To: " + source.to.join("; ") + "\n";
     if (!source.cc.isEmpty()) out += "Cc: " + source.cc.join("; ") + "\n";
     if (source.datetime.isValid()) {
-      out += "Date: " + source.datetime.toString(Qt::ISODate) + "\n";
+      // RFC 2822/5322 date-time, not ISO 8601: this block reproduces header
+      // syntax, and a Date: line is defined to carry that form.
+      out += "Date: " + source.datetime.toString(Qt::RFC2822Date) + "\n";
     }
     if (!source.subject.isEmpty()) out += "Subject: " + source.subject + "\n";
     out += "\n" + text;
@@ -1740,10 +1826,19 @@ auto BuildQuotedBody(const EMailMetaData& source, EMailReplyMode mode)
 
   QString out;
   if (!source.from.isEmpty()) {
-    out += source.datetime.isValid()
-               ? QString("\nOn %1, %2 wrote:\n")
-                     .arg(source.datetime.toString(Qt::ISODate), source.from)
-               : QString("\n%1 wrote:\n").arg(source.from);
+    // The attribution line is prose the reader sees, not a header field, so it
+    // is translated and the date is rendered in the reader's own locale. An
+    // ISO timestamp here was simply unreadable ("2026-09-14T10:33:00"), and an
+    // RFC 5322 date would have forced English month and day names into every
+    // translation.
+    if (source.datetime.isValid()) {
+      const auto when = QLocale::system().toString(
+          source.datetime.toLocalTime(), QLocale::ShortFormat);
+      out += "\n" +
+             QObject::tr("On %1, %2 wrote:").arg(when, source.from) + "\n";
+    } else {
+      out += "\n" + QObject::tr("%1 wrote:").arg(source.from) + "\n";
+    }
   } else {
     out += "\n";
   }

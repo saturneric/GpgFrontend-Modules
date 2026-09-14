@@ -724,6 +724,41 @@ auto BuildQuotedBody(const EMailMetaData& source, EMailReplyMode mode)
     -> QByteArray;
 
 /**
+ * @brief A tab label for a message carrying @p subject.
+ *
+ * Folds the whitespace a header field may have been folded across, drops
+ * control characters, and strips any leading '*' -- the tab bar's own mark for
+ * unsaved work, which a subject must not be able to counterfeit. Long subjects
+ * are elided.
+ *
+ * Returns an empty string when nothing usable is left, which is the caller's
+ * cue to fall back to its own default name.
+ */
+/**
+ * @brief The ciphertext part of an RFC 3156 encrypted message, or nullptr.
+ *
+ * Looks for the shape the standard defines -- multipart/encrypted holding
+ * exactly two parts, the second an application/octet-stream -- and searches
+ * nested parts so an encrypted message inside a signed one is still found.
+ *
+ * The returned pointer is into @p root and lives exactly as long as it does.
+ */
+auto FindEncryptedCiphertextPart(const EMailPart& root) -> const EMailPart*;
+
+/**
+ * @brief Whether @p recipients say this message can be opened here.
+ *
+ * The rule that matters: holding the secret half of ANY one recipient key is
+ * enough, and holding none of them is only conclusive when every recipient was
+ * actually named. A withheld recipient may be the user, so a message carrying
+ * one is never reported as unopenable.
+ */
+auto DescribeDecryptCapability(const QList<EMailEncRecipient>& recipients)
+    -> EMailDecryptCapability;
+
+auto TabTitleForSubject(const QString& subject) -> QString;
+
+/**
  * @brief The bare e-mail address inside a UID or address string.
  *
  * Accepts "Name (Comment) <a@b>" as well as a bare "a@b". Returns an empty
