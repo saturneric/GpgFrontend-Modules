@@ -44,6 +44,7 @@
 #include <GFSDKGpg.h>
 
 #include <QByteArray>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -137,8 +138,6 @@ void GFModuleLogError(const char*) {}
 
 char* GFAppActiveLocale() { return GFModuleStrDup("en_US"); }
 
-void GFGpgFreeResult(void*) {}
-
 char* GFGpgPublicKey(int, const char* key_id, int) {
   // Borrowed, not consumed: the real entry point stopped freeing its
   // arguments, and a stub that still frees would report a bogus allocator
@@ -155,52 +154,6 @@ char* GFGpgPublicKey(int, const char* key_id, int) {
 // truncation included, so a test can still demonstrate what the old boundary
 // did; the N forms record the length they were given.
 
-int GFGpgVerifyData(int, char* data, char* signature, GFGpgVerifyResult** ps) {
-  g_recording.verify.append(
-      {QByteArray(data == nullptr ? "" : data),
-       QByteArray(signature == nullptr ? "" : signature)});
-
-  auto* mem = static_cast<GFGpgVerifyResult*>(
-      GFAllocateMemory(sizeof(GFGpgVerifyResult)));
-  std::memset(mem, 0, sizeof(GFGpgVerifyResult));
-  mem->capsule_id = GFModuleStrDup("stub-capsule");
-  mem->error_string = GFModuleStrDup("Success");
-  mem->gpgme_error = 0;
-  *ps = mem;
-
-  if (data != nullptr) GFFreeMemory(data);
-  if (signature != nullptr) GFFreeMemory(signature);
-  return 0;
-}
-
-int GFGpgVerifyDataN(int, const char* data, size_t data_size,
-                     const char* signature, size_t signature_size,
-                     GFGpgVerifyResult** ps) {
-  g_recording.verify.append(
-      {QByteArray(data, static_cast<int>(data_size)),
-       QByteArray(signature, static_cast<int>(signature_size))});
-
-  auto* mem = static_cast<GFGpgVerifyResult*>(
-      GFAllocateMemory(sizeof(GFGpgVerifyResult)));
-  std::memset(mem, 0, sizeof(GFGpgVerifyResult));
-  if (g_recording.fail_next) {
-    // Exactly the real shape: allocated, populated with the reason, and
-    // handed back alongside a non-zero return.
-    if (!g_recording.fail_error_string.isEmpty()) {
-      mem->error_string =
-          GFModuleStrDup(g_recording.fail_error_string.constData());
-    }
-    *ps = mem;
-    return -1;
-  }
-
-  mem->capsule_id = GFModuleStrDup("stub-capsule");
-  mem->error_string = GFModuleStrDup("Success");
-  mem->gpgme_error = 0;
-  *ps = mem;
-  return 0;
-}
-
 namespace {
 // Mirrors GFBytesDup on the host side: byte-exact, NUL-terminated one past the
 // end, with the true length reported separately.
@@ -213,118 +166,7 @@ auto BytesOut(const QByteArray& b, size_t* size) -> char* {
 }
 }  // namespace
 
-int GFGpgDecryptDataN(int, const char* data, size_t data_size,
-                      GFGpgDecryptResult** ps) {
-  g_recording.decrypt.append({QByteArray(data, static_cast<int>(data_size))});
-
-  auto* mem = static_cast<GFGpgDecryptResult*>(
-      GFAllocateMemory(sizeof(GFGpgDecryptResult)));
-  std::memset(mem, 0, sizeof(GFGpgDecryptResult));
-  if (g_recording.fail_next) {
-    // Exactly the real shape: allocated, populated with the reason, and
-    // handed back alongside a non-zero return.
-    if (!g_recording.fail_error_string.isEmpty()) {
-      mem->error_string =
-          GFModuleStrDup(g_recording.fail_error_string.constData());
-    }
-    *ps = mem;
-    return -1;
-  }
-
-  mem->decrypted_data =
-      BytesOut(g_recording.decrypt_output, &mem->decrypted_data_size);
-  mem->capsule_id = GFModuleStrDup("stub-capsule");
-  mem->error_string = GFModuleStrDup("Success");
-  mem->gpgme_error = 0;
-  *ps = mem;
-  return 0;
-}
-
-int GFGpgDecryptData(int channel, char* data, GFGpgDecryptResult** ps) {
-  const auto size = data == nullptr ? 0 : std::strlen(data);
-  auto ret = GFGpgDecryptDataN(channel, data, size, ps);
-  if (data != nullptr) GFFreeMemory(data);
-  return ret;
-}
-
-int GFGpgSignDataN(int, char** key_ids, int key_ids_size, const char* data,
-                   size_t data_size, int sign_mode, int, GFGpgSignResult** ps) {
-  g_recording.sign.append(
-      {QByteArray(data, static_cast<int>(data_size)), sign_mode});
-  for (int i = 0; i < key_ids_size; ++i) GFFreeMemory(key_ids[i]);
-  if (key_ids != nullptr) GFFreeMemory(key_ids);
-
-  auto* mem =
-      static_cast<GFGpgSignResult*>(GFAllocateMemory(sizeof(GFGpgSignResult)));
-  std::memset(mem, 0, sizeof(GFGpgSignResult));
-  if (g_recording.fail_next) {
-    // Exactly the real shape: allocated, populated with the reason, and
-    // handed back alongside a non-zero return.
-    if (!g_recording.fail_error_string.isEmpty()) {
-      mem->error_string =
-          GFModuleStrDup(g_recording.fail_error_string.constData());
-    }
-    *ps = mem;
-    return -1;
-  }
-
-  mem->signature = BytesOut(g_recording.sign_output, &mem->signature_size);
-  mem->hash_algo = GFModuleStrDup("SHA256");
-  mem->capsule_id = GFModuleStrDup("stub-capsule");
-  mem->error_string = GFModuleStrDup("Success");
-  mem->gpgme_error = 0;
-  *ps = mem;
-  return 0;
-}
-
-int GFGpgSignData(int channel, char** key_ids, int key_ids_size, char* data,
-                  int sign_mode, int ascii, GFGpgSignResult** ps) {
-  const auto size = data == nullptr ? 0 : std::strlen(data);
-  auto ret = GFGpgSignDataN(channel, key_ids, key_ids_size, data, size,
-                            sign_mode, ascii, ps);
-  if (data != nullptr) GFFreeMemory(data);
-  return ret;
-}
-
-int GFGpgEncryptDataN(int, char** key_ids, int key_ids_size, const char* data,
-                      size_t data_size, int, GFGpgEncryptionResult** ps) {
-  g_recording.encrypt.append({QByteArray(data, static_cast<int>(data_size))});
-  for (int i = 0; i < key_ids_size; ++i) GFFreeMemory(key_ids[i]);
-  if (key_ids != nullptr) GFFreeMemory(key_ids);
-
-  auto* mem = static_cast<GFGpgEncryptionResult*>(
-      GFAllocateMemory(sizeof(GFGpgEncryptionResult)));
-  std::memset(mem, 0, sizeof(GFGpgEncryptionResult));
-  if (g_recording.fail_next) {
-    // Exactly the real shape: allocated, populated with the reason, and
-    // handed back alongside a non-zero return.
-    if (!g_recording.fail_error_string.isEmpty()) {
-      mem->error_string =
-          GFModuleStrDup(g_recording.fail_error_string.constData());
-    }
-    *ps = mem;
-    return -1;
-  }
-
-  mem->encrypted_data =
-      BytesOut(g_recording.encrypt_output, &mem->encrypted_data_size);
-  mem->capsule_id = GFModuleStrDup("stub-capsule");
-  mem->error_string = GFModuleStrDup("Success");
-  mem->gpgme_error = 0;
-  *ps = mem;
-  return 0;
-}
-
-int GFGpgEncryptData(int channel, char** key_ids, int key_ids_size, char* data,
-                     int ascii, GFGpgEncryptionResult** ps) {
-  const auto size = data == nullptr ? 0 : std::strlen(data);
-  auto ret =
-      GFGpgEncryptDataN(channel, key_ids, key_ids_size, data, size, ascii, ps);
-  if (data != nullptr) GFFreeMemory(data);
-  return ret;
-}
-
-int GFAnalyseVerifyResultInfoByCapsule(int, gpgme_error_t, const char* capsule_id,
+int GFAnalyseVerifyResultInfoByCapsule(int, uint32_t, const char* capsule_id,
                                        const char** analyse, const char** cards,
                                        const char** info_json) {
   (void)capsule_id;  // borrowed, like every SDK argument
