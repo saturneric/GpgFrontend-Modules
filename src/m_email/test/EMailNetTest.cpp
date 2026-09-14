@@ -387,6 +387,12 @@ class EMailImapNetTest : public ::testing::Test {
     QObject::connect(
         &worker_, &EMailImapWorker::SignalMessages, &worker_,
         [this](quint64, const EMailMessagePage& page) { page_ = page; });
+    QObject::connect(&worker_, &EMailImapWorker::SignalFolderStatus, &worker_,
+                     [this](quint64, const QString& folder,
+                            const EMailFolderValidators& validators) {
+                       status_folder_ = folder;
+                       validators_ = validators;
+                     });
 
     worker_.Connect(1, ImapAccount(server_.serverPort()),
                     EMailSecret::CopyFrom("password"));
@@ -405,7 +411,128 @@ class EMailImapNetTest : public ::testing::Test {
   bool connected_{false};
   QList<EMailFolderInfo> folders_;
   EMailMessagePage page_;
+  QString status_folder_;
+  EMailFolderValidators validators_;
 };
+
+// The cheap probe: one STATUS, no SELECT, no envelope fetch. This is what lets
+// a reopened picker reuse the listing it already has instead of paying for the
+// same page of headers again.
+TEST_F(EMailImapNetTest, AFolderStatusIsReadWithoutFetchingAnything) {
+  worker_.FolderStatus(2, "INBOX");
+
+  EXPECT_EQ(status_folder_, QString("INBOX"));
+  ASSERT_TRUE(validators_.known);
+  EXPECT_EQ(validators_.uid_validity, 1U);
+  // The point of the probe: asked with STATUS, and nothing was selected or
+  // fetched to answer it.
+  bool asked_status = false;
+  for (const auto& command : server_.Commands()) {
+    if (command.contains("STATUS")) asked_status = true;
+    EXPECT_FALSE(command.contains("FETCH")) << command.toStdString();
+  }
+  EXPECT_TRUE(asked_status);
+  EXPECT_TRUE(page_.rows.isEmpty());
+}
+
+// A listing carries the state it was read under, so a later visit has
+// something to compare against. Without this the cache could only ever be
+// checked by fetching it again, which is the cost being avoided.
+TEST_F(EMailImapNetTest, AListingReportsTheFolderStateItWasReadUnder) {
+  worker_.ListMessages(2, "INBOX", 0, 50, 0);
+
+  ASSERT_FALSE(page_.rows.isEmpty());
+  ASSERT_TRUE(page_.validators.known);
+  EXPECT_EQ(page_.validators.uid_validity, 1U);
+}
+
+// The comparison that decides whether cached rows may be shown as current.
+TEST_F(EMailImapNetTest, AnUnchangedFolderVouchesForItsCachedListing) {
+  worker_.ListMessages(2, "INBOX", 0, 50, 0);
+  const auto listed = page_.validators;
+  ASSERT_TRUE(listed.known);
+
+  worker_.FolderStatus(3, "INBOX");
+  EXPECT_TRUE(validators_.SameAs(listed));
+}
+
+// UIDVALIDITY is the one that must never be merged past: when it changes, the
+// UIDs already held do not name the same messages any more, so the cached rows
+// are not stale but wrong.
+TEST_F(EMailImapNetTest, ARecreatedMailboxInvalidatesTheWholeCache) {
+  worker_.ListMessages(2, "INBOX", 0, 50, 0);
+  const auto listed = page_.validators;
+  ASSERT_TRUE(listed.known);
+
+  server_.uid_validity = 99;
+  worker_.FolderStatus(3, "INBOX");
+
+  ASSERT_TRUE(validators_.known);
+  EXPECT_FALSE(validators_.SameAs(listed));
+}
+
+// A server that will not answer is not an error the user should see: it simply
+// means nothing can be reused, and the caller lists the folder as before.
+TEST_F(EMailImapNetTest, AnUnknownFolderReportsNothingRatherThanFailing) {
+  worker_.FolderStatus(2, "No Such Folder");
+
+  EXPECT_FALSE(validators_.known);
+  EXPECT_NE(last_error_.category, MailErrorCategory::kCANCELLED);
+}
+
+TEST(EMailFolderValidatorsTest, AnUnknownSideNeverVouchesForAnything) {
+  EMailFolderValidators known;
+  known.known = true;
+  known.uid_validity = 1;
+  known.uid_next = 2;
+  known.message_count = 1;
+
+  // Two unknowns are not "the same": they are two absences of an answer.
+  EXPECT_FALSE(EMailFolderValidators{}.SameAs(EMailFolderValidators{}));
+  EXPECT_FALSE(known.SameAs({}));
+  EXPECT_FALSE(EMailFolderValidators{}.SameAs(known));
+  EXPECT_TRUE(known.SameAs(known));
+}
+
+TEST(EMailFolderValidatorsTest, NewMailAndExpungesAreBothNoticed) {
+  EMailFolderValidators before;
+  before.known = true;
+  before.uid_validity = 1;
+  before.uid_next = 10;
+  before.message_count = 9;
+
+  // Mail arrived: UIDNEXT moved even if the count happens to match again.
+  auto arrived = before;
+  arrived.uid_next = 11;
+  EXPECT_FALSE(before.SameAs(arrived));
+
+  // Mail was expunged: the count fell while UIDNEXT stood still.
+  auto expunged = before;
+  expunged.message_count = 8;
+  EXPECT_FALSE(before.SameAs(expunged));
+}
+
+// CONDSTORE is optional. A server that does not offer it reports 0, and that
+// must read as "no opinion" rather than as a change -- otherwise the cache
+// could never be reused against such a server at all.
+TEST(EMailFolderValidatorsTest, AMissingModSeqIsNotTreatedAsAChange) {
+  EMailFolderValidators with_modseq;
+  with_modseq.known = true;
+  with_modseq.uid_validity = 1;
+  with_modseq.uid_next = 5;
+  with_modseq.message_count = 4;
+  with_modseq.highest_mod_seq = 4242;
+
+  auto without = with_modseq;
+  without.highest_mod_seq = 0;
+  EXPECT_TRUE(with_modseq.SameAs(without));
+
+  // But when BOTH report one, a flag changed elsewhere is caught -- which none
+  // of the other fields can see.
+  auto moved = with_modseq;
+  moved.highest_mod_seq = 4243;
+  EXPECT_FALSE(with_modseq.SameAs(moved));
+}
 
 // A cancellation applies to the operation it was aimed at, not to the session.
 // Pressing Stop used to leave the token set forever -- the only Reset() in the

@@ -1298,8 +1298,8 @@ TEST(EMailCorpusTest, TheCiphertextPartIsFoundInAnEncryptedMessage) {
 TEST(EMailCorpusTest, TheCiphertextPartIsFoundInsideASignedWrapper) {
   QByteArray raw;
   vmime::shared_ptr<vmime::message> message;
-  ASSERT_TRUE(ParseCorpus("golden/17-encrypted-inside-signed.eml", raw,
-                          message));
+  ASSERT_TRUE(
+      ParseCorpus("golden/17-encrypted-inside-signed.eml", raw, message));
 
   EMailPart root;
   QList<EMailSignatureRegion> regions;
@@ -1333,7 +1333,8 @@ TEST(EMailCorpusTest, HoldingOneRecipientSecretMeansTheMessageCanBeOpened) {
   });
 
   EXPECT_EQ(capability.verdict, EMailDecryptVerdict::kCAN_OPEN);
-  EXPECT_EQ(capability.holding, QStringList({"Me <other-address@example.org>"}));
+  EXPECT_EQ(capability.holding,
+            QStringList({"Me <other-address@example.org>"}));
 }
 
 TEST(EMailCorpusTest, AKeyWithoutItsSecretHalfCannotOpenAnything) {
@@ -1521,9 +1522,9 @@ auto VerdictsFor(const QByteArray& raw,
     verdict.region_id = region.region_id;
     verdict.nesting_depth = region.nesting_depth;
     verdict.covers_ciphertext_only = region.covers_ciphertext_only;
-    verdict.signed_bytes_non_canonical = HasBareLineFeeds(
-        raw.mid(static_cast<int>(region.raw_offset),
-                static_cast<int>(region.raw_length)));
+    verdict.signed_bytes_non_canonical =
+        HasBareLineFeeds(raw.mid(static_cast<int>(region.raw_offset),
+                                 static_cast<int>(region.raw_length)));
     verdicts.append(verdict);
   }
   return verdicts;
@@ -1838,9 +1839,9 @@ TEST(EMailCorpusTest, TheCheckNeedsAVerificationToSayAnything) {
   ASSERT_EQ(GetEMLMetaData(message, meta), 0);
 
   EXPECT_FALSE(HasFinding(InspectMessage(meta, root, regions), "canonical"));
-  EXPECT_TRUE(HasFinding(
-      InspectMessage(meta, root, regions, VerdictsFor(raw, regions)),
-      "canonical"));
+  EXPECT_TRUE(
+      HasFinding(InspectMessage(meta, root, regions, VerdictsFor(raw, regions)),
+                 "canonical"));
 }
 
 // --- lifting a protected layer off a message -------------------------------

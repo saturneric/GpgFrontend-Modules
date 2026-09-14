@@ -102,6 +102,10 @@ class FakeImapServer : public QTcpServer {
   /// time.
   QList<int> search_uids = {1};
 
+  /// Bumped by a test to imitate a server that has re-created the mailbox, so
+  /// every UID it ever handed out now means something else.
+  int uid_validity = 1;
+
   /// Set to true by an APPEND, so a test can tell a copy was actually written
   /// rather than only that the command was sent.
   bool appended = false;
@@ -195,6 +199,18 @@ class FakeImapServer : public QTcpServer {
       } else if (verb == "LIST" || verb == "LSUB") {
         out += "* LIST (\\HasNoChildren) \"/\" \"INBOX\"\r\n";
         out += "* LIST (\\HasNoChildren \\Sent) \"/\" \"Sent Mail\"\r\n";
+        out += (tag + " OK done\r\n").toUtf8();
+      } else if (verb == "STATUS" && !line.contains("\"No Such")) {
+        // Answered without selecting anything, which is the whole point of
+        // STATUS: it is what lets a client ask "has this folder changed?"
+        // without paying for a SELECT and a page of envelopes.
+        int exists = 1;
+        for (const auto uid : search_uids) exists = std::max(exists, uid);
+        const auto mailbox = line.section('"', 1, 1);
+        out += ("* STATUS \"" + mailbox.toUtf8() + "\" (MESSAGES " +
+                QByteArray::number(exists) + " UNSEEN 0 UIDNEXT " +
+                QByteArray::number(exists + 1) + " UIDVALIDITY " +
+                QByteArray::number(uid_validity) + ")\r\n");
         out += (tag + " OK done\r\n").toUtf8();
       } else if (verb == "SELECT" || verb == "EXAMINE") {
         int exists = 1;
