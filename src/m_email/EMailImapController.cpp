@@ -321,16 +321,6 @@ void EMailImapController::build_ui() {
   top->addWidget(refresh_button_);
   outer->addLayout(top);
 
-  // Indeterminate, because none of these operations can report a fraction:
-  // IMAP says when it is done, not how far along it is. Shown only after a
-  // short delay so a fast folder never flashes a progress bar.
-  progress_ = new QProgressBar(this);
-  progress_->setRange(0, 0);
-  progress_->setTextVisible(false);
-  progress_->setFixedHeight(4);
-  progress_->setVisible(false);
-  outer->addWidget(progress_);
-
   progress_timer_ = new QTimer(this);
   progress_timer_->setSingleShot(true);
   progress_timer_->setInterval(kProgressDelayMs);
@@ -380,11 +370,14 @@ void EMailImapController::build_ui() {
   loading_label_ = EMailEmptyNotice(loading_pane_);
   loading_layout->addWidget(loading_label_);
 
+  // Sized to the sentence above it rather than stretched across the pane: a
+  // full-width bar in an otherwise empty panel reads as a piece of furniture,
+  // not as something in progress.
   auto* loading_bar = new QProgressBar(loading_pane_);
   loading_bar->setRange(0, 0);  // indeterminate: no total is known here
   loading_bar->setTextVisible(false);
-  loading_bar->setFixedHeight(4);
-  loading_layout->addWidget(loading_bar);
+  loading_bar->setFixedSize(140, 6);
+  loading_layout->addWidget(loading_bar, 0, Qt::AlignHCenter);
 
   loading_layout->addStretch(1);
   loading_pane_->setVisible(false);
@@ -420,10 +413,25 @@ void EMailImapController::build_ui() {
   open_button_->setDefault(true);
   cancel_button_ = new QPushButton(tr("Close"), this);
 
+  // Indeterminate, because none of these operations can report a fraction:
+  // IMAP says when it is done, not how far along it is. Shown only after a
+  // short delay so a fast folder never flashes a progress bar.
+  //
+  // It sits in the action row rather than as a hairline under the header: up
+  // there it was four pixels at the far end of the window from the buttons
+  // being waited on, which is not where someone who just clicked is looking.
+  progress_ = new QProgressBar(this);
+  progress_->setRange(0, 0);
+  progress_->setTextVisible(false);
+  progress_->setFixedHeight(18);
+  progress_->setFixedWidth(120);
+  progress_->setVisible(false);
+
   buttons->addWidget(previous_button_);
   buttons->addWidget(next_button_);
   buttons->addWidget(page_label_);
   buttons->addWidget(status_label_, 1);
+  buttons->addWidget(progress_);
   buttons->addWidget(open_button_);
   buttons->addWidget(cancel_button_);
   outer->addLayout(buttons);
