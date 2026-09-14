@@ -139,8 +139,11 @@ char* GFAppActiveLocale() { return GFModuleStrDup("en_US"); }
 
 void GFGpgFreeResult(void*) {}
 
-char* GFGpgPublicKey(int, char* key_id, int) {
-  GFFreeMemory(key_id);
+char* GFGpgPublicKey(int, const char* key_id, int) {
+  // Borrowed, not consumed: the real entry point stopped freeing its
+  // arguments, and a stub that still frees would report a bogus allocator
+  // violation for every correct call.
+  (void)key_id;
   return GFModuleStrDup(
       "-----BEGIN PGP PUBLIC KEY BLOCK-----\nstub\n"
       "-----END PGP PUBLIC KEY BLOCK-----\n");
@@ -321,10 +324,10 @@ int GFGpgEncryptData(int channel, char** key_ids, int key_ids_size, char* data,
   return ret;
 }
 
-int GFAnalyseVerifyResultInfoByCapsule(int, gpgme_error_t, char* capsule_id,
+int GFAnalyseVerifyResultInfoByCapsule(int, gpgme_error_t, const char* capsule_id,
                                        const char** analyse, const char** cards,
                                        const char** info_json) {
-  if (capsule_id != nullptr) GFFreeMemory(capsule_id);
+  (void)capsule_id;  // borrowed, like every SDK argument
   if (analyse != nullptr) *analyse = GFModuleStrDup("");
   if (cards != nullptr) *cards = GFModuleStrDup("[]");
 
