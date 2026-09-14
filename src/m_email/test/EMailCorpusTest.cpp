@@ -1263,6 +1263,183 @@ TEST(EMailCorpusTest, QuotingMarksEveryLineIncludingBlankOnes) {
   EXPECT_TRUE(quoted.contains("alice@example.com"));
 }
 
+namespace {
+
+auto EncRecipient(const QString& key_id, bool found, bool secret,
+                  bool hidden = false, const QString& uid = {})
+    -> EMailEncRecipient {
+  EMailEncRecipient r;
+  r.key_id = key_id;
+  r.uid = uid;
+  r.key_found = found;
+  r.has_secret = secret;
+  r.hidden = hidden;
+  return r;
+}
+
+}  // namespace
+
+TEST(EMailCorpusTest, TheCiphertextPartIsFoundInAnEncryptedMessage) {
+  QByteArray raw;
+  vmime::shared_ptr<vmime::message> message;
+  ASSERT_TRUE(ParseCorpus("golden/05-pgpmime-encrypted.eml", raw, message));
+
+  EMailPart root;
+  QList<EMailSignatureRegion> regions;
+  ASSERT_EQ(ParseMimeTree(message, raw, root, regions), 0);
+
+  const auto* ciphertext = FindEncryptedCiphertextPart(root);
+  ASSERT_NE(ciphertext, nullptr);
+  EXPECT_EQ(ciphertext->content_type, QString("application/octet-stream"));
+  // The bytes the engine would be handed, not the control part next to them.
+  EXPECT_TRUE(ciphertext->data.contains("BEGIN PGP MESSAGE"));
+}
+
+TEST(EMailCorpusTest, TheCiphertextPartIsFoundInsideASignedWrapper) {
+  QByteArray raw;
+  vmime::shared_ptr<vmime::message> message;
+  ASSERT_TRUE(ParseCorpus("golden/17-encrypted-inside-signed.eml", raw,
+                          message));
+
+  EMailPart root;
+  QList<EMailSignatureRegion> regions;
+  ASSERT_EQ(ParseMimeTree(message, raw, root, regions), 0);
+
+  // Nested one layer down: searching only the root would miss it, and the
+  // locked panel would fall back to guessing from addresses.
+  EXPECT_NE(FindEncryptedCiphertextPart(root), nullptr);
+}
+
+TEST(EMailCorpusTest, ASignedMessageHasNoCiphertextPart) {
+  QByteArray raw;
+  vmime::shared_ptr<vmime::message> message;
+  ASSERT_TRUE(ParseCorpus("golden/04-pgpmime-signed.eml", raw, message));
+
+  EMailPart root;
+  QList<EMailSignatureRegion> regions;
+  ASSERT_EQ(ParseMimeTree(message, raw, root, regions), 0);
+
+  EXPECT_EQ(FindEncryptedCiphertextPart(root), nullptr);
+}
+
+TEST(EMailCorpusTest, HoldingOneRecipientSecretMeansTheMessageCanBeOpened) {
+  // The secret is held for the SECOND recipient, and its uid address has
+  // nothing to do with any header address. That is the whole point: a message
+  // is encrypted to a key, not to an address.
+  const auto capability = DescribeDecryptCapability({
+      EncRecipient("AAAAAAAAAAAAAAAA", true, false),
+      EncRecipient("BBBBBBBBBBBBBBBB", true, true, false,
+                   "Me <other-address@example.org>"),
+  });
+
+  EXPECT_EQ(capability.verdict, EMailDecryptVerdict::kCAN_OPEN);
+  EXPECT_EQ(capability.holding, QStringList({"Me <other-address@example.org>"}));
+}
+
+TEST(EMailCorpusTest, AKeyWithoutItsSecretHalfCannotOpenAnything) {
+  // Present in the key database, but public-only: it can encrypt TO this
+  // recipient and never decrypt FOR them.
+  const auto capability = DescribeDecryptCapability({
+      EncRecipient("AAAAAAAAAAAAAAAA", true, false),
+      EncRecipient("BBBBBBBBBBBBBBBB", true, false),
+  });
+
+  EXPECT_EQ(capability.verdict, EMailDecryptVerdict::kCANNOT_OPEN);
+  EXPECT_TRUE(capability.holding.isEmpty());
+}
+
+TEST(EMailCorpusTest, AHiddenRecipientKeepsTheVerdictOpen) {
+  // The withheld recipient may perfectly well be this user, so "no" would be
+  // a claim the message does not support.
+  const auto capability = DescribeDecryptCapability({
+      EncRecipient("AAAAAAAAAAAAAAAA", true, false),
+      EncRecipient("0000000000000000", false, false, true),
+  });
+
+  EXPECT_EQ(capability.verdict, EMailDecryptVerdict::kUNKNOWN);
+  EXPECT_TRUE(capability.has_hidden);
+}
+
+TEST(EMailCorpusTest, NoReadableRecipientsSaysNothingEitherWay) {
+  EXPECT_EQ(DescribeDecryptCapability({}).verdict,
+            EMailDecryptVerdict::kUNKNOWN);
+}
+
+TEST(EMailCorpusTest, AnUnresolvedRecipientIsNamedByItsKeyId) {
+  const auto capability = DescribeDecryptCapability({
+      EncRecipient("CCCCCCCCCCCCCCCC", true, true),
+  });
+
+  EXPECT_EQ(capability.verdict, EMailDecryptVerdict::kCAN_OPEN);
+  EXPECT_EQ(capability.holding, QStringList({"CCCCCCCCCCCCCCCC"}));
+}
+
+TEST(EMailCorpusTest, TabTitleIsTakenFromTheSubject) {
+  EXPECT_EQ(TabTitleForSubject("Re: Quarterly numbers"),
+            QString("Re: Quarterly numbers"));
+}
+
+TEST(EMailCorpusTest, TabTitleUnfoldsAndStripsControlCharacters) {
+  // A Subject may arrive folded across lines; drawn verbatim into a tab bar
+  // that is a mess at best.
+  EXPECT_EQ(TabTitleForSubject("Re: Quarterly\r\n  numbers"),
+            QString("Re: Quarterly numbers"));
+}
+
+TEST(EMailCorpusTest, TabTitleCannotCounterfeitTheUnsavedMark) {
+  // The tab bar spells "unsaved" with a leading asterisk.
+  EXPECT_EQ(TabTitleForSubject("** urgent"), QString("urgent"));
+}
+
+TEST(EMailCorpusTest, TabTitleIsElidedAndFallsBackWhenEmpty) {
+  const auto long_subject = QString("Re: ") + QString(200, 'x');
+  const auto title = TabTitleForSubject(long_subject);
+  EXPECT_LE(title.size(), 40);
+  EXPECT_TRUE(title.endsWith(QChar(0x2026)));
+
+  // Nothing usable left is the caller's cue to use its own default name.
+  EXPECT_TRUE(TabTitleForSubject("   	  ").isEmpty());
+  EXPECT_TRUE(TabTitleForSubject({}).isEmpty());
+}
+
+TEST(EMailCorpusTest, AttributionLineCarriesNoRawIsoTimestamp) {
+  auto source = SourceForReply();
+
+  const auto quoted =
+      QString::fromUtf8(BuildQuotedBody(source, EMailReplyMode::kREPLY));
+
+  // The line is translated and the date rendered in the reader's locale, so
+  // the exact wording is not a fixture -- but a raw ISO timestamp, which is
+  // what used to be printed, is never a correct rendering of any locale.
+  EXPECT_FALSE(quoted.contains("2025-03-04T10:15:00"));
+  EXPECT_TRUE(quoted.contains("Alice <alice@example.com>"));
+  // Whatever the locale, the attribution introduces the quotation and so must
+  // still precede the first quoted line.
+  EXPECT_LT(quoted.indexOf("alice@example.com"), quoted.indexOf("> The"));
+}
+
+TEST(EMailCorpusTest, AttributionLineSurvivesAMissingDate) {
+  auto source = SourceForReply();
+  source.datetime = {};
+
+  const auto quoted =
+      QString::fromUtf8(BuildQuotedBody(source, EMailReplyMode::kREPLY));
+
+  EXPECT_TRUE(quoted.contains("Alice <alice@example.com>"));
+  EXPECT_TRUE(quoted.contains("> The numbers are attached."));
+}
+
+TEST(EMailCorpusTest, ForwardDatesInRfc5322Form) {
+  const auto forwarded = QString::fromUtf8(
+      BuildQuotedBody(SourceForReply(), EMailReplyMode::kFORWARD));
+
+  // That block reproduces header syntax, and a Date: header carries an RFC
+  // 5322 date-time -- not the ISO 8601 form it used to be given.
+  EXPECT_FALSE(forwarded.contains("2025-03-04T10:15:00"));
+  EXPECT_TRUE(forwarded.contains("Date: "));
+  EXPECT_TRUE(forwarded.contains("Mar 2025"));
+}
+
 TEST(EMailCorpusTest, ForwardReproducesTheOriginalHeaders) {
   const auto forwarded = QString::fromUtf8(
       BuildQuotedBody(SourceForReply(), EMailReplyMode::kFORWARD));
