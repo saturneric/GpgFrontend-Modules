@@ -52,7 +52,7 @@ constexpr int kTransferTimeoutMs = 15000;
 auto VKSInterface::make_request(const QUrl& url) -> QNetworkRequest {
   QNetworkRequest request(url);
   request.setHeader(QNetworkRequest::UserAgentHeader,
-                    UDUP(GFHttpRequestUserAgent()));
+                    QString::fromUtf8(GFHttpRequestUserAgent()));
   request.setTransferTimeout(kTransferTimeoutMs);
   return request;
 }

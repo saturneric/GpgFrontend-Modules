@@ -201,7 +201,7 @@ void KeyServerProber::send(const QString& url, bool is_hkp) {
 
   QNetworkRequest request{QUrl(target)};
   request.setHeader(QNetworkRequest::UserAgentHeader,
-                    UDUP(GFHttpRequestUserAgent()));
+                    QString::fromUtf8(GFHttpRequestUserAgent()));
   request.setTransferTimeout(kProbeTimeoutMs);
   request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                        QNetworkRequest::NoLessSafeRedirectPolicy);
