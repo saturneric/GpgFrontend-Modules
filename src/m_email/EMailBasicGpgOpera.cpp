@@ -1180,6 +1180,12 @@ auto VerifyOneRegion(int channel, const QByteArray& raw,
 
   const auto err = s->gpgme_error;
   const auto capsule_id = UDUP(s->capsule_id);
+  // Reclaimed on the SUCCESS path too. Every other result site in this file
+  // takes error_string; this one did not, so a successful verification leaked
+  // it once per signed region -- confirmed by ASan, not by inspection. The
+  // opaque-result-handle rework removes the whole class by leaving no
+  // per-field free to forget; until then this is the missing line.
+  UDUP(s->error_string);
 
   GFGpgFreeResult(s->gpgme_verify_result);
   GFFreeMemory(s);
