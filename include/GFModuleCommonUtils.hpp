@@ -41,12 +41,24 @@
 #include <QVariant>
 #include <cstring>
 
+// OWNERSHIP, in one place.
+//
+// SDK ARGUMENTS ARE BORROWED. Pass a pointer straight through --
+// `s.toUtf8().constData()` for a QString -- and keep owning it. Do NOT
+// pre-allocate one to hand over: nothing on the other side will free it.
+// That is what DUP()/QDUP() used to be for, and why they are gone.
+//
+// The one exception, and it is a struct rather than an argument: the few
+// aggregates a module builds and hands over whole (GFModuleEvent,
+// GFModuleEventParam, GFModuleMetaData, GFCommandExecuteContext) still
+// transfer, so their char* members are still allocated with GFModuleStrDup.
+//
+// SDK RETURN VALUES ARE OWNED. Reclaim them, which is what the UDUP family
+// is for -- that half of the old convention was always right.
 #define DUP(v) GFModuleStrDup(v)
 #define SECDUP(v) GFModuleSecStrDup(v)
 #define UDUP(v) UnStrDup(v)
 #define USECDUP(v) UnSecStrDup(v)
-#define QDUP(v) QStrDup(v)
-#define QSECDUP(v) QSecStrDup(v)
 #define UDUPN(v, n) UnBytesDup(v, n)
 
 // No DUP: SDK arguments are borrowed now, so pre-allocating here would leak.
@@ -516,7 +528,8 @@ inline auto ConvertVoidPtrToQVariant(void* ptr) -> QVariant {
 
 template <typename T>
 auto GFUIGetGUIObjectAs(const QString& handle) -> T* {
-  auto* obj = static_cast<QObject*>(GFUIGetGUIObject(QDUP(handle)));
+  auto* obj = static_cast<QObject*>(
+      GFUIGetGUIObject(handle.toUtf8().constData()));
   if (!obj) {
     return nullptr;
   }
