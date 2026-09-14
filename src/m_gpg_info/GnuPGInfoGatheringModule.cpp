@@ -237,9 +237,11 @@ auto StartGatheringAllGnuPGInfo() -> int {
                                     &components_c_array);
   if (components_c_array == nullptr || ret == 0) return -1;
 
-  QStringList components;
-  auto *p_a = components_c_array;
-  for (int i = 0; i < ret; i++) components.append(QString::fromUtf8(p_a[i]));
+  // Takes ownership of every element AND of the array itself. The hand
+  // rolled loop this replaces copied the strings out and freed neither, so
+  // the whole array leaked once per gathering pass -- the identical call in
+  // GnupgTab.cpp was already using this helper.
+  QStringList components = CharArrayToQStringList(components_c_array, ret);
 
   for (const auto &component : components) {
     const auto *component_info_json = GFModuleRetrieveRTValueOrDefault(
@@ -248,8 +250,12 @@ auto StartGatheringAllGnuPGInfo() -> int {
 
     if (component_info_json == nullptr) continue;
 
+    // Caller-owned, so take it: this used to be read and dropped, leaking one
+    // JSON document per component per pass.
+    const auto component_info_raw = UDUP(component_info_json);
+
     auto jsonlized_component_info =
-        QJsonDocument::fromJson(component_info_json);
+        QJsonDocument::fromJson(component_info_raw.toUtf8());
     assert(jsonlized_component_info.isObject());
 
     auto component_info = GpgComponentInfo(jsonlized_component_info.object());
