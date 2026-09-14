@@ -29,6 +29,8 @@
 #include "EMailBasicGpgOpera.h"
 
 #include <GFSDKGpg.h>
+#include <GFSDKBuffer.hpp>
+#include <GFSDKGpgResult.hpp>
 
 //
 #include <QCryptographicHash>
@@ -52,38 +54,33 @@ auto Elide(const QByteArray& data) -> QString {
 
 auto Elide(const QString& data) -> QString { return Elide(data.toUtf8()); }
 
-/**
- * @brief Reclaims a result the SDK handed back with a failure, and returns
- * what the engine said went wrong.
- *
- * The four crypto entry points allocate their result struct BEFORE they can
- * fail, so a non-zero return does not mean there is nothing to clean up: the
- * struct is live, and on most of those paths it carries the engine's own
- * description of the failure (src/sdk/GFSDKGpg.cpp -- every `return -1` after
- * `*ps = new (mem) ...`). Every call site here used to check
- * `ret != 0 || s == nullptr` and walk away, which leaked the struct and its
- * strings and threw away the one explanation that existed -- so a signing key
- * that could not be found reached the user as "Operation Failed."
- *
- * @p handle names the ref-counted gpgme result member, which differs per
- * struct. Leaves @p s null, so taking twice is harmless.
- *
- * @return the engine's message, or an empty string when it gave none.
- */
-template <typename ResultT, typename HandleT>
-auto TakeSdkFailure(ResultT*& s, HandleT ResultT::* handle) -> QString {
-  if (s == nullptr) return {};
+/// Borrowed argv for the SDK's key-id parameters.
+///
+/// SDK arguments are borrowed, so these only have to outlive the call -- but
+/// they DO have to outlive it, which a chain of temporaries would not. This
+/// owns the UTF-8 bytes and the pointer array for as long as it is in scope.
+/// The pointers are taken only after the byte arrays are all appended, so a
+/// reallocation cannot leave them dangling.
+class KeyIdArgs {
+ public:
+  explicit KeyIdArgs(const QStringList& ids) {
+    utf8_.reserve(ids.size());
+    for (const auto& id : ids) utf8_.append(id.toUtf8());
+    ptrs_.reserve(utf8_.size());
+    for (const auto& bytes : utf8_) ptrs_.append(bytes.constData());
+  }
 
-  // Read before the struct goes; UDUP takes ownership of each buffer, and a
-  // null one is a no-op rather than a crash.
-  const auto message = UDUP(s->error_string);
-  UDUP(s->capsule_id);
+  [[nodiscard]] auto Data() const -> const char* const* {
+    return ptrs_.constData();
+  }
+  [[nodiscard]] auto Size() const -> size_t {
+    return static_cast<size_t>(ptrs_.size());
+  }
 
-  GFGpgFreeResult(s->*handle);
-  GFFreeMemory(s);
-  s = nullptr;
-  return message;
-}
+ private:
+  QList<QByteArray> utf8_;
+  QList<const char*> ptrs_;
+};
 
 /// The failure text to show: the engine's own words wherever it gave any.
 auto SdkFailureText(const QString& prefix, const QString& reason) -> QString {
@@ -109,26 +106,23 @@ auto EncryptPlainText(int channel, const QStringList& keys,
     // The SDK sets *ps = nullptr and returns non-zero when it cannot
     // allocate the result, so both must be checked before the first
     // dereference below -- not after it, as this used to.
-    GFGpgEncryptionResult* s = nullptr;
-    auto ret =
-        GFGpgEncryptDataN(channel, QStringListToCharArray(keys), keys.size(),
-                          body_data.constData(), body_data.size(), 1, &s);
-    if (ret != 0 || s == nullptr) {
-      eml_data =
-          SdkFailureText(
-              "Encryption",
-              TakeSdkFailure(s, &GFGpgEncryptionResult::gpgme_encrypt_result))
-              .toUtf8();
+    // One owned result, reclaimed by its own destructor on every path --
+    // including the early return below, which is where the struct-based API
+    // leaked because a FAILED call still allocated a result to explain
+    // itself.
+    auto in = GFBuf::Copy(body_data);
+    auto key_ids = KeyIdArgs(keys);
+    GFGpgResult r;
+    if (GFGpgEncrypt(channel, key_ids.Data(), key_ids.Size(), in.View(), 1,
+                     r.Out()) != GF_GPG_OK) {
+      eml_data = SdkFailureText("Encryption", r.ErrorString()).toUtf8();
       return kFAILED;
     }
 
-    auto encrypted_data = UDUPN(s->encrypted_data, s->encrypted_data_size);
-    err = s->gpgme_error;
-    capsule_id = UDUP(s->capsule_id);
-    auto gpg_error_string = UDUP(s->error_string);
-
-    GFGpgFreeResult(s->gpgme_encrypt_result);
-    GFFreeMemory(s);
+    auto encrypted_data = r.DataCopy();
+    err = r.Error();
+    capsule_id = r.CapsuleId();
+    auto gpg_error_string = r.ErrorString();
 
     if (err != GPG_ERR_NO_ERROR) {
       eml_data = "Gpg Encryption Failed: " + gpg_error_string.toUtf8();
@@ -291,26 +285,19 @@ auto EncryptEMLData(int channel, const QStringList& keys,
     // The SDK sets *ps = nullptr and returns non-zero when it cannot
     // allocate the result, so both must be checked before the first
     // dereference below -- not after it, as this used to.
-    GFGpgEncryptionResult* s = nullptr;
-    auto ret = GFGpgEncryptDataN(channel, QStringListToCharArray(keys),
-                                 keys.size(), plain_raw_data.constData(),
-                                 plain_raw_data.size(), 1, &s);
-    if (ret != 0 || s == nullptr) {
-      eml_data =
-          SdkFailureText(
-              "Encryption",
-              TakeSdkFailure(s, &GFGpgEncryptionResult::gpgme_encrypt_result))
-              .toUtf8();
+    auto in = GFBuf::Copy(plain_raw_data);
+    auto key_ids = KeyIdArgs(keys);
+    GFGpgResult r;
+    if (GFGpgEncrypt(channel, key_ids.Data(), key_ids.Size(), in.View(), 1,
+                     r.Out()) != GF_GPG_OK) {
+      eml_data = SdkFailureText("Encryption", r.ErrorString()).toUtf8();
       return kFAILED;
     }
 
-    auto encrypted_data = UDUPN(s->encrypted_data, s->encrypted_data_size);
-    err = s->gpgme_error;
-    capsule_id = UDUP(s->capsule_id);
-    auto gpg_error_string = UDUP(s->error_string);
-
-    GFGpgFreeResult(s->gpgme_encrypt_result);
-    GFFreeMemory(s);
+    auto encrypted_data = r.DataCopy();
+    err = r.Error();
+    capsule_id = r.CapsuleId();
+    auto gpg_error_string = r.ErrorString();
 
     if (err != GPG_ERR_NO_ERROR) {
       eml_data = "Encryption Failed: " + gpg_error_string.toUtf8();
@@ -604,26 +591,20 @@ auto SignPlainText(int channel, const QString& key,
     // The SDK sets *ps = nullptr and returns non-zero when it cannot
     // allocate the result, so both must be checked before the first
     // dereference below -- not after it, as this used to.
-    GFGpgSignResult* s = nullptr;
-    auto ret = GFGpgSignDataN(channel, QStringListToCharArray({key}), 1,
-                              container_raw_data.constData(),
-                              container_raw_data.size(), 1, 1, &s);
-    if (ret != 0 || s == nullptr) {
-      eml_data =
-          SdkFailureText("Sign",
-                         TakeSdkFailure(s, &GFGpgSignResult::gpgme_sign_result))
-              .toUtf8();
+    auto in = GFBuf::Copy(container_raw_data);
+    auto key_ids = KeyIdArgs({key});
+    GFGpgResult r;
+    if (GFGpgSign(channel, key_ids.Data(), key_ids.Size(), in.View(), 1, 1,
+                  r.Out()) != GF_GPG_OK) {
+      eml_data = SdkFailureText("Sign", r.ErrorString()).toUtf8();
       return kFAILED;
     }
 
-    auto signature = UDUPN(s->signature, s->signature_size);
-    auto hash_algo = UDUP(s->hash_algo);
-    err = s->gpgme_error;
-    capsule_id = UDUP(s->capsule_id);
-    auto gpg_error_string = UDUP(s->error_string);
-
-    GFGpgFreeResult(s->gpgme_sign_result);
-    GFFreeMemory(s);
+    auto signature = r.DataCopy();
+    auto hash_algo = r.HashAlgo();
+    err = r.Error();
+    capsule_id = r.CapsuleId();
+    auto gpg_error_string = r.ErrorString();
 
     if (err != GPG_ERR_NO_ERROR) {
       eml_data = "Sign Failed: " + gpg_error_string.toUtf8();
@@ -843,26 +824,20 @@ auto SignEMLData(int channel, const QString& key,
     // The SDK sets *ps = nullptr and returns non-zero when it cannot
     // allocate the result, so both must be checked before the first
     // dereference below -- not after it, as this used to.
-    GFGpgSignResult* s = nullptr;
-    auto ret = GFGpgSignDataN(channel, QStringListToCharArray({key}), 1,
-                              container_raw_data.constData(),
-                              container_raw_data.size(), 1, 1, &s);
-    if (ret != 0 || s == nullptr) {
-      eml_data =
-          SdkFailureText("Sign",
-                         TakeSdkFailure(s, &GFGpgSignResult::gpgme_sign_result))
-              .toUtf8();
+    auto in = GFBuf::Copy(container_raw_data);
+    auto key_ids = KeyIdArgs({key});
+    GFGpgResult r;
+    if (GFGpgSign(channel, key_ids.Data(), key_ids.Size(), in.View(), 1, 1,
+                  r.Out()) != GF_GPG_OK) {
+      eml_data = SdkFailureText("Sign", r.ErrorString()).toUtf8();
       return kFAILED;
     }
 
-    auto signature = UDUPN(s->signature, s->signature_size);
-    auto hash_algo = UDUP(s->hash_algo);
-    auto gpg_error_string = UDUP(s->error_string);
-    err = s->gpgme_error;
-    capsule_id = UDUP(s->capsule_id);
-
-    GFGpgFreeResult(s->gpgme_sign_result);
-    GFFreeMemory(s);
+    auto signature = r.DataCopy();
+    auto hash_algo = r.HashAlgo();
+    auto gpg_error_string = r.ErrorString();
+    err = r.Error();
+    capsule_id = r.CapsuleId();
 
     if (err != GPG_ERR_NO_ERROR) {
       eml_data = "Sign Failed: " + gpg_error_string.toUtf8();
@@ -1165,30 +1140,23 @@ auto VerifyOneRegion(int channel, const QByteArray& raw,
   // It EXPLAINS a failure below; it never rescues one.
   verdict.signed_bytes_non_canonical = HasBareLineFeeds(signed_bytes);
 
-  GFGpgVerifyResult* s = nullptr;
-  auto ret = GFGpgVerifyDataN(channel, signed_bytes.constData(),
-                              signed_bytes.size(), signature_bytes.constData(),
-                              signature_bytes.size(), &s);
-  if (ret != 0 || s == nullptr) {
+  auto in = GFBuf::Copy(signed_bytes);
+  auto sig = GFBuf::Copy(signature_bytes);
+  GFGpgResult r;
+  if (GFGpgVerify(channel, in.View(), sig.View(), r.Out()) != GF_GPG_OK) {
     // One region failing is not the walk failing: the others are still worth
-    // verifying. The result still has to be reclaimed before moving on.
-    TakeSdkFailure(s, &GFGpgVerifyResult::gpgme_verify_result);
+    // verifying. Nothing to reclaim by hand -- r releases itself.
     verdict.exec = EMailVerifyExec::kENGINE_ERROR;
     verdict.verdict = EMailBadgeState::kSIGNED_ERROR;
     return verdict;
   }
 
-  const auto err = s->gpgme_error;
-  const auto capsule_id = UDUP(s->capsule_id);
-  // Reclaimed on the SUCCESS path too. Every other result site in this file
-  // takes error_string; this one did not, so a successful verification leaked
-  // it once per signed region -- confirmed by ASan, not by inspection. The
-  // opaque-result-handle rework removes the whole class by leaving no
-  // per-field free to forget; until then this is the missing line.
-  UDUP(s->error_string);
-
-  GFGpgFreeResult(s->gpgme_verify_result);
-  GFFreeMemory(s);
+  const auto err = r.Error();
+  const auto capsule_id = r.CapsuleId();
+  // No per-field reclaim here at all. This is the site where a successful
+  // verification used to leak error_string once per signed region -- found by
+  // ASan, not by inspection -- because correctness depended on remembering
+  // every char* member. There is no longer a member to forget.
 
   // The structured form AND the report text, from the one call: a per-
   // signature view cannot be rebuilt by re-reading prose, and the capsule is
@@ -1494,24 +1462,21 @@ auto DecryptEMLData(int channel, const QByteArray& data,
   // The SDK sets *ps = nullptr and returns non-zero when it cannot
   // allocate the result, so both must be checked before the first
   // dereference below -- not after it, as this used to.
-  GFGpgDecryptResult* s = nullptr;
-  auto ret = GFGpgDecryptDataN(channel, part_encr_body_content.constData(),
-                               part_encr_body_content.size(), &s);
-  if (ret != 0 || s == nullptr) {
-    eml_data = SdkFailureText(
-                   "Decrypt",
-                   TakeSdkFailure(s, &GFGpgDecryptResult::gpgme_decrypt_result))
-                   .toUtf8();
+  auto in = GFBuf::Copy(part_encr_body_content);
+  GFGpgResult r;
+  if (GFGpgDecrypt(channel, in.View(), r.Out()) != GF_GPG_OK) {
+    eml_data = SdkFailureText("Decrypt", r.ErrorString()).toUtf8();
     return kFAILED;
   }
 
-  eml_data = UDUPN(s->decrypted_data, s->decrypted_data_size);
-  err = s->gpgme_error;
-  capsule_id = UDUP(s->capsule_id);
-  auto gpg_error_string = UDUP(s->error_string);
-
-  GFGpgFreeResult(s->gpgme_decrypt_result);
-  GFFreeMemory(s);
+  // The plaintext leaves wipeable memory here, which DataCopy() is named to
+  // admit. It goes straight into the EML document the viewer renders, so a
+  // Qt container is unavoidable at this boundary; the handle itself, and the
+  // engine-side copy behind it, are still erased when r goes out of scope.
+  eml_data = r.DataCopy();
+  err = r.Error();
+  capsule_id = r.CapsuleId();
+  auto gpg_error_string = r.ErrorString();
 
   if (err != GPG_ERR_NO_ERROR) {
     eml_data = "Decrypt Failed: " + gpg_error_string.toUtf8();
