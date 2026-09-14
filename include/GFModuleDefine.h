@@ -35,6 +35,7 @@
   auto GFGetModuleGFSDKVersion() -> const char* {                           \
     return DUP(GF_SDK_VERSION_STR);                                         \
   }                                                                         \
+  auto GFGetModuleGFSDKABIVersion() -> int { return GF_SDK_ABI_VERSION; }   \
   auto GFGetModuleQtEnvVersion() -> const char* {                           \
     return DUP(QT_VERSION_STR);                                             \
   }                                                                         \
@@ -49,6 +50,7 @@
   auto GFGetModuleGFSDKVersion() -> const char* {                           \
     return DUP(GF_SDK_VERSION_STR);                                         \
   }                                                                         \
+  auto GFGetModuleGFSDKABIVersion() -> int { return GF_SDK_ABI_VERSION; }   \
   auto GFGetModuleQtEnvVersion() -> const char* {                           \
     return DUP(QT_VERSION_STR);                                             \
   }                                                                         \

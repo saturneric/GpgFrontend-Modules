@@ -35,6 +35,7 @@
 #define GF_MODULE_API_DECLARE                                        \
   extern "C" {                                                       \
   auto GF_MODULE_EXPORT GFGetModuleGFSDKVersion() -> const char *;   \
+  auto GF_MODULE_EXPORT GFGetModuleGFSDKABIVersion() -> int;          \
   auto GF_MODULE_EXPORT GFGetModuleQtEnvVersion() -> const char *;   \
   auto GF_MODULE_EXPORT GFGetModuleID() -> const char *;             \
   auto GF_MODULE_EXPORT GFGetModuleVersion() -> const char *;        \

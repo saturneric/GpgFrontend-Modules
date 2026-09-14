@@ -360,12 +360,24 @@ inline void CB(const QMap<QString, QString>& event, const char* module,
                                      ConvertMapToParams(params));
 }
 
+/// Copies @p b into an SDK buffer, NUL-terminated one past the end.
+///
+/// The terminator is not optional politeness: the buffer is handed to the
+/// host, and a caller that treats it as a C string would otherwise read past
+/// the allocation. @p b .size() stays authoritative for the byte count.
 inline auto AllocBufferAndCopy(const QByteArray& b) -> char* {
-  auto* p = static_cast<char*>(GFAllocateMemory(sizeof(char) * b.size()));
+  auto* p = static_cast<char*>(GFAllocateMemory(sizeof(char) * (b.size() + 1)));
+  if (p == nullptr) return nullptr;
   memcpy(p, b.constData(), b.size());
+  p[b.size()] = '\0';
   return p;
 }
 
+/// NOTE ON NAMING: the four helpers below say "Secure" but allocate from the
+/// ORDINARY arena (GFAllocateMemory), not the wiping one (GFSecAllocateMemory).
+/// They are named for the SDK allocator generally, not for the secure tier.
+/// For anything that must actually be erased, use the secure tier explicitly
+/// or a GFBuf handle -- do not rely on these names.
 template <typename T, typename... Args>
 auto SecureCreateSharedObject(Args&&... args) -> std::shared_ptr<T> {
   void* mem = GFAllocateMemory(sizeof(T));
