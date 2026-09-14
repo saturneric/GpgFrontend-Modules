@@ -1058,7 +1058,7 @@ auto DoDecryptEMLData(int channel, const QByteArray& data, const MEvent& event,
                       QString& result_cards, QByteArray& eml_data,
                       EMailMetaData& meta_data, QByteArray& decrypt_info_json)
     -> int {
-  gpgme_error_t err;
+  uint32_t err;
   QString capsule_id;
   auto ret =
       DecryptEMLData(channel, data, meta_data, eml_data, err, capsule_id);
@@ -1201,7 +1201,7 @@ auto DoSignEMLData(int channel, const QString& sign_key,
     CB_ERR(event, -1, "Get MetaData From EML Data Failed");
   }
 
-  gpg_error_t err;
+  uint32_t err;
   QString capsule_id;
   ret = SignEMLData(channel, sign_key, message, eml_data, err, capsule_id);
 
@@ -1265,7 +1265,7 @@ auto DoSignPlainText(int channel, const QString& sign_key,
                      const QByteArray& body_data, const MEvent& event,
                      int& result_status, QString& result_detail,
                      QString& result_cards, QByteArray& eml_data) -> int {
-  gpg_error_t err;
+  uint32_t err;
   QString capsule_id;
 
   auto ret = SignPlainText(channel, sign_key, meta_data, body_data, eml_data,
@@ -1402,7 +1402,7 @@ auto DoEncryptEMLData(int channel, const QStringList& encrypt_keys,
                       const QByteArray& body_data, const MEvent& event,
                       int& result_status, QString& result_detail,
                       QString& result_cards, QByteArray& eml_data) -> int {
-  gpgme_error_t err;
+  uint32_t err;
   QString capsule_id;
   auto ret = EncryptEMLData(channel, encrypt_keys, message, body_data, eml_data,
                             err, capsule_id);
@@ -1456,7 +1456,7 @@ auto DoEncryptPlainText(int channel, const QStringList& encrypt_keys,
                         const QByteArray& body_data, const MEvent& event,
                         int& result_status, QString& result_detail,
                         QString& result_cards, QByteArray& eml_data) -> int {
-  gpgme_error_t err;
+  uint32_t err;
   QString capsule_id;
   QByteArray plain_text_eml_data;
   auto ret = BuildPlainTextEML(meta_data, body_data, plain_text_eml_data);

@@ -29,6 +29,7 @@
 #include "EMailBasicGpgOpera.h"
 
 #include <GFSDKGpg.h>
+
 #include <GFSDKBuffer.hpp>
 #include <GFSDKGpgResult.hpp>
 
@@ -93,7 +94,7 @@ auto SdkFailureText(const QString& prefix, const QString& reason) -> QString {
 auto EncryptPlainText(int channel, const QStringList& keys,
                       const EMailMetaData& meta_data,
                       const QByteArray& body_data, QByteArray& eml_data,
-                      gpgme_error_t& err, QString& capsule_id) -> int {
+                      uint32_t& err, QString& capsule_id) -> int {
   auto from = meta_data.from;
   auto recipient_list = meta_data.to;
   auto cc_list = meta_data.cc;
@@ -124,7 +125,7 @@ auto EncryptPlainText(int channel, const QStringList& keys,
     capsule_id = r.CapsuleId();
     auto gpg_error_string = r.ErrorString();
 
-    if (err != GPG_ERR_NO_ERROR) {
+    if (err != GF_GPG_ERR_NO_ERROR) {
       eml_data = "Gpg Encryption Failed: " + gpg_error_string.toUtf8();
       return kGPG_FAILED;
     }
@@ -258,7 +259,7 @@ auto EncryptPlainText(int channel, const QStringList& keys,
 auto EncryptEMLData(int channel, const QStringList& keys,
                     const vmime::shared_ptr<vmime::message>& message,
                     const QByteArray& body_data, QByteArray& eml_data,
-                    gpgme_error_t& err, QString& capsule_id) -> int {
+                    uint32_t& err, QString& capsule_id) -> int {
   try {
     auto header = message->getHeader();
     auto body = message->getBody();
@@ -299,7 +300,7 @@ auto EncryptEMLData(int channel, const QStringList& keys,
     capsule_id = r.CapsuleId();
     auto gpg_error_string = r.ErrorString();
 
-    if (err != GPG_ERR_NO_ERROR) {
+    if (err != GF_GPG_ERR_NO_ERROR) {
       eml_data = "Encryption Failed: " + gpg_error_string.toUtf8();
       return kGPG_FAILED;
     }
@@ -391,7 +392,7 @@ auto EncryptEMLData(int channel, const QStringList& keys,
 
 auto SignPlainText(int channel, const QString& key,
                    const EMailMetaData& meta_data, const QByteArray& body_data,
-                   QByteArray& eml_data, gpgme_error_t& err,
+                   QByteArray& eml_data, uint32_t& err,
                    QString& capsule_id) -> int {
   auto from = meta_data.from;
   auto recipient_list = meta_data.to;
@@ -540,7 +541,8 @@ auto SignPlainText(int channel, const QString& key,
     signature_part_content_disp_header_field->setFilename(
         vmime::word(std::string{"OpenPGP_signature.asc"}));
 
-    auto public_key = UDUP(GFGpgPublicKey(channel, (key).toUtf8().constData(), 1));
+    auto public_key =
+        UDUP(GFGpgPublicKey(channel, (key).toUtf8().constData(), 1));
     if (public_key.isEmpty()) {
       eml_data = "Get Public Key of Sign Key Failed";
       return kFAILED;
@@ -606,7 +608,7 @@ auto SignPlainText(int channel, const QString& key,
     capsule_id = r.CapsuleId();
     auto gpg_error_string = r.ErrorString();
 
-    if (err != GPG_ERR_NO_ERROR) {
+    if (err != GF_GPG_ERR_NO_ERROR) {
       eml_data = "Sign Failed: " + gpg_error_string.toUtf8();
       return kGPG_FAILED;
     }
@@ -641,7 +643,7 @@ auto SignPlainText(int channel, const QString& key,
 
 auto SignEMLData(int channel, const QString& key,
                  const vmime::shared_ptr<vmime::message>& message,
-                 QByteArray& eml_data, gpgme_error_t& err, QString& capsule_id)
+                 QByteArray& eml_data, uint32_t& err, QString& capsule_id)
     -> int {
   try {
     // Re-signing replaces the previous signature; it does not pile a new one on
@@ -774,7 +776,8 @@ auto SignEMLData(int channel, const QString& key,
     signature_part_content_disp_header_field->setFilename(
         vmime::word(std::string{"OpenPGP_signature.asc"}));
 
-    auto public_key = UDUP(GFGpgPublicKey(channel, (key).toUtf8().constData(), 1));
+    auto public_key =
+        UDUP(GFGpgPublicKey(channel, (key).toUtf8().constData(), 1));
     if (public_key.isEmpty()) {
       eml_data = "Get Public Key of Sign Key Failed";
       return kFAILED;
@@ -839,7 +842,7 @@ auto SignEMLData(int channel, const QString& key,
     err = r.Error();
     capsule_id = r.CapsuleId();
 
-    if (err != GPG_ERR_NO_ERROR) {
+    if (err != GF_GPG_ERR_NO_ERROR) {
       eml_data = "Sign Failed: " + gpg_error_string.toUtf8();
       return kGPG_FAILED;
     }
@@ -898,10 +901,8 @@ auto FillMessageMeta(const vmime::shared_ptr<vmime::message>& message,
   }
 
   meta_data.from = ExtractFieldValueMailBox(header, vmime::fields::FROM);
-  meta_data.to =
-      ExtractFieldValueAddressListItems(header, vmime::fields::TO);
-  meta_data.cc =
-      ExtractFieldValueAddressListItems(header, vmime::fields::CC);
+  meta_data.to = ExtractFieldValueAddressListItems(header, vmime::fields::TO);
+  meta_data.cc = ExtractFieldValueAddressListItems(header, vmime::fields::CC);
   meta_data.bcc_header =
       ExtractFieldValueAddressListItems(header, vmime::fields::BCC);
   meta_data.reply_to =
@@ -1166,12 +1167,14 @@ auto VerifyOneRegion(int channel, const QByteArray& raw,
   const char* info_json = nullptr;
   report.region_id = region.region_id;
   report.status = GFAnalyseVerifyResultInfoByCapsule(
-      channel, err, (capsule_id).toUtf8().constData(), &analyse, &cards, &info_json);
+      channel, err, (capsule_id).toUtf8().constData(), &analyse, &cards,
+      &info_json);
   report.detail = UnStrDup(analyse);
   report.cards = UnStrDup(cards);
   report.info_json = UnStrDup(info_json).toUtf8();
 
-  auto region_results = ParseSignatureResults(report.info_json, region.region_id);
+  auto region_results =
+      ParseSignatureResults(report.info_json, region.region_id);
   CheckMicalgAgreement(region_results, region);
 
   if (region_results.isEmpty()) {
@@ -1314,7 +1317,7 @@ auto VerifyEMLMessage(int channel, const QByteArray& raw,
 
 auto DecryptEMLData(int channel, const QByteArray& data,
                     EMailMetaData& meta_data, QByteArray& eml_data,
-                    gpgme_error_t& err, QString& capsule_id) -> int {
+                    uint32_t& err, QString& capsule_id) -> int {
   vmime::string vmime_data(data.constData(), data.size());
   auto message = vmime::make_shared<vmime::message>();
   try {
@@ -1478,7 +1481,7 @@ auto DecryptEMLData(int channel, const QByteArray& data,
   capsule_id = r.CapsuleId();
   auto gpg_error_string = r.ErrorString();
 
-  if (err != GPG_ERR_NO_ERROR) {
+  if (err != GF_GPG_ERR_NO_ERROR) {
     eml_data = "Decrypt Failed: " + gpg_error_string.toUtf8();
     return kGPG_FAILED;
   }
