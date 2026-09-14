@@ -268,6 +268,49 @@ struct EMailRecipientInfo {
 };
 
 /**
+ * @brief One key an encrypted message was encrypted to.
+ *
+ * Mirrors GFGpgEncRecipient. This is read out of the message itself, before
+ * anything is decrypted, which is what makes it able to answer a question no
+ * address ever could: a message is encrypted to a KEY, usually an encryption
+ * subkey whose UID address need not appear in the headers at all.
+ */
+struct EMailEncRecipient {
+  QString key_id;  ///< as the message names it: key id, or v6 fingerprint
+  QString pub_algo;
+  QString fingerprint;  ///< of the resolved key; empty when unresolved
+  QString uid;          ///< of the resolved key; empty when unresolved
+  bool key_found{false};
+  /// The secret half is held. The only field that answers "can this be opened".
+  bool has_secret{false};
+  /// The key id was withheld on purpose, so this recipient is unidentifiable
+  /// rather than missing -- and may well be the user.
+  bool hidden{false};
+};
+
+/**
+ * @brief Whether this message can be opened on this computer.
+ */
+enum class EMailDecryptVerdict : uint8_t {
+  kCAN_OPEN = 0,  ///< a secret key for one of the recipients is held
+  kCANNOT_OPEN,   ///< every recipient is named, and none of them is us
+  kUNKNOWN,       ///< nothing conclusive: no recipients readable, or hidden
+};
+
+/**
+ * @brief The verdict plus whatever identifies it to the user.
+ */
+struct EMailDecryptCapability {
+  EMailDecryptVerdict verdict{EMailDecryptVerdict::kUNKNOWN};
+  /// Keys the secret half is held for, named as helpfully as possible: the
+  /// UID when the key resolved, otherwise the key id.
+  QStringList holding;
+  /// True when at least one recipient was deliberately anonymous, which is why
+  /// a kUNKNOWN verdict is not a kCANNOT_OPEN one.
+  bool has_hidden{false};
+};
+
+/**
  * @brief How one address or encryption recipient lines up with the other side.
  *
  * Deliberately asymmetric. An addressed recipient who cannot decrypt is a real
