@@ -1574,6 +1574,23 @@ void EMailNotifyKeyringChanged() {
 }
 
 void EMailPageView::NotifyKeyringChanged() {
+  // Whether this message can be opened is a statement ABOUT the key database,
+  // so it stops being true the moment that database changes: import the secret
+  // key it was encrypted to, or switch to a profile that holds it, and
+  // "cannot be opened on this computer" is simply wrong.
+  //
+  // Recomputed rather than discarded, unlike the verification below. This
+  // costs one packet read and one key lookup, runs no crypto and asks for no
+  // passphrase, so there is nothing to make the user ask for a second time.
+  // It also has to happen before the early return: an encrypted message that
+  // carries no signature has no regions at all, and that is precisely the
+  // message whose locked panel is on screen.
+  if (locked_capability_ != nullptr &&
+      (security_state_ == EMailSecurityState::kENCRYPTED ||
+       security_state_ == EMailSecurityState::kSIGNED_ENCRYPTED)) {
+    refresh_locked_panel();
+  }
+
   if (regions_.isEmpty()) return;
 
   // The previous answer was about a keyring that no longer exists: a signature
@@ -1776,11 +1793,18 @@ void EMailPageView::slot_derive_message(int mode) {
     return;
   }
 
+  // Name the tab after what it is. The subject already carries the "Re: " or
+  // "Fwd: " prefix, so a reply is told apart from its original at a glance,
+  // which "untitled.eml" never allowed. The host does not sanitize the title
+  // it is handed, so it is sanitized here.
+  auto title = TabTitleForSubject(derived.subject);
+  if (title.isEmpty()) title = tr("untitled.eml");
+
   QWidget* page = nullptr;
   QMetaObject::invokeMethod(
       edit, "SlotNewCustomTab", Qt::DirectConnection,
       Q_RETURN_ARG(QWidget*, page), Q_ARG(QString, "email"),
-      Q_ARG(QString, "untitled.eml"), Q_ARG(QIcon, QIcon(":/icons/email.png")),
+      Q_ARG(QString, title), Q_ARG(QIcon, QIcon(":/icons/email.png")),
       Q_ARG(QString, ":/icons/email.png"));
 
   if (page == nullptr) {
@@ -1901,12 +1925,95 @@ void EMailPageView::refresh_locked_panel() {
 }
 
 void EMailPageView::refresh_locked_capability(const QStringList& named) {
-  // The addresses this user holds the secret half for. An address being here
-  // is not a promise the decryption will work -- the message may be encrypted
-  // to a key whose address the headers never mention, which is exactly why
-  // Decrypt stays enabled either way -- but its ABSENCE across every named
-  // recipient is worth saying before the user presses a button that cannot
-  // succeed.
+  // What the MESSAGE says, not what the headers say. A message is encrypted to
+  // a key, and the key it names is usually an encryption subkey whose UID
+  // address need never appear in To or Cc -- so matching addresses answered a
+  // different question than the one asked, and answered it wrongly in both
+  // directions: it claimed a readable message could not be opened whenever the
+  // key's address differed from the header, and claimed the user held the key
+  // for mail encrypted to someone else who happened to share an address.
+  const auto* ciphertext = FindEncryptedCiphertextPart(tree_root_);
+  if (ciphertext != nullptr) {
+    GFGpgEncRecipient* raw = nullptr;
+    int count = 0;
+    if (GFGpgSniffEncryptedRecipients(
+            GFGpgCurrentGpgContextChannel(), ciphertext->data.constData(),
+            static_cast<int>(ciphertext->data.size()), &raw, &count) == 0) {
+      QList<EMailEncRecipient> recipients;
+      recipients.reserve(count);
+      for (int i = 0; i < count; ++i) {
+        // Copied rather than taken: these strings belong to the array that
+        // GFGpgFreeEncRecipients releases as a whole.
+        recipients.append(EMailEncRecipient{
+            QString::fromUtf8(raw[i].key_id),
+            QString::fromUtf8(raw[i].pub_algo),
+            QString::fromUtf8(raw[i].fingerprint),
+            QString::fromUtf8(raw[i].uid),
+            raw[i].key_found != 0,
+            raw[i].has_secret != 0,
+            raw[i].hidden != 0,
+        });
+      }
+      GFGpgFreeEncRecipients(raw, count);
+
+      if (!recipients.isEmpty()) {
+        show_decrypt_capability(DescribeDecryptCapability(recipients));
+        return;
+      }
+    }
+  }
+
+  // Nothing could be read out of the message itself -- it is not an RFC 3156
+  // encrypted message, or the engine could not parse its packets. Fall back to
+  // the addresses, which is a guess, and worded as one.
+  refresh_locked_capability_by_address(named);
+}
+
+void EMailPageView::show_decrypt_capability(
+    const EMailDecryptCapability& capability) {
+  locked_capability_->setVisible(true);
+
+  switch (capability.verdict) {
+    case EMailDecryptVerdict::kCAN_OPEN:
+      EMailSetLabelColor(locked_capability_, AccentColor(this, true));
+      locked_capability_->setText(
+          capability.holding.size() == 1
+              ? tr("You hold the private key for %1, so this message can be "
+                   "opened here.")
+                    .arg(capability.holding.front())
+              : tr("You hold private keys for %1, so this message can be "
+                   "opened here.")
+                    .arg(capability.holding.join(", ")));
+      return;
+
+    case EMailDecryptVerdict::kCANNOT_OPEN:
+      EMailSetLabelColor(locked_capability_,
+                         ThemeColor(this, &GFUIWarningColor));
+      locked_capability_->setText(
+          tr("This message is encrypted to keys you do not hold the private "
+             "half of, so it cannot be opened on this computer."));
+      return;
+
+    case EMailDecryptVerdict::kUNKNOWN:
+      EMailSetLabelColor(locked_capability_, MutedColor(this));
+      locked_capability_->setText(
+          capability.has_hidden
+              ? tr("Some recipients of this message were deliberately not "
+                   "named, so there is no way to tell whether you can open it "
+                   "until you try.")
+              : tr("The recipients of this message cannot be read, so there is "
+                   "no way to tell whether you can open it until you try."));
+      return;
+  }
+}
+
+void EMailPageView::refresh_locked_capability_by_address(
+    const QStringList& named) {
+  // The addresses this user holds the secret half for. A far weaker signal
+  // than the recipient key ids above -- it can only ever be a guess, because
+  // the key a message is encrypted to need not carry any of these addresses --
+  // so it is reached only when the message itself could not be read, and every
+  // wording below is hedged accordingly.
   char** addresses = nullptr;
   int count = 0;
   if (GFGpgListKeyAddresses(GFGpgCurrentGpgContextChannel(), 1, &addresses,

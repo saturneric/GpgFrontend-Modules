@@ -374,9 +374,16 @@ class EMailPageView : public QWidget {
   void open_attachment(QTreeWidgetItem* item);
   /// Hands @p att to the host's key import.
   void import_attachment_key(const EMailAttachment& att);
-  /// Says whether this user holds a private key for any of @p named, so the
-  /// encrypted panel can answer "can I open this" before the user tries.
+  /// Says whether this message can be opened here, so the encrypted panel can
+  /// answer "can I open this" before the user tries. Reads the recipient key
+  /// ids out of the ciphertext and asks the key database for them; @p named is
+  /// only used for the address-matching fallback below.
   void refresh_locked_capability(const QStringList& named);
+  /// Renders one verdict from refresh_locked_capability().
+  void show_decrypt_capability(const EMailDecryptCapability& capability);
+  /// The guess of last resort, for a message whose own recipients could not be
+  /// read: does this user hold a private key for any of @p named?
+  void refresh_locked_capability_by_address(const QStringList& named);
   /// Every OpenPGP key part carried by the parsed message, in tree order.
   [[nodiscard]] auto message_key_parts() const -> QList<const EMailPart*>;
   /// Imports all of them, then asks the Security tab to describe the keyring
