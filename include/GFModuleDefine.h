@@ -28,43 +28,13 @@
 
 #pragma once
 
+// The GF_MODULE_API_DEFINE / _V2 macros that used to live here defined the ten
+// separately-exported module symbols. They are gone: a module now describes
+// itself through the single bootstrap table in GFModuleBootstrap.h, which is
+// what lets the host and the module negotiate an ABI and lets the host
+// withhold a capability. This header remains for the shared includes.
+
 #include "GFModuleCommonUtils.hpp"
 #include "GFSDKBuildInfo.h"
 
-#define GF_MODULE_API_DEFINE(id, name, ver, desc, author)                   \
-  auto GFGetModuleGFSDKVersion() -> const char* {                           \
-    return DUP(GF_SDK_VERSION_STR);                                         \
-  }                                                                         \
-  auto GFGetModuleGFSDKABIVersion() -> int { return GF_SDK_ABI_VERSION; }   \
-  auto GFGetModuleQtEnvVersion() -> const char* {                           \
-    return DUP(QT_VERSION_STR);                                             \
-  }                                                                         \
-  auto GFGetModuleID() -> const char* { return DUP((id)); }                 \
-  auto GFGetModuleVersion() -> const char* { return DUP((ver)); }           \
-  auto GFGetModuleMetaData() -> GFModuleMetaData* {                         \
-    return QMapToGFModuleMetaDataList(                                      \
-        {{"Name", (name)}, {"Description", (desc)}, {"Author", (author)}}); \
-  }
 
-#define GF_MODULE_API_DEFINE_V2(id, name, ver, desc, author)                \
-  auto GFGetModuleGFSDKVersion() -> const char* {                           \
-    return DUP(GF_SDK_VERSION_STR);                                         \
-  }                                                                         \
-  auto GFGetModuleGFSDKABIVersion() -> int { return GF_SDK_ABI_VERSION; }   \
-  auto GFGetModuleQtEnvVersion() -> const char* {                           \
-    return DUP(QT_VERSION_STR);                                             \
-  }                                                                         \
-  auto GFGetModuleID() -> const char* { return DUP((id)); }                 \
-  auto GFGetModuleVersion() -> const char* { return DUP((ver)); }           \
-  auto GFGetModuleMetaData() -> GFModuleMetaData* {                         \
-    return QMapToGFModuleMetaDataList(                                      \
-        {{"Name", (name)}, {"Description", (desc)}, {"Author", (author)}}); \
-  }                                                                         \
-  using MEvent = QMap<QString, QString>;                                    \
-  using EventHandler = std::function<int(const MEvent&)>;                   \
-  namespace {                                                               \
-  static QMap<QString, EventHandler> Module##nameEventHandlers;             \
-  static QMap<QString, EventHandler>& _gr_module_event_handlers =           \
-      Module##nameEventHandlers;                                            \
-  }                                                                         \
-  DEFINE_EXECUTE_API_USING_STANDARD_EVEN_HANDLE_MODEL
