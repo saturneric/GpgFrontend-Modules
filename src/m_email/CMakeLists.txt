@@ -121,3 +121,16 @@ module_add_translations(${MODULE_TARGET}
 if(GPGFRONTEND_MODULES_BUILD_TESTS)
   add_subdirectory(test)
 endif()
+
+
+# Build a signed `*.gfmodule` alongside the loose library. Packages are where
+# this is going -- loose libraries are transitional and a future version will
+# stop loading them -- but both are produced for now.
+gf_add_module_package(
+  TARGET       mod_email
+  MODULE_ID    com.bktus.gpgfrontend.module.email
+  VERSION      2.0.0
+  CAPABILITIES gpg ui network
+  META         "Name=Email"
+               "Description=Everything related to E-Mails."
+               "Author=Saturneric")

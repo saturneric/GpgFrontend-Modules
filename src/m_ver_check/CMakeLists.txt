@@ -45,3 +45,13 @@ module_add_translations(${MODULE_TARGET}
   TS_FILES ${TS_FILES}
   SOURCES ${INTEGRATED_MODULE_SOURCE}
   INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR})
+
+# Build a signed `*.gfmodule` alongside the loose library. See m_email.
+gf_add_module_package(
+  TARGET       ver_check
+  MODULE_ID    com.bktus.gpgfrontend.module.version_checking
+  VERSION      1.5.0
+  CAPABILITIES ui network
+  META         "Name=VersionChecking"
+               "Description=Try checking GpgFrontend version."
+               "Author=Saturneric")

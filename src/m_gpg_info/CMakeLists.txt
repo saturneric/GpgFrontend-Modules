@@ -42,3 +42,16 @@ module_add_translations(${MODULE_TARGET}
   TS_FILES ${TS_FILES}
   SOURCES ${INTEGRATED_MODULE_SOURCE}
   INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR})
+
+# Build a signed `*.gfmodule` alongside the loose library. Packages are where
+# this is going -- loose libraries are transitional and a future version will
+# stop loading them -- but both are produced for now, so that a build of this
+# tree keeps working while the rest of the modules are packaged.
+gf_add_module_package(
+  TARGET       gpg_info
+  MODULE_ID    com.bktus.gpgfrontend.module.gnupg_info_gathering
+  VERSION      1.2.2
+  CAPABILITIES gpg
+  META         "Name=GatherGnupgInfo"
+               "Description=Try gathering gnupg information."
+               "Author=Saturneric")

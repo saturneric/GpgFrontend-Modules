@@ -42,3 +42,13 @@ module_add_translations(${MODULE_TARGET}
   TS_FILES ${TS_FILES}
   SOURCES ${INTEGRATED_MODULE_SOURCE}
   INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR})
+
+# Build a signed `*.gfmodule` alongside the loose library. See m_email.
+gf_add_module_package(
+  TARGET       key_server_sync
+  MODULE_ID    com.bktus.gpgfrontend.module.key_server_sync
+  VERSION      1.3.2
+  CAPABILITIES gpg ui network
+  META         "Name=KeyServerSync"
+               "Description=Sync Information From Trusted Key Server."
+               "Author=Saturneric")
