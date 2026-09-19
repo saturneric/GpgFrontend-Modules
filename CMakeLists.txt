@@ -68,8 +68,10 @@ set(SDK_LIB_PATH "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
 message(STATUS "GpgFrontend Modules SDK Headers Path: ${SDK_INCLUDE_PATH} ")
 message(STATUS "GpgFrontend Modules SDK Library Path: ${SDK_LIB_PATH} ")
 
+# The module author surface now lives with the runtime that implements it
+# (src/module_runtime/include), and gf_add_module() puts it on the path by
+# linking gf_module_runtime. Only the SDK headers are still needed here.
 include_directories(
-  ${CMAKE_CURRENT_SOURCE_DIR}/include
   ${SDK_INCLUDE_PATH}
 )
 
