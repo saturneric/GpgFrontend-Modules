@@ -28,13 +28,8 @@
 
 #pragma once
 
-// The GF_MODULE_API_DEFINE / _V2 macros that used to live here defined the ten
-// separately-exported module symbols. They are gone: a module now describes
-// itself through the single bootstrap table in GFModuleBootstrap.h, which is
-// what lets the host and the module negotiate an ABI and lets the host
-// withhold a capability. This header remains for the shared includes.
+// DEPRECATED. Its two includes are what GFModule.h does properly.
+//
+// Include "GFModule.h" instead.
 
-#include "GFModuleCommonUtils.hpp"
-#include "GFSDKBuildInfo.h"
-
-
+#include "GFModule.h"

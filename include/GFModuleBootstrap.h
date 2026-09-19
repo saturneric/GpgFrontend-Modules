@@ -31,6 +31,7 @@
 #include <GFSDKModuleApi.h>
 
 #include "GFModuleExport.h"
+#include "GFModuleIdentity.h"
 #include "GFSDKBuildInfo.h"
 
 /**
@@ -47,10 +48,12 @@
  * null), and what lets a test supply its own table instead of compiling a
  * parallel set of stub symbols that drift from the real SDK.
  *
- * USAGE, once per module:
+ * USAGE, once per module, with no arguments at all:
  *
- *     GF_MODULE_BOOTSTRAP("com.example.module", "1.0.0",
- *                         MyActivate, MyExecute, MyDeactivate, MyUnregister)
+ *     GF_MODULE_BOOTSTRAP()
+ *
+ * Identity comes from the generated GFModuleIdentity.h, which is built from
+ * the module's own module.json.
  *
  * The host api pointer is stashed in GFHost() for the module's own code to
  * reach without threading it through every function. It is valid from the
@@ -67,80 +70,42 @@ inline const GFHostApi*& GFHostApiSlot() {
 inline auto GFHost() -> const GFHostApi* { return GFHostApiSlot(); }
 
 /**
- * @brief Define the module's bootstrap symbol and lifecycle table.
+ * @brief Define this module's bootstrap symbol, lifecycle table and identity.
  *
- * @param id     module identifier, e.g. "com.example.module"
- * @param ver    module version, e.g. "1.0.0"
- * @param fn_act int(const GFHostApi*, void*) -- setup; host api is borrowed
- * @param fn_exe int(GFModuleEvent*)          -- handle one event
- * @param fn_dea int(void)                    -- cancel work, drop registrations
- * @param fn_unr void(void)                   -- final teardown
- */
-#define GF_MODULE_BOOTSTRAP(id, ver, fn_act, fn_exe, fn_dea, fn_unr)         \
-  static int GFBootstrapActivate(const GFHostApi* host, void* reserved) {    \
-    GFHostApiSlot() = host;                                                  \
-    return (fn_act)(host, reserved);                                         \
-  }                                                                          \
-  extern "C" GF_MODULE_EXPORT const GFModuleApi* GFModuleGetApi(             \
-      uint32_t host_abi) {                                                   \
-    /* Decline a host outside the range this module was built for, rather  */\
-    /* than loading and failing on the first mismatched call. */             \
-    if (host_abi < GF_SDK_ABI_MIN_SUPPORTED ||                               \
-        host_abi > GF_SDK_ABI_VERSION) {                                     \
-      return nullptr;                                                        \
-    }                                                                        \
-    /* Static: the host borrows this table and never frees it. */            \
-    static const GFModuleApi kApi = {                                        \
-        sizeof(GFModuleApi), GF_SDK_ABI_VERSION, (id), (ver),                \
-        &GFBootstrapActivate, (fn_exe), (fn_dea), (fn_unr),                  \
-    };                                                                       \
-    return &kApi;                                                            \
-  }
-
-
-/**
- * @brief Bootstrap a module that already has the classic lifecycle functions.
+ * Takes no arguments. Everything it needs comes from `GFModuleIdentity.h`,
+ * which `gf_add_module()` generates from the module's `module.json` -- so the
+ * identifier and version the host cross-checks against the signed manifest
+ * cannot disagree with it, because there is only one copy.
  *
- * Adapts GFRegisterModule / GFActiveModule / GFExecuteModule /
- * GFDeactivateModule / GFUnregisterModule onto the table, so porting a module
- * is a one-line change at the top of the file rather than a rewrite of its
- * entry points. It also keeps GFGetModuleID() and friends defined, because
- * module code calls GFGetModuleID() constantly (LISTEN, CB, the translator
- * reader) and those calls should not have to change.
+ * It replaces `GF_MODULE_BOOTSTRAP_V2(id, name, ver, desc, author)`, whose
+ * five arguments were the C++ half of the same five values the CMake call
+ * repeated. Three of them -- name, description, author -- fed only
+ * `GFGetModuleMetaData()`, which had no callers at all: the host reads that
+ * metadata from the verified package manifest instead. So they are simply
+ * gone, rather than moved.
+ *
+ * The module still writes its lifecycle functions under their classic names --
+ * GFRegisterModule, GFActiveModule, GFExecuteModule, GFDeactivateModule,
+ * GFUnregisterModule -- and this adapts them onto the table.
  *
  * Note the ORDER inside activate: the host's table has no separate register
  * step, so whatever the module did in GFRegisterModule -- typically
  * registering its translator -- has to run here, before GFActiveModule starts
  * subscribing to events.
  */
-#define GF_MODULE_BOOTSTRAP_V2(id, name, ver, desc, author)                  \
+#define GF_MODULE_BOOTSTRAP()                                                \
   /* Identity strings are BORROWED statics, not fresh allocations.         */\
   /* They used to be DUP(...)ed on every call because the SDK entry points  */\
   /* they were passed to freed their arguments. Now that arguments are      */\
   /* borrowed, allocating here would simply leak -- and GFGetModuleID() is  */\
   /* called on the order of seventy times across the modules.               */\
-  auto GFGetModuleGFSDKVersion() -> const char* {                            \
-    return GF_SDK_VERSION_STR;                                               \
-  }                                                                          \
-  auto GFGetModuleGFSDKABIVersion() -> int { return GF_SDK_ABI_VERSION; }    \
-  auto GFGetModuleQtEnvVersion() -> const char* { return QT_VERSION_STR; }   \
-  auto GFGetModuleID() -> const char* { return (id); }                       \
-  auto GFGetModuleVersion() -> const char* { return (ver); }                 \
-  auto GFGetModuleMetaData() -> GFModuleMetaData* {                          \
-    return QMapToGFModuleMetaDataList(                                       \
-        {{"Name", (name)}, {"Description", (desc)}, {"Author", (author)}});  \
-  }                                                                          \
+  auto GFGetModuleID() -> const char* { return GF_MODULE_ID; }               \
   using MEvent = QMap<QString, QString>;                                     \
   using EventHandler = std::function<int(const MEvent&)>;                    \
   namespace {                                                                \
-  /* NOTE: `Module##nameEventHandlers` pastes onto the IDENTIFIER          */\
-  /* `nameEventHandlers`, so it does not substitute the `name` parameter   */\
-  /* at all -- it always yields ModulenameEventHandlers. That is inherited */\
-  /* from GF_MODULE_API_DEFINE_V2 and kept deliberately: `name` is a string*/\
-  /* literal here, and actually pasting it would not compile.              */\
-  static QMap<QString, EventHandler> Module##nameEventHandlers;             \
+  static QMap<QString, EventHandler> gModuleEventHandlers;                   \
   static QMap<QString, EventHandler>& _gr_module_event_handlers =            \
-      Module##nameEventHandlers;                                            \
+      gModuleEventHandlers;                                                  \
   }                                                                          \
   DEFINE_EXECUTE_API_USING_STANDARD_EVEN_HANDLE_MODEL                        \
   static int GFBootstrapActivate(const GFHostApi* host, void*) {             \
@@ -152,15 +117,18 @@ inline auto GFHost() -> const GFHostApi* { return GFHostApiSlot(); }
   static void GFBootstrapUnregister() { (void)GFUnregisterModule(); }        \
   extern "C" GF_MODULE_EXPORT const GFModuleApi* GFModuleGetApi(             \
       uint32_t host_abi) {                                                   \
+    /* Decline a host outside the range this module was built for, rather  */\
+    /* than loading and failing on the first mismatched call. */             \
     if (host_abi < GF_SDK_ABI_MIN_SUPPORTED ||                               \
         host_abi > GF_SDK_ABI_VERSION) {                                     \
       return nullptr;                                                        \
     }                                                                        \
+    /* Static: the host borrows this table and never frees it. */            \
     static const GFModuleApi kApi = {                                        \
         sizeof(GFModuleApi),                                                 \
         GF_SDK_ABI_VERSION,                                                  \
-        (id),                                                                \
-        (ver),                                                               \
+        GF_MODULE_ID,                                                        \
+        GF_MODULE_VERSION,                                                   \
         &GFBootstrapActivate,                                                \
         &GFExecuteModule,                                                    \
         &GFDeactivateModule,                                                 \
