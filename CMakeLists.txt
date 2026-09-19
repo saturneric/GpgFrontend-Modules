@@ -88,6 +88,10 @@ link_directories(
   ${SDK_LIB_PATH}
 )
 
+# The namespace root. Each module's own output directory is set per target by
+# gf_add_module(), to modules/<key>/native, because the directory a module owns
+# is derived from the identity it signs rather than from where it sits in the
+# source tree.
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/modules)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/modules)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}/modules)
