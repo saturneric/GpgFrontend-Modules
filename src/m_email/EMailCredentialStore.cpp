@@ -94,8 +94,8 @@ auto Save(const QString& account_id, const EMailSecret& password) -> bool {
     return false;
   }
 
-  const auto result =
-      GFSecDurableCacheSave((CredentialKey(account_id)).toUtf8().constData(), secret);
+  const auto result = GFSecDurableCacheSave(
+      (CredentialKey(account_id)).toUtf8().constData(), secret);
 
   if (result != 0) LOG_ERROR("failed to store mail credential");
   return result == 0;
@@ -104,7 +104,8 @@ auto Save(const QString& account_id, const EMailSecret& password) -> bool {
 auto Load(const QString& account_id) -> EMailSecretPtr {
   if (account_id.isEmpty()) return std::make_shared<EMailSecret>();
 
-  auto* raw = GFSecDurableCacheGet((CredentialKey(account_id)).toUtf8().constData());
+  auto* raw =
+      GFSecDurableCacheGet((CredentialKey(account_id)).toUtf8().constData());
   if (raw == nullptr) return std::make_shared<EMailSecret>();
 
   // AdoptCString copies the bytes out, wipes the SDK's buffer and frees it to

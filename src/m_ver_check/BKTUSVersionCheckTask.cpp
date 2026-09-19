@@ -51,8 +51,9 @@ BKTUSVersionCheckTask::BKTUSVersionCheckTask()
 
   connect(this, &BKTUSVersionCheckTask::SignalUpgradeVersion, this,
           [](const SoftwareVersion& sv) {
-            GFDurableCacheSave("update_checking_cache",
-                               (QJsonDocument(sv.ToJson()).toJson()).constData());
+            GFDurableCacheSave(
+                "update_checking_cache",
+                (QJsonDocument(sv.ToJson()).toJson()).constData());
           });
 }
 

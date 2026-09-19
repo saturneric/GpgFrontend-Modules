@@ -28,8 +28,6 @@
 
 #include "KeyServerSyncModule.h"
 
-#include "GFModuleIdentity.h"
-
 #include <GFSDKGpg.h>
 
 #include <QtCore>
@@ -37,6 +35,7 @@
 #include <QtWidgets>
 
 #include "GFModule.h"
+#include "GFModuleIdentity.h"
 #include "GFSDKUI.h"
 #include "KeyServerList.h"
 #include "KeyServerSettingsPage.h"
@@ -370,194 +369,207 @@ auto OnMainwindowMenuMounted(const GFEvent& event) -> GFEventResult {
 }
 
 auto OnKeyPairOperaMenuCreated(const GFEvent& event) -> GFEventResult {
-      auto* tab = GFUIObject<QWidget>(event.Str("tab"));
-      if (!tab) {
-        LOG_ERROR(
-            "key pair opera menu created: tab handle "
-            "invalid or not KeyPairOperaTab");
-        return GFEventResult::Bad("tab handle invalid or not KeyPairOperaTab");
-      }
+  auto* tab = GFUIObject<QWidget>(event.Str("tab"));
+  if (!tab) {
+    LOG_ERROR(
+        "key pair opera menu created: tab handle "
+        "invalid or not KeyPairOperaTab");
+    return GFEventResult::Bad("tab handle invalid or not KeyPairOperaTab");
+  }
 
-      auto* layout = GFUIObject<QVBoxLayout>(event.Str("opera_layout"));
-      if (!layout) {
-        LOG_ERROR(
-            "key pair opera menu created: opera_menu handle "
-            "invalid or not QMenu");
-        return GFEventResult::Bad("opera_menu handle invalid or not QMenu");
-      }
+  auto* layout = GFUIObject<QVBoxLayout>(event.Str("opera_layout"));
+  if (!layout) {
+    LOG_ERROR(
+        "key pair opera menu created: opera_menu handle "
+        "invalid or not QMenu");
+    return GFEventResult::Bad("opera_menu handle invalid or not QMenu");
+  }
 
-      auto is_private_key = event.Str("is_private_key").toInt() != 0;
-      auto has_master_key = event.Str("has_master_key").toInt() != 0;
+  auto is_private_key = event.Str("is_private_key").toInt() != 0;
+  auto has_master_key = event.Str("has_master_key").toInt() != 0;
 
-      auto channel = event.Str("channel").toInt();
-      auto key_id = event.Str("key_id");
-      auto fpr = event.Str("fpr");
+  auto channel = event.Str("channel").toInt();
+  auto key_id = event.Str("key_id");
+  auto fpr = event.Str("fpr");
 
-      FLOG_DEBUG(
-          "adding key server sync actions: key id: %1, channel: %2, is "
-          "private key: %3, has master key: %4",
-          key_id, channel, static_cast<int>(is_private_key),
-          static_cast<int>(has_master_key));
+  FLOG_DEBUG(
+      "adding key server sync actions: key id: %1, channel: %2, is "
+      "private key: %3, has master key: %4",
+      key_id, channel, static_cast<int>(is_private_key),
+      static_cast<int>(has_master_key));
 
-      QMetaObject::invokeMethod(QApplication::instance(), [=]() -> void {
-        auto* menu = new QMenu(tab);
+  QMetaObject::invokeMethod(QApplication::instance(), [=]() -> void {
+    auto* menu = new QMenu(tab);
 
-        auto* key_server_opera_button = new QPushButton(
-            QCoreApplication::translate("GTrC", "Key Server Operations"));
-        key_server_opera_button->setStyleSheet("text-align:center;");
-        key_server_opera_button->setMenu(menu);
+    auto* key_server_opera_button = new QPushButton(
+        QCoreApplication::translate("GTrC", "Key Server Operations"));
+    key_server_opera_button->setStyleSheet("text-align:center;");
+    key_server_opera_button->setMenu(menu);
 
-        // add upload / update key actions
-        auto* upload_key_pair = new QAction(QCoreApplication::translate(
-            "GTrC", "Publish Public Key to Key Server"));
-        QObject::connect(upload_key_pair, &QAction::triggered, tab,
-                         [=]() { UploadKeyToServer(tab, channel, key_id); });
-        // Any key with a public part can be published, mirroring the Key
-        // Management "Publish Key to Keyserver" action.
+    // add upload / update key actions
+    auto* upload_key_pair = new QAction(QCoreApplication::translate(
+        "GTrC", "Publish Public Key to Key Server"));
+    QObject::connect(upload_key_pair, &QAction::triggered, tab,
+                     [=]() { UploadKeyToServer(tab, channel, key_id); });
+    // Any key with a public part can be published, mirroring the Key
+    // Management "Publish Key to Keyserver" action.
 
-        auto* update_key_pair = new QAction(QCoreApplication::translate(
-            "GTrC", "Refresh Public Key From Key Server"));
-        QObject::connect(update_key_pair, &QAction::triggered, tab,
-                         [=]() { UpdateKeyFromKeyServer(tab, channel, fpr); });
+    auto* update_key_pair = new QAction(QCoreApplication::translate(
+        "GTrC", "Refresh Public Key From Key Server"));
+    QObject::connect(update_key_pair, &QAction::triggered, tab,
+                     [=]() { UpdateKeyFromKeyServer(tab, channel, fpr); });
 
-        // Refresh re-imports the latest public key from the server; it is
-        // valid for any key, including your own.
+    // Refresh re-imports the latest public key from the server; it is
+    // valid for any key, including your own.
 
-        menu->addAction(upload_key_pair);
-        menu->addAction(update_key_pair);
+    menu->addAction(upload_key_pair);
+    menu->addAction(update_key_pair);
 
-        layout->addWidget(key_server_opera_button);
-      });
+    layout->addWidget(key_server_opera_button);
+  });
 
-      return GFEventResult::Ok();
+  return GFEventResult::Ok();
 }
 
 auto OnRequestGetPublicKeyByFingerprint(const GFEvent& event) -> GFEventResult {
-      if (event.Str("fingerprint").isEmpty())
-        return GFEventResult::Bad("fingerprint is empty");
+  if (event.Str("fingerprint").isEmpty())
+    return GFEventResult::Bad("fingerprint is empty");
 
-      QString fingerprint = event.Str("fingerprint");
-      FLOG_DEBUG("try to get key info of fingerprint: %1", fingerprint);
+  QString fingerprint = event.Str("fingerprint");
+  FLOG_DEBUG("try to get key info of fingerprint: %1", fingerprint);
 
-      const auto route = KeyServerList::SyncRoute();
-      const auto server = route.url;
+  const auto route = KeyServerList::SyncRoute();
+  const auto server = route.url;
 
-      FetchKey(
-          route, fingerprint, true,
-          [event, server](const QString& key) {
-            event.Answer().Ok({{"key_data", key}, {"key_server", server}});
-          },
-          [event, server](const QString& error, const QString& data) {
-            event.Answer().Fail(error, {{"reply_data", data}, {"key_server", server}});
-          });
-      return GFEventResult::Deferred();
+  FetchKey(
+      route, fingerprint, true,
+      [event, server](const QString& key) {
+        event.Answer().Ok({{"key_data", key}, {"key_server", server}});
+      },
+      [event, server](const QString& error, const QString& data) {
+        event.Answer().Fail(error,
+                            {{"reply_data", data}, {"key_server", server}});
+      });
+  return GFEventResult::Deferred();
 }
 
 auto OnRequestGetPublicKeyByKeyId(const GFEvent& event) -> GFEventResult {
-      if (event.Str("key_id").isEmpty()) return GFEventResult::Bad("key_id is empty");
+  if (event.Str("key_id").isEmpty())
+    return GFEventResult::Bad("key_id is empty");
 
-      QString key_id = event.Str("key_id");
-      FLOG_DEBUG("try to get key info of key id: %1", key_id);
+  QString key_id = event.Str("key_id");
+  FLOG_DEBUG("try to get key info of key id: %1", key_id);
 
-      const auto route = KeyServerList::SyncRoute();
-      const auto server = route.url;
+  const auto route = KeyServerList::SyncRoute();
+  const auto server = route.url;
 
-      FetchKey(
-          route, key_id, false,
-          [event, server](const QString& key) {
-            event.Answer().Ok({{"key_data", key}, {"key_server", server}});
-          },
-          [event, server](const QString& error, const QString& data) {
-            event.Answer().Fail(error, {{"reply_data", data}, {"key_server", server}});
-          });
+  FetchKey(
+      route, key_id, false,
+      [event, server](const QString& key) {
+        event.Answer().Ok({{"key_data", key}, {"key_server", server}});
+      },
+      [event, server](const QString& error, const QString& data) {
+        event.Answer().Fail(error,
+                            {{"reply_data", data}, {"key_server", server}});
+      });
 
-      return GFEventResult::Deferred();
+  return GFEventResult::Deferred();
 }
 
 auto OnRequestUploadPublicKey(const GFEvent& event) -> GFEventResult {
-      if (event.Str("key_text").isEmpty()) return GFEventResult::Bad("key_text is empty");
+  if (event.Str("key_text").isEmpty())
+    return GFEventResult::Bad("key_text is empty");
 
-      QByteArray key_text = event.Str("key_text").toLatin1();
-      FLOG_DEBUG("try to get key info of key id: %1", key_text);
+  QByteArray key_text = event.Str("key_text").toLatin1();
+  FLOG_DEBUG("try to get key info of key id: %1", key_text);
 
-      const auto route = KeyServerList::SyncRoute();
-      const auto server = route.url;
+  const auto route = KeyServerList::SyncRoute();
+  const auto server = route.url;
 
-      if (!route.vks) {
-        // No widget to ask through here, and the callers of this event already
-        // confirm that publishing is permanent. Report the protocol so the
-        // caller can say what actually happened rather than promise a
-        // verification mail that is never coming.
-        auto* pks = new PKSInterface();
-        QObject::connect(pks, &PKSInterface::SignalKeyServerKeyUploadResult,
-                         QThread::currentThread(),
-                         [event, server](QNetworkReply::NetworkError error,
-                                         const QString& error_string) {
-                           if (error != QNetworkReply::NoError) {
-                             event.Answer().Fail(error_string, {{"key_server", server}, {"protocol", "hkp"}});
-                             return;
-                           }
+  if (!route.vks) {
+    // No widget to ask through here, and the callers of this event already
+    // confirm that publishing is permanent. Report the protocol so the
+    // caller can say what actually happened rather than promise a
+    // verification mail that is never coming.
+    auto* pks = new PKSInterface();
+    QObject::connect(
+        pks, &PKSInterface::SignalKeyServerKeyUploadResult,
+        QThread::currentThread(),
+        [event, server](QNetworkReply::NetworkError error,
+                        const QString& error_string) {
+          if (error != QNetworkReply::NoError) {
+            event.Answer().Fail(error_string,
+                                {{"key_server", server}, {"protocol", "hkp"}});
+            return;
+          }
 
-                           event.Answer().Ok({{"key_server", server}, {"protocol", "hkp"}});
-                         });
-        QObject::connect(pks, &PKSInterface::SignalKeyServerKeyUploadResult,
-                         pks, &PKSInterface::deleteLater);
+          event.Answer().Ok({{"key_server", server}, {"protocol", "hkp"}});
+        });
+    QObject::connect(pks, &PKSInterface::SignalKeyServerKeyUploadResult, pks,
+                     &PKSInterface::deleteLater);
 
-        pks->UploadKey(server, key_text);
-        return GFEventResult::Deferred();
-      }
+    pks->UploadKey(server, key_text);
+    return GFEventResult::Deferred();
+  }
 
-      auto* vks = new VKSInterface(server);
-      QObject::connect(
-          vks, &VKSInterface::SignalKeyUploaded, QThread::currentThread(),
-          [event, server](const QString& fpr, const QJsonObject& status,
-                          const QString& token) {
-            event.Answer().Ok({{"fingerprint", fpr}, {"status", QString::fromUtf8(QJsonDocument(status).toJson())}, {"token", token}, {"key_server", server}, {"protocol", "vks"}});
-          });
-      QObject::connect(
-          vks, &VKSInterface::SignalErrorOccurred, QThread::currentThread(),
-          [event, server](const QString& error, const QString& data) {
-            event.Answer().Fail(error, {{"reply_data", data}, {"key_server", server}, {"protocol", "vks"}});
-          });
-      QObject::connect(vks, &VKSInterface::SignalKeyRetrieved, vks,
-                       &VKSInterface::deleteLater);
-      vks->UploadKey(key_text);
-      return GFEventResult::Deferred();
+  auto* vks = new VKSInterface(server);
+  QObject::connect(
+      vks, &VKSInterface::SignalKeyUploaded, QThread::currentThread(),
+      [event, server](const QString& fpr, const QJsonObject& status,
+                      const QString& token) {
+        event.Answer().Ok(
+            {{"fingerprint", fpr},
+             {"status", QString::fromUtf8(QJsonDocument(status).toJson())},
+             {"token", token},
+             {"key_server", server},
+             {"protocol", "vks"}});
+      });
+  QObject::connect(vks, &VKSInterface::SignalErrorOccurred,
+                   QThread::currentThread(),
+                   [event, server](const QString& error, const QString& data) {
+                     event.Answer().Fail(error, {{"reply_data", data},
+                                                 {"key_server", server},
+                                                 {"protocol", "vks"}});
+                   });
+  QObject::connect(vks, &VKSInterface::SignalKeyRetrieved, vks,
+                   &VKSInterface::deleteLater);
+  vks->UploadKey(key_text);
+  return GFEventResult::Deferred();
 }
 
-auto OnRequestSearchPublicKeyByFingerprint(const GFEvent& event) -> GFEventResult {
-      auto fingerprint = event.Str("fingerprint").trimmed();
+auto OnRequestSearchPublicKeyByFingerprint(const GFEvent& event)
+    -> GFEventResult {
+  auto fingerprint = event.Str("fingerprint").trimmed();
 
-      QWidget* parent = nullptr;
+  QWidget* parent = nullptr;
 
-      if (event.Has("parent")) {
-        parent = GFUIObject<QWidget>(event.Str("parent"));
-      }
+  if (event.Has("parent")) {
+    parent = GFUIObject<QWidget>(event.Str("parent"));
+  }
 
-      if (parent == nullptr) {
-        parent = QApplication::activeWindow();
-      }
+  if (parent == nullptr) {
+    parent = QApplication::activeWindow();
+  }
 
-      FLOG_DEBUG("open key server search dialog with fingerprint: %1",
-                 fingerprint);
+  FLOG_DEBUG("open key server search dialog with fingerprint: %1", fingerprint);
 
-      QMetaObject::invokeMethod(
-          QApplication::instance(),
-          [parent, fingerprint]() {
-            auto* dialog = new SearchKeyDialog(parent);
-            // An empty preset opens a blank search dialog; only seed the field
-            // when a fingerprint was actually supplied (verify-failure flow).
-            if (!fingerprint.isEmpty()) {
-              dialog->SetPresetFingerprint(fingerprint);
-            }
-            dialog->setAttribute(Qt::WA_DeleteOnClose);
-            dialog->show();
-            dialog->raise();
-            dialog->activateWindow();
-          },
-          Qt::QueuedConnection);
+  QMetaObject::invokeMethod(
+      QApplication::instance(),
+      [parent, fingerprint]() {
+        auto* dialog = new SearchKeyDialog(parent);
+        // An empty preset opens a blank search dialog; only seed the field
+        // when a fingerprint was actually supplied (verify-failure flow).
+        if (!fingerprint.isEmpty()) {
+          dialog->SetPresetFingerprint(fingerprint);
+        }
+        dialog->setAttribute(Qt::WA_DeleteOnClose);
+        dialog->show();
+        dialog->raise();
+        dialog->activateWindow();
+      },
+      Qt::QueuedConnection);
 
-      return GFEventResult::Ok();
+  return GFEventResult::Ok();
 }
 
 auto OnDeactivate() -> GFResult {

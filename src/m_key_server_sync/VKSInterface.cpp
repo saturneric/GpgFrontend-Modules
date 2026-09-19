@@ -156,7 +156,8 @@ void VKSInterface::on_reply_finished(QNetworkReply* reply) {
   if (url.path().contains("/vks/v1/by-fingerprint") ||
       url.path().contains("/vks/v1/by-keyid") ||
       url.path().contains("/vks/v1/by-email")) {
-    GFCacheSaveWithTTL((cache_key_).toUtf8().constData(), (QString(response_data)).toUtf8().constData(), 300);
+    GFCacheSaveWithTTL((cache_key_).toUtf8().constData(),
+                       (QString(response_data)).toUtf8().constData(), 300);
     emit SignalKeyRetrieved(QString(response_data));
   } else if (url.path().contains("/vks/v1/upload")) {
     if (json_response.isObject()) {

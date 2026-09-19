@@ -131,7 +131,8 @@ void GnupgTab::slot_process_software_info() {
   int row = 0;
   for (auto& component : components) {
     auto component_info_json_bytes = UDUP(GFModuleRetrieveRTValueOrDefault(
-        GFGetModuleID(), (QString("gnupg.components.%1").arg(component)).toUtf8().constData(),
+        GFGetModuleID(),
+        (QString("gnupg.components.%1").arg(component)).toUtf8().constData(),
         ""));
 
     auto component_info_json =
@@ -186,7 +187,8 @@ void GnupgTab::slot_process_software_info() {
   row = 0;
   for (auto& dir : dirs) {
     const auto dir_path = UDUP(GFModuleRetrieveRTValueOrDefault(
-        GFGetModuleID(), (QString("gnupg.dirs.%1").arg(dir)).toUtf8().constData(), ""));
+        GFGetModuleID(),
+        (QString("gnupg.dirs.%1").arg(dir)).toUtf8().constData(), ""));
 
     if (dir_path.isEmpty()) continue;
 
@@ -209,7 +211,9 @@ void GnupgTab::slot_process_software_info() {
     char** p_options;
     auto p_options_size = GFModuleListRTChildKeys(
         GFGetModuleID(),
-        (QString("gnupg.components.%1.options").arg(component)).toUtf8().constData(),
+        (QString("gnupg.components.%1.options").arg(component))
+            .toUtf8()
+            .constData(),
         &p_options);
     auto options = CharArrayToQStringList(p_options, p_options_size);
 
@@ -218,8 +222,10 @@ void GnupgTab::slot_process_software_info() {
           UDUP(GFModuleRetrieveRTValueOrDefault(
                    GFGetModuleID(),
                    (QString("gnupg.components.%1.options.%2")
-                            .arg(component)
-                            .arg(option)).toUtf8().constData(),
+                        .arg(component)
+                        .arg(option))
+                       .toUtf8()
+                       .constData(),
                    ""))
               .toUtf8());
 
@@ -241,16 +247,18 @@ void GnupgTab::slot_process_software_info() {
     char** pc_options;
     auto pc_options_size = GFModuleListRTChildKeys(
         GFGetModuleID(),
-        (QString("gnupg.components.%1.options").arg(component)).toUtf8().constData(),
+        (QString("gnupg.components.%1.options").arg(component))
+            .toUtf8()
+            .constData(),
         &pc_options);
     auto c_options = CharArrayToQStringList(pc_options, pc_options_size);
 
     for (auto& option : c_options) {
       auto option_info_json_bytes = UDUP(GFModuleRetrieveRTValueOrDefault(
           GFGetModuleID(),
-          (QString("gnupg.components.%1.options.%2")
-                   .arg(component)
-                   .arg(option)).toUtf8().constData(),
+          (QString("gnupg.components.%1.options.%2").arg(component).arg(option))
+              .toUtf8()
+              .constData(),
           ""));
 
       auto option_info_json =
@@ -324,8 +332,7 @@ GnupgTabWatcher::GnupgTabWatcher(GnupgTab* tab) {
 
   auto future = QtConcurrent::run(QThreadPool::globalInstance(), [=]() {
     if (StartGatheringAllGnuPGInfo() >= 0) {
-      GFModuleUpsertRTValueBool("ui",
-                                "env.state.gnupg_info_gathering", 1);
+      GFModuleUpsertRTValueBool("ui", "env.state.gnupg_info_gathering", 1);
       emit SignalGnuPGInfoGathered();
     }
     this->deleteLater();

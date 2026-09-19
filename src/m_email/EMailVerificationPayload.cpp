@@ -133,8 +133,7 @@ auto DecodeVerdict(const QJsonObject& o, EMailRegionVerdict& verdict) -> bool {
   verdict.region_id = o["region_id"].toInt(-1);
   verdict.nesting_depth = o["nesting_depth"].toInt();
   verdict.covers_ciphertext_only = o["covers_ciphertext_only"].toBool();
-  verdict.signed_bytes_non_canonical =
-      o["signed_bytes_non_canonical"].toBool();
+  verdict.signed_bytes_non_canonical = o["signed_bytes_non_canonical"].toBool();
   return true;
 }
 
@@ -168,9 +167,10 @@ auto DecodeSignature(const QJsonObject& o, EMailSignatureResult& s) -> bool {
   s.uid = o["uid"].toString();
 
   const auto sign_time = o["sign_time"].toString();
-  s.sign_time = sign_time.isEmpty()
-                    ? QDateTime()
-                    : QDateTime::fromString(sign_time, Qt::ISODate).toLocalTime();
+  s.sign_time =
+      sign_time.isEmpty()
+          ? QDateTime()
+          : QDateTime::fromString(sign_time, Qt::ISODate).toLocalTime();
 
   // Absent reads as -1, not 0: 0 is "fully valid", and a field that did not
   // survive the trip must never arrive as a trusted signature.
@@ -189,7 +189,8 @@ auto DecodeSignature(const QJsonObject& o, EMailSignatureResult& s) -> bool {
 auto EncodeVerificationPayload(const EMailVerificationResult& result)
     -> QByteArray {
   QJsonArray regions;
-  for (const auto& region : result.regions) regions.append(EncodeRegion(region));
+  for (const auto& region : result.regions)
+    regions.append(EncodeRegion(region));
 
   QJsonArray verdicts;
   for (const auto& verdict : result.verdicts) {
@@ -285,7 +286,8 @@ auto DecodeVerificationPayload(const QByteArray& payload,
   // An answer with no anchor cannot be checked against the document it is
   // supposed to describe, and an unanchored verdict is one that can be shown
   // against the wrong message.
-  if (decoded.source_sha256.isEmpty() || decoded.source_length < 0) return false;
+  if (decoded.source_sha256.isEmpty() || decoded.source_length < 0)
+    return false;
 
   result = decoded;
   return true;
@@ -303,7 +305,8 @@ auto VerificationResultsEquivalent(const EMailVerificationResult& a,
   if (a.meta.signed_entity_digest_algo != b.meta.signed_entity_digest_algo) {
     return false;
   }
-  if (a.meta.signed_entity_non_canonical != b.meta.signed_entity_non_canonical) {
+  if (a.meta.signed_entity_non_canonical !=
+      b.meta.signed_entity_non_canonical) {
     return false;
   }
 

@@ -50,8 +50,9 @@ GitHubVersionCheckTask::GitHubVersionCheckTask()
 
   connect(this, &GitHubVersionCheckTask::SignalUpgradeVersion, this,
           [](const SoftwareVersion& sv) {
-            GFDurableCacheSave("update_checking_cache",
-                               (QJsonDocument(sv.ToJson()).toJson()).constData());
+            GFDurableCacheSave(
+                "update_checking_cache",
+                (QJsonDocument(sv.ToJson()).toJson()).constData());
           });
 }
 

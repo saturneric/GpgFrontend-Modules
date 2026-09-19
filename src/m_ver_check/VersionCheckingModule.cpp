@@ -39,10 +39,10 @@
 
 #include "BKTUSVersionCheckTask.h"
 #include "GFModule.h"
+#include "GFModuleIdentity.h"
 #include "GitHubVersionCheckTask.h"
 #include "SoftwareVersion.h"
 #include "UpdateTab.h"
-#include "GFModuleIdentity.h"
 #include "Utils.h"
 
 auto OnActivate() -> GFResult {
@@ -242,204 +242,201 @@ auto OnApplicationLoaded(const GFEvent& event) -> GFEventResult {
 }
 
 auto OnNetworkSettingsTabUiCreated(const GFEvent& event) -> GFEventResult {
-      LOG_DEBUG("network settings tab ui created event: processing");
+  LOG_DEBUG("network settings tab ui created event: processing");
 
-      auto* tab = GFUIObject<QWidget>(
-          event.Has("network_settings_tab") ? event.Str("network_settings_tab")
-                                                 : "");
-      if (!tab) {
-        LOG_ERROR(
-            "network settings tab ui created: network_settings_tab handle "
-            "invalid or not QWidget");
-        return GFEventResult::Bad("network_settings_tab handle invalid or not QWidget");
-      }
+  auto* tab = GFUIObject<QWidget>(event.Has("network_settings_tab")
+                                      ? event.Str("network_settings_tab")
+                                      : "");
+  if (!tab) {
+    LOG_ERROR(
+        "network settings tab ui created: network_settings_tab handle "
+        "invalid or not QWidget");
+    return GFEventResult::Bad(
+        "network_settings_tab handle invalid or not QWidget");
+  }
 
-      auto* capability_group_box = GFUIObject<QGroupBox>(
-          event.Has("capability_group_box") ? event.Str("capability_group_box")
-                                                 : "");
+  auto* capability_group_box = GFUIObject<QGroupBox>(
+      event.Has("capability_group_box") ? event.Str("capability_group_box")
+                                        : "");
 
-      if (!capability_group_box) {
-        LOG_ERROR(
-            "network settings tab ui created: capability_group_box handle "
-            "invalid or not QGroupBox");
-        return GFEventResult::Bad("capability_group_box handle invalid or not QGroupBox");
-      }
+  if (!capability_group_box) {
+    LOG_ERROR(
+        "network settings tab ui created: capability_group_box handle "
+        "invalid or not QGroupBox");
+    return GFEventResult::Bad(
+        "capability_group_box handle invalid or not QGroupBox");
+  }
 
-      QMetaObject::invokeMethod(
-          QApplication::instance(),
-          [=]() {
-            auto* update_checking_check_box =
-                new QCheckBox(QCoreApplication::translate(
-                                  "GTrC",
-                                  "Checking for version updates when the "
-                                  "application starts."),
-                              capability_group_box);
-            update_checking_check_box->setObjectName(
-                "update_checking_check_box");
+  QMetaObject::invokeMethod(
+      QApplication::instance(),
+      [=]() {
+        auto* update_checking_check_box = new QCheckBox(
+            QCoreApplication::translate("GTrC",
+                                        "Checking for version updates when the "
+                                        "application starts."),
+            capability_group_box);
+        update_checking_check_box->setObjectName("update_checking_check_box");
 
-            capability_group_box->layout()->addWidget(
-                update_checking_check_box);
+        capability_group_box->layout()->addWidget(update_checking_check_box);
 
-            auto* github_radio_button =
-                new QRadioButton(QCoreApplication::translate("GTrC", "GitHub"),
-                                 capability_group_box);
-            auto* bktus_radio_button = new QRadioButton(
-                QCoreApplication::translate("GTrC", "BKTUS.com"),
-                capability_group_box);
+        auto* github_radio_button =
+            new QRadioButton(QCoreApplication::translate("GTrC", "GitHub"),
+                             capability_group_box);
+        auto* bktus_radio_button =
+            new QRadioButton(QCoreApplication::translate("GTrC", "BKTUS.com"),
+                             capability_group_box);
 
-            auto layout = new QHBoxLayout();
-            layout->addWidget(new QLabel(
-                QCoreApplication::translate("GTrC", "Update Checking API:"),
-                capability_group_box));
-            layout->addWidget(github_radio_button);
-            layout->addWidget(bktus_radio_button);
+        auto layout = new QHBoxLayout();
+        layout->addWidget(new QLabel(
+            QCoreApplication::translate("GTrC", "Update Checking API:"),
+            capability_group_box));
+        layout->addWidget(github_radio_button);
+        layout->addWidget(bktus_radio_button);
 
-            capability_group_box->layout()->addItem(layout);
+        capability_group_box->layout()->addItem(layout);
 
-            auto* update_api_group = new QButtonGroup(tab);
-            update_api_group->setObjectName("update_api_group");
-            update_api_group->addButton(github_radio_button);
-            update_api_group->addButton(bktus_radio_button);
-          },
-          Qt::QueuedConnection);
-
-      return GFEventResult::Ok();
-}
-
-auto OnNetworkSettingsTabApplySettings(const GFEvent& event) -> GFEventResult {
-      LOG_DEBUG("network settings tab apply settings event: processing");
-      auto* settings =
-          qobject_cast<QSettings*>(static_cast<QObject*>(GFUIGlobalSettings()));
-      if (!settings) {
-        LOG_ERROR(
-            "network settings tab apply settings: global settings handle "
-            "invalid");
-        return GFEventResult::Bad("global settings handle invalid");
-      }
-      auto* tab = GFUIObject<QWidget>(
-          event.Has("network_settings_tab") ? event.Str("network_settings_tab")
-                                                 : "");
-      if (!tab) {
-        LOG_ERROR(
-            "network settings tab apply settings: network_settings_tab "
-            "handle invalid or not QWidget");
-        return GFEventResult::Bad("network_settings_tab handle invalid or not QWidget");
-      }
-
-      // we need to apply the settings in the main thread to avoid some
-      // potential racing conditions
-      auto p_tab = QPointer<QWidget>(tab);
-
-      QMetaObject::invokeMethod(
-          QApplication::instance(),
-          [=]() {
-            if (!p_tab) {
-              LOG_ERROR(
-                  "network settings tab apply settings: network_settings_tab "
-                  "already deleted when applying settings");
-              return;
-            }
-            auto* update_checking_check_box =
-                p_tab->findChild<QCheckBox*>("update_checking_check_box");
-            if (update_checking_check_box) {
-              settings->setValue(
-                  "network/version_checking/"
-                  "check_for_updates_on_startup",
-                  update_checking_check_box->isChecked());
-            }
-
-            auto* update_api_group =
-                tab->findChild<QButtonGroup*>("update_api_group");
-            if (update_api_group) {
-              QString api = "github";
-              if (update_api_group->buttons().at(1)->isChecked()) {
-                api = "bktus";
-              }
-              settings->setValue("network/version_checking/update_checking_api",
-                                 api);
-            }
-
-            FLOG_DEBUG(
-                "network settings tab apply settings: version checking "
-                "settings applied, "
-                "check for updates on startup: %1, update checking api: %2",
-                update_checking_check_box
-                    ? QString::number(update_checking_check_box->isChecked())
-                    : "null",
-                update_api_group
-                    ? (update_api_group->buttons().at(1)->isChecked()
-                           ? "bktus"
-                           : "github")
-                    : "null");
-          },
-          Qt::QueuedConnection);
-
-      return GFEventResult::Ok();
-}
-
-auto OnNetworkSettingsTabLoadSettings(const GFEvent& event) -> GFEventResult {
-      LOG_DEBUG("network settings tab load settings event: processing");
-
-      auto* settings =
-          qobject_cast<QSettings*>(static_cast<QObject*>(GFUIGlobalSettings()));
-
-      if (!settings) {
-        LOG_ERROR(
-            "network settings tab load settings: global settings handle "
-            "invalid");
-        return GFEventResult::Bad("global settings handle invalid");
-      }
-
-      auto* tab = GFUIObject<QWidget>(
-          event.Has("network_settings_tab") ? event.Str("network_settings_tab")
-                                                 : "");
-      if (!tab) {
-        LOG_ERROR(
-            "network settings tab load settings: network_settings_tab "
-            "handle invalid or not QWidget");
-        return GFEventResult::Bad("network_settings_tab handle invalid or not QWidget");
-      }
-
-      QMetaObject::invokeMethod(
-          QApplication::instance(),
-          [=]() {
-            auto* update_checking_check_box =
-                tab->findChild<QCheckBox*>("update_checking_check_box");
-            if (update_checking_check_box) {
-              auto check_for_updates_on_startup =
-                  settings
-                      ->value(
-                          "network/version_checking/"
-                          "check_for_updates_on_startup",
-                          false)
-                      .toBool();
-              update_checking_check_box->setChecked(
-                  check_for_updates_on_startup);
-            }
-
-            auto* update_api_group =
-                tab->findChild<QButtonGroup*>("update_api_group");
-            if (update_api_group) {
-              auto update_checking_api =
-                  settings
-                      ->value("network/version_checking/update_checking_api",
-                              "github")
-                      .toString();
-              if (update_checking_api == "github") {
-                update_api_group->buttons().at(0)->setChecked(true);
-              } else {
-                update_api_group->buttons().at(1)->setChecked(true);
-              }
-            }
-          },
-          Qt::BlockingQueuedConnection);
+        auto* update_api_group = new QButtonGroup(tab);
+        update_api_group->setObjectName("update_api_group");
+        update_api_group->addButton(github_radio_button);
+        update_api_group->addButton(bktus_radio_button);
+      },
+      Qt::QueuedConnection);
 
   return GFEventResult::Ok();
 }
 
-auto OnUnload() -> void {
-  LOG_INFO("version checking module unregistering");
+auto OnNetworkSettingsTabApplySettings(const GFEvent& event) -> GFEventResult {
+  LOG_DEBUG("network settings tab apply settings event: processing");
+  auto* settings =
+      qobject_cast<QSettings*>(static_cast<QObject*>(GFUIGlobalSettings()));
+  if (!settings) {
+    LOG_ERROR(
+        "network settings tab apply settings: global settings handle "
+        "invalid");
+    return GFEventResult::Bad("global settings handle invalid");
+  }
+  auto* tab = GFUIObject<QWidget>(event.Has("network_settings_tab")
+                                      ? event.Str("network_settings_tab")
+                                      : "");
+  if (!tab) {
+    LOG_ERROR(
+        "network settings tab apply settings: network_settings_tab "
+        "handle invalid or not QWidget");
+    return GFEventResult::Bad(
+        "network_settings_tab handle invalid or not QWidget");
+  }
+
+  // we need to apply the settings in the main thread to avoid some
+  // potential racing conditions
+  auto p_tab = QPointer<QWidget>(tab);
+
+  QMetaObject::invokeMethod(
+      QApplication::instance(),
+      [=]() {
+        if (!p_tab) {
+          LOG_ERROR(
+              "network settings tab apply settings: network_settings_tab "
+              "already deleted when applying settings");
+          return;
+        }
+        auto* update_checking_check_box =
+            p_tab->findChild<QCheckBox*>("update_checking_check_box");
+        if (update_checking_check_box) {
+          settings->setValue(
+              "network/version_checking/"
+              "check_for_updates_on_startup",
+              update_checking_check_box->isChecked());
+        }
+
+        auto* update_api_group =
+            tab->findChild<QButtonGroup*>("update_api_group");
+        if (update_api_group) {
+          QString api = "github";
+          if (update_api_group->buttons().at(1)->isChecked()) {
+            api = "bktus";
+          }
+          settings->setValue("network/version_checking/update_checking_api",
+                             api);
+        }
+
+        FLOG_DEBUG(
+            "network settings tab apply settings: version checking "
+            "settings applied, "
+            "check for updates on startup: %1, update checking api: %2",
+            update_checking_check_box
+                ? QString::number(update_checking_check_box->isChecked())
+                : "null",
+            update_api_group
+                ? (update_api_group->buttons().at(1)->isChecked() ? "bktus"
+                                                                  : "github")
+                : "null");
+      },
+      Qt::QueuedConnection);
+
+  return GFEventResult::Ok();
 }
+
+auto OnNetworkSettingsTabLoadSettings(const GFEvent& event) -> GFEventResult {
+  LOG_DEBUG("network settings tab load settings event: processing");
+
+  auto* settings =
+      qobject_cast<QSettings*>(static_cast<QObject*>(GFUIGlobalSettings()));
+
+  if (!settings) {
+    LOG_ERROR(
+        "network settings tab load settings: global settings handle "
+        "invalid");
+    return GFEventResult::Bad("global settings handle invalid");
+  }
+
+  auto* tab = GFUIObject<QWidget>(event.Has("network_settings_tab")
+                                      ? event.Str("network_settings_tab")
+                                      : "");
+  if (!tab) {
+    LOG_ERROR(
+        "network settings tab load settings: network_settings_tab "
+        "handle invalid or not QWidget");
+    return GFEventResult::Bad(
+        "network_settings_tab handle invalid or not QWidget");
+  }
+
+  QMetaObject::invokeMethod(
+      QApplication::instance(),
+      [=]() {
+        auto* update_checking_check_box =
+            tab->findChild<QCheckBox*>("update_checking_check_box");
+        if (update_checking_check_box) {
+          auto check_for_updates_on_startup =
+              settings
+                  ->value(
+                      "network/version_checking/"
+                      "check_for_updates_on_startup",
+                      false)
+                  .toBool();
+          update_checking_check_box->setChecked(check_for_updates_on_startup);
+        }
+
+        auto* update_api_group =
+            tab->findChild<QButtonGroup*>("update_api_group");
+        if (update_api_group) {
+          auto update_checking_api =
+              settings
+                  ->value("network/version_checking/update_checking_api",
+                          "github")
+                  .toString();
+          if (update_checking_api == "github") {
+            update_api_group->buttons().at(0)->setChecked(true);
+          } else {
+            update_api_group->buttons().at(1)->setChecked(true);
+          }
+        }
+      },
+      Qt::BlockingQueuedConnection);
+
+  return GFEventResult::Ok();
+}
+
+auto OnUnload() -> void { LOG_INFO("version checking module unregistering"); }
 
 // The module's whole framework surface.
 constexpr GFEventBinding kEvents[] = {

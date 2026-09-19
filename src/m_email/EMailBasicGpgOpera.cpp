@@ -392,8 +392,8 @@ auto EncryptEMLData(int channel, const QStringList& keys,
 
 auto SignPlainText(int channel, const QString& key,
                    const EMailMetaData& meta_data, const QByteArray& body_data,
-                   QByteArray& eml_data, uint32_t& err,
-                   QString& capsule_id) -> int {
+                   QByteArray& eml_data, uint32_t& err, QString& capsule_id)
+    -> int {
   auto from = meta_data.from;
   auto recipient_list = meta_data.to;
   auto cc_list = meta_data.cc;

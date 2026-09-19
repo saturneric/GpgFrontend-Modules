@@ -51,8 +51,7 @@ constexpr int kColumnCount = 6;
 }  // namespace
 
 KeyServerSettingsPage::KeyServerSettingsPage(QWidget* parent)
-    : QWidget(parent),
-      ui_(SdkCreateSharedObject<Ui_KeyServerSettingsPage>()) {
+    : QWidget(parent), ui_(SdkCreateSharedObject<Ui_KeyServerSettingsPage>()) {
   ui_->setupUi(this);
 
   ui_->keyServerListGroupBox->setTitle(tr("Key Server List"));

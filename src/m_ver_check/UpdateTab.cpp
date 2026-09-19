@@ -136,8 +136,7 @@ void UpdateTab::slot_show_version_status() {
 
   auto is_current_commit_hash_publish_in_remote =
       GFModuleRetrieveRTValueOrDefaultBool(
-          GFGetModuleID(), "version.current_commit_hash_publish_in_remote",
-          0);
+          GFGetModuleID(), "version.current_commit_hash_publish_in_remote", 0);
 
   QString const latest_version = UDUP(GFModuleRetrieveRTValueOrDefault(
       GFGetModuleID(), "version.latest_version", ""));
