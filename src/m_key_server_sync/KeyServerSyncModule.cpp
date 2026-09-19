@@ -146,14 +146,14 @@ GF_MODULE_BOOTSTRAP()
 DEFINE_TRANSLATIONS_STRUCTURE();
 
 auto GFRegisterModule() -> int {
-  LOG_DEBUG("key server sync module registering");
+  LOG_INFO("key server sync module registering");
+
+  REGISTER_TRANS_READER();
 
   return 0;
 }
 
 auto GFActiveModule() -> int {
-  REGISTER_TRANS_READER();
-
   LISTEN("REQUEST_GET_PUBLIC_KEY_BY_FINGERPRINT");
   LISTEN("REQUEST_GET_PUBLIC_KEY_BY_KEY_ID");
   LISTEN("REQUEST_UPLOAD_PUBLIC_KEY");
@@ -638,7 +638,9 @@ auto GFDeactivateModule() -> int {
 }
 
 auto GFUnregisterModule() -> int {
-  MLogDebug("paper key module unregistering");
+  // Said "paper key module" until now, copied from a module that no longer
+  // exists -- so the one line naming who was shutting down named the wrong one.
+  LOG_INFO("key server sync module unregistering");
 
   return 0;
 }

@@ -398,7 +398,7 @@ constexpr auto kMailSettingsPageId =
     "com.bktus.gpgfrontend.module.email.accounts";
 
 auto GFRegisterModule() -> int {
-  MLogDebug("email module registering...");
+  LOG_INFO("email module registering");
 
   // The MIME code carries no SDK symbol of its own so it can be unit-tested
   // without a module host; this is what gives it a logger at runtime.
@@ -479,7 +479,7 @@ auto GFDeactivateModule() -> int {
 }
 
 auto GFUnregisterModule() -> int {
-  MLogDebug("email module unregistering...");
+  LOG_INFO("email module unregistering");
 
   return 0;
 }

@@ -63,7 +63,7 @@ endif()
 # Everything about this module -- id, version, name, description, author,
 # capabilities and translation context -- lives in module.json beside this file.
 gf_add_module(
-  NAME mod_email
+  NAME email
   QT   Core Widgets Concurrent Network
   LINK vmime-static
   INCLUDE_DIRS
@@ -88,7 +88,7 @@ gf_add_module(
 #
 # On Windows this is inert -- a DLL's exports come from dllexport rather than
 # from ELF visibility -- so it changes nothing there rather than breaking it.
-foreach(target gf_mod_mod_email vmime-static)
+foreach(target gf_mod_email vmime-static)
   set_target_properties(${target} PROPERTIES
     C_VISIBILITY_PRESET hidden
     CXX_VISIBILITY_PRESET hidden

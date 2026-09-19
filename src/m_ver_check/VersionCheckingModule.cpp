@@ -50,14 +50,14 @@ GF_MODULE_BOOTSTRAP();
 DEFINE_TRANSLATIONS_STRUCTURE();
 
 auto GFRegisterModule() -> int {
-  MLogInfo("version checking module registering");
+  LOG_INFO("version checking module registering");
 
   REGISTER_TRANS_READER();
   return 0;
 }
 
 auto GFActiveModule() -> int {
-  MLogInfo("version checking module activating");
+  LOG_INFO("version checking module activating");
 
   LISTEN("MAINWINDOW_MENU_MOUNTED");
   LISTEN("APPLICATION_LOADED");
@@ -457,6 +457,14 @@ REGISTER_EVENT_HANDLER(
       CB_SUCC(event);
     });
 
-auto GFDeactivateModule() -> int { return 0; }
+auto GFDeactivateModule() -> int {
+  // Nothing to undo: the settings tab this module contributes is built through
+  // event handlers rather than a registered page, so nothing outlives it here.
+  return 0;
+}
 
-auto GFUnregisterModule() -> int { return 0; }
+auto GFUnregisterModule() -> int {
+  LOG_INFO("version checking module unregistering");
+
+  return 0;
+}

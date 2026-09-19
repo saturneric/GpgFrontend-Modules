@@ -83,7 +83,7 @@ using Context = struct {
 };
 
 auto GFRegisterModule() -> int {
-  MLogDebug("gnupg info gathering module registering...");
+  LOG_INFO("gnupg info gathering module registering");
 
   REGISTER_TRANS_READER();
   return 0;
@@ -125,10 +125,14 @@ REGISTER_EVENT_HANDLER(REQUEST_GATHERING_ALL_GNUPG_INFO,
                          CB_SUCC(event);
                        });
 
-auto GFDeactivateModule() -> int { return 0; }
+auto GFDeactivateModule() -> int {
+  // Nothing to undo: this module registers no settings page and no tab page
+  // view, so it leaves no function pointer into this shared object behind.
+  return 0;
+}
 
 auto GFUnregisterModule() -> int {
-  MLogDebug("gnupg info gathering module unregistering...");
+  LOG_INFO("gnupg info gathering module unregistering");
 
   return 0;
 }
