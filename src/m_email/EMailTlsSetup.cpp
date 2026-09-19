@@ -36,7 +36,7 @@
 #include <vmime/net/tls/TLSSecuredConnectionInfos.hpp>
 #include <vmime/security/cert/defaultCertificateVerifier.hpp>
 
-#include "GFModuleCommonUtils.hpp"
+#include "GFModule.h"
 
 namespace cert = vmime::security::cert;
 

@@ -28,7 +28,7 @@
 
 #include "EMailCredentialStore.h"
 
-#include "GFModuleCommonUtils.hpp"
+#include "GFModule.h"
 #include "GFSDKBasic.h"
 
 namespace {

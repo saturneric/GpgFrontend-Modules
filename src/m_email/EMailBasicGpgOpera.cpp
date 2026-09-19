@@ -37,7 +37,7 @@
 #include <QCryptographicHash>
 
 #include "EMailHelper.h"
-#include "GFModuleCommonUtils.hpp"
+#include "GFModule.h"
 
 namespace {
 

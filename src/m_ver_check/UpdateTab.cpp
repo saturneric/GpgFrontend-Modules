@@ -28,7 +28,7 @@
 
 #include "UpdateTab.h"
 
-#include "GFModuleCommonUtils.hpp"
+#include "GFModule.h"
 #include "GFSDKBasic.h"
 #include "GFSDKModule.h"
 #include "VersionCheckingModule.h"

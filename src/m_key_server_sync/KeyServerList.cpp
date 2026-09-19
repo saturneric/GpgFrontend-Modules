@@ -34,7 +34,7 @@
 #include <QMutexLocker>
 #include <QSettings>
 
-#include "GFModuleCommonUtils.hpp"
+#include "GFModule.h"
 #include "GFSDKUI.h"
 
 namespace {

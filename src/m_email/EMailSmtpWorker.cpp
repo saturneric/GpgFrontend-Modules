@@ -32,7 +32,7 @@
 #include <vmime/security/defaultAuthenticator.hpp>
 
 #include "EMailTlsSetup.h"
-#include "GFModuleCommonUtils.hpp"
+#include "GFModule.h"
 
 namespace {
 

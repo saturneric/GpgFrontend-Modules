@@ -28,6 +28,4 @@
 
 #pragma once
 
-#include "GFModuleDeclare.h"
-
-GF_MODULE_API_DECLARE
+#include "GFModule.h"

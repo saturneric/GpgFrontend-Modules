@@ -32,7 +32,7 @@
 #include <QString>
 #include <cstring>
 
-#include "GFModuleCommonUtils.hpp"
+#include "GFModule.h"
 
 namespace {
 

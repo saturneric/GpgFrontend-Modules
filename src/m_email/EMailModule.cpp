@@ -72,19 +72,17 @@
 // vmime extend
 #include <vmime/contentTypeField.hpp>
 
-#include "GFModuleCommonUtils.hpp"
+#include "GFModule.h"
 #include "GFModuleBootstrap.h"
-#include "GFModuleDefine.h"
 
 //
 #include "EMailBasicGpgOpera.h"
 #include "EMailHelper.h"
 #include "EMailVerificationPayload.h"
 
-GF_MODULE_BOOTSTRAP_V2("com.bktus.gpgfrontend.module.email", "Email", "2.0.0",
-                        "Everything related to E-Mails.", "Saturneric")
+GF_MODULE_BOOTSTRAP()
 
-DEFINE_TRANSLATIONS_STRUCTURE(ModuleEMail);
+DEFINE_TRANSLATIONS_STRUCTURE();
 
 namespace {
 

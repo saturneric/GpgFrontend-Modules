@@ -43,7 +43,7 @@
 #include <QWidget>
 #include <functional>
 
-#include "GFModuleCommonUtils.hpp"
+#include "GFModule.h"
 #include "GFSDKUI.h"
 
 /**

@@ -37,7 +37,7 @@
 #include <QMetaType>
 #include <QtNetwork>
 
-#include "GFModuleCommonUtils.hpp"
+#include "GFModule.h"
 #include "SoftwareVersion.h"
 #include "Utils.h"
 

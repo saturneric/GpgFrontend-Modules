@@ -34,7 +34,7 @@
 
 #include <QtConcurrent>
 
-#include "GFModuleCommonUtils.hpp"
+#include "GFModule.h"
 #include "GFSDKModule.h"
 #include "GnuPGInfoGatheringModule.h"
 #include "ui_GnuPGInfo.h"
@@ -42,7 +42,7 @@
 extern auto StartGatheringAllGnuPGInfo() -> int;
 
 GnupgTab::GnupgTab(QWidget* parent)
-    : QWidget(parent), ui_(SecureCreateSharedObject<Ui_GnuPGInfo>()) {
+    : QWidget(parent), ui_(SdkCreateSharedObject<Ui_GnuPGInfo>()) {
   ui_->setupUi(this);
 
   QStringList components_column_titles;

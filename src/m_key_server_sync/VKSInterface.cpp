@@ -42,7 +42,7 @@
 #include <QUrl>
 #include <QUrlQuery>
 
-#include "GFModuleCommonUtils.hpp"
+#include "GFModule.h"
 
 namespace {
 /// Matches the HKP side; without it a stalled server hangs the caller forever.

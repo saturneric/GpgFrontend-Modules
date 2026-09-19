@@ -30,7 +30,7 @@
 
 #include <GFSDKExtra.h>
 
-#include "GFModuleCommonUtils.hpp"
+#include "GFModule.h"
 
 namespace {
 

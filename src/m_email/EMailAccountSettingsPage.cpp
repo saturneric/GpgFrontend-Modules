@@ -51,7 +51,7 @@
 #include "EMailSmtpWorker.h"
 #include "EMailTlsSetup.h"
 #include "EMailViewStyle.h"
-#include "GFModuleCommonUtils.hpp"
+#include "GFModule.h"
 
 namespace {
 

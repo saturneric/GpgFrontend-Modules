@@ -37,7 +37,7 @@
 #include <QRegularExpression>
 #include <optional>
 
-#include "GFModuleCommonUtils.hpp"
+#include "GFModule.h"
 
 namespace {
 

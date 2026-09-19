@@ -51,7 +51,7 @@
 #include "EMailAccountStore.h"
 #include "EMailCredentialStore.h"
 #include "EMailViewStyle.h"
-#include "GFModuleCommonUtils.hpp"
+#include "GFModule.h"
 
 namespace {
 

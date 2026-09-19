@@ -38,19 +38,16 @@
 #include <QtNetwork>
 
 #include "BKTUSVersionCheckTask.h"
-#include "GFModuleCommonUtils.hpp"
+#include "GFModule.h"
 #include "GFModuleBootstrap.h"
-#include "GFModuleDefine.h"
 #include "GitHubVersionCheckTask.h"
 #include "SoftwareVersion.h"
 #include "UpdateTab.h"
 #include "Utils.h"
 
-GF_MODULE_BOOTSTRAP_V2("com.bktus.gpgfrontend.module.version_checking",
-                        "VersionChecking", "1.5.0",
-                        "Try checking GpgFrontend version.", "Saturneric");
+GF_MODULE_BOOTSTRAP();
 
-DEFINE_TRANSLATIONS_STRUCTURE(ModuleVersionChecking);
+DEFINE_TRANSLATIONS_STRUCTURE();
 
 auto GFRegisterModule() -> int {
   MLogInfo("version checking module registering");

@@ -33,7 +33,7 @@
 #include <QTableWidget>
 #include <QUrl>
 
-#include "GFModuleCommonUtils.hpp"
+#include "GFModule.h"
 
 //
 #include "ui_KeyServerSettingsPage.h"
@@ -52,7 +52,7 @@ constexpr int kColumnCount = 6;
 
 KeyServerSettingsPage::KeyServerSettingsPage(QWidget* parent)
     : QWidget(parent),
-      ui_(SecureCreateSharedObject<Ui_KeyServerSettingsPage>()) {
+      ui_(SdkCreateSharedObject<Ui_KeyServerSettingsPage>()) {
   ui_->setupUi(this);
 
   ui_->keyServerListGroupBox->setTitle(tr("Key Server List"));

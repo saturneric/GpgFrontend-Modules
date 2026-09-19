@@ -30,7 +30,7 @@
 
 #include <QRegularExpression>
 
-#include "GFModuleCommonUtils.hpp"
+#include "GFModule.h"
 #include "GFSDKGpg.h"
 #include "KeyServerList.h"
 #include "PKSInterface.h"
@@ -75,12 +75,12 @@ auto FormatKeyServerDate(const QString& seconds, const QString& absent)
 }  // namespace
 
 SearchKeyDialog::SearchKeyDialog(QWidget* parent)
-    : QDialog(parent), ui_(SecureCreateSharedObject<Ui_SearchKeyDialog>()) {
+    : QDialog(parent), ui_(SdkCreateSharedObject<Ui_SearchKeyDialog>()) {
   init_ui();
 }
 
 SearchKeyDialog::SearchKeyDialog(const QString& fingerprint, QWidget* parent)
-    : QDialog(parent), ui_(SecureCreateSharedObject<Ui_SearchKeyDialog>()) {
+    : QDialog(parent), ui_(SdkCreateSharedObject<Ui_SearchKeyDialog>()) {
   init_ui();
   SetPresetFingerprint(fingerprint);
 }

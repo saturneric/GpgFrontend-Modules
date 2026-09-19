@@ -83,7 +83,7 @@
 #include "EMailVerificationPayload.h"
 #include "EMailViewLayout.h"
 #include "EMailViewStyle.h"
-#include "GFModuleCommonUtils.hpp"
+#include "GFModule.h"
 
 namespace {
 

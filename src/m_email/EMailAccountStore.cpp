@@ -35,7 +35,7 @@
 #include <QSettings>
 #include <QUuid>
 
-#include "GFModuleCommonUtils.hpp"
+#include "GFModule.h"
 #include "GFSDKUI.h"
 
 namespace {
