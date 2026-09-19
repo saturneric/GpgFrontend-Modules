@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "id": "com.bktus.gpgfrontend.module.email",
+  "version": "2.0.0",
+  "name": "Email",
+  "description": "Everything related to E-Mails.",
+  "author": "Saturneric",
+  "capabilities": ["gpg", "ui", "network"],
+  "translation_context": "ModuleEMail"
+}

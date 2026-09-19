@@ -23,35 +23,9 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-# com.bktus.gpgfrontend.module.integrated.version_checking
-
-set(INTEGRATED_MODULE_SOURCE "")
-aux_source_directory(. INTEGRATED_MODULE_SOURCE)
-
-# register module
-register_module(ver_check MODULE_TARGET ${INTEGRATED_MODULE_SOURCE})
-
-# link qt
-target_link_libraries(${MODULE_TARGET} PUBLIC Qt::Core Qt::Network Qt::Widgets Qt::Xml)
-
-# ui
-set(CMAKE_AUTOUIC_SEARCH_PATHS ${CMAKE_AUTOUIC_SEARCH_PATHS} ${CMAKE_CURRENT_SOURCE_DIR}/ui)
-
-# i18n
-set(LOCALE_TS_PATH ${CMAKE_CURRENT_SOURCE_DIR}/ts)
-gpgfrontend_collect_ts_files(TS_FILES "ModuleVersionChecking" "${LOCALE_TS_PATH}")
-
-module_add_translations(${MODULE_TARGET}
-  TS_FILES ${TS_FILES}
-  SOURCES ${INTEGRATED_MODULE_SOURCE}
-  INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR})
-
-# Build a signed `*.gfmodule` alongside the loose library. See m_email.
-gf_add_module_package(
-  TARGET       ver_check
-  MODULE_ID    com.bktus.gpgfrontend.module.version_checking
-  VERSION      1.5.0
-  CAPABILITIES ui network
-  META         "Name=VersionChecking"
-               "Description=Try checking GpgFrontend version."
-               "Author=Saturneric")
+# Everything about this module -- id, version, name, description, author,
+# capabilities and translation context -- lives in module.json beside this file.
+gf_add_module(
+  NAME   ver_check
+  QT     Core Network Widgets Xml
+  UI_DIR ui)

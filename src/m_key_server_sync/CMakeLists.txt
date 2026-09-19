@@ -23,32 +23,8 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-# com.bktus.gpgfrontend.module.integrated.gnupg_info_gathering
-
-set(INTEGRATED_MODULE_SOURCE "")
-aux_source_directory(. INTEGRATED_MODULE_SOURCE)
-
-# define libgpgfrontend_module
-register_module(key_server_sync MODULE_TARGET ${INTEGRATED_MODULE_SOURCE})
-
-# link qt
-target_link_libraries(${MODULE_TARGET} PRIVATE Qt::Core Qt::Widgets Qt::Network)
-
-# i18n
-set(LOCALE_TS_PATH ${CMAKE_CURRENT_SOURCE_DIR}/ts)
-gpgfrontend_collect_ts_files(TS_FILES "ModuleKeyServerSync" "${LOCALE_TS_PATH}")
-
-module_add_translations(${MODULE_TARGET}
-  TS_FILES ${TS_FILES}
-  SOURCES ${INTEGRATED_MODULE_SOURCE}
-  INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR})
-
-# Build a signed `*.gfmodule` alongside the loose library. See m_email.
-gf_add_module_package(
-  TARGET       key_server_sync
-  MODULE_ID    com.bktus.gpgfrontend.module.key_server_sync
-  VERSION      1.3.2
-  CAPABILITIES gpg ui network
-  META         "Name=KeyServerSync"
-               "Description=Sync Information From Trusted Key Server."
-               "Author=Saturneric")
+# Everything about this module -- id, version, name, description, author,
+# capabilities and translation context -- lives in module.json beside this file.
+gf_add_module(
+  NAME key_server_sync
+  QT   Core Widgets Network)

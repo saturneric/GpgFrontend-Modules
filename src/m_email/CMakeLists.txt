@@ -23,14 +23,6 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-# com.bktus.gpgfrontend.module.integrated.email
-
-set(INTEGRATED_MODULE_SOURCE "")
-aux_source_directory(. INTEGRATED_MODULE_SOURCE)
-
-# register module
-register_module(mod_email MODULE_TARGET ${INTEGRATED_MODULE_SOURCE})
-
 # These are requirements of this module, not preferences a build tree gets to
 # hold an opinion about -- so FORCE. Without it a cache written before an
 # option existed wins, and the build silently keeps the old value: a tree
@@ -68,16 +60,26 @@ if(MINGW)
   target_link_libraries(vmime-static ws2_32 mlang)
 endif()
 
+# Everything about this module -- id, version, name, description, author,
+# capabilities and translation context -- lives in module.json beside this file.
+gf_add_module(
+  NAME mod_email
+  QT   Core Widgets Concurrent Network
+  LINK vmime-static
+  INCLUDE_DIRS
+    "${CMAKE_CURRENT_SOURCE_DIR}/vmime/src"
+    "${CMAKE_BINARY_DIR}/src/vmime"
+    "${CMAKE_BINARY_DIR}/src")
+
 # Only the module ABI leaves this shared object.
 #
-# The host resolves exactly ten symbols by name (Module.cpp), every one of them
-# declared GF_MODULE_EXPORT, which is __attribute__((visibility("default"))).
-# Everything else -- this module's own classes and the whole of vmime -- is
-# private to the object and was being exported anyway: 8404 dynamic symbols for
-# an interface of ten, of which 711 were vmime internals nobody outside can
-# call. The export table alone cost about 0.84 MB of the stripped binary, and a
-# symbol that might be interposed is also a symbol the compiler cannot inline
-# or fold.
+# The host resolves one symbol by name, declared GF_MODULE_EXPORT, which is
+# __attribute__((visibility("default"))). Everything else -- this module's own
+# classes and the whole of vmime -- is private to the object and was being
+# exported anyway: 8404 dynamic symbols for an interface of one, of which 711
+# were vmime internals nobody outside can call. The export table alone cost
+# about 0.84 MB of the stripped binary, and a symbol that might be interposed
+# is also a symbol the compiler cannot inline or fold.
 #
 # vmime needs this as much as the module does, since VMIME_EXPORT is empty in a
 # static build and so its symbols carry no visibility of their own. Exceptions
@@ -86,51 +88,15 @@ endif()
 #
 # On Windows this is inert -- a DLL's exports come from dllexport rather than
 # from ELF visibility -- so it changes nothing there rather than breaking it.
-foreach(target ${MODULE_TARGET} vmime-static)
+foreach(target gf_mod_mod_email vmime-static)
   set_target_properties(${target} PROPERTIES
     C_VISIBILITY_PRESET hidden
     CXX_VISIBILITY_PRESET hidden
     VISIBILITY_INLINES_HIDDEN ON)
 endforeach()
 
-# vmime headers
-target_include_directories(${MODULE_TARGET} PRIVATE
-  "${CMAKE_CURRENT_SOURCE_DIR}/vmime/src"
-  "${CMAKE_BINARY_DIR}/src/vmime"
-  "${CMAKE_BINARY_DIR}/src")
-
-message(STATUS "CMAKE_BINARY_DIR of module email: ${CMAKE_BINARY_DIR}")
-
-# link qt
-target_link_libraries(${MODULE_TARGET} PRIVATE Qt::Core Qt::Widgets Qt::Concurrent Qt::Network)
-
-# link vmime
-target_link_libraries(${MODULE_TARGET} PRIVATE vmime-static)
-
-# i18n
-set(LOCALE_TS_PATH ${CMAKE_CURRENT_SOURCE_DIR}/ts)
-gpgfrontend_collect_ts_files(TS_FILES "ModuleEMail" "${LOCALE_TS_PATH}")
-
-module_add_translations(${MODULE_TARGET}
-  TS_FILES ${TS_FILES}
-  SOURCES ${INTEGRATED_MODULE_SOURCE}
-  INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR})
-
 # tests (opt-in): a standalone gtest binary over the SDK-free MIME code.
 # The switch itself lives in modules/CMakeLists.txt -- it is modules-wide.
 if(GPGFRONTEND_MODULES_BUILD_TESTS)
   add_subdirectory(test)
 endif()
-
-
-# Build a signed `*.gfmodule` alongside the loose library. Packages are where
-# this is going -- loose libraries are transitional and a future version will
-# stop loading them -- but both are produced for now.
-gf_add_module_package(
-  TARGET       mod_email
-  MODULE_ID    com.bktus.gpgfrontend.module.email
-  VERSION      2.0.0
-  CAPABILITIES gpg ui network
-  META         "Name=Email"
-               "Description=Everything related to E-Mails."
-               "Author=Saturneric")
