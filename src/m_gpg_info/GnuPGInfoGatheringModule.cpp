@@ -198,12 +198,12 @@ auto StartStartGatheringGnuPGComponentsInfo(const QString &gpgme_version,
 }
 
 auto StartGatheringAllGnuPGInfo() -> int {
-  const auto gpgme_version = UDUP(GFModuleRetrieveRTValueOrDefault(
-      "core", "gpgme.version", "0.0.0"));
+  const auto gpgme_version =
+      UDUP(GFModuleRetrieveRTValueOrDefault("core", "gpgme.version", "0.0.0"));
   MLogDebug(QString("got gpgme version from rt: %1").arg(gpgme_version));
 
-  const auto gpgconf_path = UDUP(GFModuleRetrieveRTValueOrDefault(
-      "core", "gpgme.ctx.gpgconf_path", ""));
+  const auto gpgconf_path = UDUP(
+      GFModuleRetrieveRTValueOrDefault("core", "gpgme.ctx.gpgconf_path", ""));
   MLogDebug(QString("got gpgconf path from rt: %1").arg(gpgconf_path));
 
   if (gpgconf_path.isEmpty()) {
@@ -250,7 +250,8 @@ auto StartGatheringAllGnuPGInfo() -> int {
   for (const auto &component : components) {
     const auto *component_info_json = GFModuleRetrieveRTValueOrDefault(
         GFGetModuleID(),
-        (QString("gnupg.components.%1").arg(component).toUtf8()).constData(), nullptr);
+        (QString("gnupg.components.%1").arg(component).toUtf8()).constData(),
+        nullptr);
 
     if (component_info_json == nullptr) continue;
 
@@ -436,7 +437,8 @@ void GetGpgComponentInfos(void *data, int exit_code, const char *out,
       auto const jsonlized_component_info = c_i.Json();
       GFModuleUpsertRTValue(
           GFGetModuleID(),
-          (QString("gnupg.components.%1").arg(component_name).toUtf8()).constData(),
+          (QString("gnupg.components.%1").arg(component_name).toUtf8())
+              .constData(),
           (QJsonDocument(jsonlized_component_info).toJson()).constData());
 
       component_infos.push_back(c_i);
@@ -541,12 +543,14 @@ void GetGpgOptionInfos(void *data, int exit_code, const char *out,
     info.value = option_value;
 
     auto const jsonlized_option_info = info.Json();
-    GFModuleUpsertRTValue(GFGetModuleID(),
-                          (QString("gnupg.components.%1.options.%2")
-                                  .arg(component_name)
-                                  .arg(option_name)
-                                  .toUtf8()).constData(),
-                          (QJsonDocument(jsonlized_option_info).toJson()).constData());
+    GFModuleUpsertRTValue(
+        GFGetModuleID(),
+        (QString("gnupg.components.%1.options.%2")
+             .arg(component_name)
+             .arg(option_name)
+             .toUtf8())
+            .constData(),
+        (QJsonDocument(jsonlized_option_info).toJson()).constData());
     options_infos.push_back(info);
   }
 

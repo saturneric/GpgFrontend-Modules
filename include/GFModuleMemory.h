@@ -189,13 +189,15 @@ auto SdkReallocAsType(T* ptr, std::size_t size) -> T* {
 // being rewritten. They allocate from the ordinary arena, exactly as the new
 // names say and the old ones did not.
 template <typename T, typename... Args>
-[[deprecated("renamed to SdkCreateSharedObject: it is not a secure allocation")]]
+[[deprecated(
+    "renamed to SdkCreateSharedObject: it is not a secure allocation")]]
 auto SecureCreateSharedObject(Args&&... args) -> std::shared_ptr<T> {
   return SdkCreateSharedObject<T>(std::forward<Args>(args)...);
 }
 
 template <typename T, typename... Args>
-[[deprecated("renamed to SdkCreateQSharedObject: it is not a secure allocation")]]
+[[deprecated(
+    "renamed to SdkCreateQSharedObject: it is not a secure allocation")]]
 auto SecureCreateQSharedObject(Args&&... args) -> QSharedPointer<T> {
   return SdkCreateQSharedObject<T>(std::forward<Args>(args)...);
 }

@@ -204,10 +204,10 @@ auto GFUIGetGUIObjectAs(const QString& handle) -> T* {
 }
 
 #define Q_VARIANT_Q_OBJECT_FACTORY_DECLARE(name) \
-  auto name(void* data_raw_ptr)->void*;
+  auto name(void* data_raw_ptr) -> void*;
 
 #define Q_VARIANT_Q_OBJECT_FACTORY_DEFINE(name, func)   \
-  auto name(void* data_raw_ptr)->void* {                \
+  auto name(void* data_raw_ptr) -> void* {              \
     auto data = ConvertVoidPtrToQVariant(data_raw_ptr); \
     return func(data);                                  \
   }

@@ -52,11 +52,12 @@
  * `GF_MODULE_TRANSLATION_CONTEXT`, generated from `module.json` and supplied by
  * `GFModuleIdentity.h` -- which this header does not include, because a macro
  * is expanded where it is used: the one translation unit that bootstraps has
- * that definition, and no other source needs it. It comes from one place because it
- * used to be written out three times -- here, in `gpgfrontend_collect_ts_files`
- * and in the `.ts` filenames -- and nothing checked that the three agreed. A
- * context that disagrees with its `.ts` files does not fail to build; it
- * silently produces a module that is never translated.
+ * that definition, and no other source needs it. It comes from one place
+ * because it used to be written out three times -- here, in
+ * `gpgfrontend_collect_ts_files` and in the `.ts` filenames -- and nothing
+ * checked that the three agreed. A context that disagrees with its `.ts` files
+ * does not fail to build; it silently produces a module that is never
+ * translated.
  */
 
 #define GF_CONCATENATE_DETAIL(x, y) x##y
@@ -80,7 +81,7 @@
   class GTrC {                                                           \
     Q_DECLARE_TR_FUNCTIONS(GTrC)                                         \
   };                                                                     \
-  auto TranslatorDataReader(const char* p_l, char** p_d)->int {          \
+  auto TranslatorDataReader(const char* p_l, char** p_d) -> int {        \
     auto locale = QString::fromUtf8(p_l == nullptr ? "" : p_l);          \
     QFile f(QString(":/i18n/%2.%1.qm")                                   \
                 .arg(locale)                                             \

@@ -93,46 +93,41 @@ inline auto GFHost() -> const GFHostApi* { return GFHostApiSlot(); }
  * registering its translator -- has to run here, before GFActiveModule starts
  * subscribing to events.
  */
-#define GF_MODULE_BOOTSTRAP()                                                \
-  /* Identity strings are BORROWED statics, not fresh allocations.         */\
-  /* They used to be DUP(...)ed on every call because the SDK entry points  */\
-  /* they were passed to freed their arguments. Now that arguments are      */\
-  /* borrowed, allocating here would simply leak -- and GFGetModuleID() is  */\
-  /* called on the order of seventy times across the modules.               */\
-  auto GFGetModuleID() -> const char* { return GF_MODULE_ID; }               \
-  using MEvent = QMap<QString, QString>;                                     \
-  using EventHandler = std::function<int(const MEvent&)>;                    \
-  namespace {                                                                \
-  static QMap<QString, EventHandler> gModuleEventHandlers;                   \
-  static QMap<QString, EventHandler>& _gr_module_event_handlers =            \
-      gModuleEventHandlers;                                                  \
-  }                                                                          \
-  DEFINE_EXECUTE_API_USING_STANDARD_EVEN_HANDLE_MODEL                        \
-  static int GFBootstrapActivate(const GFHostApi* host, void*) {             \
-    GFHostApiSlot() = host;                                                  \
-    const int rc = GFRegisterModule();                                       \
-    if (rc != 0) return rc;                                                  \
-    return GFActiveModule();                                                 \
-  }                                                                          \
-  static void GFBootstrapUnregister() { (void)GFUnregisterModule(); }        \
-  extern "C" GF_MODULE_EXPORT const GFModuleApi* GFModuleGetApi(             \
-      uint32_t host_abi) {                                                   \
-    /* Decline a host outside the range this module was built for, rather  */\
-    /* than loading and failing on the first mismatched call. */             \
-    if (host_abi < GF_SDK_ABI_MIN_SUPPORTED ||                               \
-        host_abi > GF_SDK_ABI_VERSION) {                                     \
-      return nullptr;                                                        \
-    }                                                                        \
-    /* Static: the host borrows this table and never frees it. */            \
-    static const GFModuleApi kApi = {                                        \
-        sizeof(GFModuleApi),                                                 \
-        GF_SDK_ABI_VERSION,                                                  \
-        GF_MODULE_ID,                                                        \
-        GF_MODULE_VERSION,                                                   \
-        &GFBootstrapActivate,                                                \
-        &GFExecuteModule,                                                    \
-        &GFDeactivateModule,                                                 \
-        &GFBootstrapUnregister,                                              \
-    };                                                                       \
-    return &kApi;                                                            \
+#define GF_MODULE_BOOTSTRAP()                                                  \
+  /* Identity strings are BORROWED statics, not fresh allocations.         */  \
+  /* They used to be DUP(...)ed on every call because the SDK entry points  */ \
+  /* they were passed to freed their arguments. Now that arguments are      */ \
+  /* borrowed, allocating here would simply leak -- and GFGetModuleID() is  */ \
+  /* called on the order of seventy times across the modules.               */ \
+  auto GFGetModuleID() -> const char* { return GF_MODULE_ID; }                 \
+  using MEvent = QMap<QString, QString>;                                       \
+  using EventHandler = std::function<int(const MEvent&)>;                      \
+  namespace {                                                                  \
+  static QMap<QString, EventHandler> gModuleEventHandlers;                     \
+  static QMap<QString, EventHandler>& _gr_module_event_handlers =              \
+      gModuleEventHandlers;                                                    \
+  }                                                                            \
+  DEFINE_EXECUTE_API_USING_STANDARD_EVEN_HANDLE_MODEL                          \
+  static int GFBootstrapActivate(const GFHostApi* host, void*) {               \
+    GFHostApiSlot() = host;                                                    \
+    const int rc = GFRegisterModule();                                         \
+    if (rc != 0) return rc;                                                    \
+    return GFActiveModule();                                                   \
+  }                                                                            \
+  static void GFBootstrapUnregister() { (void)GFUnregisterModule(); }          \
+  extern "C" GF_MODULE_EXPORT const GFModuleApi* GFModuleGetApi(               \
+      uint32_t host_abi) {                                                     \
+    /* Decline a host outside the range this module was built for, rather  */  \
+    /* than loading and failing on the first mismatched call. */               \
+    if (host_abi < GF_SDK_ABI_MIN_SUPPORTED ||                                 \
+        host_abi > GF_SDK_ABI_VERSION) {                                       \
+      return nullptr;                                                          \
+    }                                                                          \
+    /* Static: the host borrows this table and never frees it. */              \
+    static const GFModuleApi kApi = {                                          \
+        sizeof(GFModuleApi), GF_SDK_ABI_VERSION,     GF_MODULE_ID,             \
+        GF_MODULE_VERSION,   &GFBootstrapActivate,   &GFExecuteModule,         \
+        &GFDeactivateModule, &GFBootstrapUnregister,                           \
+    };                                                                         \
+    return &kApi;                                                              \
   }

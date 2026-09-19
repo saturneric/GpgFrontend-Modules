@@ -168,9 +168,9 @@ auto GFActiveModule() -> int {
       QStringList{GC_TR("keyserver"), GC_TR("key server"), GC_TR("hkp"),
                   GC_TR("vks"),       GC_TR("publish"),    GC_TR("search")}
           .join('\n');
-  GFUIRegisterSettingsPage(kSettingsPageId, "keys_engines",
-                           GC_TR("Key Servers"), (keywords).toUtf8().constData(),
-                           KeyServerSettingsPageFactory, nullptr);
+  GFUIRegisterSettingsPage(
+      kSettingsPageId, "keys_engines", GC_TR("Key Servers"),
+      (keywords).toUtf8().constData(), KeyServerSettingsPageFactory, nullptr);
 
   return 0;
 }
@@ -181,7 +181,8 @@ auto UploadKeyToServer(QWidget* parent, int channel, const QString& key_id)
     -> int {
   char* key_data = nullptr;
   int size = 0;
-  auto ret = GFGpgExportKey(channel, (key_id).toUtf8().constData(), 1, &key_data, &size);
+  auto ret = GFGpgExportKey(channel, (key_id).toUtf8().constData(), 1,
+                            &key_data, &size);
   if (ret != 0 || key_data == nullptr || size <= 0) {
     QMessageBox::critical(
         parent, QCoreApplication::translate("GTrC", "Key Upload Failed"),

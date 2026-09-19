@@ -209,8 +209,8 @@ inline void CB(const QMap<QString, QString>& event, const char* module,
 
 // ----------------------------------------------------------------- dispatch
 
-#define EXECUTE_MODULE()                              \
-  auto GFExecuteModule(GFModuleEvent* p_event)->int { \
+#define EXECUTE_MODULE()                                \
+  auto GFExecuteModule(GFModuleEvent* p_event) -> int { \
     auto event = ConvertEventToMap(p_event);
 
 #define END_EXECUTE_MODULE() }
