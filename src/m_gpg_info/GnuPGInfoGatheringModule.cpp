@@ -49,15 +49,9 @@
 #include <optional>
 
 #include "GFModule.h"
-#include "GFModuleBootstrap.h"
+#include "GFModuleIdentity.h"
 #include "GnupgTab.h"
 #include "GpgInfo.h"
-
-// Ported to the single bootstrap symbol: this module now describes itself
-// through one versioned table instead of ten separately-resolved symbols.
-GF_MODULE_BOOTSTRAP()
-
-DEFINE_TRANSLATIONS_STRUCTURE();
 
 extern auto CalculateBinaryChecksum(const QString &path)
     -> std::optional<QString>;
@@ -82,18 +76,9 @@ using Context = struct {
   GpgComponentInfo component_info;
 };
 
-auto GFRegisterModule() -> int {
+auto OnActivate() -> GFResult {
   LOG_INFO("gnupg info gathering module registering");
-
-  REGISTER_TRANS_READER();
-  return 0;
-}
-
-auto GFActiveModule() -> int {
-  LISTEN("APPLICATION_LOADED");
-  LISTEN("REQUEST_GATHERING_ALL_GNUPG_INFO");
-  LISTEN("MAINWINDOW_MENU_MOUNTED");
-  return 0;
+  return GFResult::Ok();
 }
 
 namespace {
@@ -113,58 +98,28 @@ auto RaiseUpdateDialog(QWidget *parent) -> QDialog * {
 }
 }  // namespace
 
-REGISTER_EVENT_HANDLER(APPLICATION_LOADED, [](const MEvent &event) -> int {
-  // Do Nothing
-  CB_SUCC(event);
-});
-
-REGISTER_EVENT_HANDLER(REQUEST_GATHERING_ALL_GNUPG_INFO,
-                       [](const MEvent &event) -> int {
-                         StartGatheringAllGnuPGInfo();
-
-                         CB_SUCC(event);
-                       });
-
-auto GFDeactivateModule() -> int {
-  // Nothing to undo: this module registers no settings page and no tab page
-  // view, so it leaves no function pointer into this shared object behind.
-  return 0;
+auto OnApplicationLoaded(const GFEvent & /*event*/) -> GFEventResult {
+  // Subscribed but with nothing to do: the module wants the host to consider
+  // it a listener of this event, and answering is all that is required.
+  return GFEventResult::Ok();
 }
 
-auto GFUnregisterModule() -> int {
+auto OnRequestGatheringAllGnuPGInfo(const GFEvent & /*event*/)
+    -> GFEventResult {
+  StartGatheringAllGnuPGInfo();
+  return GFEventResult::Ok();
+}
+
+auto OnUnload() -> void {
   LOG_INFO("gnupg info gathering module unregistering");
-
-  return 0;
 }
 
-REGISTER_EVENT_HANDLER(MAINWINDOW_MENU_MOUNTED, [](const MEvent &event) -> int {
-  LOG_DEBUG("main window menu mounted event: processing");
+auto OnMainWindowMenuMounted(const GFEvent &event) -> GFEventResult {
+  QMainWindow *main_window = nullptr;
+  if (auto r = event.RequireGui("main_window", main_window); !r.ok) return r;
 
-  if (!event.contains("main_window")) {
-    LOG_DEBUG("main window menu mounted event: no main_window found");
-    CB_ERR(event, -1, "no main_window found");
-  }
-
-  auto *main_window = GFUIGetGUIObjectAs<QMainWindow>(event["main_window"]);
-  if (!main_window) {
-    LOG_ERROR(
-        "main window menu mounted: main_window handle invalid or not "
-        "QMainWindow");
-    CB_ERR(event, -1, "main_window handle invalid or not QMainWindow");
-  }
-
-  if (!event.contains("help_menu")) {
-    LOG_DEBUG("main window menu mounted event: no help_menu found");
-    CB_ERR(event, -1, "no help_menu found");
-  }
-
-  auto *help_menu = GFUIGetGUIObjectAs<QMenu>(event["help_menu"]);
-  if (!help_menu) {
-    LOG_ERROR(
-        "main window menu mounted: help_menu handle invalid or not "
-        "QMenu");
-    CB_ERR(event, -1, "help_menu handle invalid or not QMenu");
-  }
+  QMenu *help_menu = nullptr;
+  if (auto r = event.RequireGui("help_menu", help_menu); !r.ok) return r;
 
   LOG_DEBUG("adding check update action to help menu");
 
@@ -183,8 +138,35 @@ REGISTER_EVENT_HANDLER(MAINWINDOW_MENU_MOUNTED, [](const MEvent &event) -> int {
         help_menu->addAction(action);
       },
       Qt::BlockingQueuedConnection);
-  CB_SUCC(event);
-});
+
+  return GFEventResult::Ok();
+}
+
+// The module's whole framework surface: which events it handles, what runs at
+// each lifecycle point, and one forwarder to the runtime that implements all
+// of it. Everything above is business logic.
+constexpr GFEventBinding kEvents[] = {
+    {"APPLICATION_LOADED", &OnApplicationLoaded},
+    {"MAINWINDOW_MENU_MOUNTED", &OnMainWindowMenuMounted},
+    {"REQUEST_GATHERING_ALL_GNUPG_INFO", &OnRequestGatheringAllGnuPGInfo},
+};
+
+constexpr GFModuleHooks kHooks = {
+    sizeof(GFModuleHooks),
+    GF_MODULE_ID,
+    GF_MODULE_VERSION,
+    GF_MODULE_TRANSLATION_CONTEXT,
+    &OnActivate,
+    nullptr,  // nothing registered with the host, so nothing to undo
+    &OnUnload,
+    kEvents,
+    std::size(kEvents),
+};
+
+extern "C" GF_MODULE_EXPORT auto GFModuleGetApi(uint32_t abi)
+    -> const GFModuleApi * {
+  return GFModuleRuntimeGetApi(abi, &kHooks);
+}
 
 auto StartStartGatheringGnuPGComponentsInfo(const QString &gpgme_version,
                                             const QString &gpgconf_path,

@@ -5,6 +5,18 @@
   "name": "KeyServerSync",
   "description": "Sync Information From Trusted Key Server.",
   "author": "Saturneric",
-  "capabilities": ["gpg", "ui", "network"],
+  "capabilities": [
+    "gpg",
+    "ui",
+    "network"
+  ],
+  "events": [
+    "KEY_PAIR_OPERA_MENU_CREATED",
+    "MAINWINDOW_MENU_MOUNTED",
+    "REQUEST_GET_PUBLIC_KEY_BY_FINGERPRINT",
+    "REQUEST_GET_PUBLIC_KEY_BY_KEY_ID",
+    "REQUEST_SEARCH_PUBLIC_KEY_BY_FINGERPRINT",
+    "REQUEST_UPLOAD_PUBLIC_KEY"
+  ],
   "translation_context": "ModuleKeyServerSync"
 }

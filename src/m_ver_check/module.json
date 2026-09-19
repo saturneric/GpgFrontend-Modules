@@ -5,6 +5,16 @@
   "name": "VersionChecking",
   "description": "Try checking GpgFrontend version.",
   "author": "Saturneric",
-  "capabilities": ["ui", "network"],
+  "capabilities": [
+    "ui",
+    "network"
+  ],
+  "events": [
+    "APPLICATION_LOADED",
+    "MAINWINDOW_MENU_MOUNTED",
+    "NETWORK_SETTINGS_TAB_APPLY_SETTINGS",
+    "NETWORK_SETTINGS_TAB_LOAD_SETTINGS",
+    "NETWORK_SETTINGS_TAB_UI_CREATED"
+  ],
   "translation_context": "ModuleVersionChecking"
 }

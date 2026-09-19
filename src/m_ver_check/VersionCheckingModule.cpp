@@ -39,39 +39,21 @@
 
 #include "BKTUSVersionCheckTask.h"
 #include "GFModule.h"
-#include "GFModuleBootstrap.h"
 #include "GitHubVersionCheckTask.h"
 #include "SoftwareVersion.h"
 #include "UpdateTab.h"
+#include "GFModuleIdentity.h"
 #include "Utils.h"
 
-GF_MODULE_BOOTSTRAP();
-
-DEFINE_TRANSLATIONS_STRUCTURE();
-
-auto GFRegisterModule() -> int {
-  LOG_INFO("version checking module registering");
-
-  REGISTER_TRANS_READER();
-  return 0;
-}
-
-auto GFActiveModule() -> int {
+auto OnActivate() -> GFResult {
   LOG_INFO("version checking module activating");
-
-  LISTEN("MAINWINDOW_MENU_MOUNTED");
-  LISTEN("APPLICATION_LOADED");
-  LISTEN("NETWORK_SETTINGS_TAB_UI_CREATED");
-  LISTEN("NETWORK_SETTINGS_TAB_LOAD_SETTINGS");
-  LISTEN("NETWORK_SETTINGS_TAB_APPLY_SETTINGS");
-
-  return 0;
+  return GFResult::Ok();
 }
 
 namespace {
 
-auto CheckUpdate(const QMap<QString, QString>& event) -> int {
-  if (event["api"] == "bktus") {
+auto CheckUpdate(const GFEvent& event) -> GFEventResult {
+  if (event.Str("api") == "bktus") {
     MLogInfo("checking updating using api of bktus.com");
     auto* task = new BKTUSVersionCheckTask();
     QObject::connect(
@@ -79,7 +61,7 @@ auto CheckUpdate(const QMap<QString, QString>& event) -> int {
         QThread::currentThread(), [event](const SoftwareVersion& sv) {
           GFDurableCacheSave("update_checking_cache",
                              (QJsonDocument(sv.ToJson()).toJson()).constData());
-          CB_SUCC(event);
+          return GFEventResult::Ok();
         });
     QObject::connect(task, &BKTUSVersionCheckTask::SignalUpgradeVersion, task,
                      &QObject::deleteLater);
@@ -92,13 +74,15 @@ auto CheckUpdate(const QMap<QString, QString>& event) -> int {
         QCoreApplication::instance(), [event](const SoftwareVersion& sv) {
           GFDurableCacheSave("update_checking_cache",
                              (QJsonDocument(sv.ToJson()).toJson()).constData());
-          CB_SUCC(event);
+          return GFEventResult::Ok();
         });
     QObject::connect(task, &GitHubVersionCheckTask::SignalUpgradeVersion, task,
                      &QObject::deleteLater);
     task->Run();
   }
-  return 0;
+  // The check runs asynchronously and its callback answers, so nothing is
+  // answered here.
+  return GFEventResult::Deferred();
 }
 
 auto RaiseUpdateDialog(QWidget* parent) -> QDialog* {
@@ -118,35 +102,35 @@ auto RaiseUpdateDialog(QWidget* parent) -> QDialog* {
 
 }  // namespace
 
-REGISTER_EVENT_HANDLER(MAINWINDOW_MENU_MOUNTED, [](const MEvent& event) -> int {
+auto OnMainwindowMenuMounted(const GFEvent& event) -> GFEventResult {
   LOG_DEBUG("main window menu mounted event: processing");
 
-  if (!event.contains("main_window")) {
+  if (!event.Has("main_window")) {
     LOG_DEBUG("main window menu mounted event: no main_window found");
-    CB_ERR(event, -1, "no main_window found");
+    return GFEventResult::Bad("no main_window found");
   }
 
-  auto* main_window = GFUIGetGUIObjectAs<QMainWindow>(event["main_window"]);
+  auto* main_window = GFUIObject<QMainWindow>(event.Str("main_window"));
   if (!main_window) {
     LOG_ERROR(
         "main window menu mounted: main_window handle invalid or not "
         "QMainWindow");
-    CB_ERR(event, -1, "main_window handle invalid or not QMainWindow");
+    return GFEventResult::Bad("main_window handle invalid or not QMainWindow");
   }
 
   auto p_mw = QPointer<QMainWindow>(main_window);
 
-  if (!event.contains("help_menu")) {
+  if (!event.Has("help_menu")) {
     LOG_DEBUG("main window menu mounted event: no help_menu found");
-    CB_ERR(event, -1, "no help_menu found");
+    return GFEventResult::Bad("no help_menu found");
   }
 
-  auto* help_menu = GFUIGetGUIObjectAs<QMenu>(event["help_menu"]);
+  auto* help_menu = GFUIObject<QMenu>(event.Str("help_menu"));
   if (!help_menu) {
     LOG_ERROR(
         "main window menu mounted: help_menu handle invalid or not "
         "QMenu");
-    CB_ERR(event, -1, "help_menu handle invalid or not QMenu");
+    return GFEventResult::Bad("help_menu handle invalid or not QMenu");
   }
 
   auto p_help_menu = QPointer<QMenu>(help_menu);
@@ -175,17 +159,17 @@ REGISTER_EVENT_HANDLER(MAINWINDOW_MENU_MOUNTED, [](const MEvent& event) -> int {
         help_menu->addAction(action);
       },
       Qt::BlockingQueuedConnection);
-  CB_SUCC(event);
-});
+  return GFEventResult::Ok();
+}
 
-REGISTER_EVENT_HANDLER(APPLICATION_LOADED, [](const MEvent& event) -> int {
+auto OnApplicationLoaded(const GFEvent& event) -> GFEventResult {
   LOG_DEBUG("application starting completed event: processing");
 
-  auto* parent = GFUIGetGUIObjectAs<QWidget>(
-      event.contains("main_window") ? event["main_window"] : "");
+  auto* parent = GFUIObject<QWidget>(
+      event.Has("main_window") ? event.Str("main_window") : "");
   if (!parent) {
     LOG_ERROR("application loaded: main_window handle invalid or not QWidget");
-    CB_ERR(event, -1, "main_window handle invalid or not QWidget");
+    return GFEventResult::Bad("main_window handle invalid or not QWidget");
   }
 
   // check version information
@@ -193,7 +177,7 @@ REGISTER_EVENT_HANDLER(APPLICATION_LOADED, [](const MEvent& event) -> int {
       qobject_cast<QSettings*>(static_cast<QObject*>(GFUIGlobalSettings()));
   if (!settings) {
     LOG_ERROR("application loaded: global settings handle invalid");
-    CB_ERR(event, -1, "global settings handle invalid");
+    return GFEventResult::Bad("global settings handle invalid");
   }
 
   // ensure that it will not perform at the first startup before wizard is done
@@ -201,7 +185,7 @@ REGISTER_EVENT_HANDLER(APPLICATION_LOADED, [](const MEvent& event) -> int {
     LOG_DEBUG(
         "application loaded: prohibit_update_checking setting "
         "not found");
-    CB_SUCC(event);
+    return GFEventResult::Ok();
   }
 
   auto update_checking_api =
@@ -217,7 +201,7 @@ REGISTER_EVENT_HANDLER(APPLICATION_LOADED, [](const MEvent& event) -> int {
 
   if (prohibit_update_checking) {
     LOG_DEBUG("application loaded: update checking is prohibited");
-    CB_SUCC(event);
+    return GFEventResult::Ok();
   }
 
   auto cache = UDUP(GFDurableCacheGet("update_checking_cache"));
@@ -254,33 +238,31 @@ REGISTER_EVENT_HANDLER(APPLICATION_LOADED, [](const MEvent& event) -> int {
         Qt::QueuedConnection);
   }
 
-  CB_SUCC(event);
-});
+  return GFEventResult::Ok();
+}
 
-REGISTER_EVENT_HANDLER(
-    NETWORK_SETTINGS_TAB_UI_CREATED, [](const MEvent& event) -> int {
+auto OnNetworkSettingsTabUiCreated(const GFEvent& event) -> GFEventResult {
       LOG_DEBUG("network settings tab ui created event: processing");
 
-      auto* tab = GFUIGetGUIObjectAs<QWidget>(
-          event.contains("network_settings_tab") ? event["network_settings_tab"]
+      auto* tab = GFUIObject<QWidget>(
+          event.Has("network_settings_tab") ? event.Str("network_settings_tab")
                                                  : "");
       if (!tab) {
         LOG_ERROR(
             "network settings tab ui created: network_settings_tab handle "
             "invalid or not QWidget");
-        CB_ERR(event, -1, "network_settings_tab handle invalid or not QWidget");
+        return GFEventResult::Bad("network_settings_tab handle invalid or not QWidget");
       }
 
-      auto* capability_group_box = GFUIGetGUIObjectAs<QGroupBox>(
-          event.contains("capability_group_box") ? event["capability_group_box"]
+      auto* capability_group_box = GFUIObject<QGroupBox>(
+          event.Has("capability_group_box") ? event.Str("capability_group_box")
                                                  : "");
 
       if (!capability_group_box) {
         LOG_ERROR(
             "network settings tab ui created: capability_group_box handle "
             "invalid or not QGroupBox");
-        CB_ERR(event, -1,
-               "capability_group_box handle invalid or not QGroupBox");
+        return GFEventResult::Bad("capability_group_box handle invalid or not QGroupBox");
       }
 
       QMetaObject::invokeMethod(
@@ -321,11 +303,10 @@ REGISTER_EVENT_HANDLER(
           },
           Qt::QueuedConnection);
 
-      CB_SUCC(event);
-    });
+      return GFEventResult::Ok();
+}
 
-REGISTER_EVENT_HANDLER(
-    NETWORK_SETTINGS_TAB_APPLY_SETTINGS, [](const MEvent& event) -> int {
+auto OnNetworkSettingsTabApplySettings(const GFEvent& event) -> GFEventResult {
       LOG_DEBUG("network settings tab apply settings event: processing");
       auto* settings =
           qobject_cast<QSettings*>(static_cast<QObject*>(GFUIGlobalSettings()));
@@ -333,16 +314,16 @@ REGISTER_EVENT_HANDLER(
         LOG_ERROR(
             "network settings tab apply settings: global settings handle "
             "invalid");
-        CB_ERR(event, -1, "global settings handle invalid");
+        return GFEventResult::Bad("global settings handle invalid");
       }
-      auto* tab = GFUIGetGUIObjectAs<QWidget>(
-          event.contains("network_settings_tab") ? event["network_settings_tab"]
+      auto* tab = GFUIObject<QWidget>(
+          event.Has("network_settings_tab") ? event.Str("network_settings_tab")
                                                  : "");
       if (!tab) {
         LOG_ERROR(
             "network settings tab apply settings: network_settings_tab "
             "handle invalid or not QWidget");
-        CB_ERR(event, -1, "network_settings_tab handle invalid or not QWidget");
+        return GFEventResult::Bad("network_settings_tab handle invalid or not QWidget");
       }
 
       // we need to apply the settings in the main thread to avoid some
@@ -393,11 +374,10 @@ REGISTER_EVENT_HANDLER(
           },
           Qt::QueuedConnection);
 
-      CB_SUCC(event);
-    });
+      return GFEventResult::Ok();
+}
 
-REGISTER_EVENT_HANDLER(
-    NETWORK_SETTINGS_TAB_LOAD_SETTINGS, [](const MEvent& event) -> int {
+auto OnNetworkSettingsTabLoadSettings(const GFEvent& event) -> GFEventResult {
       LOG_DEBUG("network settings tab load settings event: processing");
 
       auto* settings =
@@ -407,17 +387,17 @@ REGISTER_EVENT_HANDLER(
         LOG_ERROR(
             "network settings tab load settings: global settings handle "
             "invalid");
-        CB_ERR(event, -1, "global settings handle invalid");
+        return GFEventResult::Bad("global settings handle invalid");
       }
 
-      auto* tab = GFUIGetGUIObjectAs<QWidget>(
-          event.contains("network_settings_tab") ? event["network_settings_tab"]
+      auto* tab = GFUIObject<QWidget>(
+          event.Has("network_settings_tab") ? event.Str("network_settings_tab")
                                                  : "");
       if (!tab) {
         LOG_ERROR(
             "network settings tab load settings: network_settings_tab "
             "handle invalid or not QWidget");
-        CB_ERR(event, -1, "network_settings_tab handle invalid or not QWidget");
+        return GFEventResult::Bad("network_settings_tab handle invalid or not QWidget");
       }
 
       QMetaObject::invokeMethod(
@@ -454,17 +434,35 @@ REGISTER_EVENT_HANDLER(
           },
           Qt::BlockingQueuedConnection);
 
-      CB_SUCC(event);
-    });
-
-auto GFDeactivateModule() -> int {
-  // Nothing to undo: the settings tab this module contributes is built through
-  // event handlers rather than a registered page, so nothing outlives it here.
-  return 0;
+  return GFEventResult::Ok();
 }
 
-auto GFUnregisterModule() -> int {
+auto OnUnload() -> void {
   LOG_INFO("version checking module unregistering");
+}
 
-  return 0;
+// The module's whole framework surface.
+constexpr GFEventBinding kEvents[] = {
+    {"APPLICATION_LOADED", &OnApplicationLoaded},
+    {"MAINWINDOW_MENU_MOUNTED", &OnMainwindowMenuMounted},
+    {"NETWORK_SETTINGS_TAB_APPLY_SETTINGS", &OnNetworkSettingsTabApplySettings},
+    {"NETWORK_SETTINGS_TAB_LOAD_SETTINGS", &OnNetworkSettingsTabLoadSettings},
+    {"NETWORK_SETTINGS_TAB_UI_CREATED", &OnNetworkSettingsTabUiCreated},
+};
+
+constexpr GFModuleHooks kHooks = {
+    sizeof(GFModuleHooks),
+    GF_MODULE_ID,
+    GF_MODULE_VERSION,
+    GF_MODULE_TRANSLATION_CONTEXT,
+    &OnActivate,
+    nullptr,  // the settings tab is built through events, so nothing to undo
+    &OnUnload,
+    kEvents,
+    std::size(kEvents),
+};
+
+extern "C" GF_MODULE_EXPORT auto GFModuleGetApi(uint32_t abi)
+    -> const GFModuleApi* {
+  return GFModuleRuntimeGetApi(abi, &kHooks);
 }

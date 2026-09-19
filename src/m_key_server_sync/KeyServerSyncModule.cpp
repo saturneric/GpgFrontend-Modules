@@ -28,6 +28,8 @@
 
 #include "KeyServerSyncModule.h"
 
+#include "GFModuleIdentity.h"
+
 #include <GFSDKGpg.h>
 
 #include <QtCore>
@@ -35,7 +37,6 @@
 #include <QtWidgets>
 
 #include "GFModule.h"
-#include "GFModuleBootstrap.h"
 #include "GFSDKUI.h"
 #include "KeyServerList.h"
 #include "KeyServerSettingsPage.h"
@@ -141,25 +142,8 @@ auto ConfirmHkpPublish(QWidget* parent, const QString& url) -> bool {
 }
 }  // namespace
 
-GF_MODULE_BOOTSTRAP()
-
-DEFINE_TRANSLATIONS_STRUCTURE();
-
-auto GFRegisterModule() -> int {
+auto OnActivate() -> GFResult {
   LOG_INFO("key server sync module registering");
-
-  REGISTER_TRANS_READER();
-
-  return 0;
-}
-
-auto GFActiveModule() -> int {
-  LISTEN("REQUEST_GET_PUBLIC_KEY_BY_FINGERPRINT");
-  LISTEN("REQUEST_GET_PUBLIC_KEY_BY_KEY_ID");
-  LISTEN("REQUEST_UPLOAD_PUBLIC_KEY");
-  LISTEN("REQUEST_SEARCH_PUBLIC_KEY_BY_FINGERPRINT");
-  LISTEN("MAINWINDOW_MENU_MOUNTED");
-  LISTEN("KEY_PAIR_OPERA_MENU_CREATED");
 
   // Registered untranslated: the module translators are not installed yet, so
   // anything translated here would be stuck at the source text for the rest of
@@ -172,7 +156,7 @@ auto GFActiveModule() -> int {
       kSettingsPageId, "keys_engines", GC_TR("Key Servers"),
       (keywords).toUtf8().constData(), KeyServerSettingsPageFactory, nullptr);
 
-  return 0;
+  return GFResult::Ok();
 }
 
 namespace {
@@ -334,33 +318,33 @@ auto UpdateKeyFromKeyServer(QWidget* parent, int channel, const QString& fpr)
 
 }  // namespace
 
-REGISTER_EVENT_HANDLER(MAINWINDOW_MENU_MOUNTED, [](const MEvent& event) -> int {
+auto OnMainwindowMenuMounted(const GFEvent& event) -> GFEventResult {
   LOG_DEBUG("main window menu mounted event: processing");
 
-  if (!event.contains("main_window")) {
+  if (!event.Has("main_window")) {
     LOG_DEBUG("main window menu mounted event: no main_window found");
-    CB_ERR(event, -1, "no main_window found");
+    return GFEventResult::Bad("no main_window found");
   }
 
-  auto* main_window = GFUIGetGUIObjectAs<QMainWindow>(event["main_window"]);
+  auto* main_window = GFUIObject<QMainWindow>(event.Str("main_window"));
   if (!main_window) {
     LOG_ERROR(
         "main window menu mounted: main_window handle invalid or not "
         "QMainWindow");
-    CB_ERR(event, -1, "main_window handle invalid or not QMainWindow");
+    return GFEventResult::Bad("main_window handle invalid or not QMainWindow");
   }
 
-  if (!event.contains("import_key_menu")) {
+  if (!event.Has("import_key_menu")) {
     LOG_DEBUG("main window menu mounted event: no import_key_menu found");
-    CB_ERR(event, -1, "no import_key_menu found");
+    return GFEventResult::Bad("no import_key_menu found");
   }
 
-  auto* import_key_menu = GFUIGetGUIObjectAs<QMenu>(event["import_key_menu"]);
+  auto* import_key_menu = GFUIObject<QMenu>(event.Str("import_key_menu"));
   if (!import_key_menu) {
     LOG_ERROR(
         "main window menu mounted: import_key_menu handle invalid or not "
         "QMenu");
-    CB_ERR(event, -1, "import_key_menu handle invalid or not QMenu");
+    return GFEventResult::Bad("import_key_menu handle invalid or not QMenu");
   }
 
   LOG_DEBUG("adding key server sync actions to import key menu");
@@ -382,33 +366,32 @@ REGISTER_EVENT_HANDLER(MAINWINDOW_MENU_MOUNTED, [](const MEvent& event) -> int {
         import_key_menu->addAction(action);
       },
       Qt::BlockingQueuedConnection);
-  CB_SUCC(event);
-});
+  return GFEventResult::Ok();
+}
 
-REGISTER_EVENT_HANDLER(
-    KEY_PAIR_OPERA_MENU_CREATED, [](const MEvent& event) -> int {
-      auto* tab = GFUIGetGUIObjectAs<QWidget>(event["tab"]);
+auto OnKeyPairOperaMenuCreated(const GFEvent& event) -> GFEventResult {
+      auto* tab = GFUIObject<QWidget>(event.Str("tab"));
       if (!tab) {
         LOG_ERROR(
             "key pair opera menu created: tab handle "
             "invalid or not KeyPairOperaTab");
-        CB_ERR(event, -1, "tab handle invalid or not KeyPairOperaTab");
+        return GFEventResult::Bad("tab handle invalid or not KeyPairOperaTab");
       }
 
-      auto* layout = GFUIGetGUIObjectAs<QVBoxLayout>(event["opera_layout"]);
+      auto* layout = GFUIObject<QVBoxLayout>(event.Str("opera_layout"));
       if (!layout) {
         LOG_ERROR(
             "key pair opera menu created: opera_menu handle "
             "invalid or not QMenu");
-        CB_ERR(event, -1, "opera_menu handle invalid or not QMenu");
+        return GFEventResult::Bad("opera_menu handle invalid or not QMenu");
       }
 
-      auto is_private_key = event["is_private_key"].toInt() != 0;
-      auto has_master_key = event["has_master_key"].toInt() != 0;
+      auto is_private_key = event.Str("is_private_key").toInt() != 0;
+      auto has_master_key = event.Str("has_master_key").toInt() != 0;
 
-      auto channel = event["channel"].toInt();
-      auto key_id = event["key_id"];
-      auto fpr = event["fpr"];
+      auto channel = event.Str("channel").toInt();
+      auto key_id = event.Str("key_id");
+      auto fpr = event.Str("fpr");
 
       FLOG_DEBUG(
           "adding key server sync actions: key id: %1, channel: %2, is "
@@ -446,15 +429,14 @@ REGISTER_EVENT_HANDLER(
         layout->addWidget(key_server_opera_button);
       });
 
-      CB_SUCC(event);
-    });
+      return GFEventResult::Ok();
+}
 
-REGISTER_EVENT_HANDLER(
-    REQUEST_GET_PUBLIC_KEY_BY_FINGERPRINT, [](const MEvent& event) -> int {
-      if (event["fingerprint"].isEmpty())
-        CB_ERR(event, -1, "fingerprint is empty");
+auto OnRequestGetPublicKeyByFingerprint(const GFEvent& event) -> GFEventResult {
+      if (event.Str("fingerprint").isEmpty())
+        return GFEventResult::Bad("fingerprint is empty");
 
-      QString fingerprint = event["fingerprint"];
+      QString fingerprint = event.Str("fingerprint");
       FLOG_DEBUG("try to get key info of fingerprint: %1", fingerprint);
 
       const auto route = KeyServerList::SyncRoute();
@@ -463,30 +445,18 @@ REGISTER_EVENT_HANDLER(
       FetchKey(
           route, fingerprint, true,
           [event, server](const QString& key) {
-            CB(event, GFGetModuleID(),
-               {
-                   {"ret", QString::number(0)},
-                   {"key_data", key},
-                   {"key_server", server},
-               });
+            event.Answer().Ok({{"key_data", key}, {"key_server", server}});
           },
           [event, server](const QString& error, const QString& data) {
-            CB(event, GFGetModuleID(),
-               {
-                   {"ret", QString::number(-1)},
-                   {"error_msg", error},
-                   {"reply_data", data},
-                   {"key_server", server},
-               });
+            event.Answer().Fail(error, {{"reply_data", data}, {"key_server", server}});
           });
-      return 0;
-    });
+      return GFEventResult::Deferred();
+}
 
-REGISTER_EVENT_HANDLER(
-    REQUEST_GET_PUBLIC_KEY_BY_KEY_ID, [](const MEvent& event) -> int {
-      if (event["key_id"].isEmpty()) CB_ERR(event, -1, "key_id is empty");
+auto OnRequestGetPublicKeyByKeyId(const GFEvent& event) -> GFEventResult {
+      if (event.Str("key_id").isEmpty()) return GFEventResult::Bad("key_id is empty");
 
-      QString key_id = event["key_id"];
+      QString key_id = event.Str("key_id");
       FLOG_DEBUG("try to get key info of key id: %1", key_id);
 
       const auto route = KeyServerList::SyncRoute();
@@ -495,31 +465,19 @@ REGISTER_EVENT_HANDLER(
       FetchKey(
           route, key_id, false,
           [event, server](const QString& key) {
-            CB(event, GFGetModuleID(),
-               {
-                   {"ret", QString::number(0)},
-                   {"key_data", key},
-                   {"key_server", server},
-               });
+            event.Answer().Ok({{"key_data", key}, {"key_server", server}});
           },
           [event, server](const QString& error, const QString& data) {
-            CB(event, GFGetModuleID(),
-               {
-                   {"ret", QString::number(-1)},
-                   {"error_msg", error},
-                   {"reply_data", data},
-                   {"key_server", server},
-               });
+            event.Answer().Fail(error, {{"reply_data", data}, {"key_server", server}});
           });
 
-      return 0;
-    });
+      return GFEventResult::Deferred();
+}
 
-REGISTER_EVENT_HANDLER(
-    REQUEST_UPLOAD_PUBLIC_KEY, [](const MEvent& event) -> int {
-      if (event["key_text"].isEmpty()) CB_ERR(event, -1, "key_text is empty");
+auto OnRequestUploadPublicKey(const GFEvent& event) -> GFEventResult {
+      if (event.Str("key_text").isEmpty()) return GFEventResult::Bad("key_text is empty");
 
-      QByteArray key_text = event["key_text"].toLatin1();
+      QByteArray key_text = event.Str("key_text").toLatin1();
       FLOG_DEBUG("try to get key info of key id: %1", key_text);
 
       const auto route = KeyServerList::SyncRoute();
@@ -536,28 +494,17 @@ REGISTER_EVENT_HANDLER(
                          [event, server](QNetworkReply::NetworkError error,
                                          const QString& error_string) {
                            if (error != QNetworkReply::NoError) {
-                             CB(event, GFGetModuleID(),
-                                {
-                                    {"ret", QString::number(-1)},
-                                    {"error_msg", error_string},
-                                    {"key_server", server},
-                                    {"protocol", "hkp"},
-                                });
+                             event.Answer().Fail(error_string, {{"key_server", server}, {"protocol", "hkp"}});
                              return;
                            }
 
-                           CB(event, GFGetModuleID(),
-                              {
-                                  {"ret", QString::number(0)},
-                                  {"key_server", server},
-                                  {"protocol", "hkp"},
-                              });
+                           event.Answer().Ok({{"key_server", server}, {"protocol", "hkp"}});
                          });
         QObject::connect(pks, &PKSInterface::SignalKeyServerKeyUploadResult,
                          pks, &PKSInterface::deleteLater);
 
         pks->UploadKey(server, key_text);
-        return 0;
+        return GFEventResult::Deferred();
       }
 
       auto* vks = new VKSInterface(server);
@@ -565,43 +512,26 @@ REGISTER_EVENT_HANDLER(
           vks, &VKSInterface::SignalKeyUploaded, QThread::currentThread(),
           [event, server](const QString& fpr, const QJsonObject& status,
                           const QString& token) {
-            CB(event, GFGetModuleID(),
-               {
-                   {"ret", QString::number(0)},
-                   {"fingerprint", fpr},
-                   {"status",
-                    QString::fromUtf8(QJsonDocument(status).toJson())},
-                   {"token", token},
-                   {"key_server", server},
-                   {"protocol", "vks"},
-               });
+            event.Answer().Ok({{"fingerprint", fpr}, {"status", QString::fromUtf8(QJsonDocument(status).toJson())}, {"token", token}, {"key_server", server}, {"protocol", "vks"}});
           });
       QObject::connect(
           vks, &VKSInterface::SignalErrorOccurred, QThread::currentThread(),
           [event, server](const QString& error, const QString& data) {
-            CB(event, GFGetModuleID(),
-               {
-                   {"ret", QString::number(-1)},
-                   {"error_msg", error},
-                   {"reply_data", data},
-                   {"key_server", server},
-                   {"protocol", "vks"},
-               });
+            event.Answer().Fail(error, {{"reply_data", data}, {"key_server", server}, {"protocol", "vks"}});
           });
       QObject::connect(vks, &VKSInterface::SignalKeyRetrieved, vks,
                        &VKSInterface::deleteLater);
       vks->UploadKey(key_text);
-      return 0;
-    });
+      return GFEventResult::Deferred();
+}
 
-REGISTER_EVENT_HANDLER(
-    REQUEST_SEARCH_PUBLIC_KEY_BY_FINGERPRINT, [](const MEvent& event) -> int {
-      auto fingerprint = event["fingerprint"].trimmed();
+auto OnRequestSearchPublicKeyByFingerprint(const GFEvent& event) -> GFEventResult {
+      auto fingerprint = event.Str("fingerprint").trimmed();
 
       QWidget* parent = nullptr;
 
-      if (event.contains("parent")) {
-        parent = GFUIGetGUIObjectAs<QWidget>(event["parent"]);
+      if (event.Has("parent")) {
+        parent = GFUIObject<QWidget>(event.Str("parent"));
       }
 
       if (parent == nullptr) {
@@ -627,20 +557,47 @@ REGISTER_EVENT_HANDLER(
           },
           Qt::QueuedConnection);
 
-      CB_SUCC(event);
-    });
+      return GFEventResult::Ok();
+}
 
-auto GFDeactivateModule() -> int {
+auto OnDeactivate() -> GFResult {
   // The registry holds a function pointer into this shared object; leaving it
   // behind would crash the next time the Settings dialog is built.
   GFUIUnregisterSettingsPage(kSettingsPageId);
-  return 0;
+  return GFResult::Ok();
 }
 
-auto GFUnregisterModule() -> int {
+auto OnUnload() -> void {
   // Said "paper key module" until now, copied from a module that no longer
   // exists -- so the one line naming who was shutting down named the wrong one.
   LOG_INFO("key server sync module unregistering");
+}
 
-  return 0;
+// The module's whole framework surface.
+constexpr GFEventBinding kEvents[] = {
+    {"KEY_PAIR_OPERA_MENU_CREATED", &OnKeyPairOperaMenuCreated},
+    {"MAINWINDOW_MENU_MOUNTED", &OnMainwindowMenuMounted},
+    {"REQUEST_GET_PUBLIC_KEY_BY_FINGERPRINT",
+     &OnRequestGetPublicKeyByFingerprint},
+    {"REQUEST_GET_PUBLIC_KEY_BY_KEY_ID", &OnRequestGetPublicKeyByKeyId},
+    {"REQUEST_SEARCH_PUBLIC_KEY_BY_FINGERPRINT",
+     &OnRequestSearchPublicKeyByFingerprint},
+    {"REQUEST_UPLOAD_PUBLIC_KEY", &OnRequestUploadPublicKey},
+};
+
+constexpr GFModuleHooks kHooks = {
+    sizeof(GFModuleHooks),
+    GF_MODULE_ID,
+    GF_MODULE_VERSION,
+    GF_MODULE_TRANSLATION_CONTEXT,
+    &OnActivate,
+    &OnDeactivate,
+    &OnUnload,
+    kEvents,
+    std::size(kEvents),
+};
+
+extern "C" GF_MODULE_EXPORT auto GFModuleGetApi(uint32_t abi)
+    -> const GFModuleApi* {
+  return GFModuleRuntimeGetApi(abi, &kHooks);
 }

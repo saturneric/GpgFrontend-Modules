@@ -5,6 +5,22 @@
   "name": "Email",
   "description": "Everything related to E-Mails.",
   "author": "Saturneric",
-  "capabilities": ["gpg", "ui", "network"],
+  "capabilities": [
+    "gpg",
+    "ui",
+    "network"
+  ],
+  "events": [
+    "EDIT_TAB_TYPE_EMAIL_OP_DECRYPT",
+    "EDIT_TAB_TYPE_EMAIL_OP_DECRYPT_VERIFY",
+    "EDIT_TAB_TYPE_EMAIL_OP_ENCRYPT",
+    "EDIT_TAB_TYPE_EMAIL_OP_ENCRYPT_SIGN",
+    "EDIT_TAB_TYPE_EMAIL_OP_SAVE_FILE",
+    "EDIT_TAB_TYPE_EMAIL_OP_SIGN",
+    "EDIT_TAB_TYPE_EMAIL_OP_VERIFY",
+    "FILE_EXT_EMAIL_OP_OPEN_FILE",
+    "KEY_DATABASE_REFRESH_DONE",
+    "MAINWINDOW_MENU_MOUNTED"
+  ],
   "translation_context": "ModuleEMail"
 }

@@ -28,6 +28,8 @@
 
 #include "EMailModule.h"
 
+#include "GFModuleIdentity.h"
+
 #include <GFSDKBasic.h>
 #include <GFSDKBuildInfo.h>
 #include <GFSDKLog.h>
@@ -73,16 +75,11 @@
 #include <vmime/contentTypeField.hpp>
 
 #include "GFModule.h"
-#include "GFModuleBootstrap.h"
 
 //
 #include "EMailBasicGpgOpera.h"
 #include "EMailHelper.h"
 #include "EMailVerificationPayload.h"
-
-GF_MODULE_BOOTSTRAP()
-
-DEFINE_TRANSLATIONS_STRUCTURE();
 
 namespace {
 
@@ -397,26 +394,12 @@ auto BuildResultCardsParam(const QString& operation,
 constexpr auto kMailSettingsPageId =
     "com.bktus.gpgfrontend.module.email.accounts";
 
-auto GFRegisterModule() -> int {
+auto OnActivate() -> GFResult {
   LOG_INFO("email module registering");
 
   // The MIME code carries no SDK symbol of its own so it can be unit-tested
   // without a module host; this is what gives it a logger at runtime.
   SetMimeLogSink([](const QString& m) { MLogDebug(m); });
-
-  REGISTER_TRANS_READER();
-
-  LISTEN("MAINWINDOW_MENU_MOUNTED");
-
-  LISTEN("EDIT_TAB_TYPE_EMAIL_OP_ENCRYPT");
-  LISTEN("EDIT_TAB_TYPE_EMAIL_OP_DECRYPT");
-  LISTEN("EDIT_TAB_TYPE_EMAIL_OP_SIGN");
-  LISTEN("EDIT_TAB_TYPE_EMAIL_OP_VERIFY");
-  LISTEN("EDIT_TAB_TYPE_EMAIL_OP_ENCRYPT_SIGN");
-  LISTEN("EDIT_TAB_TYPE_EMAIL_OP_DECRYPT_VERIFY");
-
-  LISTEN("EDIT_TAB_TYPE_EMAIL_OP_SAVE_FILE");
-
   // The message view of an e-mail tab. The host still owns the page and its
   // document -- this only supplies the widget shown on top of it, with the raw
   // MIME still one click away.
@@ -426,9 +409,6 @@ auto GFRegisterModule() -> int {
 
   // register file extension handler
   GFUIRegisterFileExtensionHandleEvent("eml", "EMAIL");
-
-  LISTEN("FILE_EXT_EMAIL_OP_OPEN_FILE");
-
   // These cross thread boundaries as queued signal arguments, so Qt has to
   // know how to copy them before the first connection is made.
   qRegisterMetaType<MailAccountConfig>("MailAccountConfig");
@@ -462,26 +442,19 @@ auto GFRegisterModule() -> int {
                            (keywords).toUtf8().constData(),
                            EMailAccountSettingsPageFactory, nullptr);
 
-  // An imported key changes what an already-open message can be told about
-  // itself, so the views have to hear about it.
-  LISTEN("KEY_DATABASE_REFRESH_DONE");
-  return 0;
+  return GFResult::Ok();
 }
 
-auto GFActiveModule() -> int { return 0; }
-
-auto GFDeactivateModule() -> int {
+auto OnDeactivate() -> GFResult {
   // A factory pointing into an unloaded shared object would crash the next
   // time an e-mail tab is opened.
   GFUIUnregisterTabPageView("EMAIL");
   GFUIUnregisterSettingsPage(kMailSettingsPageId);
-  return 0;
+  return GFResult::Ok();
 }
 
-auto GFUnregisterModule() -> int {
+auto OnUnload() -> void {
   LOG_INFO("email module unregistering");
-
-  return 0;
 }
 
 namespace {
@@ -623,15 +596,14 @@ auto ErrorHelper(int ret, const QString& err) -> QString {
 
 }  // namespace
 
-REGISTER_EVENT_HANDLER(KEY_DATABASE_REFRESH_DONE,
-                       [](const MEvent& event) -> int {
+auto OnKeyDatabaseRefreshDone(const GFEvent& event) -> GFEventResult {
                          // A verification that reported a missing key stops
                          // being true once that key is imported; open messages
                          // work their signatures out again rather than keeping
                          // the stale verdict.
                          EMailNotifyKeyringChanged();
-                         CB_SUCC(event);
-                       });
+                         return GFEventResult::Ok();
+}
 
 namespace {
 
@@ -646,7 +618,7 @@ namespace {
  * Must run on the GUI thread.
  */
 auto OpenRawAsEMailTab(const QByteArray& raw, const QString& title) -> bool {
-  auto* edit = GFUIGetGUIObjectAs<QWidget>("main_window_edit");
+  auto* edit = GFUIObject<QWidget>("main_window_edit");
   if (edit == nullptr) {
     LOG_ERROR("main_window_edit handle invalid or not QWidget");
     return false;
@@ -696,52 +668,52 @@ auto TitleForImported(const QByteArray& raw) -> QString {
 
 }  // namespace
 
-REGISTER_EVENT_HANDLER(MAINWINDOW_MENU_MOUNTED, [](const MEvent& event) -> int {
+auto OnMainwindowMenuMounted(const GFEvent& event) -> GFEventResult {
   LOG_DEBUG("main window menu mounted event: processing");
 
-  if (!event.contains("main_window")) {
+  if (!event.Has("main_window")) {
     LOG_DEBUG("main window menu mounted event: no main_window found");
-    CB_ERR(event, -1, "no main_window found");
+    return GFEventResult::Bad("no main_window found");
   }
 
-  auto* main_window = GFUIGetGUIObjectAs<QMainWindow>(event["main_window"]);
+  auto* main_window = GFUIObject<QMainWindow>(event.Str("main_window"));
   if (!main_window) {
     LOG_ERROR(
         "main window menu mounted: main_window handle invalid or not "
         "QMainWindow");
-    CB_ERR(event, -1, "main_window handle invalid or not QMainWindow");
+    return GFEventResult::Bad("main_window handle invalid or not QMainWindow");
   }
 
-  if (!event.contains("import_key_menu")) {
+  if (!event.Has("import_key_menu")) {
     LOG_DEBUG("main window menu mounted event: no import_key_menu found");
-    CB_ERR(event, -1, "no import_key_menu found");
+    return GFEventResult::Bad("no import_key_menu found");
   }
 
   // Importing over the network is a different kind of act from opening a new
   // editor, so it belongs in Advanced rather than beside "Mail Editor" in the
   // workspace menu.
-  auto* advance_menu = GFUIGetGUIObjectAs<QMenu>(event["advance_menu"]);
+  auto* advance_menu = GFUIObject<QMenu>(event.Str("advance_menu"));
   if (advance_menu == nullptr) {
     LOG_ERROR("advance_menu handle invalid or not QMenu");
   }
 
   auto* workspace_menu =
-      GFUIGetGUIObjectAs<QMenu>(event["file_workspace_menu"]);
+      GFUIObject<QMenu>(event.Str("file_workspace_menu"));
   if (!workspace_menu) {
     LOG_ERROR(
         "main window menu mounted: workspace_menu handle invalid or not "
         "QMenu");
-    CB_ERR(event, -1, "workspace_menu handle invalid or not QMenu");
+    return GFEventResult::Bad("workspace_menu handle invalid or not QMenu");
   }
 
   LOG_DEBUG("adding key server sync actions to import key menu");
 
-  auto* edit = GFUIGetGUIObjectAs<QWidget>("main_window_edit");
+  auto* edit = GFUIObject<QWidget>("main_window_edit");
   if (!edit) {
     LOG_ERROR(
         "main window menu mounted: main_window_edit handle invalid or not "
         "QWidget");
-    CB_ERR(event, -1, "main_window_edit handle invalid or not QWidget");
+    return GFEventResult::Bad("main_window_edit handle invalid or not QWidget");
   }
 
   QMetaObject::invokeMethod(
@@ -809,8 +781,8 @@ REGISTER_EVENT_HANDLER(MAINWINDOW_MENU_MOUNTED, [](const MEvent& event) -> int {
         if (advance_menu != nullptr) advance_menu->addAction(import_action);
       },
       Qt::BlockingQueuedConnection);
-  CB_SUCC(event);
-});
+  return GFEventResult::Ok();
+}
 
 namespace {
 
@@ -939,36 +911,30 @@ auto ReportDescriptionFor(const EMailVerificationResult& result) -> QString {
       "EMailModule", "There was no signature in this message to check.");
 }
 
-auto DoVerifyEMLData(int channel, const QByteArray& data, const MEvent& event,
+auto DoVerifyEMLData(int channel, const QByteArray& data, const GFEvent& event,
                      QString& error_string, EMailVerificationResult& result)
     -> int {
   auto ret = VerifyEMLMessage(channel, data, result, error_string);
   if (ret != kSUCCESS) {
-    CB(event, GFGetModuleID(),
-       {
-           {"ret", QString::number(0)},
-           {"result_status", QString::number(-1)},
-           {"result", ErrorHelper(ret, error_string)},
-       });
+    event.Answer().Ok({{"result_status", QString::number(-1)}, {"result", ErrorHelper(ret, error_string)}});
     return ret;
   }
   return kSUCCESS;
 }
 }  // namespace
 
-REGISTER_EVENT_HANDLER(
-    EDIT_TAB_TYPE_EMAIL_OP_VERIFY, [](const MEvent& event) -> int {
-      if (event["channel"].isEmpty()) CB_ERR(event, -1, "channel is empty");
-      if (event["data"].isEmpty()) CB_ERR(event, -1, "data is empty");
+auto OnEditTabTypeEmailOpVerify(const GFEvent& event) -> GFEventResult {
+      if (event.Str("channel").isEmpty()) return GFEventResult::Bad("channel is empty");
+      if (event.Str("data").isEmpty()) return GFEventResult::Bad("data is empty");
 
-      auto channel = event.value("channel", "0").toInt();
-      auto data = QByteArray::fromBase64(QString(event["data"]).toLatin1());
+      auto channel = event.Str("channel").toInt();
+      auto data = QByteArray::fromBase64(QString(event.Str("data")).toLatin1());
 
       QString error_string;
       EMailVerificationResult result;
       if (DoVerifyEMLData(channel, data, event, error_string, result) !=
           kSUCCESS) {
-        return -1;
+        return GFEventResult::Deferred();
       }
 
       const auto& meta_data = result.meta;
@@ -1036,24 +1002,13 @@ REGISTER_EVENT_HANDLER(
           result.report_info_json, ReportDescriptionFor(result));
 
       // callback
-      CB(event, GFGetModuleID(),
-         {
-             {"ret", QString::number(0)},
-             {"result_status", QString::number(result_status)},
-             {"result", email_info},
-             {"result_cards", result_cards_param},
-             // The same answer the report above was written from, on its way
-             // to the message surface. One verification, one result: the badge
-             // and the attachment list render THIS rather than asking the
-             // engine a question of their own and disagreeing with the board.
-             {"verification", EncodeVerificationPayload(result)},
-         });
-      return 0;
-    });
+      event.Answer().Ok({{"result_status", QString::number(result_status)}, {"result", email_info}, {"result_cards", result_cards_param}, {"verification", EncodeVerificationPayload(result)}});
+      return GFEventResult::Deferred();
+}
 
 namespace {
 
-auto DoDecryptEMLData(int channel, const QByteArray& data, const MEvent& event,
+auto DoDecryptEMLData(int channel, const QByteArray& data, const GFEvent& event,
                       int& result_status, QString& result_detail,
                       QString& result_cards, QByteArray& eml_data,
                       EMailMetaData& meta_data, QByteArray& decrypt_info_json)
@@ -1064,13 +1019,7 @@ auto DoDecryptEMLData(int channel, const QByteArray& data, const MEvent& event,
       DecryptEMLData(channel, data, meta_data, eml_data, err, capsule_id);
 
   if (ret == kFAILED || ret == kEML_FAILED) {
-    CB(event, GFGetModuleID(),
-       {
-           {"ret", QString::number(0)},
-           {"data", data},
-           {"result_status", QString::number(-1)},
-           {"result", ErrorHelper(ret, QString::fromUtf8(eml_data))},
-       });
+    event.Answer().Ok({{"data", data}, {"result_status", QString::number(-1)}, {"result", ErrorHelper(ret, QString::fromUtf8(eml_data))}});
     return ret;
   }
 
@@ -1090,28 +1039,12 @@ auto DoDecryptEMLData(int channel, const QByteArray& data, const MEvent& event,
   if (ret == kGPG_FAILED) {
     // decrypt failed. The analysis cards built above travel with it: a failure
     // is the outcome that most needs explaining, not the one to explain least.
-    CB(event, GFGetModuleID(),
-       {
-           {"ret", QString::number(0)},
-           {"data", data},
-           {"result_status", QString::number(result_status)},
-           {"result", result_detail},
-           {"result_cards",
-            BuildResultCardsParam(
-                QApplication::translate("EMailModule", "Decrypt E-Mail"), {},
-                result_cards, decrypt_info_json)},
-       });
+    event.Answer().Ok({{"data", data}, {"result_status", QString::number(result_status)}, {"result", result_detail}, {"result_cards", BuildResultCardsParam( QApplication::translate("EMailModule", "Decrypt E-Mail"), {}, result_cards, decrypt_info_json)}});
     return ret;
   }
 
   if (ret != kSUCCESS) {
-    CB(event, GFGetModuleID(),
-       {
-           {"ret", QString::number(0)},
-           {"data", data},
-           {"result_status", QString::number(-1)},
-           {"result", ErrorHelper(ret, QString::fromUtf8(eml_data))},
-       });
+    event.Answer().Ok({{"data", data}, {"result_status", QString::number(-1)}, {"result", ErrorHelper(ret, QString::fromUtf8(eml_data))}});
     return ret;
   }
 
@@ -1120,13 +1053,12 @@ auto DoDecryptEMLData(int channel, const QByteArray& data, const MEvent& event,
 
 }  // namespace
 
-REGISTER_EVENT_HANDLER(
-    EDIT_TAB_TYPE_EMAIL_OP_DECRYPT, [](const MEvent& event) -> int {
-      if (event["channel"].isEmpty()) CB_ERR(event, -1, "channel is empty");
-      if (event["data"].isEmpty()) CB_ERR(event, -1, "data is empty");
+auto OnEditTabTypeEmailOpDecrypt(const GFEvent& event) -> GFEventResult {
+      if (event.Str("channel").isEmpty()) return GFEventResult::Bad("channel is empty");
+      if (event.Str("data").isEmpty()) return GFEventResult::Bad("data is empty");
 
-      auto channel = event.value("channel", "0").toInt();
-      auto data = QByteArray::fromBase64(QString(event["data"]).toLatin1());
+      auto channel = event.Str("channel").toInt();
+      auto data = QByteArray::fromBase64(QString(event.Str("data")).toLatin1());
 
       QByteArray eml_data;
       int result_status = 0;
@@ -1137,7 +1069,7 @@ REGISTER_EVENT_HANDLER(
       if (DoDecryptEMLData(channel, data, event, result_status, result_detail,
                            result_cards, eml_data, meta_data,
                            decrypt_info_json) != kSUCCESS) {
-        return -1;
+        return GFEventResult::Deferred();
       }
 
       QString email_info;
@@ -1177,29 +1109,23 @@ REGISTER_EVENT_HANDLER(
           decrypt_meta_cards, result_cards);
 
       // callback
-      CB(event, GFGetModuleID(),
-         {
-             {"ret", QString::number(0)},
-             {"data", eml_data},
-             {"result_status", QString::number(result_status)},
-             {"result", email_info},
-             {"result_cards", result_cards_param},
-         });
-      return kSUCCESS;
-    });
+      event.Answer().Ok({{"data", eml_data}, {"result_status", QString::number(result_status)}, {"result", email_info}, {"result_cards", result_cards_param}});
+      return GFEventResult::Deferred();
+}
 
 namespace {
 
 auto DoSignEMLData(int channel, const QString& sign_key,
                    vmime::shared_ptr<vmime::message>& message,
-                   const QByteArray& body_data, const MEvent& event,
+                   const QByteArray& body_data, const GFEvent& event,
                    int& result_status, QString& result_detail,
                    QString& result_cards, QByteArray& eml_data) -> int {
   EMailMetaData meta_data;
   auto ret = GetEMLMetaData(message, meta_data);
 
   if (ret != 0) {
-    CB_ERR(event, -1, "Get MetaData From EML Data Failed");
+    event.Answer().Fail("Get MetaData From EML Data Failed");
+    return -1;
   }
 
   uint32_t err;
@@ -1207,13 +1133,7 @@ auto DoSignEMLData(int channel, const QString& sign_key,
   ret = SignEMLData(channel, sign_key, message, eml_data, err, capsule_id);
 
   if (ret == kFAILED || ret == kEML_FAILED) {
-    CB(event, GFGetModuleID(),
-       {
-           {"ret", QString::number(0)},
-           {"data", body_data},
-           {"result_status", QString::number(-1)},
-           {"result", ErrorHelper(ret, QString::fromUtf8(eml_data))},
-       });
+    event.Answer().Ok({{"data", body_data}, {"result_status", QString::number(-1)}, {"result", ErrorHelper(ret, QString::fromUtf8(eml_data))}});
     return ret;
   }
 
@@ -1234,28 +1154,12 @@ auto DoSignEMLData(int channel, const QString& sign_key,
   if (ret == kGPG_FAILED) {
     // decrypt failed. The analysis cards built above travel with it: a failure
     // is the outcome that most needs explaining, not the one to explain least.
-    CB(event, GFGetModuleID(),
-       {
-           {"ret", QString::number(0)},
-           {"data", body_data},
-           {"result_status", QString::number(result_status)},
-           {"result", result_detail},
-           {"result_cards",
-            BuildResultCardsParam(
-                QApplication::translate("EMailModule", "Sign E-Mail"), {},
-                result_cards, info_json)},
-       });
+    event.Answer().Ok({{"data", body_data}, {"result_status", QString::number(result_status)}, {"result", result_detail}, {"result_cards", BuildResultCardsParam( QApplication::translate("EMailModule", "Sign E-Mail"), {}, result_cards, info_json)}});
     return ret;
   }
 
   if (ret != kSUCCESS) {
-    CB(event, GFGetModuleID(),
-       {
-           {"ret", QString::number(0)},
-           {"data", body_data},
-           {"result_status", QString::number(-1)},
-           {"result", ErrorHelper(ret, QString::fromUtf8(eml_data))},
-       });
+    event.Answer().Ok({{"data", body_data}, {"result_status", QString::number(-1)}, {"result", ErrorHelper(ret, QString::fromUtf8(eml_data))}});
     return ret;
   }
 
@@ -1264,7 +1168,7 @@ auto DoSignEMLData(int channel, const QString& sign_key,
 
 auto DoSignPlainText(int channel, const QString& sign_key,
                      const EMailMetaData& meta_data,
-                     const QByteArray& body_data, const MEvent& event,
+                     const QByteArray& body_data, const GFEvent& event,
                      int& result_status, QString& result_detail,
                      QString& result_cards, QByteArray& eml_data) -> int {
   uint32_t err;
@@ -1273,13 +1177,7 @@ auto DoSignPlainText(int channel, const QString& sign_key,
   auto ret = SignPlainText(channel, sign_key, meta_data, body_data, eml_data,
                            err, capsule_id);
   if (ret == kFAILED || ret == kEML_FAILED) {
-    CB(event, GFGetModuleID(),
-       {
-           {"ret", QString::number(0)},
-           {"data", body_data},
-           {"result_status", QString::number(-1)},
-           {"result", ErrorHelper(ret, QString::fromUtf8(eml_data))},
-       });
+    event.Answer().Ok({{"data", body_data}, {"result_status", QString::number(-1)}, {"result", ErrorHelper(ret, QString::fromUtf8(eml_data))}});
     return ret;
   }
 
@@ -1300,28 +1198,12 @@ auto DoSignPlainText(int channel, const QString& sign_key,
   if (ret == kGPG_FAILED) {
     // decrypt failed. The analysis cards built above travel with it: a failure
     // is the outcome that most needs explaining, not the one to explain least.
-    CB(event, GFGetModuleID(),
-       {
-           {"ret", QString::number(0)},
-           {"data", body_data},
-           {"result_status", QString::number(result_status)},
-           {"result", result_detail},
-           {"result_cards",
-            BuildResultCardsParam(
-                QApplication::translate("EMailModule", "Sign E-Mail"), {},
-                result_cards, info_json)},
-       });
+    event.Answer().Ok({{"data", body_data}, {"result_status", QString::number(result_status)}, {"result", result_detail}, {"result_cards", BuildResultCardsParam( QApplication::translate("EMailModule", "Sign E-Mail"), {}, result_cards, info_json)}});
     return ret;
   }
 
   if (ret != kSUCCESS) {
-    CB(event, GFGetModuleID(),
-       {
-           {"ret", QString::number(0)},
-           {"data", body_data},
-           {"result_status", QString::number(-1)},
-           {"result", ErrorHelper(ret, QString::fromUtf8(eml_data))},
-       });
+    event.Answer().Ok({{"data", body_data}, {"result_status", QString::number(-1)}, {"result", ErrorHelper(ret, QString::fromUtf8(eml_data))}});
     return ret;
   }
 
@@ -1330,19 +1212,18 @@ auto DoSignPlainText(int channel, const QString& sign_key,
 
 }  // namespace
 
-REGISTER_EVENT_HANDLER(
-    EDIT_TAB_TYPE_EMAIL_OP_SIGN, [](const MEvent& event) -> int {
-      if (event["body_data"].isEmpty()) CB_ERR(event, -1, "body_data is empty");
-      if (event["channel"].isEmpty()) CB_ERR(event, -1, "channel is empty");
-      if (event["sign_key"].isEmpty()) CB_ERR(event, -1, "sign_key is empty");
+auto OnEditTabTypeEmailOpSign(const GFEvent& event) -> GFEventResult {
+      if (event.Str("body_data").isEmpty()) return GFEventResult::Bad("body_data is empty");
+      if (event.Str("channel").isEmpty()) return GFEventResult::Bad("channel is empty");
+      if (event.Str("sign_key").isEmpty()) return GFEventResult::Bad("sign_key is empty");
 
-      auto channel = event.value("channel", "0").toInt();
-      auto sign_key = event.value("sign_key", "");
+      auto channel = event.Str("channel").toInt();
+      auto sign_key = event.Str("sign_key");
 
       FLOG_DEBUG("eml sign key: %1", sign_key);
 
       auto body_data =
-          QByteArray::fromBase64(QString(event["body_data"]).toLatin1());
+          QByteArray::fromBase64(QString(event.Str("body_data")).toLatin1());
 
       vmime::shared_ptr<vmime::message> message;
       if (CheckIfEMLMessage(body_data, message)) {
@@ -1353,21 +1234,11 @@ REGISTER_EVENT_HANDLER(
         if (DoSignEMLData(channel, sign_key, message, body_data, event,
                           result_status, result_detail, result_cards,
                           eml_data) != kSUCCESS) {
-          return -1;
+          return GFEventResult::Deferred();
         }
 
-        CB(event, GFGetModuleID(),
-           {
-               {"ret", QString::number(0)},
-               {"data", eml_data},
-               {"result_status", QString::number(result_status)},
-               {"result", result_detail},
-               {"result_cards",
-                BuildResultCardsParam(
-                    QApplication::translate("EMailModule", "Sign E-Mail"), {},
-                    result_cards)},
-           });
-        return 0;
+        event.Answer().Ok({{"data", eml_data}, {"result_status", QString::number(result_status)}, {"result", result_detail}, {"result_cards", BuildResultCardsParam( QApplication::translate("EMailModule", "Sign E-Mail"), {}, result_cards)}});
+        return GFEventResult::Deferred();
       }
 
       // Not a message yet: wrap the text in an envelope derived from the
@@ -1381,28 +1252,18 @@ REGISTER_EVENT_HANDLER(
       if (DoSignPlainText(channel, sign_key, meta_data, body_data, event,
                           result_status, result_detail, result_cards,
                           eml_data) != kSUCCESS) {
-        return -1;
+        return GFEventResult::Deferred();
       }
 
-      CB(event, GFGetModuleID(),
-         {
-             {"ret", QString::number(0)},
-             {"data", eml_data},
-             {"result_status", QString::number(result_status)},
-             {"result", result_detail},
-             {"result_cards",
-              BuildResultCardsParam(
-                  QApplication::translate("EMailModule", "Sign E-Mail"),
-                  {BuildEMailHeaderCard(meta_data)}, result_cards)},
-         });
-      return 0;
-    });
+      event.Answer().Ok({{"data", eml_data}, {"result_status", QString::number(result_status)}, {"result", result_detail}, {"result_cards", BuildResultCardsParam( QApplication::translate("EMailModule", "Sign E-Mail"), {BuildEMailHeaderCard(meta_data)}, result_cards)}});
+      return GFEventResult::Deferred();
+}
 
 namespace {
 
 auto DoEncryptEMLData(int channel, const QStringList& encrypt_keys,
                       const vmime::shared_ptr<vmime::message>& message,
-                      const QByteArray& body_data, const MEvent& event,
+                      const QByteArray& body_data, const GFEvent& event,
                       int& result_status, QString& result_detail,
                       QString& result_cards, QByteArray& eml_data) -> int {
   uint32_t err;
@@ -1411,13 +1272,7 @@ auto DoEncryptEMLData(int channel, const QStringList& encrypt_keys,
                             err, capsule_id);
 
   if (ret == kFAILED || ret == kEML_FAILED) {
-    CB(event, GFGetModuleID(),
-       {
-           {"ret", QString::number(0)},
-           {"data", DocumentUnchangedOnFailure(body_data)},
-           {"result_status", QString::number(-1)},
-           {"result", ErrorHelper(ret, QString::fromUtf8(eml_data))},
-       });
+    event.Answer().Ok({{"data", DocumentUnchangedOnFailure(body_data)}, {"result_status", QString::number(-1)}, {"result", ErrorHelper(ret, QString::fromUtf8(eml_data))}});
     return ret;
   }
 
@@ -1438,17 +1293,7 @@ auto DoEncryptEMLData(int channel, const QStringList& encrypt_keys,
   if (ret == kGPG_FAILED) {
     // encrypt failed. The analysis cards built above travel with it: a failure
     // is the outcome that most needs explaining, not the one to explain least.
-    CB(event, GFGetModuleID(),
-       {
-           {"ret", QString::number(0)},
-           {"data", DocumentUnchangedOnFailure(body_data)},
-           {"result_status", QString::number(result_status)},
-           {"result", result_detail},
-           {"result_cards",
-            BuildResultCardsParam(
-                QApplication::translate("EMailModule", "Encrypt E-Mail"), {},
-                result_cards, info_json)},
-       });
+    event.Answer().Ok({{"data", DocumentUnchangedOnFailure(body_data)}, {"result_status", QString::number(result_status)}, {"result", result_detail}, {"result_cards", BuildResultCardsParam( QApplication::translate("EMailModule", "Encrypt E-Mail"), {}, result_cards, info_json)}});
     return ret;
   }
 
@@ -1457,7 +1302,7 @@ auto DoEncryptEMLData(int channel, const QStringList& encrypt_keys,
 
 auto DoEncryptPlainText(int channel, const QStringList& encrypt_keys,
                         const EMailMetaData& meta_data,
-                        const QByteArray& body_data, const MEvent& event,
+                        const QByteArray& body_data, const GFEvent& event,
                         int& result_status, QString& result_detail,
                         QString& result_cards, QByteArray& eml_data) -> int {
   uint32_t err;
@@ -1466,13 +1311,7 @@ auto DoEncryptPlainText(int channel, const QStringList& encrypt_keys,
   auto ret = BuildPlainTextEML(meta_data, body_data, plain_text_eml_data);
 
   if (ret != kSUCCESS) {
-    CB(event, GFGetModuleID(),
-       {
-           {"ret", QString::number(0)},
-           {"data", DocumentUnchangedOnFailure(body_data)},
-           {"result_status", QString::number(-1)},
-           {"result", ErrorHelper(ret, QString::fromUtf8(eml_data))},
-       });
+    event.Answer().Ok({{"data", DocumentUnchangedOnFailure(body_data)}, {"result_status", QString::number(-1)}, {"result", ErrorHelper(ret, QString::fromUtf8(eml_data))}});
     return ret;
   }
 
@@ -1480,13 +1319,7 @@ auto DoEncryptPlainText(int channel, const QStringList& encrypt_keys,
                          eml_data, err, capsule_id);
 
   if (ret == kFAILED || ret == kEML_FAILED) {
-    CB(event, GFGetModuleID(),
-       {
-           {"ret", QString::number(0)},
-           {"data", DocumentUnchangedOnFailure(body_data)},
-           {"result_status", QString::number(-1)},
-           {"result", ErrorHelper(ret, QString::fromUtf8(eml_data))},
-       });
+    event.Answer().Ok({{"data", DocumentUnchangedOnFailure(body_data)}, {"result_status", QString::number(-1)}, {"result", ErrorHelper(ret, QString::fromUtf8(eml_data))}});
     return ret;
   }
 
@@ -1507,17 +1340,7 @@ auto DoEncryptPlainText(int channel, const QStringList& encrypt_keys,
   if (ret == kGPG_FAILED) {
     // encrypt failed. The analysis cards built above travel with it: a failure
     // is the outcome that most needs explaining, not the one to explain least.
-    CB(event, GFGetModuleID(),
-       {
-           {"ret", QString::number(0)},
-           {"data", DocumentUnchangedOnFailure(body_data)},
-           {"result_status", QString::number(result_status)},
-           {"result", result_detail},
-           {"result_cards",
-            BuildResultCardsParam(
-                QApplication::translate("EMailModule", "Encrypt E-Mail"), {},
-                result_cards, info_json)},
-       });
+    event.Answer().Ok({{"data", DocumentUnchangedOnFailure(body_data)}, {"result_status", QString::number(result_status)}, {"result", result_detail}, {"result_cards", BuildResultCardsParam( QApplication::translate("EMailModule", "Encrypt E-Mail"), {}, result_cards, info_json)}});
     return ret;
   }
 
@@ -1525,20 +1348,19 @@ auto DoEncryptPlainText(int channel, const QStringList& encrypt_keys,
 }
 };  // namespace
 
-REGISTER_EVENT_HANDLER(
-    EDIT_TAB_TYPE_EMAIL_OP_ENCRYPT, [](const MEvent& event) -> int {
-      if (event["body_data"].isEmpty()) CB_ERR(event, -1, "body_data is empty");
-      if (event["channel"].isEmpty()) CB_ERR(event, -1, "channel is empty");
-      if (event["encrypt_keys"].isEmpty())
-        CB_ERR(event, -1, "encrypt_keys is empty");
+auto OnEditTabTypeEmailOpEncrypt(const GFEvent& event) -> GFEventResult {
+      if (event.Str("body_data").isEmpty()) return GFEventResult::Bad("body_data is empty");
+      if (event.Str("channel").isEmpty()) return GFEventResult::Bad("channel is empty");
+      if (event.Str("encrypt_keys").isEmpty())
+        return GFEventResult::Bad("encrypt_keys is empty");
 
-      auto channel = event.value("channel", "0").toInt();
-      auto encrypt_keys = event.value("encrypt_keys", "").split(';');
+      auto channel = event.Str("channel").toInt();
+      auto encrypt_keys = event.Str("encrypt_keys").split(';');
 
       FLOG_DEBUG("eml encrypt keys: %1", encrypt_keys.join(';'));
 
       auto body_data =
-          QByteArray::fromBase64(QString(event["body_data"]).toLatin1());
+          QByteArray::fromBase64(QString(event.Str("body_data")).toLatin1());
 
       vmime::shared_ptr<vmime::message> message;
       if (CheckIfEMLMessage(body_data, message)) {
@@ -1549,21 +1371,11 @@ REGISTER_EVENT_HANDLER(
         if (DoEncryptEMLData(channel, encrypt_keys, message, body_data, event,
                              result_status, result_detail, result_cards,
                              eml_data) != kSUCCESS) {
-          return -1;
+          return GFEventResult::Deferred();
         }
 
-        CB(event, GFGetModuleID(),
-           {
-               {"ret", QString::number(0)},
-               {"data", eml_data},
-               {"result", result_detail},
-               {"result_status", QString::number(result_status)},
-               {"result_cards",
-                BuildResultCardsParam(
-                    QApplication::translate("EMailModule", "Encrypt E-Mail"),
-                    BuildRecipientCards(channel, encrypt_keys), result_cards)},
-           });
-        return 0;
+        event.Answer().Ok({{"data", eml_data}, {"result", result_detail}, {"result_status", QString::number(result_status)}, {"result_cards", BuildResultCardsParam( QApplication::translate("EMailModule", "Encrypt E-Mail"), BuildRecipientCards(channel, encrypt_keys), result_cards)}});
+        return GFEventResult::Deferred();
       }
 
       // Not a message yet: address it to the keys the user picked to encrypt
@@ -1577,31 +1389,21 @@ REGISTER_EVENT_HANDLER(
       if (DoEncryptPlainText(channel, encrypt_keys, meta_data, body_data, event,
                              result_status, result_detail, result_cards,
                              eml_data) != kSUCCESS) {
-        return -1;
+        return GFEventResult::Deferred();
       }
 
       auto meta_cards = BuildRecipientCards(channel, encrypt_keys);
       meta_cards.prepend(BuildEMailHeaderCard(meta_data));
-      CB(event, GFGetModuleID(),
-         {
-             {"ret", QString::number(0)},
-             {"data", eml_data},
-             {"result", result_detail},
-             {"result_status", QString::number(result_status)},
-             {"result_cards",
-              BuildResultCardsParam(
-                  QApplication::translate("EMailModule", "Encrypt E-Mail"),
-                  meta_cards, result_cards)},
-         });
-      return 0;
-    });
+      event.Answer().Ok({{"data", eml_data}, {"result", result_detail}, {"result_status", QString::number(result_status)}, {"result_cards", BuildResultCardsParam( QApplication::translate("EMailModule", "Encrypt E-Mail"), meta_cards, result_cards)}});
+      return GFEventResult::Deferred();
+}
 
 namespace {
 
 auto DoEncryptSignEMLData(int channel, const QStringList& encrypt_keys,
                           const QString& sign_key,
                           vmime::shared_ptr<vmime::message>& message,
-                          QByteArray& body_data, const MEvent& event,
+                          QByteArray& body_data, const GFEvent& event,
                           int& result_status, QString& result_detail,
                           QString& result_cards, QByteArray& eml_data) -> int {
   QString sign_cards;
@@ -1626,7 +1428,8 @@ auto DoEncryptSignEMLData(int channel, const QStringList& encrypt_keys,
   vmime::shared_ptr<vmime::message> signed_message;
   bool r = CheckIfEMLMessage(body_data, signed_message);
   if (!r) {
-    CB_ERR(event, -1, "Parse Signed Message Failed");
+    event.Answer().Fail("Parse Signed Message Failed");
+    return -1;
   }
 
   auto ret = DoEncryptEMLData(channel, encrypt_keys, signed_message, body_data,
@@ -1648,7 +1451,7 @@ auto DoEncryptSignEMLData(int channel, const QStringList& encrypt_keys,
 auto DoEncryptSignPlainText(int channel, const QStringList& encrypt_keys,
                             const QString& sign_key,
                             const EMailMetaData& meta_data,
-                            QByteArray& body_data, const MEvent& event,
+                            QByteArray& body_data, const GFEvent& event,
                             int& result_status, QString& result_detail,
                             QString& result_cards, QByteArray& eml_data)
     -> int {
@@ -1675,7 +1478,8 @@ auto DoEncryptSignPlainText(int channel, const QStringList& encrypt_keys,
   vmime::shared_ptr<vmime::message> signed_message;
   bool r = CheckIfEMLMessage(body_data, signed_message);
   if (!r) {
-    CB_ERR(event, -1, "Parse Signed Message Failed");
+    event.Answer().Fail("Parse Signed Message Failed");
+    return -1;
   }
 
   auto ret = DoEncryptEMLData(channel, encrypt_keys, signed_message, body_data,
@@ -1696,22 +1500,21 @@ auto DoEncryptSignPlainText(int channel, const QStringList& encrypt_keys,
 
 }  // namespace
 
-REGISTER_EVENT_HANDLER(
-    EDIT_TAB_TYPE_EMAIL_OP_ENCRYPT_SIGN, [](const MEvent& event) -> int {
-      if (event["body_data"].isEmpty()) CB_ERR(event, -1, "body_data is empty");
-      if (event["channel"].isEmpty()) CB_ERR(event, -1, "channel is empty");
-      if (event["encrypt_keys"].isEmpty())
-        CB_ERR(event, -1, "encrypt_keys is empty");
-      if (event["sign_key"].isEmpty()) CB_ERR(event, -1, "sign_key is empty");
+auto OnEditTabTypeEmailOpEncryptSign(const GFEvent& event) -> GFEventResult {
+      if (event.Str("body_data").isEmpty()) return GFEventResult::Bad("body_data is empty");
+      if (event.Str("channel").isEmpty()) return GFEventResult::Bad("channel is empty");
+      if (event.Str("encrypt_keys").isEmpty())
+        return GFEventResult::Bad("encrypt_keys is empty");
+      if (event.Str("sign_key").isEmpty()) return GFEventResult::Bad("sign_key is empty");
 
-      auto channel = event.value("channel", "0").toInt();
-      auto sign_key = event.value("sign_key", "");
-      auto encrypt_keys = event.value("encrypt_keys", "").split(';');
+      auto channel = event.Str("channel").toInt();
+      auto sign_key = event.Str("sign_key");
+      auto encrypt_keys = event.Str("encrypt_keys").split(';');
 
       FLOG_DEBUG("eml encrypt keys: %1", encrypt_keys.join(';'));
 
       auto body_data =
-          QByteArray::fromBase64(QString(event["body_data"]).toLatin1());
+          QByteArray::fromBase64(QString(event.Str("body_data")).toLatin1());
 
       vmime::shared_ptr<vmime::message> message;
       if (CheckIfEMLMessage(body_data, message)) {
@@ -1722,21 +1525,10 @@ REGISTER_EVENT_HANDLER(
         if (DoEncryptSignEMLData(channel, encrypt_keys, sign_key, message,
                                  body_data, event, result_status, result_detail,
                                  result_cards, eml_data) != kSUCCESS) {
-          return -1;
+          return GFEventResult::Deferred();
         }
-        CB(event, GFGetModuleID(),
-           {
-               {"ret", QString::number(0)},
-               {"data", eml_data},
-               {"result", result_detail},
-               {"result_status", QString::number(result_status)},
-               {"result_cards",
-                BuildResultCardsParam(
-                    QApplication::translate("EMailModule",
-                                            "Encrypt and Sign E-Mail"),
-                    BuildRecipientCards(channel, encrypt_keys), result_cards)},
-           });
-        return 0;
+        event.Answer().Ok({{"data", eml_data}, {"result", result_detail}, {"result_status", QString::number(result_status)}, {"result_cards", BuildResultCardsParam( QApplication::translate("EMailModule", "Encrypt and Sign E-Mail"), BuildRecipientCards(channel, encrypt_keys), result_cards)}});
+        return GFEventResult::Deferred();
       }
 
       // Not a message yet: address it from the signing key to the encryption
@@ -1753,29 +1545,19 @@ REGISTER_EVENT_HANDLER(
                                  body_data_copy, event, result_status,
                                  result_detail, result_cards,
                                  eml_data) != kSUCCESS) {
-        return -1;
+        return GFEventResult::Deferred();
       }
 
       auto meta_cards = BuildRecipientCards(channel, encrypt_keys);
       meta_cards.prepend(BuildEMailHeaderCard(meta_data));
-      CB(event, GFGetModuleID(),
-         {
-             {"ret", QString::number(0)},
-             {"data", eml_data},
-             {"result", result_detail},
-             {"result_status", QString::number(result_status)},
-             {"result_cards", BuildResultCardsParam(
-                                  QApplication::translate(
-                                      "EMailModule", "Encrypt and Sign E-Mail"),
-                                  meta_cards, result_cards)},
-         });
-      return 0;
-    });
+      event.Answer().Ok({{"data", eml_data}, {"result", result_detail}, {"result_status", QString::number(result_status)}, {"result_cards", BuildResultCardsParam( QApplication::translate( "EMailModule", "Encrypt and Sign E-Mail"), meta_cards, result_cards)}});
+      return GFEventResult::Deferred();
+}
 
 namespace {
 
 auto DoDecryptVerifyEMLData(int channel, const QByteArray& data,
-                            const MEvent& event, int& result_status,
+                            const GFEvent& event, int& result_status,
                             QString& result_detail, QString& result_cards,
                             QByteArray& eml_data, QString& error_string,
                             EMailMetaData& meta_data,
@@ -1838,16 +1620,15 @@ auto DoDecryptVerifyEMLData(int channel, const QByteArray& data,
 }
 }  // namespace
 
-REGISTER_EVENT_HANDLER(
-    EDIT_TAB_TYPE_EMAIL_OP_DECRYPT_VERIFY, [](const MEvent& event) -> int {
-      if (event["channel"].isEmpty()) CB_ERR(event, -1, "channel is empty");
-      if (event["data"].isEmpty()) CB_ERR(event, -1, "data is empty");
+auto OnEditTabTypeEmailOpDecryptVerify(const GFEvent& event) -> GFEventResult {
+      if (event.Str("channel").isEmpty()) return GFEventResult::Bad("channel is empty");
+      if (event.Str("data").isEmpty()) return GFEventResult::Bad("data is empty");
 
-      auto channel = event.value("channel", "0").toInt();
-      auto data = QByteArray::fromBase64(QString(event["data"]).toLatin1());
+      auto channel = event.Str("channel").toInt();
+      auto data = QByteArray::fromBase64(QString(event.Str("data")).toLatin1());
 
       auto body_data =
-          QByteArray::fromBase64(QString(event["body_data"]).toLatin1());
+          QByteArray::fromBase64(QString(event.Str("body_data")).toLatin1());
 
       QByteArray eml_data;
       EMailMetaData meta_data;
@@ -1863,7 +1644,7 @@ REGISTER_EVENT_HANDLER(
                                  result_detail, result_cards, eml_data,
                                  error_string, meta_data, decrypt_info_json,
                                  plan, verification) != kSUCCESS) {
-        return -1;
+        return GFEventResult::Deferred();
       }
       const bool verified = plan == EMailPostDecryptPlan::kVERIFY;
 
@@ -1948,31 +1729,23 @@ REGISTER_EVENT_HANDLER(
           verified ? ReportDescriptionFor(verification) : QString());
 
       // callback
-      CB(event, GFGetModuleID(),
-         {
-             {"ret", QString::number(0)},
-             {"data", eml_data},
-             {"result_status", QString::number(result_status)},
-             {"result", email_info},
-             {"result_cards", result_cards_param},
-         });
-      return 0;
-    });
+      event.Answer().Ok({{"data", eml_data}, {"result_status", QString::number(result_status)}, {"result", email_info}, {"result_cards", result_cards_param}});
+      return GFEventResult::Deferred();
+}
 
-REGISTER_EVENT_HANDLER(
-    EDIT_TAB_TYPE_EMAIL_OP_SAVE_FILE, [](const MEvent& event) -> int {
-      if (event["page"].isEmpty()) CB_ERR(event, -1, "page is empty");
+auto OnEditTabTypeEmailOpSaveFile(const GFEvent& event) -> GFEventResult {
+      if (event.Str("page").isEmpty()) return GFEventResult::Bad("page is empty");
 
-      auto* page = GFUIGetGUIObjectAs<QWidget>(event["page"]);
+      auto* page = GFUIObject<QWidget>(event.Str("page"));
       if (!page) {
         LOG_ERROR("page handler is not a QWidget");
-        CB_ERR(event, -1, "page handle invalid or not QMainWindow");
+        return GFEventResult::Bad("page handle invalid or not QMainWindow");
       }
 
-      auto* tab_widget = GFUIGetGUIObjectAs<QTabWidget>(event["tab_widget"]);
+      auto* tab_widget = GFUIObject<QTabWidget>(event.Str("tab_widget"));
       if (!tab_widget) {
         LOG_ERROR("tab widget handler is not a QTabWidget");
-        CB_ERR(event, -1, "main_window handle invalid or not QMainWindow");
+        return GFEventResult::Bad("main_window handle invalid or not QMainWindow");
       }
 
       QString filename;
@@ -1983,7 +1756,7 @@ REGISTER_EVENT_HANDLER(
 
       if (!ok) {
         LOG_ERROR("invoke GetFilePath failed");
-        CB_ERR(event, -1, "invoke GetFilePath failed");
+        return GFEventResult::Bad("invoke GetFilePath failed");
       }
 
       if (filename.isEmpty()) {
@@ -2012,13 +1785,13 @@ REGISTER_EVENT_HANDLER(
 
         if (!ok) {
           LOG_ERROR("invoke getSaveFileName failed");
-          CB_ERR(event, -1, "invoke getSaveFileName failed");
+          return GFEventResult::Bad("invoke getSaveFileName failed");
         }
       }
 
       if (filename.isEmpty()) {
         LOG_INFO("user cancelled to select file to save");
-        CB_SUCC(event);
+        return GFEventResult::Ok();
       }
 
       QFileInfo file_info(filename);
@@ -2035,7 +1808,7 @@ REGISTER_EVENT_HANDLER(
                                      Q_RETURN_ARG(QPlainTextEdit*, text_edit));
       if (!ok || text_edit == nullptr) {
         LOG_ERROR("invoke GetTextPage failed");
-        CB_ERR(event, -1, "invoke GetTextPage failed");
+        return GFEventResult::Bad("invoke GetTextPage failed");
       }
 
       // Reading a QTextDocument is a GUI-thread operation, and the user may
@@ -2061,7 +1834,7 @@ REGISTER_EVENT_HANDLER(
       const auto check = CheckBeforeExport(bytes);
       if (!ConfirmExport(page, check)) {
         LOG_INFO("user cancelled the save after the export check");
-        CB_SUCC(event);
+        return GFEventResult::Ok();
       }
 
       // Written binary and through QSaveFile: QIODevice::Text would translate
@@ -2073,7 +1846,7 @@ REGISTER_EVENT_HANDLER(
                                                 "Cannot write file %1:\n%2.")
                             .arg(filename)
                             .arg(file.errorString()));
-        CB_ERR(event, -1, "cannot open file for writing");
+        return GFEventResult::Bad("cannot open file for writing");
       }
 
       RunOnGui([]() { QApplication::setOverrideCursor(Qt::WaitCursor); });
@@ -2085,7 +1858,7 @@ REGISTER_EVENT_HANDLER(
                                                 "Cannot write file %1:\n%2.")
                             .arg(filename)
                             .arg(file.errorString()));
-        CB_ERR(event, -1, "writing file failed");
+        return GFEventResult::Bad("writing file failed");
       }
 
       // The document's modified flag and the tab's label are widget state, and
@@ -2102,14 +1875,13 @@ REGISTER_EVENT_HANDLER(
                                 Q_ARG(QString, filename));
       QMetaObject::invokeMethod(page, "NotifyFileSaved",
                                 Qt::BlockingQueuedConnection);
-      return 0;
-    });
+      return GFEventResult::Deferred();
+}
 
-REGISTER_EVENT_HANDLER(
-    FILE_EXT_EMAIL_OP_OPEN_FILE, [](const MEvent& event) -> int {
-      if (event["file_path"].isEmpty()) CB_ERR(event, -1, "file_path is empty");
+auto OnFileExtEmailOpOpenFile(const GFEvent& event) -> GFEventResult {
+      if (event.Str("file_path").isEmpty()) return GFEventResult::Bad("file_path is empty");
 
-      auto file_path = event.value("file_path", "");
+      auto file_path = event.Str("file_path");
 
       // Read HERE, on the module thread, and through the one helper that knows
       // the guards. This is file IO, which is precisely the work not to hand
@@ -2129,7 +1901,7 @@ REGISTER_EVENT_HANDLER(
                       "%1 is not an ordinary file, so it cannot be opened as a "
                       "message.")
                       .arg(file_path));
-        CB_ERR(event, -1, "not a regular file");
+        return GFEventResult::Bad("not a regular file");
       }
 
       if (admission == EMailFileAdmission::kTOO_LARGE) {
@@ -2141,7 +1913,7 @@ REGISTER_EVENT_HANDLER(
                       .arg(file_path)
                       .arg(QLocale().formattedDataSize(file_size))
                       .arg(QLocale().formattedDataSize(kMaxEMLFileSize)));
-        CB_ERR(event, -1, "file too large");
+        return GFEventResult::Bad("file too large");
       }
 
       if (admission != EMailFileAdmission::kOK) {
@@ -2149,17 +1921,16 @@ REGISTER_EVENT_HANDLER(
                                                    "Cannot read file %1:\n%2.")
                                .arg(file_path)
                                .arg(read_error));
-        CB_ERR(event, -1, "cannot read file");
+        return GFEventResult::Bad("cannot read file");
       }
 
-      auto* edit = GFUIGetGUIObjectAs<QWidget>("main_window_edit");
+      auto* edit = GFUIObject<QWidget>("main_window_edit");
       if (!edit) {
         LOG_ERROR(
             "main window menu mounted: main_window_edit "
             "handle invalid or not "
             "QWidget");
-        CB_ERR(event, -1,
-               "main_window_edit handle invalid or not "
+        return GFEventResult::Bad("main_window_edit handle invalid or not "
                "QWidget");
       }
 
@@ -2177,7 +1948,7 @@ REGISTER_EVENT_HANDLER(
 
         if (!ok || !page) {
           LOG_ERROR("create new email tab page failed");
-          CB_ERR_NO_RET(event, -1, "create new email tab page failed");
+          event.Answer().Fail("create new email tab page failed");
           return;
         }
 
@@ -2187,7 +1958,7 @@ REGISTER_EVENT_HANDLER(
                                       Q_RETURN_ARG(QPlainTextEdit*, text_edit));
         if (!ok || text_edit == nullptr) {
           LOG_ERROR("invoke GetTextPage failed");
-          CB_ERR_NO_RET(event, -1, "invoke GetTextPage failed");
+          event.Answer().Fail("invoke GetTextPage failed");
           return;
         }
 
@@ -2205,5 +1976,37 @@ REGISTER_EVENT_HANDLER(
         QMetaObject::invokeMethod(page, "SetFilePath", Qt::DirectConnection,
                                   Q_ARG(QString, file_path));
       });
-      return 0;
-    })
+  return GFEventResult::Deferred();
+}
+
+// The module's whole framework surface.
+constexpr GFEventBinding kEvents[] = {
+    {"EDIT_TAB_TYPE_EMAIL_OP_DECRYPT", &OnEditTabTypeEmailOpDecrypt},
+    {"EDIT_TAB_TYPE_EMAIL_OP_DECRYPT_VERIFY",
+     &OnEditTabTypeEmailOpDecryptVerify},
+    {"EDIT_TAB_TYPE_EMAIL_OP_ENCRYPT", &OnEditTabTypeEmailOpEncrypt},
+    {"EDIT_TAB_TYPE_EMAIL_OP_ENCRYPT_SIGN", &OnEditTabTypeEmailOpEncryptSign},
+    {"EDIT_TAB_TYPE_EMAIL_OP_SAVE_FILE", &OnEditTabTypeEmailOpSaveFile},
+    {"EDIT_TAB_TYPE_EMAIL_OP_SIGN", &OnEditTabTypeEmailOpSign},
+    {"EDIT_TAB_TYPE_EMAIL_OP_VERIFY", &OnEditTabTypeEmailOpVerify},
+    {"FILE_EXT_EMAIL_OP_OPEN_FILE", &OnFileExtEmailOpOpenFile},
+    {"KEY_DATABASE_REFRESH_DONE", &OnKeyDatabaseRefreshDone},
+    {"MAINWINDOW_MENU_MOUNTED", &OnMainwindowMenuMounted},
+};
+
+constexpr GFModuleHooks kHooks = {
+    sizeof(GFModuleHooks),
+    GF_MODULE_ID,
+    GF_MODULE_VERSION,
+    GF_MODULE_TRANSLATION_CONTEXT,
+    &OnActivate,
+    &OnDeactivate,
+    &OnUnload,
+    kEvents,
+    std::size(kEvents),
+};
+
+extern "C" GF_MODULE_EXPORT auto GFModuleGetApi(uint32_t abi)
+    -> const GFModuleApi* {
+  return GFModuleRuntimeGetApi(abi, &kHooks);
+}

@@ -5,6 +5,13 @@
   "name": "GatherGnupgInfo",
   "description": "Try gathering gnupg information.",
   "author": "Saturneric",
-  "capabilities": ["gpg"],
+  "capabilities": [
+    "gpg"
+  ],
+  "events": [
+    "APPLICATION_LOADED",
+    "MAINWINDOW_MENU_MOUNTED",
+    "REQUEST_GATHERING_ALL_GNUPG_INFO"
+  ],
   "translation_context": "ModuleGnuPGInfoGathering"
 }
