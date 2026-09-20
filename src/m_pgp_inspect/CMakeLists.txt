@@ -23,16 +23,19 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-# modules
-add_subdirectory(m_key_server_sync)
-add_subdirectory(m_email)
+# Everything about this module -- id, version, name, description, author,
+# capabilities and translation context -- lives in module.json beside this file.
+#
+# SOURCES is spelled out rather than left to aux_source_directory: the test
+# directory below compiles PGPInspectModel.cpp on its own, and a stray file
+# picked up by a glob would quietly break that split.
+gf_add_module(
+  NAME    pgp_inspect
+  QT      Core Widgets
+  SOURCES PGPInspectModule.cpp
+          PGPInspectModel.cpp
+          PGPInspectDialog.cpp)
 
-# No network and no GnuPG: an inspector reads bytes and nothing else, so it is
-# fine in the sandboxed build too.
-add_subdirectory(m_pgp_inspect)
-
-# modules that are not needed in sandboxed environment
-if(NOT GPGFRONTEND_XCODE_ENABLE_SANDBOX)
-  add_subdirectory(m_ver_check)
-  add_subdirectory(m_gpg_info)
+if(GPGFRONTEND_MODULES_BUILD_TESTS)
+  add_subdirectory(test)
 endif()

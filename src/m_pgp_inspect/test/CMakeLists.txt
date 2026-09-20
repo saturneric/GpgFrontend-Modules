@@ -23,16 +23,31 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-# modules
-add_subdirectory(m_key_server_sync)
-add_subdirectory(m_email)
+# Unit tests for the SDK-free half of the OpenPGP structure inspector.
+#
+# PGPInspectModel.cpp carries no GF SDK symbol and no widget, so it compiles
+# straight into a plain gtest binary with nothing but Qt Core behind it. That
+# is the whole reason the split exists; keep it that way, or this target stops
+# linking.
 
-# No network and no GnuPG: an inspector reads bytes and nothing else, so it is
-# fine in the sandboxed build too.
-add_subdirectory(m_pgp_inspect)
-
-# modules that are not needed in sandboxed environment
-if(NOT GPGFRONTEND_XCODE_ENABLE_SANDBOX)
-  add_subdirectory(m_ver_check)
-  add_subdirectory(m_gpg_info)
+if(NOT TARGET GTest::gtest)
+  find_package(GTest QUIET)
 endif()
+
+if(NOT TARGET GTest::gtest)
+  message(STATUS "GTest not found; skipping OpenPGP inspector module tests")
+  return()
+endif()
+
+add_executable(gf_mod_pgp_inspect_test
+  PGPInspectModelTest.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/../PGPInspectModel.cpp)
+
+target_include_directories(gf_mod_pgp_inspect_test PRIVATE
+  "${CMAKE_CURRENT_SOURCE_DIR}/..")
+
+target_link_libraries(gf_mod_pgp_inspect_test PRIVATE
+  GTest::gtest GTest::gtest_main Qt::Core)
+
+set_target_properties(gf_mod_pgp_inspect_test PROPERTIES
+  RUNTIME_OUTPUT_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
