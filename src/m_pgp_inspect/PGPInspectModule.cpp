@@ -81,13 +81,12 @@ auto OnMainWindowMenuMounted(const GFEvent &event) -> GFEventResult {
   QMetaObject::invokeMethod(
       QApplication::instance(),
       [=]() -> void {
-        auto *action = new QAction(
-            QCoreApplication::translate("GTrC", "Inspect OpenPGP Structure"),
-            nullptr);
+        auto *action =
+            new QAction(QCoreApplication::translate(
+                            "GTrC", "Open OpenPGP Structure Inspector"),
+                        nullptr);
         action->setToolTip(QCoreApplication::translate(
-            "GTrC",
-            "Show the packet structure of the current tab, without "
-            "decrypting it"));
+            "GTrC", "Show the packet structure of the current tab"));
         QObject::connect(action, &QAction::triggered, main_window,
                          [=]() { RaiseInspectDialog(main_window); });
         advance_menu->addAction(action);
