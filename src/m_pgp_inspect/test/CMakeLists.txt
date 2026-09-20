@@ -50,4 +50,4 @@ target_link_libraries(gf_mod_pgp_inspect_test PRIVATE
   GTest::gtest GTest::gtest_main Qt::Core)
 
 set_target_properties(gf_mod_pgp_inspect_test PROPERTIES
-  RUNTIME_OUTPUT_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
+  RUNTIME_OUTPUT_DIRECTORY "${GPGFRONTEND_MODULE_TEST_OUTPUT_DIR}")

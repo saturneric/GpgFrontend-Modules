@@ -88,17 +88,23 @@ link_directories(
   ${SDK_LIB_PATH}
 )
 
-# The namespace root. Each module's own output directory is set per target by
-# gf_add_module(), to modules/<key>/native, because the directory a module owns
-# is derived from the identity it signs rather than from where it sits in the
-# source tree.
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/modules)
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/modules)
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}/modules)
+# Each module's own output directory is set per target by gf_add_module(), to
+# modules/<key>/native, because the directory a module owns is derived from the
+# identity it signs rather than from where it sits in the source tree.
+#
+# There is deliberately no global redirect into the namespace root here. There
+# was one, and because every module target pins its own output anyway, the only
+# thing it still governed was the module TEST executables -- which therefore
+# landed inside `artifacts/modules/`, the directory module discovery walks and
+# the release gates refuse strays in. Four of them were sitting there.
+#
+# Test and fuzz binaries are build tools. They get their own directory, outside
+# any namespace, and they are never installed.
+set(GPGFRONTEND_MODULE_TEST_OUTPUT_DIR
+  "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/module-tests")
 
-message(STATUS "GpgFrontend Modules Runtime Output Path: ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
-message(STATUS "GpgFrontend Modules Library Output Path: ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
-message(STATUS "GpgFrontend Modules ARCHIVE Output Path: ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}")
+message(STATUS "GpgFrontend Module Namespace Root: ${GPGFRONTEND_MODULE_NAMESPACE_ROOT}")
+message(STATUS "GpgFrontend Module Test Output Path: ${GPGFRONTEND_MODULE_TEST_OUTPUT_DIR}")
 
 # Introduce Qt
 # Support Qt version: 6.x
@@ -118,9 +124,18 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
 include(GNUInstallDirs)
-set(CMAKE_INSTALL_BINDIR "${CMAKE_INSTALL_LIBDIR}/${APP_NAME_LOWER}/modules")
-set(CMAKE_INSTALL_LIBDIR "${CMAKE_INSTALL_LIBDIR}/${APP_NAME_LOWER}/modules")
-set(CMAKE_INSTALL_DATAROOTDIR "${CMAKE_INSTALL_LIBDIR}/${APP_NAME_LOWER}/modules")
+
+# The install directories are NOT redirected here.
+#
+# They were, to `lib/gpgfrontend/modules`, back when modules installed flat.
+# gf_add_module() now derives each module's own namespace from the identity it
+# signs, building that path from CMAKE_INSTALL_LIBDIR itself -- so redirecting
+# the variable as well produced `lib/gpgfrontend/modules/gpgfrontend/modules/`.
+# The DATAROOTDIR line was worse: it derived from the already-modified LIBDIR,
+# so it nested the same suffix twice more.
+#
+# Nothing under modules/ calls install() directly; the only install rules for a
+# module are the two in gf_add_module().
 
 # third_party
 add_subdirectory(third_party)

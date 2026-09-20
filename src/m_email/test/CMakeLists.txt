@@ -81,7 +81,7 @@ target_compile_definitions(gf_mod_email_test PRIVATE
   VMIME_STATIC)
 
 set_target_properties(gf_mod_email_test PROPERTIES
-  RUNTIME_OUTPUT_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
+  RUNTIME_OUTPUT_DIRECTORY "${GPGFRONTEND_MODULE_TEST_OUTPUT_DIR}")
 
 # --- transport tests that need a server -------------------------------------
 #
@@ -126,7 +126,7 @@ target_compile_definitions(gf_mod_email_net_test PRIVATE
   VMIME_STATIC "GF_SDK_EXPORT=" "GF_MODULE_EXPORT=")
 
 set_target_properties(gf_mod_email_net_test PROPERTIES
-  RUNTIME_OUTPUT_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
+  RUNTIME_OUTPUT_DIRECTORY "${GPGFRONTEND_MODULE_TEST_OUTPUT_DIR}")
 
 # --- crypto boundary tests --------------------------------------------------
 #
@@ -170,7 +170,7 @@ target_compile_definitions(gf_mod_email_crypto_test PRIVATE
   VMIME_STATIC "GF_SDK_EXPORT=" "GF_MODULE_EXPORT=")
 
 set_target_properties(gf_mod_email_crypto_test PROPERTIES
-  RUNTIME_OUTPUT_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
+  RUNTIME_OUTPUT_DIRECTORY "${GPGFRONTEND_MODULE_TEST_OUTPUT_DIR}")
 
 # --- fuzzing (opt-in, clang only) -------------------------------------------
 #
@@ -213,6 +213,6 @@ if(GPGFRONTEND_MODULES_BUILD_FUZZERS)
     # Deliberately NOT named *_test: run_tests.sh picks module test binaries up
     # by that suffix, and a fuzzer given no corpus argument would run forever.
     set_target_properties(gf_mod_email_fuzz PROPERTIES
-      RUNTIME_OUTPUT_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
+      RUNTIME_OUTPUT_DIRECTORY "${GPGFRONTEND_MODULE_TEST_OUTPUT_DIR}")
   endif()
 endif()
