@@ -100,8 +100,7 @@ link_directories(
 #
 # Test and fuzz binaries are build tools. They get their own directory, outside
 # any namespace, and they are never installed.
-set(GPGFRONTEND_MODULE_TEST_OUTPUT_DIR
-  "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/module-tests")
+set(GPGFRONTEND_MODULE_TEST_OUTPUT_DIR "${CMAKE_BINARY_DIR}/test-bin")
 
 message(STATUS "GpgFrontend Module Namespace Root: ${GPGFRONTEND_MODULE_NAMESPACE_ROOT}")
 message(STATUS "GpgFrontend Module Test Output Path: ${GPGFRONTEND_MODULE_TEST_OUTPUT_DIR}")
