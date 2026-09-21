@@ -135,6 +135,9 @@ void GFModuleLogDebug(const char*) {}
 void GFModuleLogInfo(const char*) {}
 void GFModuleLogWarn(const char*) {}
 void GFModuleLogError(const char*) {}
+void GFModuleLogAt(const char*, int, const char*, int, const char*,
+                   const char*) {}
+int GFModuleLogEnabled(const char*, int) { return 1; }
 
 char* GFAppActiveLocale() { return GFModuleStrDup("en_US"); }
 
@@ -312,9 +315,7 @@ void GFBufferRelease(GFBufferRef buf) {
   delete reinterpret_cast<StubBuffer*>(buf);
 }
 
-size_t GFBufferOutstandingCount(const char*) {
-  return LiveBuffers().size();
-}
+size_t GFBufferOutstandingCount(const char*) { return LiveBuffers().size(); }
 
 int GFGpgSign(int, const char* const* key_ids, size_t key_ids_size,
               GFBufferView in, int sign_mode, int, GFGpgResultRef* out) {
@@ -450,8 +451,11 @@ void GFGpgResultRelease(GFGpgResultRef r) {
   delete impl;
 }
 
-size_t GFGpgResultOutstandingCount(const char*) {
-  return LiveResults().size();
-}
+size_t GFGpgResultOutstandingCount(const char*) { return LiveResults().size(); }
 
 }  // extern "C"
+
+// C++ linkage, deliberately outside the extern "C" block above: GFModule.h
+// declares it as an ordinary C++ function, and the log macros call it on every
+// line. Defined here with C linkage it compiles cleanly and fails to link.
+const char* GFGetModuleID() { return "harness"; }

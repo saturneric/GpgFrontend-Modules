@@ -179,32 +179,31 @@ auto StartStartGatheringGnuPGComponentsInfo(const QString &gpgme_version,
                        QStringListToCharArray({"--homedir", default_home_path,
                                                "--list-components"}),
                        GetGpgComponentInfos, &context);
-  MLogDebug("loading gnupg component info done.");
+  LOG_DEBUG("loading gnupg component info done.");
   return 0;
 }
 
 auto StartGatheringAllGnuPGInfo() -> int {
   const auto gpgme_version =
       UDUP(GFModuleRetrieveRTValueOrDefault("core", "gpgme.version", "0.0.0"));
-  MLogDebug(QString("got gpgme version from rt: %1").arg(gpgme_version));
+  LOG_D() << "got gpgme version from rt:" << gpgme_version;
 
   const auto gpgconf_path = UDUP(
       GFModuleRetrieveRTValueOrDefault("core", "gpgme.ctx.gpgconf_path", ""));
-  MLogDebug(QString("got gpgconf path from rt: %1").arg(gpgconf_path));
+  LOG_D() << "got gpgconf path from rt:" << gpgconf_path;
 
   if (gpgconf_path.isEmpty()) {
-    MLogDebug("gpgconf path is empty, skip gathering gnupg info.");
+    LOG_DEBUG("gpgconf path is empty, skip gathering gnupg info.");
     return -1;
   }
 
   auto default_home_path = UDUP(GFModuleRetrieveRTValueOrDefault(
       "core", "gpgme.ctx.default_database_path", ""));
-  MLogDebug(
-      QString("got default home path from rt: %1").arg(default_home_path));
+  LOG_D() << "got default home path from rt:" << default_home_path;
 
   default_home_path = QDir::toNativeSeparators(
       QFileInfo(default_home_path).canonicalFilePath());
-  MLogDebug(QString("final default home path: %1").arg(default_home_path));
+  LOG_D() << "final default home path:" << default_home_path;
 
   // gather component information
   StartStartGatheringGnuPGComponentsInfo(gpgme_version, gpgconf_path,
@@ -250,8 +249,7 @@ auto StartGatheringAllGnuPGInfo() -> int {
     assert(jsonlized_component_info.isObject());
 
     auto component_info = GpgComponentInfo(jsonlized_component_info.object());
-    MLogDebug(QString("gpgconf check options ready, component: %1")
-                  .arg(component_info.name));
+    LOG_T() << "gpgconf check options ready, component:" << component_info.name;
 
     if (component_info.name == "gpgme" || component_info.name == "gpgconf") {
       continue;
@@ -280,18 +278,16 @@ auto CalculateBinaryChecksum(const QString &path) -> std::optional<QString> {
   // Check the file's existence and access rights.
   QFileInfo const info(path);
   if (!info.exists() || !info.isFile() || !info.isReadable()) {
-    MLogDebug(QString("get info for file %1 error, exists: %2")
-                  .arg(info.filePath())
-                  .arg(info.exists()));
+    LOG_D() << "get info for file" << info.filePath()
+            << "error, exists:" << info.exists();
     return {};
   }
 
   // Open and read the file.
   QFile f(info.filePath());
   if (!f.open(QIODevice::ReadOnly)) {
-    MLogDebug(QString("open %1 to calculate checksum error: %2")
-                  .arg(path)
-                  .arg(f.errorString()));
+    LOG_D() << "open" << path
+            << "to calculate checksum error:" << f.errorString();
     return {};
   }
 
@@ -302,8 +298,7 @@ auto CalculateBinaryChecksum(const QString &path) -> std::optional<QString> {
   while (!f.atEnd()) {
     QByteArray const buffer = f.read(buffer_size);
     if (buffer.isEmpty()) {
-      MLogDebug(QString("error reading file %1 during checksum calculation")
-                    .arg(path));
+      LOG_D() << "error reading file" << path << "during checksum calculation";
       return {};
     }
     hash_sha.addData(buffer);
@@ -322,15 +317,12 @@ void GetGpgComponentInfos(void *data, int exit_code, const char *out,
   auto p_out = QString::fromUtf8(out);
   auto p_err = QString::fromUtf8(err);
 
-  MLogDebug(QString("gpgconf components exit_code: %1 process stdout size: %2")
-                .arg(exit_code)
-                .arg(p_out.size()));
+  LOG_D() << "gpgconf components exit_code:" << exit_code
+          << "process stdout size:" << p_out.size();
 
   if (exit_code != 0) {
-    MLogDebug(
-        QString("gpgconf execute error, process stderr: %1, process stdout: %2")
-            .arg(p_err)
-            .arg(p_out));
+    LOG_D() << "gpgconf execute error, process stderr:" << p_err
+            << "process stdout:" << p_out;
     return;
   }
 
@@ -383,12 +375,10 @@ void GetGpgComponentInfos(void *data, int exit_code, const char *out,
 
     auto binary_checksum = CalculateBinaryChecksum(component_path);
 
-    MLogDebug(
-        QString("gnupg component name: %1 desc: %2 checksum: %3 path: %4")
-            .arg(component_name)
-            .arg(component_desc)
-            .arg(binary_checksum.has_value() ? binary_checksum.value() : "/",
-                 component_path));
+    LOG_D() << "gnupg component name:" << component_name
+            << "desc:" << component_desc << "checksum:"
+            << (binary_checksum.has_value() ? binary_checksum.value() : "/")
+            << "path:" << component_path;
 
     QString version = "/";
 
@@ -429,7 +419,7 @@ void GetGpgComponentInfos(void *data, int exit_code, const char *out,
       component_infos.push_back(c_i);
     }
 
-    MLogDebug("load gnupg component info actually done.");
+    LOG_DEBUG("load gnupg component info actually done.");
   }
 }
 
@@ -443,9 +433,8 @@ void GetGpgDirectoryInfos(void *, int exit_code, const char *out,
 
   for (const auto &line : line_split_list) {
     auto info_split_list = line.split(":");
-    MLogDebug(QString("gpgconf directories info line: %1 info size: %2")
-                  .arg(line)
-                  .arg(info_split_list.size()));
+    LOG_T() << "gpgconf directories info line:" << line
+            << "info size:" << info_split_list.size();
 
     if (info_split_list.size() != 2) continue;
 
@@ -480,12 +469,9 @@ void GetGpgOptionInfos(void *data, int exit_code, const char *out,
   auto *context = reinterpret_cast<Context *>(data);
   auto component_name = context->component_info.name;
 
-  MLogDebug(
-      QString(
-          "gpgconf %1 available options exit_code: %2 process stdout size: %3")
-          .arg(component_name)
-          .arg(exit_code)
-          .arg(p_out.size()));
+  LOG_D() << "gpgconf" << component_name
+          << "available options exit_code:" << exit_code
+          << "process stdout size:" << p_out.size();
 
   std::vector<GpgOptionsInfo> options_infos;
 
@@ -494,10 +480,9 @@ void GetGpgOptionInfos(void *data, int exit_code, const char *out,
   for (const auto &line : line_split_list) {
     auto info_split_list = line.split(":");
 
-    MLogDebug(QString("component %1 available options line: %2 info size: %3")
-                  .arg(component_name)
-                  .arg(line)
-                  .arg(info_split_list.size()));
+    LOG_T() << "component" << component_name
+            << "available options line:" << line
+            << "info size:" << info_split_list.size();
 
     if (info_split_list.size() < 10) continue;
 

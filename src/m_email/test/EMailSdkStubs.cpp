@@ -12,8 +12,14 @@
 #include <set>
 
 namespace {
-std::set<void*>& NormalArena() { static std::set<void*> a; return a; }
-std::set<void*>& SecureArena() { static std::set<void*> a; return a; }
+std::set<void*>& NormalArena() {
+  static std::set<void*> a;
+  return a;
+}
+std::set<void*>& SecureArena() {
+  static std::set<void*> a;
+  return a;
+}
 }  // namespace
 
 int g_allocator_violations = 0;
@@ -51,8 +57,9 @@ void GFSecFreeMemory(void* p) {
   if (SecureArena().erase(p) == 0) {
     // Exactly the real crash: a pointer that never came from the secure
     // allocator handed to the secure deallocator.
-    std::printf("[FAIL] GFSecFreeMemory on a pointer it does not own "
-                "(this is the munmap_chunk abort)\n");
+    std::printf(
+        "[FAIL] GFSecFreeMemory on a pointer it does not own "
+        "(this is the munmap_chunk abort)\n");
     ++g_allocator_violations;
     return;
   }
@@ -111,8 +118,10 @@ void GFModuleLogDebug(const char*) {}
 void GFModuleLogInfo(const char*) {}
 void GFModuleLogWarn(const char*) {}
 void GFModuleLogError(const char*) {}
+void GFModuleLogAt(const char*, int, const char*, int, const char*,
+                   const char*) {}
+int GFModuleLogEnabled(const char*, int) { return 1; }
 
-const char* GFGetModuleID() { return "harness"; }
 char* GFAppActiveLocale() { return GFModuleStrDup("en_US"); }
 unsigned int GFUIMutedTextColor(void*) { return 0xFF808080; }
 unsigned int GFUIBorderColor(void*) { return 0xFF808080; }
@@ -121,3 +130,8 @@ unsigned int GFUIDangerColor(void*) { return 0xFFFF0000; }
 unsigned int GFUIAccentColor(void*, int) { return 0xFF0066CC; }
 char* GFUIHumanSize(long long) { return GFModuleStrDup("0 B"); }
 }
+
+// C++ linkage, deliberately outside the extern "C" block above: GFModule.h
+// declares it as an ordinary C++ function, and the log macros call it on every
+// line. Defined here with C linkage it compiles cleanly and fails to link.
+const char* GFGetModuleID() { return "harness"; }
