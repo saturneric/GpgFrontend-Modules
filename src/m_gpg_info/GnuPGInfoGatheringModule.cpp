@@ -206,7 +206,7 @@ auto StartGatheringAllGnuPGInfo() -> int {
       QFileInfo(default_home_path).canonicalFilePath());
   MLogDebug(QString("final default home path: %1").arg(default_home_path));
 
-  // get components infos
+  // gather component information
   StartStartGatheringGnuPGComponentsInfo(gpgme_version, gpgconf_path,
                                          default_home_path);
 
@@ -277,7 +277,7 @@ auto StartGatheringAllGnuPGInfo() -> int {
 }
 
 auto CalculateBinaryChecksum(const QString &path) -> std::optional<QString> {
-  // check file info and access rights
+  // Check the file's existence and access rights.
   QFileInfo const info(path);
   if (!info.exists() || !info.isFile() || !info.isReadable()) {
     MLogDebug(QString("get info for file %1 error, exists: %2")
@@ -286,7 +286,7 @@ auto CalculateBinaryChecksum(const QString &path) -> std::optional<QString> {
     return {};
   }
 
-  // open and read file
+  // Open and read the file.
   QFile f(info.filePath());
   if (!f.open(QIODevice::ReadOnly)) {
     MLogDebug(QString("open %1 to calculate checksum error: %2")
@@ -297,8 +297,8 @@ auto CalculateBinaryChecksum(const QString &path) -> std::optional<QString> {
 
   QCryptographicHash hash_sha(QCryptographicHash::Sha256);
 
-  // read data by chunks
-  const qint64 buffer_size = 8192;  // Define a suitable buffer size
+  // Read the data in chunks.
+  const qint64 buffer_size = 8192;
   while (!f.atEnd()) {
     QByteArray const buffer = f.read(buffer_size);
     if (buffer.isEmpty()) {
@@ -309,11 +309,10 @@ auto CalculateBinaryChecksum(const QString &path) -> std::optional<QString> {
     hash_sha.addData(buffer);
   }
 
-  // close the file
+  // Close the file.
   f.close();
 
-  // return the first 6 characters of the SHA-256 hash
-  // of the file
+  // Return the first 6 characters of the file's SHA-256 hash.
   return QString(hash_sha.result().toHex()).left(6);
 }
 
@@ -444,7 +443,7 @@ void GetGpgDirectoryInfos(void *, int exit_code, const char *out,
 
   for (const auto &line : line_split_list) {
     auto info_split_list = line.split(":");
-    MLogDebug(QString("gpgconf direcrotries info line: %1 info size: %2")
+    MLogDebug(QString("gpgconf directories info line: %1 info size: %2")
                   .arg(line)
                   .arg(info_split_list.size()));
 
@@ -483,7 +482,7 @@ void GetGpgOptionInfos(void *data, int exit_code, const char *out,
 
   MLogDebug(
       QString(
-          "gpgconf %1 avaliable options exit_code: %2 process stdout size: %3")
+          "gpgconf %1 available options exit_code: %2 process stdout size: %3")
           .arg(component_name)
           .arg(exit_code)
           .arg(p_out.size()));

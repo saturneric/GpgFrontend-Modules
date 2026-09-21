@@ -65,8 +65,8 @@ GnupgTab::GnupgTab(QWidget* parent)
   ui_->componentDetailsTable->setEditTriggers(
       QAbstractItemView::NoEditTriggers);
 
-  // no focus (rectangle around table items)
-  // may be it should focus on whole row
+  // No focus rectangle around table items; maybe this should highlight the
+  // whole row instead.
   ui_->componentDetailsTable->setFocusPolicy(Qt::NoFocus);
   ui_->componentDetailsTable->setAlternatingRowColors(true);
 
@@ -86,8 +86,8 @@ GnupgTab::GnupgTab(QWidget* parent)
   ui_->directoriesDetailsTable->setEditTriggers(
       QAbstractItemView::NoEditTriggers);
 
-  // no focus (rectangle around table items)
-  // may be it should focus on whole row
+  // No focus rectangle around table items; maybe this should highlight the
+  // whole row instead.
   ui_->directoriesDetailsTable->setFocusPolicy(Qt::NoFocus);
   ui_->directoriesDetailsTable->setAlternatingRowColors(true);
 
@@ -105,8 +105,8 @@ GnupgTab::GnupgTab(QWidget* parent)
   // table items not editable
   ui_->optionDetailsTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
 
-  // no focus (rectangle around table items)
-  // may be it should focus on whole row
+  // No focus rectangle around table items; maybe this should highlight the
+  // whole row instead.
   ui_->optionDetailsTable->setFocusPolicy(Qt::NoFocus);
   ui_->optionDetailsTable->setAlternatingRowColors(true);
 
@@ -145,7 +145,7 @@ void GnupgTab::slot_process_software_info() {
 
     auto component_info = component_info_json.object();
     if (!component_info.contains("name")) {
-      MLogWarn(QString("illegal gnupg component info. it doesn't have a "
+      MLogWarn(QString("illegal gnupg component info: it doesn't have a "
                        "name, json: %1")
                    .arg(component_info_json_bytes));
       continue;
@@ -272,7 +272,7 @@ void GnupgTab::slot_process_software_info() {
 
       auto option_info = option_info_json.object();
       if (!option_info.contains("name")) {
-        MLogWarn(QString("illegal gnupg configuration info. it doesn't have a "
+        MLogWarn(QString("illegal gnupg configuration info: it doesn't have a "
                          "name, json: %1")
                      .arg(option_info_json_bytes));
         continue;
