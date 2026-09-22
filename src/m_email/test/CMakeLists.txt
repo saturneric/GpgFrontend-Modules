@@ -116,14 +116,17 @@ target_include_directories(gf_mod_email_net_test PRIVATE
   "${CMAKE_BINARY_DIR}/src"
   "${CMAKE_BINARY_DIR}/src/sdk")
 
+# The REAL module-side SDK, against a fake host table the harness supplies.
+# That is the point of the split: the SDK is stateless and takes a context, so
+# a test can hand it one without a host anywhere in the process.
 target_link_libraries(gf_mod_email_net_test PRIVATE
   GTest::gtest GTest::gtest_main Qt::Core Qt::Network vmime-static
-  OpenSSL::SSL OpenSSL::Crypto)
+  OpenSSL::SSL OpenSSL::Crypto gf_sdk)
 
-# The stubs stand in for the SDK, so the real export macros must expand to
-# nothing rather than to a visibility attribute on a symbol we define here.
+# Only the module export macro needs neutering now: nothing here defines an
+# SDK symbol any more.
 target_compile_definitions(gf_mod_email_net_test PRIVATE
-  VMIME_STATIC "GF_SDK_EXPORT=" "GF_MODULE_EXPORT=")
+  VMIME_STATIC "GF_MODULE_EXPORT=")
 
 set_target_properties(gf_mod_email_net_test PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY "${GPGFRONTEND_MODULE_TEST_OUTPUT_DIR}")
@@ -164,10 +167,10 @@ target_include_directories(gf_mod_email_crypto_test PRIVATE
   "${CMAKE_BINARY_DIR}/src/sdk")
 
 target_link_libraries(gf_mod_email_crypto_test PRIVATE
-  GTest::gtest GTest::gtest_main Qt::Core Qt::Network vmime-static)
+  GTest::gtest GTest::gtest_main Qt::Core Qt::Network vmime-static gf_sdk)
 
 target_compile_definitions(gf_mod_email_crypto_test PRIVATE
-  VMIME_STATIC "GF_SDK_EXPORT=" "GF_MODULE_EXPORT=")
+  VMIME_STATIC "GF_MODULE_EXPORT=")
 
 set_target_properties(gf_mod_email_crypto_test PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY "${GPGFRONTEND_MODULE_TEST_OUTPUT_DIR}")

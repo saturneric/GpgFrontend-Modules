@@ -111,11 +111,11 @@ auto EncryptPlainText(int channel, const QStringList& keys,
     // including the early return below, which is where the struct-based API
     // leaked because a FAILED call still allocated a result to explain
     // itself.
-    auto in = GFBuf::Copy(body_data);
+    auto in = GFBuf::Copy(GFModuleSdkContext(), body_data);
     auto key_ids = KeyIdArgs(keys);
-    GFGpgResult r;
-    if (GFGpgEncrypt(channel, key_ids.Data(), key_ids.Size(), in.View(), 1,
-                     r.Out()) != GF_GPG_OK) {
+    GFGpgResult r(GFModuleSdkContext());
+    if (GFGpgEncrypt(GFModuleSdkContext(), channel, key_ids.Data(),
+                     key_ids.Size(), in.View(), 1, r.Out()) != GF_GPG_OK) {
       eml_data = SdkFailureText("Encryption", r.ErrorString()).toUtf8();
       return kFAILED;
     }
@@ -286,11 +286,11 @@ auto EncryptEMLData(int channel, const QStringList& keys,
     // The SDK sets *ps = nullptr and returns non-zero when it cannot
     // allocate the result, so both must be checked before the first
     // dereference below -- not after it, as this used to.
-    auto in = GFBuf::Copy(plain_raw_data);
+    auto in = GFBuf::Copy(GFModuleSdkContext(), plain_raw_data);
     auto key_ids = KeyIdArgs(keys);
-    GFGpgResult r;
-    if (GFGpgEncrypt(channel, key_ids.Data(), key_ids.Size(), in.View(), 1,
-                     r.Out()) != GF_GPG_OK) {
+    GFGpgResult r(GFModuleSdkContext());
+    if (GFGpgEncrypt(GFModuleSdkContext(), channel, key_ids.Data(),
+                     key_ids.Size(), in.View(), 1, r.Out()) != GF_GPG_OK) {
       eml_data = SdkFailureText("Encryption", r.ErrorString()).toUtf8();
       return kFAILED;
     }
@@ -542,7 +542,7 @@ auto SignPlainText(int channel, const QString& key,
         vmime::word(std::string{"OpenPGP_signature.asc"}));
 
     auto public_key =
-        UDUP(GFGpgPublicKey(channel, (key).toUtf8().constData(), 1));
+        UDUP(gf::sdk::PublicKey(GFModuleSdkContext(), channel, (key), 1 != 0));
     if (public_key.isEmpty()) {
       eml_data = "Get Public Key of Sign Key Failed";
       return kFAILED;
@@ -593,11 +593,11 @@ auto SignPlainText(int channel, const QString& key,
     // The SDK sets *ps = nullptr and returns non-zero when it cannot
     // allocate the result, so both must be checked before the first
     // dereference below -- not after it, as this used to.
-    auto in = GFBuf::Copy(container_raw_data);
+    auto in = GFBuf::Copy(GFModuleSdkContext(), container_raw_data);
     auto key_ids = KeyIdArgs({key});
-    GFGpgResult r;
-    if (GFGpgSign(channel, key_ids.Data(), key_ids.Size(), in.View(), 1, 1,
-                  r.Out()) != GF_GPG_OK) {
+    GFGpgResult r(GFModuleSdkContext());
+    if (GFGpgSign(GFModuleSdkContext(), channel, key_ids.Data(), key_ids.Size(),
+                  in.View(), 1, 1, r.Out()) != GF_GPG_OK) {
       eml_data = SdkFailureText("Sign", r.ErrorString()).toUtf8();
       return kFAILED;
     }
@@ -777,7 +777,7 @@ auto SignEMLData(int channel, const QString& key,
         vmime::word(std::string{"OpenPGP_signature.asc"}));
 
     auto public_key =
-        UDUP(GFGpgPublicKey(channel, (key).toUtf8().constData(), 1));
+        UDUP(gf::sdk::PublicKey(GFModuleSdkContext(), channel, (key), 1 != 0));
     if (public_key.isEmpty()) {
       eml_data = "Get Public Key of Sign Key Failed";
       return kFAILED;
@@ -827,11 +827,11 @@ auto SignEMLData(int channel, const QString& key,
     // The SDK sets *ps = nullptr and returns non-zero when it cannot
     // allocate the result, so both must be checked before the first
     // dereference below -- not after it, as this used to.
-    auto in = GFBuf::Copy(container_raw_data);
+    auto in = GFBuf::Copy(GFModuleSdkContext(), container_raw_data);
     auto key_ids = KeyIdArgs({key});
-    GFGpgResult r;
-    if (GFGpgSign(channel, key_ids.Data(), key_ids.Size(), in.View(), 1, 1,
-                  r.Out()) != GF_GPG_OK) {
+    GFGpgResult r(GFModuleSdkContext());
+    if (GFGpgSign(GFModuleSdkContext(), channel, key_ids.Data(), key_ids.Size(),
+                  in.View(), 1, 1, r.Out()) != GF_GPG_OK) {
       eml_data = SdkFailureText("Sign", r.ErrorString()).toUtf8();
       return kFAILED;
     }
@@ -1141,10 +1141,11 @@ auto VerifyOneRegion(int channel, const QByteArray& raw,
   // It EXPLAINS a failure below; it never rescues one.
   verdict.signed_bytes_non_canonical = HasBareLineFeeds(signed_bytes);
 
-  auto in = GFBuf::Copy(signed_bytes);
-  auto sig = GFBuf::Copy(signature_bytes);
-  GFGpgResult r;
-  if (GFGpgVerify(channel, in.View(), sig.View(), r.Out()) != GF_GPG_OK) {
+  auto in = GFBuf::Copy(GFModuleSdkContext(), signed_bytes);
+  auto sig = GFBuf::Copy(GFModuleSdkContext(), signature_bytes);
+  GFGpgResult r(GFModuleSdkContext());
+  if (GFGpgVerify(GFModuleSdkContext(), channel, in.View(), sig.View(),
+                  r.Out()) != GF_GPG_OK) {
     // One region failing is not the walk failing: the others are still worth
     // verifying. Nothing to reclaim by hand -- r releases itself.
     verdict.exec = EMailVerifyExec::kENGINE_ERROR;
@@ -1162,16 +1163,14 @@ auto VerifyOneRegion(int channel, const QByteArray& raw,
   // The structured form AND the report text, from the one call: a per-
   // signature view cannot be rebuilt by re-reading prose, and the capsule is
   // consumed here, so everything anyone needs has to come out of it now.
-  const char* analyse = nullptr;
-  const char* cards = nullptr;
-  const char* info_json = nullptr;
   report.region_id = region.region_id;
-  report.status = GFAnalyseVerifyResultInfoByCapsule(
-      channel, err, (capsule_id).toUtf8().constData(), &analyse, &cards,
-      &info_json);
-  report.detail = UnStrDup(analyse);
-  report.cards = UnStrDup(cards);
-  report.info_json = UnStrDup(info_json).toUtf8();
+
+  const auto analysis = gf::sdk::AnalyseResult(
+      GFModuleSdkContext(), GF_GPG_ANALYSE_VERIFY, channel, err, capsule_id);
+  report.status = analysis.status;
+  report.detail = analysis.report;
+  report.cards = analysis.cards;
+  report.info_json = analysis.info_json.toUtf8();
 
   auto region_results =
       ParseSignatureResults(report.info_json, region.region_id);
@@ -1465,9 +1464,10 @@ auto DecryptEMLData(int channel, const QByteArray& data,
   // The SDK sets *ps = nullptr and returns non-zero when it cannot
   // allocate the result, so both must be checked before the first
   // dereference below -- not after it, as this used to.
-  auto in = GFBuf::Copy(part_encr_body_content);
-  GFGpgResult r;
-  if (GFGpgDecrypt(channel, in.View(), r.Out()) != GF_GPG_OK) {
+  auto in = GFBuf::Copy(GFModuleSdkContext(), part_encr_body_content);
+  GFGpgResult r(GFModuleSdkContext());
+  if (GFGpgDecrypt(GFModuleSdkContext(), channel, in.View(), r.Out()) !=
+      GF_GPG_OK) {
     eml_data = SdkFailureText("Decrypt", r.ErrorString()).toUtf8();
     return kFAILED;
   }

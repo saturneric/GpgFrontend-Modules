@@ -50,7 +50,8 @@ constexpr auto kSchemaVersion = 1;
 Q_GLOBAL_STATIC(QMutex, settings_mutex)
 
 auto GlobalSettings() -> QSettings* {
-  return qobject_cast<QSettings*>(static_cast<QObject*>(GFUIGlobalSettings()));
+  return qobject_cast<QSettings*>(
+      static_cast<QObject*>(GFStorageSettingsRoot(GFModuleSdkContext())));
 }
 
 }  // namespace

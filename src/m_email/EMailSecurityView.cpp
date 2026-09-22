@@ -533,8 +533,10 @@ void EMailSecurityView::add_key_section(const QStringList& addresses,
     // The address stays ours: every SDK argument is borrowed, so the
     // QByteArray below is safe to let die at the end of the statement.
     GFGpgKeyBriefListRef briefs = nullptr;
-    GFGpgFindKeys(channel, email.toUtf8().constData(), &briefs);
-    const auto count = static_cast<int>(GFGpgKeyBriefListCount(briefs));
+    GFGpgFindKeys(GFModuleSdkContext(), channel, email.toUtf8().constData(),
+                  &briefs);
+    const auto count =
+        static_cast<int>(GFGpgKeyBriefCount(GFModuleSdkContext(), briefs));
 
     auto* item = new QTreeWidgetItem(group);
     item->setText(kColItem, email);
@@ -545,7 +547,7 @@ void EMailSecurityView::add_key_section(const QStringList& addresses,
       // Recorded on the row so the menu knows this is an address with nothing
       // behind it, which is the one case where importing is worth offering.
       item->setData(kColItem, kRoleMissingKey, true);
-      GFGpgKeyBriefListRelease(briefs);
+      GFGpgKeyBriefRelease(GFModuleSdkContext(), briefs);
       continue;
     }
 
@@ -556,12 +558,14 @@ void EMailSecurityView::add_key_section(const QStringList& addresses,
       // Borrowed accessors throughout: nothing here is separately releasable,
       // so the whole list goes back in one call at the end.
       auto* key_item = new QTreeWidgetItem(item);
-      key_item->setText(kColItem,
-                        QString::fromUtf8(GFGpgKeyBriefUid(briefs, i)));
+      key_item->setText(
+          kColItem, QString::fromUtf8(
+                        GFGpgKeyBriefAt(GFModuleSdkContext(), briefs, i)->uid));
 
       // Usability. Says whether the key can be used at all -- and nothing
       // whatsoever about whose key it is.
-      const auto usability = GFGpgKeyBriefUsability(briefs, i);
+      const auto usability =
+          GFGpgKeyBriefAt(GFModuleSdkContext(), briefs, i)->usability;
       key_item->setText(kColValue,
                         tr("key is %1").arg(DescribeUsability(usability)));
       EMailSetCellTone(
@@ -570,8 +574,10 @@ void EMailSecurityView::add_key_section(const QStringList& addresses,
 
       auto* fpr = new QTreeWidgetItem(key_item);
       fpr->setText(kColItem, tr("Fingerprint"));
-      fpr->setText(kColValue,
-                   QString::fromUtf8(GFGpgKeyBriefFingerprint(briefs, i)));
+      fpr->setText(
+          kColValue,
+          QString::fromUtf8(
+              GFGpgKeyBriefAt(GFModuleSdkContext(), briefs, i)->fingerprint));
       EMailSetCellTone(fpr, kColItem, EMailTone::kMUTED, this);
 
       // Identity binding, kept as its own row. A usable key carrying this
@@ -579,11 +585,13 @@ void EMailSecurityView::add_key_section(const QStringList& addresses,
       // single combined verdict would bury.
       auto* identity = new QTreeWidgetItem(key_item);
       identity->setText(kColItem, tr("Identity"));
-      if (GFGpgKeyBriefMatchedUidRevoked(briefs, i) != 0) {
+      if (GFGpgKeyBriefAt(GFModuleSdkContext(), briefs, i)
+              ->matched_uid_revoked != 0) {
         identity->setText(
             kColValue, tr("this address is on a REVOKED user ID of the key"));
         EMailSetCellTone(identity, kColValue, EMailTone::kWARN, this);
-      } else if (GFGpgKeyBriefMatchedUidIsPrimary(briefs, i) != 0) {
+      } else if (GFGpgKeyBriefAt(GFModuleSdkContext(), briefs, i)
+                     ->matched_uid_is_primary != 0) {
         identity->setText(kColValue, tr("this address is the key's primary "
                                         "user ID"));
         EMailSetCellTone(identity, kColValue, EMailTone::kGOOD, this);
@@ -593,7 +601,7 @@ void EMailSecurityView::add_key_section(const QStringList& addresses,
         EMailSetCellTone(identity, kColValue, EMailTone::kMUTED, this);
       }
 
-      if (GFGpgKeyBriefCanEncrypt(briefs, i) == 0) {
+      if (GFGpgKeyBriefAt(GFModuleSdkContext(), briefs, i)->can_encrypt == 0) {
         auto* note = new QTreeWidgetItem(key_item);
         note->setText(kColItem, tr("Note"));
         note->setText(kColValue, tr("this key cannot be used for encryption"));
@@ -601,7 +609,7 @@ void EMailSecurityView::add_key_section(const QStringList& addresses,
       }
     }
 
-    GFGpgKeyBriefListRelease(briefs);
+    GFGpgKeyBriefRelease(GFModuleSdkContext(), briefs);
   }
 }
 

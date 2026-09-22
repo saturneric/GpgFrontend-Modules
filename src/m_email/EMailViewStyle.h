@@ -41,6 +41,7 @@
 #include <QTreeWidgetItem>
 #include <QVBoxLayout>
 #include <QWidget>
+#include <array>
 #include <functional>
 
 #include "GFModule.h"
@@ -58,34 +59,39 @@
  * de-emphasised rather than red. Red belongs to irreversible acts and to
  * secrets travelling in the clear, not to "this part is unsigned".
  */
-inline auto EMailThemeColor(QWidget* w, uint32_t (*getter)(void*)) -> QColor {
-  const auto rgba = getter(w);
+/// One colour, by role. Five host entry points became one taking a role, so
+/// the function pointer this used to take is now an int.
+inline auto EMailThemeColor(QWidget* w, int role) -> QColor {
+  const auto rgba = GFUIThemeColor(GFModuleSdkContext(), role, w);
   return rgba == 0 ? w->palette().color(QPalette::WindowText)
                    : QColor::fromRgba(rgba);
 }
 
 inline auto EMailMutedColor(QWidget* w) -> QColor {
-  return EMailThemeColor(w, &GFUIMutedTextColor);
+  return EMailThemeColor(w, GF_UI_COLOR_MUTED_TEXT);
 }
 
 inline auto EMailWarningColor(QWidget* w) -> QColor {
-  return EMailThemeColor(w, &GFUIWarningColor);
+  return EMailThemeColor(w, GF_UI_COLOR_WARNING);
 }
 
 inline auto EMailAccentColor(QWidget* w, bool positive) -> QColor {
-  const auto rgba = GFUIAccentColor(w, positive ? 1 : 0);
-  return rgba == 0 ? w->palette().color(QPalette::WindowText)
-                   : QColor::fromRgba(rgba);
+  return EMailThemeColor(
+      w, positive ? GF_UI_COLOR_ACCENT_POSITIVE : GF_UI_COLOR_ACCENT_NEGATIVE);
 }
 
 /// A size written the way the rest of the application writes it.
+///
+/// Pure: it formats into a local buffer and needs no context at all.
 inline auto EMailHumanSize(qint64 bytes) -> QString {
-  return UnStrDup(GFUIHumanSize(bytes));
+  std::array<char, 64> text{};
+  const auto written = GFUIHumanSize(bytes, text.data(), text.size());
+  return written < 0 ? QString() : QString::fromUtf8(text.data(), written);
 }
 
 /// The application's own border colour, for the one-pixel rules around cards.
 inline auto EMailBorderColor(QWidget* w) -> QColor {
-  return EMailThemeColor(w, &GFUIBorderColor);
+  return EMailThemeColor(w, GF_UI_COLOR_BORDER);
 }
 
 /// @p a mixed with @p b, @p t of the way towards @p b.
@@ -333,7 +339,8 @@ inline auto EMailTintedBanner(QWidget* parent, const QColor& tint,
  * nothing here is worth refusing to build a widget over.
  */
 inline auto EMailViewSettings() -> QSettings* {
-  return qobject_cast<QSettings*>(static_cast<QObject*>(GFUIGlobalSettings()));
+  return qobject_cast<QSettings*>(
+      static_cast<QObject*>(GFStorageSettingsRoot(GFModuleSdkContext())));
 }
 
 /**
@@ -370,7 +377,7 @@ inline auto EMailToneColor(QWidget* owner, EMailTone tone) -> QColor {
     case EMailTone::kWARN:
       return EMailWarningColor(owner);
     case EMailTone::kDANGER:
-      return EMailThemeColor(owner, &GFUIDangerColor);
+      return EMailThemeColor(owner, GF_UI_COLOR_DANGER);
     case EMailTone::kDEFAULT:
       break;
   }

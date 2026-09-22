@@ -56,17 +56,20 @@ void EMailSecret::Wipe() {
   bytes_.shrink_to_fit();
 }
 
-auto EMailSecret::AdoptCString(char* source) -> std::shared_ptr<EMailSecret> {
+auto EMailSecret::AdoptBuffer(GFSDKContext* ctx, GFBufferRef source)
+    -> std::shared_ptr<EMailSecret> {
   auto secret = std::make_shared<EMailSecret>();
   if (source == nullptr) return secret;
 
-  const auto length = std::strlen(source);
-  secret->bytes_.assign(source, source + length);
+  const auto* data = static_cast<const char*>(GFBufferData(ctx, source));
+  const auto size = GFBufferSize(ctx, source);
+  if (data != nullptr && size != 0) {
+    secret->bytes_.assign(data, data + size);
+  }
 
-  // The SDK's buffer is wiped and returned to the secure allocator it came
-  // from, so the secret exists in exactly one place from here on.
-  SecureZero(source, length);
-  GFSecFreeMemory(static_cast<void*>(source));
+  // Release wipes: the secret exists in exactly one place from here on, and
+  // that place is a vector this class can erase.
+  GFBufferRelease(ctx, source);
   return secret;
 }
 
@@ -85,8 +88,9 @@ auto EMailSecret::CopyFrom(const QString& text)
 }
 
 auto EMailSecret::ToSecureCString() const -> char* {
-  auto* buffer = static_cast<char*>(
-      GFSecAllocateMemory(static_cast<uint32_t>(bytes_.size() + 1)));
+  auto* buffer =
+      static_cast<char*>(GFMemAlloc(GFModuleSdkContext(), GF_ARENA_SECURE,
+                                    static_cast<uint32_t>(bytes_.size() + 1)));
   if (buffer == nullptr) return nullptr;
 
   if (!bytes_.empty()) std::memcpy(buffer, bytes_.data(), bytes_.size());

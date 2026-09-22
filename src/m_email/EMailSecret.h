@@ -28,6 +28,8 @@
 
 #pragma once
 
+#include <GFSDKBuffer.h>
+
 #include <QMetaType>
 #include <memory>
 #include <string>
@@ -59,9 +61,13 @@ class EMailSecret {
   EMailSecret() = default;
   ~EMailSecret() { Wipe(); }
 
-  /// Takes the bytes of a NUL-terminated C string, then wipes the source.
-  /// For the SDK's secure buffers, which arrive as char*.
-  static auto AdoptCString(char* source) -> std::shared_ptr<EMailSecret>;
+  /// Takes the bytes out of an SDK buffer, then wipes and releases it.
+  ///
+  /// A buffer rather than a char*: the SDK hands secrets back as GFBufferRef
+  /// now, and a buffer wipes itself on release, so the secret never sits in
+  /// an ordinary allocation on the way here.
+  static auto AdoptBuffer(GFSDKContext* ctx, GFBufferRef source)
+      -> std::shared_ptr<EMailSecret>;
 
   /// Copies from a QString, for text the user typed into a field. The QString
   /// itself cannot be erased -- see the class note -- so the shorter its life
@@ -104,6 +110,11 @@ class EMailSecret {
   /// @return a buffer the callee must free, or nullptr if it could not be
   ///   allocated. Never free it yourself once it has been handed over.
   [[nodiscard]] auto ToSecureCString() const -> char*;
+
+  /// The raw bytes, borrowed, for handing straight into a wipeable SDK
+  /// buffer. Deliberately not a QString or QByteArray: both are implicitly
+  /// shared and neither can be erased afterwards.
+  [[nodiscard]] auto Data() const -> const char* { return bytes_.data(); }
 
   /// Overwrites the buffer and releases it. Safe to call more than once.
   void Wipe();

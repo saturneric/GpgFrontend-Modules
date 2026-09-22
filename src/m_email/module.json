@@ -7,8 +7,9 @@
   "author": "Saturneric",
   "capabilities": [
     "gpg",
-    "ui",
-    "network"
+    "network",
+    "storage",
+    "ui"
   ],
   "events": [
     "EDIT_TAB_TYPE_EMAIL_OP_DECRYPT",

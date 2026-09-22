@@ -39,13 +39,17 @@
 // this class exists is recorded rather than asserted. The rest hold
 // EMailSecret to the behaviour that replaces it.
 
-#include <GFSDKBasic.h>
+#include <GFSDKBuffer.h>
+#include <GFSDKContext.h>
 #include <gtest/gtest.h>
 
 #include <QString>
 #include <cstring>
 
 #include "EMailSecret.h"
+
+/// Supplied by the harness (EMailSdkStubs.cpp).
+auto GFModuleSdkContext() -> GFSDKContext*;
 
 namespace {
 
@@ -131,23 +135,25 @@ TEST(EMailSecretTest, TheLastHolderReleasingErasesTheBytes) {
       << "releasing one holder erased bytes the other still needed";
 }
 
-TEST(EMailSecretTest, AdoptingACStringWipesTheSource) {
-  // The SDK hands back a secure char*. Copying it out has to leave nothing
-  // behind in the buffer it came from.
+TEST(EMailSecretTest, AdoptingABufferTakesTheBytesAndReleasesIt) {
+  // The SDK hands a secret back as a buffer now, not a secure char*. A buffer
+  // wipes itself on release, so the bytes exist in one place afterwards and
+  // that place is the vector this class can erase.
   const char* text = "from-the-sdk";
   const auto length = std::strlen(text);
 
-  auto* raw = static_cast<char*>(GFSecAllocateMemory(length + 1));
-  std::memcpy(raw, text, length + 1);
+  auto* ctx = GFModuleSdkContext();
+  auto* raw = GFBufferNewFromBytes(ctx, text, length);
+  ASSERT_NE(raw, nullptr);
 
-  auto secret = EMailSecret::AdoptCString(raw);
+  auto secret = EMailSecret::AdoptBuffer(ctx, raw);
 
   EXPECT_EQ(secret->StdStringCopy(), "from-the-sdk");
   EXPECT_EQ(secret->Size(), length);
 }
 
 TEST(EMailSecretTest, AdoptingNullIsEmptyRatherThanACrash) {
-  auto secret = EMailSecret::AdoptCString(nullptr);
+  auto secret = EMailSecret::AdoptBuffer(GFModuleSdkContext(), nullptr);
   ASSERT_NE(secret, nullptr);
   EXPECT_TRUE(secret->IsEmpty());
 }
@@ -180,7 +186,7 @@ TEST(EMailSecretTest, ASecureCStringCarriesTheSecretVerbatim) {
   // NUL-terminated one past the secret, so a C API can read it as a string.
   EXPECT_EQ(buffer[secret->Size()], '\0');
 
-  GFSecFreeMemory(buffer);
+  GFMemFree(GFModuleSdkContext(), GF_ARENA_SECURE, buffer);
 }
 
 TEST(EMailSecretTest, AnEmptySecretStillProducesAUsableString) {
@@ -190,7 +196,7 @@ TEST(EMailSecretTest, AnEmptySecretStillProducesAUsableString) {
   ASSERT_NE(buffer, nullptr);
   EXPECT_STREQ(buffer, "");
 
-  GFSecFreeMemory(buffer);
+  GFMemFree(GFModuleSdkContext(), GF_ARENA_SECURE, buffer);
 }
 
 TEST(EMailSecretTest, NonAsciiSurvivesTheRoundTrip) {
@@ -202,7 +208,7 @@ TEST(EMailSecretTest, NonAsciiSurvivesTheRoundTrip) {
   ASSERT_NE(buffer, nullptr);
   EXPECT_EQ(QString::fromUtf8(buffer), typed);
 
-  GFSecFreeMemory(buffer);
+  GFMemFree(GFModuleSdkContext(), GF_ARENA_SECURE, buffer);
 }
 
 }  // namespace

@@ -457,7 +457,7 @@ void EMailPageView::apply_colors() {
     EMailSetLabelColor(attachment_heading_, MutedColor(this));
   }
   if (unsigned_notice_ != nullptr) {
-    EMailSetLabelColor(unsigned_notice_, ThemeColor(this, &GFUIWarningColor));
+    EMailSetLabelColor(unsigned_notice_, ThemeColor(this, GF_UI_COLOR_WARNING));
   }
 
   if (attachment_list_ != nullptr) {
@@ -1936,11 +1936,12 @@ void EMailPageView::refresh_locked_capability(const QStringList& named) {
   // for mail encrypted to someone else who happened to share an address.
   const auto* ciphertext = FindEncryptedCiphertextPart(tree_root_);
   if (ciphertext != nullptr) {
-    auto in = GFBuf::Copy(ciphertext->data);
+    auto in = GFBuf::Copy(GFModuleSdkContext(), ciphertext->data);
     GFGpgRecipientListRef list = nullptr;
-    if (GFGpgSniffRecipients(GFGpgCurrentGpgContextChannel(), in.View(),
-                             &list) == 0) {
-      const auto count = GFGpgRecipientListCount(list);
+    if (GFGpgSniffRecipients(GFModuleSdkContext(),
+                             GFGpgCurrentChannel(GFModuleSdkContext()),
+                             in.View(), &list) == 0) {
+      const auto count = GFGpgRecipientCount(GFModuleSdkContext(), list);
       QList<EMailEncRecipient> recipients;
       recipients.reserve(static_cast<qsizetype>(count));
       for (size_t i = 0; i < count; ++i) {
@@ -1948,16 +1949,20 @@ void EMailPageView::refresh_locked_capability(const QStringList& named) {
         // pointer that dies with the list. There is no per-element free to
         // get wrong, and no count to hand back on release.
         recipients.append(EMailEncRecipient{
-            QString::fromUtf8(GFGpgRecipientKeyId(list, i)),
-            QString::fromUtf8(GFGpgRecipientPubAlgo(list, i)),
-            QString::fromUtf8(GFGpgRecipientFingerprint(list, i)),
-            QString::fromUtf8(GFGpgRecipientUid(list, i)),
-            GFGpgRecipientKeyFound(list, i) != 0,
-            GFGpgRecipientHasSecret(list, i) != 0,
-            GFGpgRecipientHidden(list, i) != 0,
+            QString::fromUtf8(
+                GFGpgRecipientAt(GFModuleSdkContext(), list, i)->key_id),
+            QString::fromUtf8(
+                GFGpgRecipientAt(GFModuleSdkContext(), list, i)->pub_algo),
+            QString::fromUtf8(
+                GFGpgRecipientAt(GFModuleSdkContext(), list, i)->fingerprint),
+            QString::fromUtf8(
+                GFGpgRecipientAt(GFModuleSdkContext(), list, i)->uid),
+            GFGpgRecipientAt(GFModuleSdkContext(), list, i)->key_found != 0,
+            GFGpgRecipientAt(GFModuleSdkContext(), list, i)->has_secret != 0,
+            GFGpgRecipientAt(GFModuleSdkContext(), list, i)->hidden != 0,
         });
       }
-      GFGpgRecipientListRelease(list);
+      GFGpgRecipientRelease(GFModuleSdkContext(), list);
 
       if (!recipients.isEmpty()) {
         show_decrypt_capability(DescribeDecryptCapability(recipients));
@@ -1991,7 +1996,7 @@ void EMailPageView::show_decrypt_capability(
 
     case EMailDecryptVerdict::kCANNOT_OPEN:
       EMailSetLabelColor(locked_capability_,
-                         ThemeColor(this, &GFUIWarningColor));
+                         ThemeColor(this, GF_UI_COLOR_WARNING));
       locked_capability_->setText(
           tr("This message is encrypted to keys you do not hold the private "
              "half of, so it cannot be opened on this computer."));
@@ -2018,19 +2023,21 @@ void EMailPageView::refresh_locked_capability_by_address(
   // so it is reached only when the message itself could not be read, and every
   // wording below is hedged accordingly.
   GFStringListRef addresses = nullptr;
-  if (GFGpgListAddresses(GFGpgCurrentGpgContextChannel(), 1, &addresses) != 0) {
+  if (GFGpgListAddresses(GFModuleSdkContext(),
+                         GFGpgCurrentChannel(GFModuleSdkContext()), 1,
+                         &addresses) != 0) {
     locked_capability_->setVisible(false);
     return;
   }
 
   QStringList mine;
-  const auto count = GFStringListCount(addresses);
+  const auto count = GFStringListCount(GFModuleSdkContext(), addresses);
   for (size_t i = 0; i < count; ++i) {
-    const auto address =
-        AddressOfUid(QString::fromUtf8(GFStringListAt(addresses, i)));
+    const auto address = AddressOfUid(
+        QString::fromUtf8(GFStringListAt(GFModuleSdkContext(), addresses, i)));
     if (!address.isEmpty()) mine.append(address.toLower());
   }
-  GFStringListRelease(addresses);
+  GFStringListRelease(GFModuleSdkContext(), addresses);
 
   // Nothing knowable either way: no recipient is named, or the keyring holds
   // no private key at all. Saying something in that case would be inventing
@@ -2054,7 +2061,8 @@ void EMailPageView::refresh_locked_capability_by_address(
 
   locked_capability_->setVisible(true);
   if (matched.isEmpty()) {
-    EMailSetLabelColor(locked_capability_, ThemeColor(this, &GFUIWarningColor));
+    EMailSetLabelColor(locked_capability_,
+                       ThemeColor(this, GF_UI_COLOR_WARNING));
     locked_capability_->setText(
         tr("You do not hold a private key for any of these addresses. Unless "
            "the message was also encrypted to a key that is not named here, "
@@ -2254,8 +2262,8 @@ void EMailPageView::refresh_security() {
   security_view_->SetMessage(
       security_state_, regions_, cached_verification_.signatures,
       recipient_rows_, addresses, message_.from,
-      GFGpgCurrentGpgContextChannel(), findings, cached_verification_.state,
-      !message_key_parts().isEmpty());
+      GFGpgCurrentChannel(GFModuleSdkContext()), findings,
+      cached_verification_.state, !message_key_parts().isEmpty());
 }
 
 /**
@@ -2362,20 +2370,22 @@ void EMailPageView::refresh_send_state() {
 void EMailPageView::install_address_hints() {
   const auto addresses = [](bool secret_only) {
     GFStringListRef raw = nullptr;
-    if (GFGpgListAddresses(GFGpgCurrentGpgContextChannel(), secret_only ? 1 : 0,
-                           &raw) != 0) {
+    if (GFGpgListAddresses(GFModuleSdkContext(),
+                           GFGpgCurrentChannel(GFModuleSdkContext()),
+                           secret_only ? 1 : 0, &raw) != 0) {
       return QStringList{};
     }
 
-    const auto count = GFStringListCount(raw);
+    const auto count = GFStringListCount(GFModuleSdkContext(), raw);
     QStringList out;
     out.reserve(static_cast<qsizetype>(count));
     // Copied rather than taken: the accessor returns a BORROWED pointer that
     // dies with the list, which goes back in a single release below.
     for (size_t i = 0; i < count; ++i) {
-      out.append(QString::fromUtf8(GFStringListAt(raw, i)));
+      out.append(
+          QString::fromUtf8(GFStringListAt(GFModuleSdkContext(), raw, i)));
     }
-    GFStringListRelease(raw);
+    GFStringListRelease(GFModuleSdkContext(), raw);
     return out;
   };
 
@@ -3133,7 +3143,7 @@ void EMailPageView::slot_selection_changed() {
 }
 
 void EMailPageView::slot_add_attachment() {
-  auto default_dir = UnStrDup(GFUIDefaultUserFilePath());
+  auto default_dir = gf::sdk::UserFilePath(GFModuleSdkContext());
   if (default_dir.isEmpty()) default_dir = QDir::homePath();
 
   attach_paths(
@@ -3324,9 +3334,9 @@ void EMailPageView::import_message_keys() {
   // them carries them for the same reason, and asking twice about one act the
   // user already asked for would be a dialog per part.
   for (const auto* part : keys) {
-    GFGpgImportKeys(GFGpgCurrentGpgContextChannel(), this,
-                    part->data.constData(),
-                    static_cast<int>(part->data.size()));
+    gf::sdk::ImportKeys(GFModuleSdkContext(),
+                        GFGpgCurrentChannel(GFModuleSdkContext()), this,
+                        part->data);
   }
 
   // The keyring is what the Security tab was reporting against, so it has to
@@ -3340,8 +3350,9 @@ void EMailPageView::import_attachment_key(const EMailAttachment& att) {
   // The host owns the import, including whatever it wants to say about what
   // came of it: this module has no business inventing a second report of the
   // same operation.
-  GFGpgImportKeys(GFGpgCurrentGpgContextChannel(), this, att.data.constData(),
-                  static_cast<int>(att.data.size()));
+  gf::sdk::ImportKeys(GFModuleSdkContext(),
+                      GFGpgCurrentChannel(GFModuleSdkContext()), this,
+                      att.data);
 }
 
 void EMailPageView::open_attachment(QTreeWidgetItem* item) {
@@ -3506,7 +3517,7 @@ void EMailPageView::slot_save_all_attachments() {
 void EMailPageView::save_attachments(const QList<EMailAttachment>& chosen) {
   if (chosen.isEmpty()) return;
 
-  auto default_dir = UnStrDup(GFUIDefaultUserFilePath());
+  auto default_dir = gf::sdk::UserFilePath(GFModuleSdkContext());
   if (default_dir.isEmpty()) default_dir = QDir::homePath();
 
   if (chosen.size() == 1) {

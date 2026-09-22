@@ -28,7 +28,6 @@
 
 #include "EMailModule.h"
 
-#include <GFSDKBasic.h>
 #include <GFSDKBuildInfo.h>
 #include <GFSDKLog.h>
 
@@ -168,16 +167,19 @@ auto BuildAttachmentCard(const EMailMetaData& m) -> QJsonObject {
 auto AddressOfKey(int channel, const QString& key_id) -> QString {
   if (key_id.isEmpty()) return {};
 
-  GFGpgKeyUID* uid = nullptr;
-  if (GFGpgKeyPrimaryUID(channel, (key_id).toUtf8().constData(), &uid) != 0 ||
-      uid == nullptr) {
+  // Three out-parameters, and only the two that are wanted. The struct this
+  // replaced handed back all three as char* members to be freed one by one,
+  // which is why the comment field used to be fetched purely to release it.
+  auto* ctx = GFModuleSdkContext();
+  GFBufferRef name_buf = nullptr;
+  GFBufferRef email_buf = nullptr;
+  if (GFGpgKeyPrimaryUid(ctx, channel, key_id.toUtf8().constData(), &name_buf,
+                         &email_buf, nullptr) != 0) {
     return {};
   }
 
-  const auto name = UDUP(uid->name);
-  const auto email = UDUP(uid->email);
-  UDUP(uid->comment);  // free the unused field
-  GFFreeMemory(uid);
+  const auto name = gf::sdk::TakeString(ctx, name_buf);
+  const auto email = gf::sdk::TakeString(ctx, email_buf);
 
   return email.isEmpty() ? name : QString("%1 <%2>").arg(name, email);
 }
@@ -402,12 +404,12 @@ auto OnActivate() -> GFResult {
   // The message view of an e-mail tab. The host still owns the page and its
   // document -- this only supplies the widget shown on top of it, with the raw
   // MIME still one click away.
-  GFUIRegisterTabPageView(
-      "EMAIL", [](void*) -> void* { return new EMailPageView(nullptr); },
-      nullptr);
+  gf::sdk::RegisterTabPageView(
+      GFModuleSdkContext(), "EMAIL",
+      [](void*) -> void* { return new EMailPageView(nullptr); }, nullptr);
 
   // register file extension handler
-  GFUIRegisterFileExtensionHandleEvent("eml", "EMAIL");
+  GFUIRegisterFileExtension(GFModuleSdkContext(), "eml", "EMAIL");
   // These cross thread boundaries as queued signal arguments, so Qt has to
   // know how to copy them before the first connection is made.
   qRegisterMetaType<MailAccountConfig>("MailAccountConfig");
@@ -436,10 +438,10 @@ auto OnActivate() -> GFResult {
       QStringList{GC_TR("mail"), GC_TR("email"),   GC_TR("imap"),
                   GC_TR("smtp"), GC_TR("account"), GC_TR("send")}
           .join('\n');
-  GFUIRegisterSettingsPage(kMailSettingsPageId, "features",
-                           GC_TR("Mail Accounts"),
-                           (keywords).toUtf8().constData(),
-                           EMailAccountSettingsPageFactory, nullptr);
+  gf::sdk::RegisterSettingsPage(GFModuleSdkContext(), kMailSettingsPageId,
+                                "features", GC_TR("Mail Accounts"),
+                                keywords.toUtf8().constData(),
+                                EMailAccountSettingsPageFactory, nullptr);
 
   return GFResult::Ok();
 }
@@ -447,8 +449,8 @@ auto OnActivate() -> GFResult {
 auto OnDeactivate() -> GFResult {
   // A factory pointing into an unloaded shared object would crash the next
   // time an e-mail tab is opened.
-  GFUIUnregisterTabPageView("EMAIL");
-  GFUIUnregisterSettingsPage(kMailSettingsPageId);
+  GFUIUnregisterTabPageView(GFModuleSdkContext(), "EMAIL");
+  GFUIUnregisterSettingsPage(GFModuleSdkContext(), kMailSettingsPageId);
   return GFResult::Ok();
 }
 
@@ -522,7 +524,7 @@ auto ConfirmExport(QWidget* parent, const EMailExportCheck& check) -> bool {
 // Where a Save dialog should open. Falls back to the home directory only if
 // the host cannot answer, which it always can in practice.
 auto default_save_dir() -> QString {
-  auto path = UnStrDup(GFUIDefaultUserFilePath());
+  const auto path = gf::sdk::UserFilePath(GFModuleSdkContext());
   return path.isEmpty() ? QDir::homePath() : path;
 }
 
@@ -1030,12 +1032,12 @@ auto DoDecryptEMLData(int channel, const QByteArray& data, const GFEvent& event,
   // The Info variant, because the recipient cross-check needs the structured
   // recipients rather than the rendered report. The capsule is consumed by
   // whichever analyse call touches it, so everything has to come from this one.
-  result_status = GFAnalyseDecryptResultInfoByCapsule(
-      channel, err, (capsule_id).toUtf8().constData(), &tmp, &cards_tmp,
-      &info_tmp);
-  result_detail = UnStrDup(tmp);
-  result_cards = UnStrDup(cards_tmp);
-  decrypt_info_json = UnStrDup(info_tmp).toUtf8();
+  const auto analysis = gf::sdk::AnalyseResult(
+      GFModuleSdkContext(), GF_GPG_ANALYSE_DECRYPT, channel, err, capsule_id);
+  result_status = analysis.status;
+  result_detail = analysis.report;
+  result_cards = analysis.cards;
+  decrypt_info_json = analysis.info_json.toUtf8();
 
   if (ret == kGPG_FAILED) {
     // decrypt failed. The analysis cards built above travel with it: a failure
@@ -1161,12 +1163,12 @@ auto DoSignEMLData(int channel, const QString& sign_key,
   // The Info variant, not the plain one: the structured description
   // and details are what let a FAILURE explain itself, and without
   // them the board can only fall back to "<operation> failed."
-  result_status = GFAnalyseSignResultInfoByCapsule(
-      channel, err, (capsule_id).toUtf8().constData(), &tmp, &cards_tmp,
-      &info_tmp);
-  result_detail = UnStrDup(tmp);
-  result_cards = UnStrDup(cards_tmp);
-  info_json = UnStrDup(info_tmp).toUtf8();
+  const auto analysis = gf::sdk::AnalyseResult(
+      GFModuleSdkContext(), GF_GPG_ANALYSE_SIGN, channel, err, capsule_id);
+  result_status = analysis.status;
+  result_detail = analysis.report;
+  result_cards = analysis.cards;
+  info_json = analysis.info_json.toUtf8();
 
   if (ret == kGPG_FAILED) {
     // decrypt failed. The analysis cards built above travel with it: a failure
@@ -1217,12 +1219,12 @@ auto DoSignPlainText(int channel, const QString& sign_key,
   // The Info variant, not the plain one: the structured description
   // and details are what let a FAILURE explain itself, and without
   // them the board can only fall back to "<operation> failed."
-  result_status = GFAnalyseSignResultInfoByCapsule(
-      channel, err, (capsule_id).toUtf8().constData(), &tmp, &cards_tmp,
-      &info_tmp);
-  result_detail = UnStrDup(tmp);
-  result_cards = UnStrDup(cards_tmp);
-  info_json = UnStrDup(info_tmp).toUtf8();
+  const auto analysis = gf::sdk::AnalyseResult(
+      GFModuleSdkContext(), GF_GPG_ANALYSE_SIGN, channel, err, capsule_id);
+  result_status = analysis.status;
+  result_detail = analysis.report;
+  result_cards = analysis.cards;
+  info_json = analysis.info_json.toUtf8();
 
   if (ret == kGPG_FAILED) {
     // decrypt failed. The analysis cards built above travel with it: a failure
@@ -1339,12 +1341,12 @@ auto DoEncryptEMLData(int channel, const QStringList& encrypt_keys,
   // The Info variant, not the plain one: the structured description
   // and details are what let a FAILURE explain itself, and without
   // them the board can only fall back to "<operation> failed."
-  result_status = GFAnalyseEncryptResultInfoByCapsule(
-      channel, err, (capsule_id).toUtf8().constData(), &tmp, &cards_tmp,
-      &info_tmp);
-  result_detail = UnStrDup(tmp);
-  result_cards = UnStrDup(cards_tmp);
-  info_json = UnStrDup(info_tmp).toUtf8();
+  const auto analysis = gf::sdk::AnalyseResult(
+      GFModuleSdkContext(), GF_GPG_ANALYSE_ENCRYPT, channel, err, capsule_id);
+  result_status = analysis.status;
+  result_detail = analysis.report;
+  result_cards = analysis.cards;
+  info_json = analysis.info_json.toUtf8();
 
   if (ret == kGPG_FAILED) {
     // encrypt failed. The analysis cards built above travel with it: a failure
@@ -1399,12 +1401,12 @@ auto DoEncryptPlainText(int channel, const QStringList& encrypt_keys,
   // The Info variant, not the plain one: the structured description
   // and details are what let a FAILURE explain itself, and without
   // them the board can only fall back to "<operation> failed."
-  result_status = GFAnalyseEncryptResultInfoByCapsule(
-      channel, err, (capsule_id).toUtf8().constData(), &tmp, &cards_tmp,
-      &info_tmp);
-  result_detail = UnStrDup(tmp);
-  result_cards = UnStrDup(cards_tmp);
-  info_json = UnStrDup(info_tmp).toUtf8();
+  const auto analysis = gf::sdk::AnalyseResult(
+      GFModuleSdkContext(), GF_GPG_ANALYSE_ENCRYPT, channel, err, capsule_id);
+  result_status = analysis.status;
+  result_detail = analysis.report;
+  result_cards = analysis.cards;
+  info_json = analysis.info_json.toUtf8();
 
   if (ret == kGPG_FAILED) {
     // encrypt failed. The analysis cards built above travel with it: a failure

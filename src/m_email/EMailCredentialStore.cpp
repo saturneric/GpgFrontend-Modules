@@ -29,7 +29,6 @@
 #include "EMailCredentialStore.h"
 
 #include "GFModule.h"
-#include "GFSDKBasic.h"
 
 namespace {
 
@@ -44,7 +43,7 @@ auto CredentialKey(const QString& account_id) -> QString {
 namespace EMailCredentialStore {
 
 auto CurrentProtection() -> ProtectionLevel {
-  switch (GFAppKeyProtectionLevel()) {
+  switch (GFAppKeyProtectionLevel(GFModuleSdkContext())) {
     case 0:
       return ProtectionLevel::kNONE;
     case 1:
@@ -88,14 +87,24 @@ auto Save(const QString& account_id, const EMailSecret& password) -> bool {
   // Both arguments are handed over owned, from the allocators the SDK will
   // release them through: the key ordinary, the secret secure. Passing a
   // QByteArray's internal pointer here would have the SDK free memory Qt owns.
-  auto* secret = password.ToSecureCString();
-  if (secret == nullptr) {
+  // Deliberately the raw buffer API rather than the QString convenience: a
+  // QString cannot be erased, and routing a password through one would add a
+  // copy this module could never wipe. The buffer is wiped on release.
+  //
+  // The secure tier BORROWS now, like every other argument in this SDK. It
+  // used to take ownership of both arguments and free them through two
+  // different allocators, a rule nothing in the signature hinted at.
+  auto* ctx = GFModuleSdkContext();
+  auto* buffer = GFBufferNewFromBytes(ctx, password.Data(), password.Size());
+  if (buffer == nullptr) {
     LOG_ERROR("could not allocate a secure buffer for a mail credential");
     return false;
   }
 
-  const auto result = GFSecDurableCacheSave(
-      (CredentialKey(account_id)).toUtf8().constData(), secret);
+  const auto result = GFStorageCacheSet(
+      ctx, GF_STORE_SECURE_DURABLE,
+      CredentialKey(account_id).toUtf8().constData(), buffer, 0);
+  GFBufferRelease(ctx, buffer);
 
   if (result != 0) LOG_ERROR("failed to store mail credential");
   return result == 0;
@@ -104,15 +113,18 @@ auto Save(const QString& account_id, const EMailSecret& password) -> bool {
 auto Load(const QString& account_id) -> EMailSecretPtr {
   if (account_id.isEmpty()) return std::make_shared<EMailSecret>();
 
-  auto* raw =
-      GFSecDurableCacheGet((CredentialKey(account_id)).toUtf8().constData());
-  if (raw == nullptr) return std::make_shared<EMailSecret>();
+  // Raw buffer again, for the same reason: the secret must not pass through
+  // a QString on its way into storage that can erase it.
+  auto* ctx = GFModuleSdkContext();
+  GFBufferRef raw = nullptr;
+  if (GFStorageCacheGet(ctx, GF_STORE_SECURE_DURABLE,
+                        CredentialKey(account_id).toUtf8().constData(),
+                        &raw) != 0) {
+    return std::make_shared<EMailSecret>();
+  }
 
-  // AdoptCString copies the bytes out, wipes the SDK's buffer and frees it to
-  // the secure allocator it came from, so the secret exists in exactly one
-  // place from here on -- and that place can actually be erased, which a
-  // QString could not be. See EMailSecret.
-  return EMailSecret::AdoptCString(raw);
+  // AdoptBuffer copies the bytes out and releases the buffer, which wipes it.
+  return EMailSecret::AdoptBuffer(ctx, raw);
 }
 
 auto Has(const QString& account_id) -> bool {
@@ -121,7 +133,8 @@ auto Has(const QString& account_id) -> bool {
 
 void Remove(const QString& account_id) {
   if (account_id.isEmpty()) return;
-  GFSecDurableCacheRemove((CredentialKey(account_id)).toUtf8().constData());
+  gf::sdk::RemoveCache(GFModuleSdkContext(), GF_STORE_SECURE_DURABLE,
+                       (CredentialKey(account_id)).toUtf8().constData());
 }
 
 }  // namespace EMailCredentialStore
