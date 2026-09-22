@@ -37,6 +37,7 @@
 #include <QLineEdit>
 #include <QTreeWidget>
 #include <QVBoxLayout>
+#include <array>
 
 namespace {
 
@@ -45,18 +46,27 @@ namespace {
 constexpr int kLabelColumn = 0;
 constexpr int kValueColumn = 1;
 
-auto HumanSize(qint64 bytes) -> QString { return UDUP(GFUIHumanSize(bytes)); }
+auto HumanSize(qint64 bytes) -> QString {
+  // A pure helper: it writes into the caller's buffer rather than allocating,
+  // so there is no context and nothing to free. 64 bytes is far more than any
+  // formatted size needs.
+  std::array<char, 64> text{};
+  const auto written = GFUIHumanSize(bytes, text.data(), text.size());
+  return written < 0 ? QString() : QString::fromUtf8(text.data(), written);
+}
 
 }  // namespace
 
 auto PGPInspectCurrentTabBytes() -> QByteArray {
-  auto* content = GFUITakeCurrentEditorContent();
+  auto* content = GFEditorTakeCurrentContent(GFModuleSdkContext());
   if (content == nullptr) return {};
 
-  const auto* data = static_cast<const char*>(GFBufferData(content));
-  const auto size = static_cast<qsizetype>(GFBufferSize(content));
+  const auto* data =
+      static_cast<const char*>(GFBufferData(GFModuleSdkContext(), content));
+  const auto size =
+      static_cast<qsizetype>(GFBufferSize(GFModuleSdkContext(), content));
   auto bytes = QByteArray(data == nullptr ? "" : data, size);
-  GFBufferRelease(content);
+  GFBufferRelease(GFModuleSdkContext(), content);
   return bytes;
 }
 
@@ -64,16 +74,23 @@ auto PGPInspectBytes(const QByteArray& data) -> PGPInspectDocument {
   PGPInspectDocument document;
   if (data.isEmpty()) return document;
 
-  auto* buffer =
-      GFBufferNewFromBytes(data.constData(), static_cast<size_t>(data.size()));
+  auto* buffer = GFBufferNewFromBytes(GFModuleSdkContext(), data.constData(),
+                                      static_cast<size_t>(data.size()));
   if (buffer == nullptr) return document;
 
-  char* json = nullptr;
-  const auto status = GFPgpInspectData(buffer, &json);
-  GFBufferRelease(buffer);
+  GFBufferRef json = nullptr;
+  const auto status = GFPgpInspectData(GFModuleSdkContext(), buffer, &json);
+  GFBufferRelease(GFModuleSdkContext(), buffer);
 
   if (status != 0 || json == nullptr) return document;
-  return ParsePGPInspectDocument(UDUP(json).toUtf8());
+
+  auto* ctx = GFModuleSdkContext();
+  const auto* text = static_cast<const char*>(GFBufferData(ctx, json));
+  const auto size = static_cast<qsizetype>(GFBufferSize(ctx, json));
+  auto parsed =
+      ParsePGPInspectDocument(QByteArray(text == nullptr ? "" : text, size));
+  GFBufferRelease(ctx, json);
+  return parsed;
 }
 
 PGPInspectDialog::PGPInspectDialog(const PGPInspectDocument& document,
@@ -152,9 +169,13 @@ void PGPInspectDialog::render_document() {
     add_fields(item, facts);
 
     if (block.has_armor && block.armor.crc24 == QLatin1String("mismatch")) {
-      item->setForeground(kLabelColumn, QBrush(QColor(GFUIDangerColor(this))));
+      item->setForeground(
+          kLabelColumn, QBrush(QColor(GFUIThemeColor(
+                            GFModuleSdkContext(), GF_UI_COLOR_DANGER, this))));
     } else if (!block.error.isEmpty()) {
-      item->setForeground(kLabelColumn, QBrush(QColor(GFUIWarningColor(this))));
+      item->setForeground(
+          kLabelColumn, QBrush(QColor(GFUIThemeColor(
+                            GFModuleSdkContext(), GF_UI_COLOR_WARNING, this))));
     }
 
     add_packets(item, block.packets);
@@ -183,7 +204,9 @@ void PGPInspectDialog::add_packets(QTreeWidgetItem* parent,
     item->setText(kLabelColumn, PGPInspectPacketSummary(packet, index++));
 
     if (packet.Malformed()) {
-      item->setForeground(kLabelColumn, QBrush(QColor(GFUIWarningColor(this))));
+      item->setForeground(
+          kLabelColumn, QBrush(QColor(GFUIThemeColor(
+                            GFModuleSdkContext(), GF_UI_COLOR_WARNING, this))));
     }
 
     auto fields = packet.fields;
@@ -203,7 +226,10 @@ void PGPInspectDialog::add_fields(QTreeWidgetItem* parent,
     auto* row = new QTreeWidgetItem(parent);
     row->setText(kLabelColumn, field.label);
     row->setText(kValueColumn, field.value);
-    row->setForeground(kLabelColumn, QBrush(QColor(GFUIMutedTextColor(this))));
+    row->setForeground(
+        kLabelColumn,
+        QBrush(QColor(GFUIThemeColor(GFModuleSdkContext(),
+                                     GF_UI_COLOR_MUTED_TEXT, this))));
   }
 }
 

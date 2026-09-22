@@ -6,6 +6,8 @@
   "description": "Inspect the packet structure of any OpenPGP data.",
   "author": "Saturneric",
   "capabilities": [
+    "editor",
+    "pgp",
     "ui"
   ],
   "events": [
