@@ -64,7 +64,7 @@ constexpr int kProbeTimeoutMs = 8000;
  * plain text. Rejecting on the header alone would throw out one of the most
  * widely used key servers there is.
  *
- * A mislabelled one-liner and a real 404 page are still easy to tell apart —
+ * A mislabeled one-liner and a real 404 page are still easy to tell apart --
  * the page is a document, and it says so in its first bytes.
  */
 auto LooksLikeHtml(const QString& content_type, const QByteArray& body)

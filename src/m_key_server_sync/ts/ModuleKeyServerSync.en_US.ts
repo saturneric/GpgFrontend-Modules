@@ -34,7 +34,7 @@
         <location filename="../KeyServerSyncModule.cpp" line="129"/>
         <source>%1 does not support verified publishing (VKS), so the key would be uploaded over HKP instead.
 
-The server will not confirm your email address, and the upload cannot be undone — HKP key servers do not let keys be removed.
+The server will not confirm your email address, and the upload cannot be undone: HKP key servers do not allow keys to be removed.
 
 Publish to %1 anyway?</source>
         <translation type="unfinished"></translation>

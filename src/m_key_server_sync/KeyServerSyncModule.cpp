@@ -132,8 +132,8 @@ auto ConfirmHkpPublish(QWidget* parent, const QString& url) -> bool {
                  "%1 does not support verified publishing (VKS), so the key "
                  "would be uploaded over HKP instead.\n\n"
                  "The server will not confirm your email address, and the "
-                 "upload cannot be undone — HKP key servers do not let keys be "
-                 "removed.\n\n"
+                 "upload cannot be undone: HKP key servers do not allow keys "
+                 "to be removed.\n\n"
                  "Publish to %1 anyway?")
                  .arg(host),
              QMessageBox::Ok | QMessageBox::Cancel,

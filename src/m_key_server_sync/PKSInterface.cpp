@@ -80,8 +80,8 @@ auto GetKeySizeDescription(const QString& algo_id, const QString& key_size)
 
   // Algorithms that fix their parameters in the algorithm ID are reported
   // inconsistently: keys.openpgp.org gives Ed448 its real 456, others send 0.
-  // Show a real figure when there is one, and a dash rather than "0 bits" —
-  // which reads as a broken key — when there is not.
+  // Show a real figure when there is one, and a dash rather than "0 bits" --
+  // which reads as a broken key -- when there is not.
   bool ok = false;
   const auto bits = key_size.toInt(&ok);
   if (!ok || bits <= 0) return "-";

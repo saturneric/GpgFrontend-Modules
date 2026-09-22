@@ -50,7 +50,7 @@ constexpr int kKeyHandleRole = Qt::UserRole + 1;
 /// Where the key ID lives inside the fingerprint depends on the key version: a
 /// v4 fingerprint (SHA-1, 40 hex) ends with it, while a v6 fingerprint
 /// (SHA-256, 64 hex) starts with it (RFC 9580 §5.5.4.3). Blindly taking the
-/// last 16 chars — as this used to — turns a v6 fingerprint into a handle no
+/// last 16 chars -- as this used to -- turns a v6 fingerprint into a handle no
 /// keyserver can resolve.
 auto ShortenKeyHandle(const QString& handle) -> QString {
   if (handle.size() == 64) return handle.left(16);
@@ -61,7 +61,7 @@ auto ShortenKeyHandle(const QString& handle) -> QString {
 /// Render a keyserver timestamp.
 ///
 /// The machine-readable format leaves a field empty to mean the date does not
-/// apply — a key with no expiry sends nothing at all. Feeding that straight to
+/// apply -- a key with no expiry sends nothing at all. Feeding that straight to
 /// fromSecsSinceEpoch() printed 1970-01-01, which reads as an expired key.
 auto FormatKeyServerDate(const QString& seconds, const QString& absent)
     -> QString {
@@ -121,7 +121,7 @@ void SearchKeyDialog::init_ui() {
   ui_->searchEdit->setFocus();
 
   // The list comes from Settings now. The box stays editable so a one-off
-  // server can still be typed in, but only what is configured is offered — and
+  // server can still be typed in, but only what is configured is offered -- and
   // an ad-hoc address is not silently added to the list.
   ui_->keyServerComboBox->addItems(KeyServerList::Urls());
 
@@ -289,7 +289,7 @@ void SearchKeyDialog::slot_search_finished_pks(
   int row = 0;
   for (const auto& key : keys) {
     auto* keyid_item = new QTableWidgetItem(ShortenKeyHandle(key.keyid));
-    // Import must look the key up by whatever the server reported — for a v6
+    // Import must look the key up by whatever the server reported -- for a v6
     // key that is the full 64-hex fingerprint, which the cell no longer shows.
     keyid_item->setData(kKeyHandleRole, key.keyid);
     ui_->tableWidget->setItem(row, 0, keyid_item);

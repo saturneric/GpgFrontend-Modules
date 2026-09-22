@@ -285,7 +285,7 @@ auto SyncRoute() -> Route {
 
     // VKS first where the server has it: it confirms the address by email and
     // keeps third-party signatures out. HKP is the fallback, not the
-    // preference — but it does carry both operations, so a server that only
+    // preference -- but it does carry both operations, so a server that only
     // speaks HKP is a reason to change protocol, never a reason to go
     // somewhere else.
     if (entry.vks) return {entry.url, true};

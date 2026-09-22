@@ -205,7 +205,7 @@ void KeyServerSettingsPage::slot_remove() {
   entries_.removeAt(row);
 
   // Removing the default has to hand the role to somebody, or every operation
-  // would fall back to whatever happened to be first anyway — better to make
+  // would fall back to whatever happened to be first anyway -- better to make
   // that explicit and visible in the table.
   if (default_url_ == removed) {
     default_url_ = entries_.isEmpty() ? QString() : entries_.first().url;
@@ -285,7 +285,7 @@ void KeyServerSettingsPage::apply_probe_result(
   if (!result.Conforms()) {
     // The entry stays. A server can be down, or behind a network that is
     // blocking it right now, and dropping it would make the user retype the
-    // address to find out — Test Selected re-runs this whenever they want.
+    // address to find out -- Test Selected re-runs this whenever they want.
     QMessageBox::warning(
         this, tr("Key Server Not Verified"),
         tr("%1 did not answer as a key server.\n\n%2\n\nIt has been added and "

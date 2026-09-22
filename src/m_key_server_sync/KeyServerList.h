@@ -107,13 +107,13 @@ auto Urls() -> QStringList;
  * @brief The server to use for an operation needing @p capability.
  *
  * Prefers the user's default, and only looks past it when that server is known
- * not to speak the protocol — a server nobody has probed yet is still worth
+ * not to speak the protocol -- a server nobody has probed yet is still worth
  * trying, since an explicit choice should not be quietly overridden by a gap in
  * our knowledge. Falls back to the default rather than returning nothing: a
  * real network error tells the user far more than an operation that silently
  * does nothing.
  *
- * Only for operations that genuinely cannot be carried out any other way —
+ * Only for operations that genuinely cannot be carried out any other way --
  * searching parses HKP output. Publish and refresh work over either protocol
  * and must use @ref SyncRoute instead, so that they stay on the server the
  * user chose.
