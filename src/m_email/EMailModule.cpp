@@ -161,7 +161,7 @@ auto BuildAttachmentCard(const EMailMetaData& m) -> QJsonObject {
 // Build "Encryption Recipient" cards from the selected recipient keys. The
 // encrypt result itself does not carry recipient identities for every engine
 // (GnuPG reports none), but the module always knows which keys it encrypted to,
-// so resolve each to its primary UID here — mirroring the native operation's
+// so resolve each to its primary UID here -- mirroring the native operation's
 // recipient card.
 // The address a key stands for, as "Name <email>".
 auto AddressOfKey(int channel, const QString& key_id) -> QString {
@@ -1030,7 +1030,7 @@ auto DoDecryptEMLData(int channel, const QByteArray& data, const GFEvent& event,
   // recipients rather than the rendered report. The capsule is consumed by
   // whichever analyse call touches it, so everything has to come from this one.
   const auto analysis = gf::sdk::AnalyseResult(
-      GFModuleSdkContext(), GF_GPG_ANALYSE_DECRYPT, channel, err, capsule_id);
+      GFModuleSdkContext(), channel, GF_GPG_ANALYSE_DECRYPT, err, capsule_id);
   result_status = analysis.status;
   result_detail = analysis.report;
   result_cards = analysis.cards;
@@ -1158,7 +1158,7 @@ auto DoSignEMLData(int channel, const QString& sign_key,
   // and details are what let a FAILURE explain itself, and without
   // them the board can only fall back to "<operation> failed."
   const auto analysis = gf::sdk::AnalyseResult(
-      GFModuleSdkContext(), GF_GPG_ANALYSE_SIGN, channel, err, capsule_id);
+      GFModuleSdkContext(), channel, GF_GPG_ANALYSE_SIGN, err, capsule_id);
   result_status = analysis.status;
   result_detail = analysis.report;
   result_cards = analysis.cards;
@@ -1211,7 +1211,7 @@ auto DoSignPlainText(int channel, const QString& sign_key,
   // and details are what let a FAILURE explain itself, and without
   // them the board can only fall back to "<operation> failed."
   const auto analysis = gf::sdk::AnalyseResult(
-      GFModuleSdkContext(), GF_GPG_ANALYSE_SIGN, channel, err, capsule_id);
+      GFModuleSdkContext(), channel, GF_GPG_ANALYSE_SIGN, err, capsule_id);
   result_status = analysis.status;
   result_detail = analysis.report;
   result_cards = analysis.cards;
@@ -1330,7 +1330,7 @@ auto DoEncryptEMLData(int channel, const QStringList& encrypt_keys,
   // and details are what let a FAILURE explain itself, and without
   // them the board can only fall back to "<operation> failed."
   const auto analysis = gf::sdk::AnalyseResult(
-      GFModuleSdkContext(), GF_GPG_ANALYSE_ENCRYPT, channel, err, capsule_id);
+      GFModuleSdkContext(), channel, GF_GPG_ANALYSE_ENCRYPT, err, capsule_id);
   result_status = analysis.status;
   result_detail = analysis.report;
   result_cards = analysis.cards;
@@ -1387,7 +1387,7 @@ auto DoEncryptPlainText(int channel, const QStringList& encrypt_keys,
   // and details are what let a FAILURE explain itself, and without
   // them the board can only fall back to "<operation> failed."
   const auto analysis = gf::sdk::AnalyseResult(
-      GFModuleSdkContext(), GF_GPG_ANALYSE_ENCRYPT, channel, err, capsule_id);
+      GFModuleSdkContext(), channel, GF_GPG_ANALYSE_ENCRYPT, err, capsule_id);
   result_status = analysis.status;
   result_detail = analysis.report;
   result_cards = analysis.cards;

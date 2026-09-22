@@ -1166,7 +1166,7 @@ auto VerifyOneRegion(int channel, const QByteArray& raw,
   report.region_id = region.region_id;
 
   const auto analysis = gf::sdk::AnalyseResult(
-      GFModuleSdkContext(), GF_GPG_ANALYSE_VERIFY, channel, err, capsule_id);
+      GFModuleSdkContext(), channel, GF_GPG_ANALYSE_VERIFY, err, capsule_id);
   report.status = analysis.status;
   report.detail = analysis.report;
   report.cards = analysis.cards;
