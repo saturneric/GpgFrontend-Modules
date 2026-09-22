@@ -207,19 +207,13 @@ auto StartGatheringAllGnuPGInfo() -> int {
   StartStartGatheringGnuPGComponentsInfo(gpgme_version, gpgconf_path,
                                          default_home_path);
 
-  QList<GFCommandExecuteContext> exec_contexts;
-
-  // NOT borrowed: GFCommandExecuteContext is one of the few remaining
-  // structs the module hands over wholesale, and GFExecuteCommandBatchSync
-  // still reclaims its cmd and argv. The ownership rule applies to function
-  // ARGUMENTS; this field is part of a transferred struct.
-  auto exec_context = GFCommandExecuteContext{
-      GFMemStrDup(GFModuleSdkContext(), GF_ARENA_NORMAL,
-                  gpgconf_path.toUtf8().constData()),
-      3,
-      QStringListToCharArray({"--homedir", default_home_path, "--list-dirs"}),
-      GetGpgDirectoryInfos, nullptr};
-  exec_contexts.push_back(exec_context);
+  // process.execute borrows everything it is given; RunCommands keeps the
+  // strings alive for the call, so nothing here is allocated for the host.
+  QList<gf::sdk::Command> commands;
+  commands.push_back({gpgconf_path,
+                      {"--homedir", default_home_path, "--list-dirs"},
+                      GetGpgDirectoryInfos,
+                      nullptr});
 
   // One call, one list, nothing to free by hand: the char** and count this
   // replaces had to be walked and released by the caller, and the hand-rolled
@@ -251,19 +245,15 @@ auto StartGatheringAllGnuPGInfo() -> int {
         new (GFMemAlloc(GFModuleSdkContext(), GF_ARENA_NORMAL, sizeof(Context)))
             Context{gpgme_version, gpgconf_path, component_info};
 
-    // Transferred, see the note above.
-    auto exec_context = GFCommandExecuteContext{
-        GFMemStrDup(GFModuleSdkContext(), GF_ARENA_NORMAL,
-                    gpgconf_path.toUtf8().constData()),
-        4,
-        QStringListToCharArray({"--homedir", default_home_path,
-                                "--list-options", component_info.name}),
-        GetGpgOptionInfos, context};
-    exec_contexts.push_back(exec_context);
+    // The context is freed by GetGpgOptionInfos once the command finishes.
+    commands.push_back({gpgconf_path,
+                        {"--homedir", default_home_path, "--list-options",
+                         component_info.name},
+                        GetGpgOptionInfos,
+                        context});
   }
 
-  GFProcessExecute(GFModuleSdkContext(), QListToArray(exec_contexts),
-                   static_cast<size_t>(exec_contexts.size()));
+  gf::sdk::RunCommands(GFModuleSdkContext(), commands);
   gf::sdk::SetStateBool(GFModuleSdkContext(), GFModuleId(),
                         "gnupg.gathering_done", true);
 
