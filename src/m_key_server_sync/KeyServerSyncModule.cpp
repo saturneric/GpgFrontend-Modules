@@ -151,9 +151,10 @@ auto OnActivate() -> GFResult {
       QStringList{GC_TR("keyserver"), GC_TR("key server"), GC_TR("hkp"),
                   GC_TR("vks"),       GC_TR("publish"),    GC_TR("search")}
           .join('\n');
-  GFUIRegisterSettingsPage(
-      kSettingsPageId, "keys_engines", GC_TR("Key Servers"),
-      (keywords).toUtf8().constData(), KeyServerSettingsPageFactory, nullptr);
+  gf::sdk::RegisterSettingsPage(GFModuleSdkContext(), kSettingsPageId,
+                                "keys_engines", GC_TR("Key Servers"),
+                                keywords.toUtf8().constData(),
+                                KeyServerSettingsPageFactory, nullptr);
 
   return GFResult::Ok();
 }
@@ -162,11 +163,9 @@ namespace {
 
 auto UploadKeyToServer(QWidget* parent, int channel, const QString& key_id)
     -> int {
-  char* key_data = nullptr;
-  int size = 0;
-  auto ret = GFGpgExportKey(channel, (key_id).toUtf8().constData(), 1,
-                            &key_data, &size);
-  if (ret != 0 || key_data == nullptr || size <= 0) {
+  const auto exported =
+      gf::sdk::ExportKey(GFModuleSdkContext(), channel, key_id, true);
+  if (exported.isEmpty()) {
     QMessageBox::critical(
         parent, QCoreApplication::translate("GTrC", "Key Upload Failed"),
         QCoreApplication::translate(
@@ -177,9 +176,7 @@ auto UploadKeyToServer(QWidget* parent, int channel, const QString& key_id)
     return -1;
   }
 
-  // UnStrDup takes ownership of key_data and frees it; key_data must not be
-  // used afterwards.
-  auto key_text = UDUP(key_data);
+  const auto key_text = QString::fromUtf8(exported);
 
   const auto route = KeyServerList::SyncRoute();
   const auto server = route.url;
@@ -295,9 +292,8 @@ auto UpdateKeyFromKeyServer(QWidget* parent, int channel, const QString& fpr)
   FetchKey(
       route, fpr, true,
       [parent, channel](const QString& key_data) {
-        auto data = key_data.toUtf8();
-        GFGpgImportKeys(channel, parent, data.constData(),
-                        static_cast<int>(data.size()));
+        gf::sdk::ImportKeys(GFModuleSdkContext(), channel, parent,
+                            key_data.toUtf8());
       },
       [parent, fpr, host](const QString& error, const QString& data) {
         Q_UNUSED(data);
@@ -575,7 +571,7 @@ auto OnRequestSearchPublicKeyByFingerprint(const GFEvent& event)
 auto OnDeactivate() -> GFResult {
   // The registry holds a function pointer into this shared object; leaving it
   // behind would crash the next time the Settings dialog is built.
-  GFUIUnregisterSettingsPage(kSettingsPageId);
+  GFUIUnregisterSettingsPage(GFModuleSdkContext(), kSettingsPageId);
   return GFResult::Ok();
 }
 

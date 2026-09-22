@@ -28,8 +28,6 @@
 
 #include "KeyServerProbe.h"
 
-#include <GFSDKExtra.h>
-
 #include <QCoreApplication>
 #include <QJsonDocument>
 #include <QNetworkAccessManager>
@@ -201,7 +199,7 @@ void KeyServerProber::send(const QString& url, bool is_hkp) {
 
   QNetworkRequest request{QUrl(target)};
   request.setHeader(QNetworkRequest::UserAgentHeader,
-                    QString::fromUtf8(GFHttpRequestUserAgent()));
+                    QString::fromUtf8(GFAppUserAgent(GFModuleSdkContext())));
   request.setTransferTimeout(kProbeTimeoutMs);
   request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                        QNetworkRequest::NoLessSafeRedirectPolicy);

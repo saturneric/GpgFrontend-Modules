@@ -369,12 +369,11 @@ void SearchKeyDialog::slot_lookup_finished_pks(
   FLOG_DEBUG("importing key data of size %1, data: %2", key_data.size(),
              QString::fromUtf8(key_data));
 
-  auto channel = GFGpgCurrentGpgContextChannel();
+  auto channel = GFGpgCurrentChannel(GFModuleSdkContext());
   if (channel < 0) {
     slot_set_error_message(tr("No GPG context is available."));
     return;
   }
 
-  GFGpgImportKeys(channel, this, key_data.data(),
-                  static_cast<int>(key_data.size()));
+  gf::sdk::ImportKeys(GFModuleSdkContext(), channel, this, key_data);
 }

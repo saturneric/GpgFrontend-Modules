@@ -7,8 +7,9 @@
   "author": "Saturneric",
   "capabilities": [
     "gpg",
-    "ui",
-    "network"
+    "network",
+    "storage",
+    "ui"
   ],
   "events": [
     "KEY_PAIR_OPERA_MENU_CREATED",

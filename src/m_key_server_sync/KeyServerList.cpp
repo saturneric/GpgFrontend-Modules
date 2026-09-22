@@ -52,7 +52,8 @@ constexpr auto kOpenPGPServer = "https://keys.openpgp.org";
 Q_GLOBAL_STATIC(QMutex, settings_mutex)
 
 auto GlobalSettings() -> QSettings* {
-  return qobject_cast<QSettings*>(static_cast<QObject*>(GFUIGlobalSettings()));
+  return qobject_cast<QSettings*>(
+      static_cast<QObject*>(GFStorageSettingsRoot(GFModuleSdkContext())));
 }
 
 /**

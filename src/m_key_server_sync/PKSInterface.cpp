@@ -28,8 +28,6 @@
 
 #include "PKSInterface.h"
 
-#include <GFSDKExtra.h>
-
 #include "GFModule.h"
 
 namespace {
@@ -201,7 +199,8 @@ auto PKSInterface::Search(const QString& url, const QString& type,
 
   auto request = QNetworkRequest(url_from_remote);
   // set timeout and user agent
-  request.setHeader(QNetworkRequest::UserAgentHeader, GFHttpRequestUserAgent());
+  request.setHeader(QNetworkRequest::UserAgentHeader,
+                    GFAppUserAgent(GFModuleSdkContext()));
   request.setTransferTimeout(15000);  // 15 seconds
 
   reply_ = manager_->get(request);
@@ -238,7 +237,8 @@ void PKSInterface::LookupKeyById(const QString& url, const QString& keyid) {
       url + "/pks/lookup?search=0x" + handle + "&op=get&options=mr";
 
   auto request = QNetworkRequest(url_from_remote);
-  request.setHeader(QNetworkRequest::UserAgentHeader, GFHttpRequestUserAgent());
+  request.setHeader(QNetworkRequest::UserAgentHeader,
+                    GFAppUserAgent(GFModuleSdkContext()));
   request.setTransferTimeout(15000);
 
   auto* reply = manager_->get(request);
@@ -279,7 +279,8 @@ void PKSInterface::UploadKey(const QString& url, const QByteArray& key_data) {
   data.replace(" ", "+");
 
   QNetworkRequest request(req_url);
-  request.setHeader(QNetworkRequest::UserAgentHeader, GFHttpRequestUserAgent());
+  request.setHeader(QNetworkRequest::UserAgentHeader,
+                    GFAppUserAgent(GFModuleSdkContext()));
   request.setHeader(QNetworkRequest::ContentTypeHeader,
                     "application/x-www-form-urlencoded");
 

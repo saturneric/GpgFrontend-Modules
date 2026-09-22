@@ -28,8 +28,6 @@
 
 #include "VKSInterface.h"
 
-#include <GFSDKExtra.h>
-
 #include <QByteArray>
 #include <QDebug>
 #include <QJsonArray>
@@ -52,7 +50,7 @@ constexpr int kTransferTimeoutMs = 15000;
 auto VKSInterface::make_request(const QUrl& url) -> QNetworkRequest {
   QNetworkRequest request(url);
   request.setHeader(QNetworkRequest::UserAgentHeader,
-                    QString::fromUtf8(GFHttpRequestUserAgent()));
+                    QString::fromUtf8(GFAppUserAgent(GFModuleSdkContext())));
   request.setTransferTimeout(kTransferTimeoutMs);
   return request;
 }
@@ -71,7 +69,8 @@ void VKSInterface::GetByFingerprint(const QString& fingerprint) {
   // two of them can hold different versions of the same key.
   cache_key_ = QString("module:key-server-sync:key-data:%1:fpr:%2")
                    .arg(QUrl(target_key_server_).host(), fingerprint);
-  auto value = UDUP(GFCacheGet((cache_key_).toUtf8().constData()));
+  auto value = gf::sdk::CacheText(GFModuleSdkContext(), GF_STORE_SESSION,
+                                  (cache_key_).toUtf8().constData());
   if (!value.isEmpty()) {
     emit SignalKeyRetrieved(value);
     return;
@@ -87,7 +86,8 @@ void VKSInterface::GetByKeyId(const QString& key_id) {
   // search cache by first
   cache_key_ = QString("module:key-server-sync:key-data:%1:id:%2")
                    .arg(QUrl(target_key_server_).host(), key_id);
-  auto value = UDUP(GFCacheGet((cache_key_).toUtf8().constData()));
+  auto value = gf::sdk::CacheText(GFModuleSdkContext(), GF_STORE_SESSION,
+                                  (cache_key_).toUtf8().constData());
   if (!value.isEmpty()) {
     emit SignalKeyRetrieved(value);
     return;
@@ -156,8 +156,9 @@ void VKSInterface::on_reply_finished(QNetworkReply* reply) {
   if (url.path().contains("/vks/v1/by-fingerprint") ||
       url.path().contains("/vks/v1/by-keyid") ||
       url.path().contains("/vks/v1/by-email")) {
-    GFCacheSaveWithTTL((cache_key_).toUtf8().constData(),
-                       (QString(response_data)).toUtf8().constData(), 300);
+    gf::sdk::SetCacheText(GFModuleSdkContext(), GF_STORE_SESSION,
+                          (cache_key_).toUtf8().constData(),
+                          (QString(response_data)).toUtf8().constData(), 300);
     emit SignalKeyRetrieved(QString(response_data));
   } else if (url.path().contains("/vks/v1/upload")) {
     if (json_response.isObject()) {
