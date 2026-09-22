@@ -28,8 +28,7 @@
 
 #include "SoftwareVersion.h"
 
-#include <GFSDKBasic.h>
-#include <GFSDKExtra.h>
+#include <GFModule.h>
 #include <GFSDKLog.h>
 
 #include <QJsonDocument>
@@ -38,8 +37,8 @@
 
 auto SoftwareVersion::NeedUpgrade() const -> bool {
   return !latest_version.isEmpty() &&
-         GFCompareSoftwareVersion(GFModuleStrDup(current_version.toUtf8()),
-                                  GFModuleStrDup(latest_version.toUtf8())) < 0;
+         GFCompareSoftwareVersion(current_version.toUtf8().constData(),
+                                  latest_version.toUtf8().constData()) < 0;
 }
 
 auto SoftwareVersion::VersionWithdrawn() const -> bool {

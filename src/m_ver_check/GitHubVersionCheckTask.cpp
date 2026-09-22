@@ -28,8 +28,6 @@
 
 #include "GitHubVersionCheckTask.h"
 
-#include <GFSDKBasic.h>
-#include <GFSDKExtra.h>
 #include <GFSDKLog.h>
 #include <qobject.h>
 
@@ -42,16 +40,16 @@
 
 GitHubVersionCheckTask::GitHubVersionCheckTask()
     : network_manager_(new QNetworkAccessManager(this)),
-      current_version_(GFProjectVersion()) {
+      current_version_(GFAppVersion(GFModuleSdkContext())) {
   qRegisterMetaType<SoftwareVersion>("SoftwareVersion");
   meta_.api = "GitHub";
   meta_.current_version = current_version_;
-  meta_.local_commit_hash = GFProjectGitCommitHash();
+  meta_.local_commit_hash = GFAppGitCommitHash(GFModuleSdkContext());
 
   connect(this, &GitHubVersionCheckTask::SignalUpgradeVersion, this,
           [](const SoftwareVersion& sv) {
-            GFDurableCacheSave(
-                "update_checking_cache",
+            gf::sdk::SetCacheText(
+                GFModuleSdkContext(), GF_STORE_DURABLE, "update_checking_cache",
                 (QJsonDocument(sv.ToJson()).toJson()).constData());
           });
 }
@@ -74,7 +72,7 @@ auto GitHubVersionCheckTask::Run() -> int {
   for (const QUrl& url : urls) {
     QNetworkRequest request(url);
     request.setHeader(QNetworkRequest::UserAgentHeader,
-                      GFHttpRequestUserAgent());
+                      GFAppUserAgent(GFModuleSdkContext()));
     QNetworkReply* reply = network_manager_->get(request);
     reply->setProperty("GFCheckIndex", index++);
     replies_.append(reply);
@@ -148,9 +146,9 @@ void GitHubVersionCheckTask::slot_parse_latest_version_info(
 
     if (!SoftwareVersion::SameSeries(version, current_version_)) continue;
     if (!meta_.latest_version.isEmpty() &&
-        GFCompareSoftwareVersion(
-            GFModuleStrDup(version.toUtf8()),
-            GFModuleStrDup(meta_.latest_version.toUtf8())) <= 0) {
+        GFCompareSoftwareVersion(version.toUtf8().constData(),
+                                 meta_.latest_version.toUtf8().constData()) <=
+            0) {
       continue;
     }
 

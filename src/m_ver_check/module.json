@@ -6,8 +6,9 @@
   "description": "Try checking GpgFrontend version.",
   "author": "Saturneric",
   "capabilities": [
-    "ui",
-    "network"
+    "network",
+    "storage",
+    "ui"
   ],
   "events": [
     "APPLICATION_LOADED",

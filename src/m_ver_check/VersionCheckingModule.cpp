@@ -28,9 +28,7 @@
 
 #include "VersionCheckingModule.h"
 
-#include <GFSDKBasic.h>
 #include <GFSDKBuildInfo.h>
-#include <GFSDKExtra.h>
 #include <GFSDKLog.h>
 #include <GFSDKUI.h>
 
@@ -59,8 +57,9 @@ auto CheckUpdate(const GFEvent& event) -> GFEventResult {
     QObject::connect(
         task, &BKTUSVersionCheckTask::SignalUpgradeVersion,
         QThread::currentThread(), [event](const SoftwareVersion& sv) {
-          GFDurableCacheSave("update_checking_cache",
-                             (QJsonDocument(sv.ToJson()).toJson()).constData());
+          gf::sdk::SetCacheText(
+              GFModuleSdkContext(), GF_STORE_DURABLE, "update_checking_cache",
+              (QJsonDocument(sv.ToJson()).toJson()).constData());
           return GFEventResult::Ok();
         });
     QObject::connect(task, &BKTUSVersionCheckTask::SignalUpgradeVersion, task,
@@ -72,8 +71,9 @@ auto CheckUpdate(const GFEvent& event) -> GFEventResult {
     QObject::connect(
         task, &GitHubVersionCheckTask::SignalUpgradeVersion,
         QCoreApplication::instance(), [event](const SoftwareVersion& sv) {
-          GFDurableCacheSave("update_checking_cache",
-                             (QJsonDocument(sv.ToJson()).toJson()).constData());
+          gf::sdk::SetCacheText(
+              GFModuleSdkContext(), GF_STORE_DURABLE, "update_checking_cache",
+              (QJsonDocument(sv.ToJson()).toJson()).constData());
           return GFEventResult::Ok();
         });
     QObject::connect(task, &GitHubVersionCheckTask::SignalUpgradeVersion, task,
@@ -173,8 +173,8 @@ auto OnApplicationLoaded(const GFEvent& event) -> GFEventResult {
   }
 
   // check version information
-  auto settings =
-      qobject_cast<QSettings*>(static_cast<QObject*>(GFUIGlobalSettings()));
+  auto settings = qobject_cast<QSettings*>(
+      static_cast<QObject*>(GFStorageSettingsRoot(GFModuleSdkContext())));
   if (!settings) {
     LOG_ERROR("application loaded: global settings handle invalid");
     return GFEventResult::Bad("global settings handle invalid");
@@ -204,7 +204,8 @@ auto OnApplicationLoaded(const GFEvent& event) -> GFEventResult {
     return GFEventResult::Ok();
   }
 
-  auto cache = UDUP(GFDurableCacheGet("update_checking_cache"));
+  auto cache = gf::sdk::CacheText(GFModuleSdkContext(), GF_STORE_DURABLE,
+                                  "update_checking_cache");
   auto json = QJsonDocument::fromJson(cache.toUtf8());
 
   if (json.isEmpty() || !json.isObject()) {
@@ -307,8 +308,8 @@ auto OnNetworkSettingsTabUiCreated(const GFEvent& event) -> GFEventResult {
 
 auto OnNetworkSettingsTabApplySettings(const GFEvent& event) -> GFEventResult {
   LOG_DEBUG("network settings tab apply settings event: processing");
-  auto* settings =
-      qobject_cast<QSettings*>(static_cast<QObject*>(GFUIGlobalSettings()));
+  auto* settings = qobject_cast<QSettings*>(
+      static_cast<QObject*>(GFStorageSettingsRoot(GFModuleSdkContext())));
   if (!settings) {
     LOG_ERROR(
         "network settings tab apply settings: global settings handle "
@@ -379,8 +380,8 @@ auto OnNetworkSettingsTabApplySettings(const GFEvent& event) -> GFEventResult {
 auto OnNetworkSettingsTabLoadSettings(const GFEvent& event) -> GFEventResult {
   LOG_DEBUG("network settings tab load settings event: processing");
 
-  auto* settings =
-      qobject_cast<QSettings*>(static_cast<QObject*>(GFUIGlobalSettings()));
+  auto* settings = qobject_cast<QSettings*>(
+      static_cast<QObject*>(GFStorageSettingsRoot(GFModuleSdkContext())));
 
   if (!settings) {
     LOG_ERROR(

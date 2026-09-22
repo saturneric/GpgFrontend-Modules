@@ -28,8 +28,6 @@
 
 #include "Utils.h"
 
-#include <GFSDKBasic.h>
-#include <GFSDKExtra.h>
 #include <GFSDKLog.h>
 
 #include <QRegularExpression>
@@ -44,38 +42,54 @@ auto ExtractVersionFromRawTag(const QString& raw_tag) -> QString {
 }
 
 void FillGrtWithVersionInfo(const SoftwareVersion& version) {
-  GFModuleUpsertRTValue(GFGetModuleID(),
-                        GFModuleStrDup("version.current_version"),
-                        GFModuleStrDup(version.current_version.toUtf8()));
-  GFModuleUpsertRTValue(GFGetModuleID(),
-                        GFModuleStrDup("version.latest_version"),
-                        GFModuleStrDup(version.latest_version.toUtf8()));
-  GFModuleUpsertRTValue(GFGetModuleID(),
-                        GFModuleStrDup("version.local_commit_hash"),
-                        GFModuleStrDup(version.local_commit_hash.toUtf8()));
+  gf::sdk::SetStateText(GFModuleSdkContext(), GFGetModuleID(),
+                        GFMemStrDup(GFModuleSdkContext(), GF_ARENA_NORMAL,
+                                    "version.current_version"),
+                        GFMemStrDup(GFModuleSdkContext(), GF_ARENA_NORMAL,
+                                    version.current_version.toUtf8()));
+  gf::sdk::SetStateText(GFModuleSdkContext(), GFGetModuleID(),
+                        GFMemStrDup(GFModuleSdkContext(), GF_ARENA_NORMAL,
+                                    "version.latest_version"),
+                        GFMemStrDup(GFModuleSdkContext(), GF_ARENA_NORMAL,
+                                    version.latest_version.toUtf8()));
+  gf::sdk::SetStateText(GFModuleSdkContext(), GFGetModuleID(),
+                        GFMemStrDup(GFModuleSdkContext(), GF_ARENA_NORMAL,
+                                    "version.local_commit_hash"),
+                        GFMemStrDup(GFModuleSdkContext(), GF_ARENA_NORMAL,
+                                    version.local_commit_hash.toUtf8()));
 
-  GFModuleUpsertRTValueBool(
-      GFGetModuleID(),
-      GFModuleStrDup("version.current_version_publish_in_remote"),
+  gf::sdk::SetStateBool(
+      GFModuleSdkContext(), GFGetModuleID(),
+      GFMemStrDup(GFModuleSdkContext(), GF_ARENA_NORMAL,
+                  "version.current_version_publish_in_remote"),
       version.current_version_publish_in_remote ? 1 : 0);
-  GFModuleUpsertRTValueBool(
-      GFGetModuleID(),
-      GFModuleStrDup("version.current_commit_hash_publish_in_remote"),
+  gf::sdk::SetStateBool(
+      GFModuleSdkContext(), GFGetModuleID(),
+      GFMemStrDup(GFModuleSdkContext(), GF_ARENA_NORMAL,
+                  "version.current_commit_hash_publish_in_remote"),
       version.current_commit_hash_publish_in_remote ? 1 : 0);
-  GFModuleUpsertRTValueBool(GFGetModuleID(),
-                            GFModuleStrDup("version.need_upgrade"),
-                            version.NeedUpgrade() ? 1 : 0);
-  GFModuleUpsertRTValueBool(GFGetModuleID(),
-                            GFModuleStrDup("version.current_version_released"),
-                            version.CurrentVersionReleased() ? 1 : 0);
+  gf::sdk::SetStateBool(GFModuleSdkContext(), GFGetModuleID(),
+                        GFMemStrDup(GFModuleSdkContext(), GF_ARENA_NORMAL,
+                                    "version.need_upgrade"),
+                        version.NeedUpgrade() ? 1 : 0);
+  gf::sdk::SetStateBool(GFModuleSdkContext(), GFGetModuleID(),
+                        GFMemStrDup(GFModuleSdkContext(), GF_ARENA_NORMAL,
+                                    "version.current_version_released"),
+                        version.CurrentVersionReleased() ? 1 : 0);
 
-  GFModuleUpsertRTValue(GFGetModuleID(), GFModuleStrDup("version.release_note"),
-                        GFModuleStrDup(version.release_note.toUtf8()));
+  gf::sdk::SetStateText(GFModuleSdkContext(), GFGetModuleID(),
+                        GFMemStrDup(GFModuleSdkContext(), GF_ARENA_NORMAL,
+                                    "version.release_note"),
+                        GFMemStrDup(GFModuleSdkContext(), GF_ARENA_NORMAL,
+                                    version.release_note.toUtf8()));
 
-  GFModuleUpsertRTValue(GFGetModuleID(), GFModuleStrDup("version.api"),
-                        GFModuleStrDup(version.api.toUtf8()));
+  gf::sdk::SetStateText(
+      GFModuleSdkContext(), GFGetModuleID(),
+      GFMemStrDup(GFModuleSdkContext(), GF_ARENA_NORMAL, "version.api"),
+      GFMemStrDup(GFModuleSdkContext(), GF_ARENA_NORMAL, version.api.toUtf8()));
 
-  GFModuleUpsertRTValueBool(GFGetModuleID(),
-                            GFModuleStrDup("version.loading_done"),
-                            version.IsInfoValid() ? 1 : 0);
+  gf::sdk::SetStateBool(GFModuleSdkContext(), GFGetModuleID(),
+                        GFMemStrDup(GFModuleSdkContext(), GF_ARENA_NORMAL,
+                                    "version.loading_done"),
+                        version.IsInfoValid() ? 1 : 0);
 }

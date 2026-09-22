@@ -29,8 +29,6 @@
 #include "UpdateTab.h"
 
 #include "GFModule.h"
-#include "GFSDKBasic.h"
-#include "GFSDKModule.h"
 #include "VersionCheckingModule.h"
 
 //
@@ -38,7 +36,7 @@
 #include "GitHubVersionCheckTask.h"
 
 UpdateTab::UpdateTab(QWidget* parent)
-    : QWidget(parent), current_version_(GFProjectVersion()) {
+    : QWidget(parent), current_version_(GFAppVersion(GFModuleSdkContext())) {
   auto* layout = new QVBoxLayout();
 
   current_version_box_ = new QGroupBox(tr("Current Version Information"));
@@ -105,8 +103,8 @@ void UpdateTab::slot_show_version_status() {
   check_update_btn_->setEnabled(true);
   this->pb_->setHidden(true);
 
-  auto is_loading_done = GFModuleRetrieveRTValueOrDefaultBool(
-      GFGetModuleID(), "version.loading_done", 0);
+  auto is_loading_done = gf::sdk::StateBool(
+      GFModuleSdkContext(), GFGetModuleID(), "version.loading_done", 0);
 
   if (is_loading_done == 0) {
     MLogDebug("version info loading haven't been done yet.");
@@ -127,25 +125,25 @@ void UpdateTab::slot_show_version_status() {
     return;
   }
 
-  auto is_need_upgrade = GFModuleRetrieveRTValueOrDefaultBool(
-      GFGetModuleID(), "version.need_upgrade", 0);
+  auto is_need_upgrade = gf::sdk::StateBool(
+      GFModuleSdkContext(), GFGetModuleID(), "version.need_upgrade", 0);
 
   auto is_current_version_publish_in_remote =
-      GFModuleRetrieveRTValueOrDefaultBool(
-          GFGetModuleID(), "version.current_version_publish_in_remote", 0);
+      gf::sdk::StateBool(GFModuleSdkContext(), GFGetModuleID(),
+                         "version.current_version_publish_in_remote", 0);
 
   auto is_current_commit_hash_publish_in_remote =
-      GFModuleRetrieveRTValueOrDefaultBool(
-          GFGetModuleID(), "version.current_commit_hash_publish_in_remote", 0);
+      gf::sdk::StateBool(GFModuleSdkContext(), GFGetModuleID(),
+                         "version.current_commit_hash_publish_in_remote", 0);
 
-  QString const latest_version = UDUP(GFModuleRetrieveRTValueOrDefault(
-      GFGetModuleID(), "version.latest_version", ""));
+  QString const latest_version = gf::sdk::StateText(
+      GFModuleSdkContext(), GFGetModuleID(), "version.latest_version", "");
 
-  QString const release_note = UDUP(GFModuleRetrieveRTValueOrDefault(
-      GFGetModuleID(), "version.release_note", ""));
+  QString const release_note = gf::sdk::StateText(
+      GFModuleSdkContext(), GFGetModuleID(), "version.release_note", "");
 
-  QString const api = UDUP(GFModuleRetrieveRTValueOrDefault(
-      GFGetModuleID(), "version.api", "Unknown"));
+  QString const api = gf::sdk::StateText(GFModuleSdkContext(), GFGetModuleID(),
+                                         "version.api", "Unknown");
 
   FLOG_INFO("latest version from remote: %1", latest_version);
 
@@ -213,8 +211,9 @@ void UpdateTab::slot_check_version_update() {
   check_update_btn_->setEnabled(false);
   pb_->show();
 
-  auto api = UDUP(GFModuleRetrieveRTValueOrDefault(
-      "ui", "settings.network.update_checking_api", "github"));
+  auto api =
+      gf::sdk::StateText(GFModuleSdkContext(), "ui",
+                         "settings.network.update_checking_api", "github");
 
   if (api == "bktus") {
     auto* task = new BKTUSVersionCheckTask();
@@ -238,11 +237,12 @@ void UpdateTab::slot_check_version_update() {
 void UpdateTab::showEvent(QShowEvent* event) {
   QWidget::showEvent(event);
 
-  auto is_loading_done = GFModuleRetrieveRTValueOrDefaultBool(
-      GFGetModuleID(), "version.loading_done", 0);
+  auto is_loading_done = gf::sdk::StateBool(
+      GFModuleSdkContext(), GFGetModuleID(), "version.loading_done", 0);
 
-  auto prohibit = GFModuleRetrieveRTValueOrDefaultBool(
-      "ui", "settings.network.prohibit_update_checking", 0);
+  auto prohibit =
+      gf::sdk::StateBool(GFModuleSdkContext(), "ui",
+                         "settings.network.prohibit_update_checking", 0);
 
   if ((prohibit == 0) && is_loading_done == 0) {
     slot_check_version_update();
