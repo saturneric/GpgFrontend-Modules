@@ -6,7 +6,10 @@
   "description": "Try gathering gnupg information.",
   "author": "Saturneric",
   "capabilities": [
-    "gpg"
+    "gpg",
+    "process",
+    "storage",
+    "ui"
   ],
   "events": [
     "APPLICATION_LOADED",

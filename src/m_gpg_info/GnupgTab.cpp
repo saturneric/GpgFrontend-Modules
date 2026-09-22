@@ -35,7 +35,6 @@
 #include <QtConcurrent>
 
 #include "GFModule.h"
-#include "GFSDKModule.h"
 #include "GnuPGInfoGatheringModule.h"
 #include "ui_GnuPGInfo.h"
 
@@ -115,25 +114,23 @@ GnupgTab::GnupgTab(QWidget* parent)
 }
 
 void GnupgTab::slot_process_software_info() {
-  const auto gnupg_version = UDUP(GFModuleRetrieveRTValueOrDefault(
-      "core", "gpgme.ctx.gnupg_version", "2.0.0"));
+  const auto gnupg_version = gf::sdk::StateText(
+      GFModuleSdkContext(), "core", "gpgme.ctx.gnupg_version", "2.0.0");
 
   ui_->gnupgVersionLabel->setText(QString("Version: %1").arg(gnupg_version));
 
-  char** pl_components;
-  auto pl_components_size = GFModuleListRTChildKeys(
-      GFGetModuleID(), "gnupg.components", &pl_components);
-
-  auto components = CharArrayToQStringList(pl_components, pl_components_size);
+  // One call, one list. The old shape handed back a char** and a count for
+  // the caller to walk and free; StateChildren owns that for its own scope.
+  const auto components = gf::sdk::StateChildren(
+      GFModuleSdkContext(), GFModuleId(), "gnupg.components");
 
   ui_->componentDetailsTable->setRowCount(static_cast<int>(components.size()));
 
   int row = 0;
   for (auto& component : components) {
-    auto component_info_json_bytes = UDUP(GFModuleRetrieveRTValueOrDefault(
-        GFGetModuleID(),
-        (QString("gnupg.components.%1").arg(component)).toUtf8().constData(),
-        ""));
+    auto component_info_json_bytes =
+        gf::sdk::StateText(GFModuleSdkContext(), GFModuleId(),
+                           QString("gnupg.components.%1").arg(component), "");
 
     auto component_info_json =
         QJsonDocument::fromJson(component_info_json_bytes.toUtf8());
@@ -177,18 +174,16 @@ void GnupgTab::slot_process_software_info() {
 
   ui_->componentDetailsTable->resizeColumnsToContents();
 
-  char** p_dirs;
-  auto p_dirs_size =
-      GFModuleListRTChildKeys(GFGetModuleID(), "gnupg.dirs", &p_dirs);
-  auto dirs = CharArrayToQStringList(p_dirs, p_dirs_size);
+  const auto dirs =
+      gf::sdk::StateChildren(GFModuleSdkContext(), GFModuleId(), "gnupg.dirs");
 
-  ui_->directoriesDetailsTable->setRowCount(static_cast<int>(p_dirs_size));
+  ui_->directoriesDetailsTable->setRowCount(static_cast<int>(dirs.size()));
 
   row = 0;
   for (auto& dir : dirs) {
-    const auto dir_path = UDUP(GFModuleRetrieveRTValueOrDefault(
-        GFGetModuleID(),
-        (QString("gnupg.dirs.%1").arg(dir)).toUtf8().constData(), ""));
+    const auto dir_path =
+        gf::sdk::StateText(GFModuleSdkContext(), GFModuleId(),
+                           QString("gnupg.dirs.%1").arg(dir), "");
 
     if (dir_path.isEmpty()) continue;
 
@@ -208,25 +203,19 @@ void GnupgTab::slot_process_software_info() {
   // calculate the total row number of configuration table
   row = 0;
   for (auto& component : components) {
-    char** p_options;
-    auto p_options_size = GFModuleListRTChildKeys(
-        GFGetModuleID(),
-        (QString("gnupg.components.%1.options").arg(component))
-            .toUtf8()
-            .constData(),
-        &p_options);
-    auto options = CharArrayToQStringList(p_options, p_options_size);
+    const auto options = gf::sdk::StateChildren(
+        GFModuleSdkContext(), GFModuleId(),
+        QString("gnupg.components.%1.options").arg(component));
 
     for (auto& option : options) {
       const auto option_info_json = QJsonDocument::fromJson(
-          UDUP(GFModuleRetrieveRTValueOrDefault(
-                   GFGetModuleID(),
-                   (QString("gnupg.components.%1.options.%2")
-                        .arg(component)
-                        .arg(option))
-                       .toUtf8()
-                       .constData(),
-                   ""))
+          gf::sdk::StateText(GFModuleSdkContext(), GFModuleId(),
+                             (QString("gnupg.components.%1.options.%2")
+                                  .arg(component)
+                                  .arg(option))
+                                 .toUtf8()
+                                 .constData(),
+                             "")
               .toUtf8());
 
       if (!option_info_json.isObject()) continue;
@@ -244,22 +233,17 @@ void GnupgTab::slot_process_software_info() {
   row = 0;
   QString configuration_group;
   for (auto& component : components) {
-    char** pc_options;
-    auto pc_options_size = GFModuleListRTChildKeys(
-        GFGetModuleID(),
-        (QString("gnupg.components.%1.options").arg(component))
-            .toUtf8()
-            .constData(),
-        &pc_options);
-    auto c_options = CharArrayToQStringList(pc_options, pc_options_size);
+    const auto c_options = gf::sdk::StateChildren(
+        GFModuleSdkContext(), GFModuleId(),
+        QString("gnupg.components.%1.options").arg(component));
 
     for (auto& option : c_options) {
-      auto option_info_json_bytes = UDUP(GFModuleRetrieveRTValueOrDefault(
-          GFGetModuleID(),
+      auto option_info_json_bytes = gf::sdk::StateText(
+          GFModuleSdkContext(), GFModuleId(),
           (QString("gnupg.components.%1.options.%2").arg(component).arg(option))
               .toUtf8()
               .constData(),
-          ""));
+          "");
 
       auto option_info_json =
           QJsonDocument::fromJson(option_info_json_bytes.toUtf8());
@@ -332,7 +316,8 @@ GnupgTabWatcher::GnupgTabWatcher(GnupgTab* tab) {
 
   auto future = QtConcurrent::run(QThreadPool::globalInstance(), [=]() {
     if (StartGatheringAllGnuPGInfo() >= 0) {
-      GFModuleUpsertRTValueBool("ui", "env.state.gnupg_info_gathering", 1);
+      gf::sdk::SetStateBool(GFModuleSdkContext(), "ui",
+                            "env.state.gnupg_info_gathering", 1);
       emit SignalGnuPGInfoGathered();
     }
     this->deleteLater();
@@ -342,8 +327,8 @@ GnupgTabWatcher::GnupgTabWatcher(GnupgTab* tab) {
 void GnupgTab::showEvent(QShowEvent* event) {
   QWidget::showEvent(event);
 
-  int gathered = GFModuleRetrieveRTValueOrDefaultBool(
-      "ui", "env.state.gnupg_info_gathering", 0);
+  int gathered = gf::sdk::StateBool(GFModuleSdkContext(), "ui",
+                                    "env.state.gnupg_info_gathering", 0);
   if (gathered == 1) {
     slot_process_software_info();
   } else {

@@ -28,7 +28,6 @@
 
 #include "GnuPGInfoGatheringModule.h"
 
-#include <GFSDKBasic.h>
 #include <GFSDKBuildInfo.h>
 #include <GFSDKLog.h>
 
@@ -175,21 +174,20 @@ auto StartStartGatheringGnuPGComponentsInfo(const QString &gpgme_version,
   auto context = Context{gpgme_version, gpgconf_path};
 
   // get all components
-  GFExecuteCommandSync((gpgconf_path).toUtf8().constData(), 3,
-                       QStringListToCharArray({"--homedir", default_home_path,
-                                               "--list-components"}),
-                       GetGpgComponentInfos, &context);
+  gf::sdk::RunCommand(GFModuleSdkContext(), gpgconf_path,
+                      {"--homedir", default_home_path, "--list-components"},
+                      GetGpgComponentInfos, &context);
   LOG_DEBUG("loading gnupg component info done.");
   return 0;
 }
 
 auto StartGatheringAllGnuPGInfo() -> int {
-  const auto gpgme_version =
-      UDUP(GFModuleRetrieveRTValueOrDefault("core", "gpgme.version", "0.0.0"));
+  const auto gpgme_version = gf::sdk::StateText(GFModuleSdkContext(), "core",
+                                                "gpgme.version", "0.0.0");
   LOG_D() << "got gpgme version from rt:" << gpgme_version;
 
-  const auto gpgconf_path = UDUP(
-      GFModuleRetrieveRTValueOrDefault("core", "gpgme.ctx.gpgconf_path", ""));
+  const auto gpgconf_path = gf::sdk::StateText(GFModuleSdkContext(), "core",
+                                               "gpgme.ctx.gpgconf_path", "");
   LOG_D() << "got gpgconf path from rt:" << gpgconf_path;
 
   if (gpgconf_path.isEmpty()) {
@@ -197,8 +195,8 @@ auto StartGatheringAllGnuPGInfo() -> int {
     return -1;
   }
 
-  auto default_home_path = UDUP(GFModuleRetrieveRTValueOrDefault(
-      "core", "gpgme.ctx.default_database_path", ""));
+  auto default_home_path = gf::sdk::StateText(
+      GFModuleSdkContext(), "core", "gpgme.ctx.default_database_path", "");
   LOG_D() << "got default home path from rt:" << default_home_path;
 
   default_home_path = QDir::toNativeSeparators(
@@ -216,33 +214,27 @@ auto StartGatheringAllGnuPGInfo() -> int {
   // still reclaims its cmd and argv. The ownership rule applies to function
   // ARGUMENTS; this field is part of a transferred struct.
   auto exec_context = GFCommandExecuteContext{
-      GFModuleStrDup(gpgconf_path.toUtf8().constData()), 3,
+      GFMemStrDup(GFModuleSdkContext(), GF_ARENA_NORMAL,
+                  gpgconf_path.toUtf8().constData()),
+      3,
       QStringListToCharArray({"--homedir", default_home_path, "--list-dirs"}),
       GetGpgDirectoryInfos, nullptr};
   exec_contexts.push_back(exec_context);
 
-  char **components_c_array;
-  int ret = GFModuleListRTChildKeys(GFGetModuleID(), "gnupg.components",
-                                    &components_c_array);
-  if (components_c_array == nullptr || ret == 0) return -1;
-
-  // Takes ownership of every element AND of the array itself. The hand
-  // rolled loop this replaces copied the strings out and freed neither, so
-  // the whole array leaked once per gathering pass -- the identical call in
-  // GnupgTab.cpp was already using this helper.
-  QStringList components = CharArrayToQStringList(components_c_array, ret);
+  // One call, one list, nothing to free by hand: the char** and count this
+  // replaces had to be walked and released by the caller, and the hand-rolled
+  // loop that preceded the helper leaked the whole array once per pass.
+  const auto components = gf::sdk::StateChildren(
+      GFModuleSdkContext(), GFModuleId(), "gnupg.components");
+  if (components.isEmpty()) return -1;
 
   for (const auto &component : components) {
-    const auto *component_info_json = GFModuleRetrieveRTValueOrDefault(
-        GFGetModuleID(),
-        (QString("gnupg.components.%1").arg(component).toUtf8()).constData(),
-        nullptr);
-
-    if (component_info_json == nullptr) continue;
-
-    // Caller-owned, so take it: this used to be read and dropped, leaking one
-    // JSON document per component per pass.
-    const auto component_info_raw = UDUP(component_info_json);
+    // Absence is reported now, so "not set" and "set to nothing" are
+    // different answers rather than the same empty string.
+    const auto component_info_raw =
+        gf::sdk::StateText(GFModuleSdkContext(), GFModuleId(),
+                           QString("gnupg.components.%1").arg(component));
+    if (component_info_raw.isEmpty()) continue;
 
     auto jsonlized_component_info =
         QJsonDocument::fromJson(component_info_raw.toUtf8());
@@ -255,21 +247,25 @@ auto StartGatheringAllGnuPGInfo() -> int {
       continue;
     }
 
-    auto *context = new (GFAllocateMemory(sizeof(Context)))
-        Context{gpgme_version, gpgconf_path, component_info};
+    auto *context =
+        new (GFMemAlloc(GFModuleSdkContext(), GF_ARENA_NORMAL, sizeof(Context)))
+            Context{gpgme_version, gpgconf_path, component_info};
 
     // Transferred, see the note above.
     auto exec_context = GFCommandExecuteContext{
-        GFModuleStrDup(gpgconf_path.toUtf8().constData()), 4,
+        GFMemStrDup(GFModuleSdkContext(), GF_ARENA_NORMAL,
+                    gpgconf_path.toUtf8().constData()),
+        4,
         QStringListToCharArray({"--homedir", default_home_path,
                                 "--list-options", component_info.name}),
         GetGpgOptionInfos, context};
     exec_contexts.push_back(exec_context);
   }
 
-  GFExecuteCommandBatchSync(QListToArray(exec_contexts),
-                            static_cast<int>(exec_contexts.size()));
-  GFModuleUpsertRTValueBool(GFGetModuleID(), "gnupg.gathering_done", 1);
+  GFProcessExecute(GFModuleSdkContext(), QListToArray(exec_contexts),
+                   static_cast<size_t>(exec_contexts.size()));
+  gf::sdk::SetStateBool(GFModuleSdkContext(), GFModuleId(),
+                        "gnupg.gathering_done", true);
 
   return 0;
 }
@@ -349,11 +345,11 @@ void GetGpgComponentInfos(void *data, int exit_code, const char *out,
 
   auto const jsonlized_gpgme_component_info = c_i_gpgme.Json();
   auto const jsonlized_gpgconf_component_info = c_i_gpgconf.Json();
-  GFModuleUpsertRTValue(
-      GFGetModuleID(), "gnupg.components.gpgme",
+  gf::sdk::SetStateText(
+      GFModuleSdkContext(), GFGetModuleID(), "gnupg.components.gpgme",
       (QJsonDocument(jsonlized_gpgme_component_info).toJson()).constData());
-  GFModuleUpsertRTValue(
-      GFGetModuleID(), "gnupg.components.gpgconf",
+  gf::sdk::SetStateText(
+      GFModuleSdkContext(), GFGetModuleID(), "gnupg.components.gpgconf",
       (QJsonDocument(jsonlized_gpgconf_component_info).toJson()).constData());
 
   auto line_split_list = p_out.split("\n");
@@ -383,19 +379,22 @@ void GetGpgComponentInfos(void *data, int exit_code, const char *out,
     QString version = "/";
 
     if (component_name == "gpg") {
-      version = GFModuleRetrieveRTValueOrDefault(
-          "core", "gpgme.ctx.gnupg_version", "2.0.0");
+      version = gf::sdk::StateText(GFModuleSdkContext(), "core",
+                                   "gpgme.ctx.gnupg_version", "2.0.0");
     }
     if (component_name == "gpg-agent") {
-      GFModuleUpsertRTValue(GFGetModuleID(), "gnupg.gpg_agent_path",
+      gf::sdk::SetStateText(GFModuleSdkContext(), GFGetModuleID(),
+                            "gnupg.gpg_agent_path",
                             (QString(component_path).toUtf8()).constData());
     }
     if (component_name == "dirmngr") {
-      GFModuleUpsertRTValue(GFGetModuleID(), "gnupg.dirmngr_path",
+      gf::sdk::SetStateText(GFModuleSdkContext(), GFGetModuleID(),
+                            "gnupg.dirmngr_path",
                             (QString(component_path).toUtf8()).constData());
     }
     if (component_name == "keyboxd") {
-      GFModuleUpsertRTValue(GFGetModuleID(), "gnupg.keyboxd_path",
+      gf::sdk::SetStateText(GFModuleSdkContext(), GFGetModuleID(),
+                            "gnupg.keyboxd_path",
                             (QString(component_path).toUtf8()).constData());
     }
 
@@ -410,8 +409,8 @@ void GetGpgComponentInfos(void *data, int exit_code, const char *out,
                                        : QString("/"));
 
       auto const jsonlized_component_info = c_i.Json();
-      GFModuleUpsertRTValue(
-          GFGetModuleID(),
+      gf::sdk::SetStateText(
+          GFModuleSdkContext(), GFGetModuleID(),
           (QString("gnupg.components.%1").arg(component_name).toUtf8())
               .constData(),
           (QJsonDocument(jsonlized_component_info).toJson()).constData());
@@ -449,12 +448,13 @@ void GetGpgDirectoryInfos(void *, int exit_code, const char *out,
 
     // record gnupg home path
     if (configuration_name == "homedir") {
-      GFModuleUpsertRTValue(GFGetModuleID(), "gnupg.home_path",
+      gf::sdk::SetStateText(GFModuleSdkContext(), GFGetModuleID(),
+                            "gnupg.home_path",
                             (configuration_value.toUtf8()).constData());
     }
 
-    GFModuleUpsertRTValue(
-        GFGetModuleID(),
+    gf::sdk::SetStateText(
+        GFModuleSdkContext(), GFGetModuleID(),
         (QString("gnupg.dirs.%1").arg(configuration_name).toUtf8()).constData(),
         (configuration_value.toUtf8()).constData());
   }
@@ -513,8 +513,8 @@ void GetGpgOptionInfos(void *data, int exit_code, const char *out,
     info.value = option_value;
 
     auto const jsonlized_option_info = info.Json();
-    GFModuleUpsertRTValue(
-        GFGetModuleID(),
+    gf::sdk::SetStateText(
+        GFModuleSdkContext(), GFGetModuleID(),
         (QString("gnupg.components.%1.options.%2")
              .arg(component_name)
              .arg(option_name)
@@ -525,5 +525,5 @@ void GetGpgOptionInfos(void *data, int exit_code, const char *out,
   }
 
   context->~Context();
-  GFFreeMemory(context);
+  GFMemFree(GFModuleSdkContext(), GF_ARENA_NORMAL, context);
 }
