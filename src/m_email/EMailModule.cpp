@@ -1026,9 +1026,6 @@ auto DoDecryptEMLData(int channel, const QByteArray& data, const GFEvent& event,
     return ret;
   }
 
-  const char* tmp = nullptr;
-  const char* cards_tmp = nullptr;
-  const char* info_tmp = nullptr;
   // The Info variant, because the recipient cross-check needs the structured
   // recipients rather than the rendered report. The capsule is consumed by
   // whichever analyse call touches it, so everything has to come from this one.
@@ -1157,9 +1154,6 @@ auto DoSignEMLData(int channel, const QString& sign_key,
   }
 
   QByteArray info_json;
-  const char* tmp = nullptr;
-  const char* cards_tmp = nullptr;
-  const char* info_tmp = nullptr;
   // The Info variant, not the plain one: the structured description
   // and details are what let a FAILURE explain itself, and without
   // them the board can only fall back to "<operation> failed."
@@ -1213,9 +1207,6 @@ auto DoSignPlainText(int channel, const QString& sign_key,
   }
 
   QByteArray info_json;
-  const char* tmp = nullptr;
-  const char* cards_tmp = nullptr;
-  const char* info_tmp = nullptr;
   // The Info variant, not the plain one: the structured description
   // and details are what let a FAILURE explain itself, and without
   // them the board can only fall back to "<operation> failed."
@@ -1335,9 +1326,6 @@ auto DoEncryptEMLData(int channel, const QStringList& encrypt_keys,
   }
 
   QByteArray info_json;
-  const char* tmp = nullptr;
-  const char* cards_tmp = nullptr;
-  const char* info_tmp = nullptr;
   // The Info variant, not the plain one: the structured description
   // and details are what let a FAILURE explain itself, and without
   // them the board can only fall back to "<operation> failed."
@@ -1395,9 +1383,6 @@ auto DoEncryptPlainText(int channel, const QStringList& encrypt_keys,
   }
 
   QByteArray info_json;
-  const char* tmp = nullptr;
-  const char* cards_tmp = nullptr;
-  const char* info_tmp = nullptr;
   // The Info variant, not the plain one: the structured description
   // and details are what let a FAILURE explain itself, and without
   // them the board can only fall back to "<operation> failed."
