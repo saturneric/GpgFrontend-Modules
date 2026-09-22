@@ -123,8 +123,8 @@ TEST(PGPInspectModelTest, CountsNestedPacketsToo) {
 }
 
 TEST(PGPInspectModelTest, KeepsTheFramingFiguresVerbatim) {
-  const auto& packet =
-      ParsePGPInspectDocument(kDocument).blocks.at(0).packets.at(0);
+  const auto document = ParsePGPInspectDocument(kDocument);
+  const auto& packet = document.blocks.at(0).packets.at(0);
 
   EXPECT_EQ(packet.offset, 0);
   EXPECT_EQ(packet.header_length, 2);
@@ -136,8 +136,8 @@ TEST(PGPInspectModelTest, KeepsTheFramingFiguresVerbatim) {
 TEST(PGPInspectModelTest, AbsentVersionReadsAsMinusOne) {
   // Most container packets carry no version octet. That is a fact about the
   // type, so it must not look like a defect in the document.
-  const auto& packet =
-      ParsePGPInspectDocument(kDocument).blocks.at(0).packets.at(0);
+  const auto document = ParsePGPInspectDocument(kDocument);
+  const auto& packet = document.blocks.at(0).packets.at(0);
   EXPECT_EQ(packet.version, -1);
   EXPECT_FALSE(packet.Malformed());
 }
@@ -252,9 +252,10 @@ TEST(PGPInspectModelTest, ANestedPacketAloneIsStructureEnough) {
 // -- the summaries the tree shows ---------------------------------------------
 
 TEST(PGPInspectModelTest, APacketSummaryNamesTagVersionOffsetAndSize) {
-  const auto& packet =
-      ParsePGPInspectDocument(kDocument).blocks.at(0).packets.at(0).children.at(
-          0);
+  // Held by value: a reference into the temporary document would dangle as
+  // soon as this statement ends.
+  const auto document = ParsePGPInspectDocument(kDocument);
+  const auto& packet = document.blocks.at(0).packets.at(0).children.at(0);
   const auto summary = PGPInspectPacketSummary(packet, 1);
 
   EXPECT_TRUE(summary.contains("#1"));
