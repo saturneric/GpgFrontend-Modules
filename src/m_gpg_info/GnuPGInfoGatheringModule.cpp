@@ -177,7 +177,7 @@ auto StartStartGatheringGnuPGComponentsInfo(const QString &gpgme_version,
   gf::sdk::RunCommand(GFModuleSdkContext(), gpgconf_path,
                       {"--homedir", default_home_path, "--list-components"},
                       GetGpgComponentInfos, &context);
-  LOG_DEBUG("loading gnupg component info done.");
+  LOG_DEBUG("finished loading GnuPG component info");
   return 0;
 }
 
@@ -191,7 +191,7 @@ auto StartGatheringAllGnuPGInfo() -> int {
   LOG_D() << "got gpgconf path from rt:" << gpgconf_path;
 
   if (gpgconf_path.isEmpty()) {
-    LOG_DEBUG("gpgconf path is empty, skip gathering gnupg info.");
+    LOG_DEBUG("gpgconf path is empty; skipping GnuPG info gathering");
     return -1;
   }
 
@@ -272,8 +272,8 @@ auto CalculateBinaryChecksum(const QString &path) -> std::optional<QString> {
   // Open and read the file.
   QFile f(info.filePath());
   if (!f.open(QIODevice::ReadOnly)) {
-    LOG_D() << "open" << path
-            << "to calculate checksum error:" << f.errorString();
+    LOG_D() << "cannot open" << path
+            << "for checksum calculation:" << f.errorString();
     return {};
   }
 
@@ -307,8 +307,7 @@ void GetGpgComponentInfos(void *data, int exit_code, const char *out,
           << "process stdout size:" << p_out.size();
 
   if (exit_code != 0) {
-    LOG_D() << "gpgconf execute error, process stderr:" << p_err
-            << "process stdout:" << p_out;
+    LOG_D() << "gpgconf failed, stderr:" << p_err << "process stdout:" << p_out;
     return;
   }
 
@@ -408,7 +407,7 @@ void GetGpgComponentInfos(void *data, int exit_code, const char *out,
       component_infos.push_back(c_i);
     }
 
-    LOG_DEBUG("load gnupg component info actually done.");
+    LOG_DEBUG("finished loading GnuPG component info (all components)");
   }
 }
 

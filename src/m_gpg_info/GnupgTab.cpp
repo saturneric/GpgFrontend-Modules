@@ -135,14 +135,14 @@ void GnupgTab::slot_process_software_info() {
     auto component_info_json =
         QJsonDocument::fromJson(component_info_json_bytes.toUtf8());
     if (!component_info_json.isObject()) {
-      MLogWarn(QString("illegal gnupg component info, json: %1")
+      MLogWarn(QString("invalid GnuPG component info, json: %1")
                    .arg(component_info_json_bytes));
       continue;
     }
 
     auto component_info = component_info_json.object();
     if (!component_info.contains("name")) {
-      MLogWarn(QString("illegal gnupg component info: it doesn't have a "
+      MLogWarn(QString("invalid GnuPG component info: it has no "
                        "name, json: %1")
                    .arg(component_info_json_bytes));
       continue;
@@ -249,14 +249,14 @@ void GnupgTab::slot_process_software_info() {
           QJsonDocument::fromJson(option_info_json_bytes.toUtf8());
 
       if (!option_info_json.isObject()) {
-        MLogWarn(QString("illegal gnupg option info, json: %1")
+        MLogWarn(QString("invalid GnuPG option info, json: %1")
                      .arg(option_info_json_bytes));
         continue;
       }
 
       auto option_info = option_info_json.object();
       if (!option_info.contains("name")) {
-        MLogWarn(QString("illegal gnupg configuration info: it doesn't have a "
+        MLogWarn(QString("invalid GnuPG configuration info: it has no "
                          "name, json: %1")
                      .arg(option_info_json_bytes));
         continue;
