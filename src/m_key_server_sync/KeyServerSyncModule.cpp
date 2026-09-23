@@ -319,8 +319,7 @@ auto UpdateKeyFromKeyServer(int channel, const QString& fpr) -> int {
   FetchKey(
       route, fpr, true,
       [channel](const QString& key_data) {
-        gf::sdk::ImportKeys(GFModuleSdkContext(), channel, nullptr,
-                            key_data.toUtf8());
+        gf::sdk::ImportKeys(GFModuleSdkContext(), channel, key_data.toUtf8());
       },
       [fpr, host](const QString& error, const QString& data) {
         Q_UNUSED(data);
