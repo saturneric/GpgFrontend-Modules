@@ -11,8 +11,9 @@
     "ui",
     "ui.custom"
   ],
-  "events": [
-    "MAINWINDOW_MENU_MOUNTED"
+  "events": [],
+  "commands": [
+    "com.bktus.gpgfrontend.module.pgp_inspect.open_inspector"
   ],
   "translation_context": "ModulePGPInspect"
 }

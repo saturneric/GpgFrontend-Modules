@@ -36,6 +36,7 @@
 
 #include "GFModule.h"
 #include "GFModuleIdentity.h"
+#include "GFSDKHostCommands.hpp"
 #include "GFSDKUI.h"
 #include "KeyServerList.h"
 #include "KeyServerSettingsPage.h"
@@ -44,8 +45,31 @@
 #include "VKSInterface.h"
 
 namespace {
-constexpr auto kSettingsPageId =
-    "com.bktus.gpgfrontend.module.key_server_sync.settings";
+
+using Severity = gf::cmd::host::AppMessage::Severity;
+
+/// A result for the user, shown by the Host from its own window: the module
+/// has no business holding one of the Host's windows to parent a box to.
+void Tell(Severity severity, const QString& title, const QString& text) {
+  Commands().Invoke<gf::cmd::host::AppMessage>({severity, title, text});
+}
+
+/// A fingerprint to open the search dialog with, handed from whoever asked
+/// to the widget factory the Host calls on the GUI thread.
+auto SearchPreset() -> QString& {
+  static QString preset;
+  return preset;
+}
+QMutex g_search_preset_mutex;
+
+void OpenSearch(const QString& fingerprint) {
+  {
+    QMutexLocker locker(&g_search_preset_mutex);
+    SearchPreset() = fingerprint;
+  }
+  Commands().Invoke<gf::cmd::host::ViewOpen>(
+      {gf::cmd::ViewRef{QStringLiteral(GF_MODULE_ID ".search")}});
+}
 
 using KeyCallback = std::function<void(const QString&)>;
 using ErrorCallback = std::function<void(const QString&, const QString&)>;
@@ -121,10 +145,10 @@ void FetchKey(const KeyServerList::Route& route, const QString& handle,
  *
  * @return bool false when the user declined
  */
-auto ConfirmHkpPublish(QWidget* parent, const QString& url) -> bool {
+auto ConfirmHkpPublish(const QString& url) -> bool {
   const auto host = QUrl(url).host();
   return QMessageBox::warning(
-             parent,
+             nullptr,
              QCoreApplication::translate("GTrC",
                                          "Publish Without Verification?"),
              QCoreApplication::translate(
@@ -144,30 +168,41 @@ auto ConfirmHkpPublish(QWidget* parent, const QString& url) -> bool {
 auto OnActivate() -> GFResult {
   LOG_INFO("key server sync module registering");
 
-  // Registered untranslated: the module translators are not installed yet, so
-  // anything translated here would be stuck at the source text for the rest of
-  // the session. The host translates these when it builds the dialog.
-  const auto keywords =
-      QStringList{GC_TR("keyserver"), GC_TR("key server"), GC_TR("hkp"),
-                  GC_TR("vks"),       GC_TR("publish"),    GC_TR("search")}
-          .join('\n');
-  gf::sdk::RegisterSettingsPage(GFModuleSdkContext(), kSettingsPageId,
-                                "keys_engines", GC_TR("Key Servers"),
-                                keywords.toUtf8().constData(),
-                                KeyServerSettingsPageFactory, nullptr);
+  // Presentation is registered untranslated: the module translators are not
+  // installed yet, so anything translated here would be stuck at the source
+  // text for the rest of the session. The Host translates it when shown.
+  const bool search = gf::ui::RegisterNativeWidget<SearchKeyDialog>(
+      "search", {GC_TR("Key Server"), "", "", "", "", 0, 0},
+      [](const QCborMap& /*args*/) {
+        auto* dialog = new SearchKeyDialog();
+        QString preset;
+        {
+          QMutexLocker locker(&g_search_preset_mutex);
+          std::swap(preset, SearchPreset());
+        }
+        // An empty preset opens a blank search; only a fingerprint that was
+        // actually supplied (the verify-failure flow) seeds the field.
+        if (!preset.isEmpty()) dialog->SetPresetFingerprint(preset);
+        return dialog;
+      });
+  const bool settings = gf::ui::RegisterNativeWidget<KeyServerSettingsPage>(
+      "settings",
+      {GC_TR("Key Servers"),
+       GC_TR("keyserver,key server,hkp,vks,publish,search"), "", "", "", 0, 0},
+      [](const QCborMap& /*args*/) { return new KeyServerSettingsPage(); });
 
-  return GFResult::Ok();
+  return search && settings
+             ? GFResult::Ok()
+             : GFResult::Fail("the key server widgets were not registered");
 }
 
 namespace {
 
-auto UploadKeyToServer(QWidget* parent, int channel, const QString& key_id)
-    -> int {
+auto UploadKeyToServer(int channel, const QString& key_id) -> int {
   const auto exported =
       gf::sdk::ExportKey(GFModuleSdkContext(), channel, key_id, true);
   if (exported.isEmpty()) {
-    QMessageBox::critical(
-        parent, QCoreApplication::translate("GTrC", "Key Upload Failed"),
+    Tell(Severity::kError, QCoreApplication::translate("GTrC", "Key Upload Failed"),
         QCoreApplication::translate(
             "GTrC",
             "Failed to export the public key before uploading.\n"
@@ -182,18 +217,16 @@ auto UploadKeyToServer(QWidget* parent, int channel, const QString& key_id)
   const auto server = route.url;
 
   if (!route.vks) {
-    if (!ConfirmHkpPublish(parent, server)) return 0;
+    if (!ConfirmHkpPublish(server)) return 0;
 
     auto* pks = new PKSInterface();
     QObject::connect(
         pks, &PKSInterface::SignalKeyServerKeyUploadResult,
         QThread::currentThread(),
-        [parent, server, key_id](QNetworkReply::NetworkError error,
+        [server, key_id](QNetworkReply::NetworkError error,
                                  const QString& error_string) {
           if (error != QNetworkReply::NoError) {
-            QMessageBox::critical(
-                parent,
-                QCoreApplication::translate("GTrC", "Key Upload Failed"),
+            Tell(Severity::kError, QCoreApplication::translate("GTrC", "Key Upload Failed"),
                 QCoreApplication::translate(
                     "GTrC",
                     "Failed to upload public key to the server.\n"
@@ -204,9 +237,7 @@ auto UploadKeyToServer(QWidget* parent, int channel, const QString& key_id)
           }
 
           // No verification mail follows an HKP upload, so do not promise one.
-          QMessageBox::information(
-              parent,
-              QCoreApplication::translate("GTrC",
+          Tell(Severity::kInfo, QCoreApplication::translate("GTrC",
                                           "Public Key Upload Successful"),
               QCoreApplication::translate(
                   "GTrC",
@@ -225,7 +256,7 @@ auto UploadKeyToServer(QWidget* parent, int channel, const QString& key_id)
   auto* vks = new VKSInterface(server);
   QObject::connect(
       vks, &VKSInterface::SignalKeyUploaded, QThread::currentThread(),
-      [parent, server](const QString& fpr, const QJsonObject& status,
+      [server](const QString& fpr, const QJsonObject& status,
                        const QString& token) {
         // Handle successful response
         QString status_message = QCoreApplication::translate(
@@ -247,9 +278,7 @@ auto UploadKeyToServer(QWidget* parent, int channel, const QString& key_id)
         const auto host = QUrl(server).host();
 
         // Notify user of successful upload and status details
-        QMessageBox::information(
-            parent,
-            QCoreApplication::translate("GTrC", "Public Key Upload Successful"),
+        Tell(Severity::kInfo, QCoreApplication::translate("GTrC", "Public Key Upload Successful"),
             QCoreApplication::translate(
                 "GTrC",
                 "The public key was successfully uploaded to the "
@@ -263,9 +292,8 @@ auto UploadKeyToServer(QWidget* parent, int channel, const QString& key_id)
 
   QObject::connect(
       vks, &VKSInterface::SignalErrorOccurred, QThread::currentThread(),
-      [parent, key_id](const QString& error, const QString& data) {
-        QMessageBox::critical(
-            parent, QCoreApplication::translate("GTrC", "Key Upload Failed"),
+      [key_id](const QString& error, const QString& data) {
+        Tell(Severity::kError, QCoreApplication::translate("GTrC", "Key Upload Failed"),
             QCoreApplication::translate(
                 "GTrC",
                 "Failed to upload public key to the server.\n"
@@ -284,23 +312,21 @@ auto UploadKeyToServer(QWidget* parent, int channel, const QString& key_id)
   return 0;
 }
 
-auto UpdateKeyFromKeyServer(QWidget* parent, int channel, const QString& fpr)
-    -> int {
+auto UpdateKeyFromKeyServer(int channel, const QString& fpr) -> int {
   const auto route = KeyServerList::SyncRoute();
   const auto host = QUrl(route.url).host();
 
   FetchKey(
       route, fpr, true,
-      [parent, channel](const QString& key_data) {
-        gf::sdk::ImportKeys(GFModuleSdkContext(), channel, parent,
+      [channel](const QString& key_data) {
+        gf::sdk::ImportKeys(GFModuleSdkContext(), channel, nullptr,
                             key_data.toUtf8());
       },
-      [parent, fpr, host](const QString& error, const QString& data) {
+      [fpr, host](const QString& error, const QString& data) {
         Q_UNUSED(data);
         // Name the server: it is the user's choice now, and a failure they
         // cannot attribute to a host is one they cannot fix.
-        QMessageBox::critical(
-            parent, QCoreApplication::translate("GTrC", "Key Update Failed"),
+        Tell(Severity::kError, QCoreApplication::translate("GTrC", "Key Update Failed"),
             QCoreApplication::translate(
                 "GTrC",
                 "Failed to retrieve public key from %3.\n"
@@ -313,119 +339,71 @@ auto UpdateKeyFromKeyServer(QWidget* parent, int channel, const QString& fpr)
 
 }  // namespace
 
-auto OnMainwindowMenuMounted(const GFEvent& event) -> GFEventResult {
-  LOG_DEBUG("main window menu mounted event: processing");
+namespace {
 
-  if (!event.Has("main_window")) {
-    LOG_DEBUG("main window menu mounted event: no main_window found");
-    return GFEventResult::Bad("no main_window found");
+/// Both key commands act on one key, named by the Host's context.
+struct KeyArgs {
+  gf::cmd::KeyRef key;
+  static constexpr auto Fields() {
+    return std::make_tuple(gf::cmd::F("key", &KeyArgs::key));
   }
+};
 
-  auto* main_window = GFUIObject<QMainWindow>(event.Str("main_window"));
-  if (!main_window) {
-    LOG_ERROR(
-        "main window menu mounted: main_window handle invalid or not "
-        "QMainWindow");
-    return GFEventResult::Bad("main_window handle invalid or not QMainWindow");
-  }
+struct PublishKey {
+  static constexpr gf::cmd::Meta kMeta{
+      GF_MODULE_ID ".publish_key", GC_TR("Publish Public Key to Key Server"),
+      GC_TR("Upload the public key to the key server used for syncing"),
+      GC_TR("Key Server Operations"), 0, gf::cmd::kNeedsGuiThread};
+  using Args = KeyArgs;
+  using Result = gf::cmd::Unit;
+};
 
-  if (!event.Has("import_key_menu")) {
-    LOG_DEBUG("main window menu mounted event: no import_key_menu found");
-    return GFEventResult::Bad("no import_key_menu found");
-  }
+struct RefreshKey {
+  static constexpr gf::cmd::Meta kMeta{
+      GF_MODULE_ID ".refresh_key", GC_TR("Refresh Public Key From Key Server"),
+      GC_TR("Import the latest copy of the public key from the key server"),
+      GC_TR("Key Server Operations"), 0, gf::cmd::kNeedsGuiThread};
+  using Args = KeyArgs;
+  using Result = gf::cmd::Unit;
+};
 
-  auto* import_key_menu = GFUIObject<QMenu>(event.Str("import_key_menu"));
-  if (!import_key_menu) {
-    LOG_ERROR(
-        "main window menu mounted: import_key_menu handle invalid or not "
-        "QMenu");
-    return GFEventResult::Bad("import_key_menu handle invalid or not QMenu");
-  }
+struct SearchKey {
+  static constexpr gf::cmd::Meta kMeta{
+      GF_MODULE_ID ".search_key", GC_TR("Key Server"),
+      GC_TR("Import public keys from a trusted key server."), "", 0,
+      gf::cmd::kNeedsGuiThread};
+  struct Args {
+    std::optional<QString> fingerprint;
+    static constexpr auto Fields() {
+      return std::make_tuple(gf::cmd::F("fingerprint", &Args::fingerprint));
+    }
+  };
+  using Result = gf::cmd::Unit;
+};
 
-  LOG_DEBUG("adding key server sync actions to import key menu");
-
-  QMetaObject::invokeMethod(
-      QApplication::instance(),
-      [&]() -> void {
-        QWidget* parent =
-            qobject_cast<QWidget*>(static_cast<QObject*>(main_window));
-        auto* action = new QAction(
-            QCoreApplication::translate("GTrC", "Key Server"), parent);
-        action->setToolTip(QCoreApplication::translate(
-            "GTrC", "Import public keys from a trusted key server."));
-        action->setIcon(QIcon(":/icons/import_key_from_server.png"));
-        QObject::connect(action, &QAction::triggered, parent, [=]() {
-          auto* dialog = new SearchKeyDialog(parent);
-          dialog->show();
-        });
-        import_key_menu->addAction(action);
-      },
-      Qt::BlockingQueuedConnection);
-  return GFEventResult::Ok();
+auto DoPublishKey(const gf::cmd::CommandContext& /*ctx*/, const KeyArgs& a)
+    -> gf::cmd::Outcome<gf::cmd::Unit> {
+  // Any key with a public part can be published, mirroring the Key
+  // Management "Publish Key to Keyserver" action.
+  UploadKeyToServer(static_cast<int>(a.key.channel), a.key.key_id);
+  return gf::cmd::Outcome<gf::cmd::Unit>::Success({});
 }
 
-auto OnKeyPairOperaMenuCreated(const GFEvent& event) -> GFEventResult {
-  auto* tab = GFUIObject<QWidget>(event.Str("tab"));
-  if (!tab) {
-    LOG_ERROR(
-        "key pair opera menu created: tab handle "
-        "invalid or not KeyPairOperaTab");
-    return GFEventResult::Bad("tab handle invalid or not KeyPairOperaTab");
-  }
-
-  auto* layout = GFUIObject<QVBoxLayout>(event.Str("opera_layout"));
-  if (!layout) {
-    LOG_ERROR(
-        "key pair opera menu created: opera_menu handle "
-        "invalid or not QMenu");
-    return GFEventResult::Bad("opera_menu handle invalid or not QMenu");
-  }
-
-  auto is_private_key = event.Str("is_private_key").toInt() != 0;
-  auto has_master_key = event.Str("has_master_key").toInt() != 0;
-
-  auto channel = event.Str("channel").toInt();
-  auto key_id = event.Str("key_id");
-  auto fpr = event.Str("fpr");
-
-  FLOG_DEBUG(
-      "adding key server sync actions: key id: %1, channel: %2, is "
-      "private key: %3, has master key: %4",
-      key_id, channel, static_cast<int>(is_private_key),
-      static_cast<int>(has_master_key));
-
-  QMetaObject::invokeMethod(QApplication::instance(), [=]() -> void {
-    auto* menu = new QMenu(tab);
-
-    auto* key_server_opera_button = new QPushButton(
-        QCoreApplication::translate("GTrC", "Key Server Operations"));
-    key_server_opera_button->setStyleSheet("text-align:center;");
-    key_server_opera_button->setMenu(menu);
-
-    // add upload / update key actions
-    auto* upload_key_pair = new QAction(QCoreApplication::translate(
-        "GTrC", "Publish Public Key to Key Server"));
-    QObject::connect(upload_key_pair, &QAction::triggered, tab,
-                     [=]() { UploadKeyToServer(tab, channel, key_id); });
-    // Any key with a public part can be published, mirroring the Key
-    // Management "Publish Key to Keyserver" action.
-
-    auto* update_key_pair = new QAction(QCoreApplication::translate(
-        "GTrC", "Refresh Public Key From Key Server"));
-    QObject::connect(update_key_pair, &QAction::triggered, tab,
-                     [=]() { UpdateKeyFromKeyServer(tab, channel, fpr); });
-
-    // Refresh re-imports the latest public key from the server; it is
-    // valid for any key, including your own.
-
-    menu->addAction(upload_key_pair);
-    menu->addAction(update_key_pair);
-
-    layout->addWidget(key_server_opera_button);
-  });
-
-  return GFEventResult::Ok();
+auto DoRefreshKey(const gf::cmd::CommandContext& /*ctx*/, const KeyArgs& a)
+    -> gf::cmd::Outcome<gf::cmd::Unit> {
+  // Refresh re-imports the latest public key from the server; it is valid
+  // for any key, including your own.
+  UpdateKeyFromKeyServer(static_cast<int>(a.key.channel), a.key.fingerprint);
+  return gf::cmd::Outcome<gf::cmd::Unit>::Success({});
 }
+
+auto DoSearchKey(const gf::cmd::CommandContext& /*ctx*/,
+                 const SearchKey::Args& a) -> gf::cmd::Outcome<gf::cmd::Unit> {
+  OpenSearch(a.fingerprint.value_or(QString()));
+  return gf::cmd::Outcome<gf::cmd::Unit>::Success({});
+}
+
+}  // namespace
 
 auto OnRequestGetPublicKeyByFingerprint(const GFEvent& event) -> GFEventResult {
   if (event.Str("fingerprint").isEmpty())
@@ -527,7 +505,11 @@ auto OnRequestUploadPublicKey(const GFEvent& event) -> GFEventResult {
                                                  {"key_server", server},
                                                  {"protocol", "vks"}});
                    });
-  QObject::connect(vks, &VKSInterface::SignalKeyRetrieved, vks,
+  // Released on the signals an upload actually sends: it never retrieves a
+  // key, so connecting to that one left every upload task behind.
+  QObject::connect(vks, &VKSInterface::SignalKeyUploaded, vks,
+                   &VKSInterface::deleteLater);
+  QObject::connect(vks, &VKSInterface::SignalErrorOccurred, vks,
                    &VKSInterface::deleteLater);
   vks->UploadKey(key_text);
   return GFEventResult::Deferred();
@@ -535,44 +517,11 @@ auto OnRequestUploadPublicKey(const GFEvent& event) -> GFEventResult {
 
 auto OnRequestSearchPublicKeyByFingerprint(const GFEvent& event)
     -> GFEventResult {
-  auto fingerprint = event.Str("fingerprint").trimmed();
-
-  QWidget* parent = nullptr;
-
-  if (event.Has("parent")) {
-    parent = GFUIObject<QWidget>(event.Str("parent"));
-  }
-
-  if (parent == nullptr) {
-    parent = QApplication::activeWindow();
-  }
-
+  const auto fingerprint = event.Str("fingerprint").trimmed();
   FLOG_DEBUG("open key server search dialog with fingerprint: %1", fingerprint);
-
-  QMetaObject::invokeMethod(
-      QApplication::instance(),
-      [parent, fingerprint]() {
-        auto* dialog = new SearchKeyDialog(parent);
-        // An empty preset opens a blank search dialog; only seed the field
-        // when a fingerprint was actually supplied (verify-failure flow).
-        if (!fingerprint.isEmpty()) {
-          dialog->SetPresetFingerprint(fingerprint);
-        }
-        dialog->setAttribute(Qt::WA_DeleteOnClose);
-        dialog->show();
-        dialog->raise();
-        dialog->activateWindow();
-      },
-      Qt::QueuedConnection);
-
+  // The module's own dialog, opened by the Host in a frame of its own.
+  OpenSearch(fingerprint);
   return GFEventResult::Ok();
-}
-
-auto OnDeactivate() -> GFResult {
-  // The registry holds a function pointer into this shared object; leaving it
-  // behind would crash the next time the Settings dialog is built.
-  GFUIUnregisterSettingsPage(GFModuleSdkContext(), kSettingsPageId);
-  return GFResult::Ok();
 }
 
 auto OnUnload() -> void {
@@ -582,27 +531,33 @@ auto OnUnload() -> void {
 }
 
 // The module's whole framework surface.
-constexpr GFEventBinding kEvents[] = {
-    {"KEY_PAIR_OPERA_MENU_CREATED", &OnKeyPairOperaMenuCreated},
-    {"MAINWINDOW_MENU_MOUNTED", &OnMainwindowMenuMounted},
+constexpr std::array<GFEventBinding, 4> kEvents = {{
     {"REQUEST_GET_PUBLIC_KEY_BY_FINGERPRINT",
      &OnRequestGetPublicKeyByFingerprint},
     {"REQUEST_GET_PUBLIC_KEY_BY_KEY_ID", &OnRequestGetPublicKeyByKeyId},
     {"REQUEST_SEARCH_PUBLIC_KEY_BY_FINGERPRINT",
      &OnRequestSearchPublicKeyByFingerprint},
     {"REQUEST_UPLOAD_PUBLIC_KEY", &OnRequestUploadPublicKey},
+}};
+
+const std::array<gf::cmd::Binding, 3> kCommands = {
+    gf::cmd::Bind<PublishKey, &DoPublishKey>(),
+    gf::cmd::Bind<RefreshKey, &DoRefreshKey>(),
+    gf::cmd::Bind<SearchKey, &DoSearchKey>(),
 };
 
-constexpr GFModuleHooks kHooks = {
+const GFModuleHooks kHooks = {
     sizeof(GFModuleHooks),
     GF_MODULE_ID,
     GF_MODULE_VERSION,
     GF_MODULE_TRANSLATION_CONTEXT,
     &OnActivate,
-    &OnDeactivate,
+    nullptr,  // the Host withdraws the commands, widgets and script itself
     &OnUnload,
-    kEvents,
-    std::size(kEvents),
+    kEvents.data(),
+    kEvents.size(),
+    kCommands.data(),
+    kCommands.size(),
 };
 
 extern "C" GF_MODULE_EXPORT auto GFModuleGetApi(uint32_t abi)

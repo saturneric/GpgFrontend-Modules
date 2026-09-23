@@ -12,11 +12,10 @@
     "ui.custom"
   ],
   "events": [
-    "APPLICATION_LOADED",
-    "MAINWINDOW_MENU_MOUNTED",
-    "NETWORK_SETTINGS_TAB_APPLY_SETTINGS",
-    "NETWORK_SETTINGS_TAB_LOAD_SETTINGS",
-    "NETWORK_SETTINGS_TAB_UI_CREATED"
+    "APPLICATION_LOADED"
+  ],
+  "commands": [
+    "com.bktus.gpgfrontend.module.version_checking.check_for_updates"
   ],
   "translation_context": "ModuleVersionChecking"
 }

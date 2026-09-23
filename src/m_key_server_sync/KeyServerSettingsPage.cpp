@@ -87,17 +87,18 @@ KeyServerSettingsPage::KeyServerSettingsPage(QWidget* parent)
           &KeyServerSettingsPage::slot_test_selected);
 
   switch_ui_busy(false);
-  SetSettings();
+  LoadSettings();
 }
 
-void KeyServerSettingsPage::SetSettings() {
+void KeyServerSettingsPage::LoadSettings() {
   entries_ = KeyServerList::Load();
   default_url_ = KeyServerList::DefaultUrl();
   refresh_table();
 }
 
-void KeyServerSettingsPage::ApplySettings() {
+auto KeyServerSettingsPage::ApplySettings() -> bool {
   KeyServerList::Store(entries_, default_url_);
+  return true;
 }
 
 void KeyServerSettingsPage::refresh_table() {
@@ -300,7 +301,3 @@ void KeyServerSettingsPage::switch_ui_busy(bool busy) {
   ui_->testButton->setDisabled(busy);
 }
 
-auto KeyServerSettingsPageFactory(void* data) -> void* {
-  Q_UNUSED(data);
-  return new KeyServerSettingsPage();
-}

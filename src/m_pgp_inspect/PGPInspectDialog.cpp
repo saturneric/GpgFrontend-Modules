@@ -170,12 +170,10 @@ void PGPInspectDialog::render_document() {
 
     if (block.has_armor && block.armor.crc24 == QLatin1String("mismatch")) {
       item->setForeground(
-          kLabelColumn, QBrush(QColor(GFUIThemeColor(
-                            GFModuleSdkContext(), GF_UI_COLOR_DANGER, this))));
+          kLabelColumn, QBrush(QColor(GFUIThemeColorForRole(GFModuleSdkContext(), GF_UI_COLOR_DANGER))));
     } else if (!block.error.isEmpty()) {
       item->setForeground(
-          kLabelColumn, QBrush(QColor(GFUIThemeColor(
-                            GFModuleSdkContext(), GF_UI_COLOR_WARNING, this))));
+          kLabelColumn, QBrush(QColor(GFUIThemeColorForRole(GFModuleSdkContext(), GF_UI_COLOR_WARNING))));
     }
 
     add_packets(item, block.packets);
@@ -205,8 +203,7 @@ void PGPInspectDialog::add_packets(QTreeWidgetItem* parent,
 
     if (packet.Malformed()) {
       item->setForeground(
-          kLabelColumn, QBrush(QColor(GFUIThemeColor(
-                            GFModuleSdkContext(), GF_UI_COLOR_WARNING, this))));
+          kLabelColumn, QBrush(QColor(GFUIThemeColorForRole(GFModuleSdkContext(), GF_UI_COLOR_WARNING))));
     }
 
     auto fields = packet.fields;
@@ -228,8 +225,7 @@ void PGPInspectDialog::add_fields(QTreeWidgetItem* parent,
     row->setText(kValueColumn, field.value);
     row->setForeground(
         kLabelColumn,
-        QBrush(QColor(GFUIThemeColor(GFModuleSdkContext(),
-                                     GF_UI_COLOR_MUTED_TEXT, this))));
+        QBrush(QColor(GFUIThemeColorForRole(GFModuleSdkContext(), GF_UI_COLOR_MUTED_TEXT))));
   }
 }
 

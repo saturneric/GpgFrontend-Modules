@@ -27,4 +27,5 @@
 # capabilities and translation context -- lives in module.json beside this file.
 gf_add_module(
   NAME key_server_sync
-  QT   Core Widgets Network)
+  QT   Core Widgets Network
+  LUA_SCRIPTS ui/main.lua)

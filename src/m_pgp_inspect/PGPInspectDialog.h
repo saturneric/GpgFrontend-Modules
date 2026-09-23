@@ -29,6 +29,8 @@
 #pragma once
 
 #include <QByteArray>
+#include <GFModule.h>
+
 #include <QDialog>
 
 #include "PGPInspectModel.h"
@@ -56,7 +58,7 @@ auto PGPInspectBytes(const QByteArray& data) -> PGPInspectDocument;
  * Every rule about what the bytes mean lives in PGPInspectModel.h and, below
  * that, in the Rust packet walk.
  */
-class PGPInspectDialog : public QDialog {
+class PGPInspectDialog : public QDialog, public gf::ui::DialogWidget {
   Q_OBJECT
 
  public:

@@ -32,28 +32,32 @@
 #include <QJsonDocument>
 #include <QMutex>
 #include <QMutexLocker>
-#include <QSettings>
 
 #include "GFModule.h"
 #include "GFSDKUI.h"
 
 namespace {
 
-constexpr auto kSchemaVersionKey = "key_server_sync/schema_version";
-constexpr auto kServersKey = "key_server_sync/servers";
-constexpr auto kDefaultServerKey = "key_server_sync/default_server";
+// Relative: the Host places them in this module's own settings group, which
+// is where they always were ("key_server_sync/..."), so nothing moves.
+constexpr auto kSchemaVersionKey = "schema_version";
+constexpr auto kServersKey = "servers";
+constexpr auto kDefaultServerKey = "default_server";
 constexpr auto kSchemaVersion = 1;
 
 constexpr auto kOpenPGPServer = "https://keys.openpgp.org";
 
-/// The settings object is shared with the host and with the network task
-/// runner, and QSettings is only reentrant, so every read-modify-write of our
-/// keys has to be serialized.
+/// A read-modify-write of the list is two calls; the mutex keeps two of this
+/// module's own threads from interleaving them. Every call reaches the Host's
+/// settings through the storage capability -- no settings object is shared.
 Q_GLOBAL_STATIC(QMutex, settings_mutex)
 
-auto GlobalSettings() -> QSettings* {
-  return qobject_cast<QSettings*>(
-      static_cast<QObject*>(GFStorageSettingsRoot(GFModuleSdkContext())));
+auto Get(const char* key) -> QVariant {
+  return gf::sdk::Setting(GFModuleSdkContext(), GF_SETTING_MODULE, key);
+}
+
+void Put(const char* key, const QVariant& value) {
+  gf::sdk::SetSetting(GFModuleSdkContext(), GF_SETTING_MODULE, key, value);
 }
 
 /**
@@ -92,10 +96,7 @@ auto ResolveDefaultUrl(const QList<KeyServerEntry>& entries) -> QString {
   QString stored;
   {
     QMutexLocker locker(settings_mutex());
-    auto* settings = GlobalSettings();
-    if (settings != nullptr) {
-      stored = settings->value(kDefaultServerKey).toString();
-    }
+    stored = Get(kDefaultServerKey).toString();
   }
 
   const auto listed = std::any_of(
@@ -155,18 +156,8 @@ namespace KeyServerList {
 auto Load() -> QList<KeyServerEntry> {
   QMutexLocker locker(settings_mutex());
 
-  auto* settings = GlobalSettings();
-  if (settings == nullptr) {
-    LOG_ERROR("global settings unavailable, falling back to seed key servers");
-    return SeedEntries();
-  }
-
-  // The host writes through its own short-lived QSettings objects, and this one
-  // outlives them all; without a sync it would keep serving whatever it read at
-  // startup.
-  settings->sync();
-
-  if (!settings->contains(kServersKey)) {
+  const auto stored = Get(kServersKey);
+  if (!stored.isValid()) {
     locker.unlock();
     auto seed = SeedEntries();
     Store(seed, kOpenPGPServer);
@@ -174,7 +165,7 @@ auto Load() -> QList<KeyServerEntry> {
   }
 
   const auto document =
-      QJsonDocument::fromJson(settings->value(kServersKey).toString().toUtf8());
+      QJsonDocument::fromJson(stored.toString().toUtf8());
 
   QList<KeyServerEntry> entries;
   if (document.isArray()) {
@@ -202,12 +193,6 @@ auto Load() -> QList<KeyServerEntry> {
 void Store(const QList<KeyServerEntry>& entries, const QString& default_url) {
   QMutexLocker locker(settings_mutex());
 
-  auto* settings = GlobalSettings();
-  if (settings == nullptr) {
-    LOG_ERROR("global settings unavailable, key server list not stored");
-    return;
-  }
-
   QJsonArray array;
   for (const auto& entry : entries) {
     if (entry.url.isEmpty()) continue;
@@ -225,15 +210,10 @@ void Store(const QList<KeyServerEntry>& entries, const QString& default_url) {
     resolved_default = entries.isEmpty() ? QString() : entries.first().url;
   }
 
-  settings->setValue(kSchemaVersionKey, kSchemaVersion);
-  settings->setValue(
-      kServersKey,
-      QString::fromUtf8(QJsonDocument(array).toJson(QJsonDocument::Compact)));
-  settings->setValue(kDefaultServerKey, resolved_default);
-
-  // Our QSettings is a different object from the host's, so without this the
-  // host would keep reading the previous values.
-  settings->sync();
+  Put(kSchemaVersionKey, kSchemaVersion);
+  Put(kServersKey, QString::fromUtf8(
+                       QJsonDocument(array).toJson(QJsonDocument::Compact)));
+  Put(kDefaultServerKey, resolved_default);
 }
 
 auto DefaultUrl() -> QString { return ResolveDefaultUrl(Load()); }

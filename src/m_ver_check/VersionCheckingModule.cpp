@@ -29,10 +29,18 @@
 #include "VersionCheckingModule.h"
 
 #include <GFSDKBuildInfo.h>
+#include <GFSDKHostCommands.hpp>
 #include <GFSDKLog.h>
 #include <GFSDKUI.h>
 
+#include <QButtonGroup>
+#include <QCheckBox>
+#include <QGroupBox>
+#include <QHBoxLayout>
+#include <QLabel>
 #include <QMetaType>
+#include <QRadioButton>
+#include <QVBoxLayout>
 #include <QtNetwork>
 
 #include "BKTUSVersionCheckTask.h"
@@ -43,163 +51,171 @@
 #include "UpdateTab.h"
 #include "Utils.h"
 
-auto OnActivate() -> GFResult {
-  LOG_INFO("version checking module activating");
-  return GFResult::Ok();
-}
-
 namespace {
 
-auto CheckUpdate(const GFEvent& event) -> GFEventResult {
-  if (event.Str("api") == "bktus") {
+/// Whether to check at startup. The Host's own setting: the setup wizard
+/// asks it, and this module's settings page shows the same switch rather
+/// than a second one that could disagree.
+constexpr auto kProhibitKey = "network/prohibit_update_check";
+
+/// Which service to ask. The module's own setting.
+constexpr auto kApiKey = "update_checking_api";
+
+auto Api() -> QString {
+  return gf::sdk::Setting(GFModuleSdkContext(), GF_SETTING_MODULE, kApiKey,
+                          "github")
+      .toString();
+}
+
+void StoreResult(const SoftwareVersion& sv) {
+  gf::sdk::SetCacheText(GFModuleSdkContext(), GF_STORE_DURABLE,
+                        "update_checking_cache",
+                        (QJsonDocument(sv.ToJson()).toJson()).constData());
+}
+
+/// Ask the service; cache what it says for the next start. The task always
+/// reports, success or not, so it is always released.
+void CheckUpdate() {
+  if (Api() == "bktus") {
     MLogInfo("checking updating using api of bktus.com");
     auto* task = new BKTUSVersionCheckTask();
-    QObject::connect(
-        task, &BKTUSVersionCheckTask::SignalUpgradeVersion,
-        QThread::currentThread(), [event](const SoftwareVersion& sv) {
-          gf::sdk::SetCacheText(
-              GFModuleSdkContext(), GF_STORE_DURABLE, "update_checking_cache",
-              (QJsonDocument(sv.ToJson()).toJson()).constData());
-          return GFEventResult::Ok();
-        });
+    QObject::connect(task, &BKTUSVersionCheckTask::SignalUpgradeVersion,
+                     QCoreApplication::instance(), &StoreResult);
     QObject::connect(task, &BKTUSVersionCheckTask::SignalUpgradeVersion, task,
                      &QObject::deleteLater);
     task->Run();
   } else {
     MLogInfo("checking updating using api of github.com");
     auto* task = new GitHubVersionCheckTask();
-    QObject::connect(
-        task, &GitHubVersionCheckTask::SignalUpgradeVersion,
-        QCoreApplication::instance(), [event](const SoftwareVersion& sv) {
-          gf::sdk::SetCacheText(
-              GFModuleSdkContext(), GF_STORE_DURABLE, "update_checking_cache",
-              (QJsonDocument(sv.ToJson()).toJson()).constData());
-          return GFEventResult::Ok();
-        });
+    QObject::connect(task, &GitHubVersionCheckTask::SignalUpgradeVersion,
+                     QCoreApplication::instance(), &StoreResult);
     QObject::connect(task, &GitHubVersionCheckTask::SignalUpgradeVersion, task,
                      &QObject::deleteLater);
     task->Run();
   }
-  // The check runs asynchronously and its callback answers, so nothing is
-  // answered here.
-  return GFEventResult::Deferred();
 }
 
-auto RaiseUpdateDialog(QWidget* parent) -> QDialog* {
-  auto* dialog = new QDialog(parent);
-  dialog->setWindowTitle(
-      QCoreApplication::translate("GTrC", "Check for Updates"));
-  dialog->setModal(true);
-  dialog->setAttribute(Qt::WA_DeleteOnClose);
-  auto* layout = new QVBoxLayout();
-  auto* update_tab = new UpdateTab(dialog);
-  layout->addWidget(update_tab);
-  dialog->setLayout(layout);
-  dialog->resize(500, 600);
-  dialog->show();
-  return dialog;
+void OpenUpdateDialog() {
+  Commands().Invoke<gf::cmd::host::ViewOpen>(
+      {gf::cmd::ViewRef{QStringLiteral(GF_MODULE_ID ".update")}});
+}
+
+/// The update dialog, in a frame the Host owns.
+class UpdateWidget : public QWidget, public gf::ui::DialogWidget {
+ public:
+  UpdateWidget() {
+    auto* layout = new QVBoxLayout(this);
+    layout->addWidget(new UpdateTab(this));
+  }
+};
+
+/// Settings > Updates: whether to check at startup, and where.
+class UpdateSettingsWidget : public QWidget, public gf::ui::SettingsWidget {
+ public:
+  UpdateSettingsWidget() {
+    auto* box = new QGroupBox(
+        QCoreApplication::translate("GTrC", "Update Checking"), this);
+    auto* column = new QVBoxLayout(box);
+
+    check_ = new QCheckBox(
+        QCoreApplication::translate(
+            "GTrC", "Checking for version updates when the application "
+                    "starts."),
+        box);
+    column->addWidget(check_);
+
+    auto* row = new QHBoxLayout();
+    row->addWidget(new QLabel(
+        QCoreApplication::translate("GTrC", "Update Checking API:"), box));
+    github_ = new QRadioButton(QCoreApplication::translate("GTrC", "GitHub"),
+                               box);
+    bktus_ = new QRadioButton(QCoreApplication::translate("GTrC", "BKTUS.com"),
+                              box);
+    auto* group = new QButtonGroup(this);
+    group->addButton(github_);
+    group->addButton(bktus_);
+    row->addWidget(github_);
+    row->addWidget(bktus_);
+    row->addStretch();
+    column->addLayout(row);
+
+    auto* layout = new QVBoxLayout(this);
+    layout->addWidget(box);
+    layout->addStretch();
+  }
+
+  void LoadSettings() override {
+    check_->setChecked(!gf::sdk::Setting(GFModuleSdkContext(), GF_SETTING_HOST,
+                                         kProhibitKey, true)
+                            .toBool());
+    const bool bktus = Api() == "bktus";
+    bktus_->setChecked(bktus);
+    github_->setChecked(!bktus);
+  }
+
+  auto ApplySettings() -> bool override {
+    const bool host_ok =
+        gf::sdk::SetSetting(GFModuleSdkContext(), GF_SETTING_HOST,
+                            kProhibitKey, !check_->isChecked());
+    const bool module_ok = gf::sdk::SetSetting(
+        GFModuleSdkContext(), GF_SETTING_MODULE, kApiKey,
+        bktus_->isChecked() ? QStringLiteral("bktus")
+                            : QStringLiteral("github"));
+    return host_ok && module_ok;
+  }
+
+ private:
+  QCheckBox* check_;
+  QRadioButton* github_;
+  QRadioButton* bktus_;
+};
+
+/// Help > Check for Updates.
+struct CheckForUpdates {
+  static constexpr gf::cmd::Meta kMeta{
+      GF_MODULE_ID ".check_for_updates", GC_TR("Check for Updates"),
+      GC_TR("See whether a newer GpgFrontend is available"), "", 0,
+      gf::cmd::kNeedsGuiThread};
+  using Args = gf::cmd::Unit;
+  using Result = gf::cmd::Unit;
+};
+
+auto DoCheckForUpdates(const gf::cmd::CommandContext& /*ctx*/,
+                       const gf::cmd::Unit& /*args*/)
+    -> gf::cmd::Outcome<gf::cmd::Unit> {
+  OpenUpdateDialog();
+  return gf::cmd::Outcome<gf::cmd::Unit>::Success({});
 }
 
 }  // namespace
 
-auto OnMainwindowMenuMounted(const GFEvent& event) -> GFEventResult {
-  LOG_DEBUG("main window menu mounted event: processing");
-
-  if (!event.Has("main_window")) {
-    LOG_DEBUG("main window menu mounted event: no main_window found");
-    return GFEventResult::Bad("no main_window found");
-  }
-
-  auto* main_window = GFUIObject<QMainWindow>(event.Str("main_window"));
-  if (!main_window) {
-    LOG_ERROR(
-        "main window menu mounted: main_window handle invalid or not "
-        "QMainWindow");
-    return GFEventResult::Bad("main_window handle invalid or not QMainWindow");
-  }
-
-  auto p_mw = QPointer<QMainWindow>(main_window);
-
-  if (!event.Has("help_menu")) {
-    LOG_DEBUG("main window menu mounted event: no help_menu found");
-    return GFEventResult::Bad("no help_menu found");
-  }
-
-  auto* help_menu = GFUIObject<QMenu>(event.Str("help_menu"));
-  if (!help_menu) {
-    LOG_ERROR(
-        "main window menu mounted: help_menu handle invalid or not "
-        "QMenu");
-    return GFEventResult::Bad("help_menu handle invalid or not QMenu");
-  }
-
-  auto p_help_menu = QPointer<QMenu>(help_menu);
-
-  LOG_DEBUG("adding check update action to help menu");
-
-  QMetaObject::invokeMethod(
-      QApplication::instance(),
-      [&]() -> void {
-        if (!p_mw || !p_help_menu) {
-          LOG_ERROR(
-              "main window menu mounted: main_window or help_menu was deleted "
-              "before invoking the check update action");
-          return;
-        }
-
-        QWidget* parent =
-            qobject_cast<QWidget*>(static_cast<QObject*>(main_window));
-        auto* action = new QAction(
-            QCoreApplication::translate("GTrC", "Check for Updates"), nullptr);
-        action->setToolTip(QCoreApplication::translate(
-            "GTrC", "Check for updates from the Internet."));
-        action->setIcon(QIcon(":/icons/update.png"));
-        QObject::connect(action, &QAction::triggered, parent,
-                         [=]() -> void { RaiseUpdateDialog(parent); });
-        help_menu->addAction(action);
-      },
-      Qt::BlockingQueuedConnection);
-  return GFEventResult::Ok();
+auto OnActivate() -> GFResult {
+  LOG_INFO("version checking module activating");
+  const bool dialog = gf::ui::RegisterNativeWidget<UpdateWidget>(
+      "update", {GC_TR("Check for Updates"), "", "", "", "", 500, 600},
+      [](const QCborMap& /*args*/) { return new UpdateWidget(); });
+  const bool settings = gf::ui::RegisterNativeWidget<UpdateSettingsWidget>(
+      "settings",
+      {GC_TR("Updates"), GC_TR("update,version,check,github,bktus"), "", "",
+       "", 0, 0},
+      [](const QCborMap& /*args*/) { return new UpdateSettingsWidget(); });
+  return dialog && settings
+             ? GFResult::Ok()
+             : GFResult::Fail("the update widgets were not registered");
 }
 
-auto OnApplicationLoaded(const GFEvent& event) -> GFEventResult {
+auto OnApplicationLoaded(const GFEvent& /*event*/) -> GFEventResult {
   LOG_DEBUG("application starting completed event: processing");
 
-  auto* parent = GFUIObject<QWidget>(
-      event.Has("main_window") ? event.Str("main_window") : "");
-  if (!parent) {
-    LOG_ERROR("application loaded: main_window handle invalid or not QWidget");
-    return GFEventResult::Bad("main_window handle invalid or not QWidget");
-  }
-
-  // check version information
-  auto settings = qobject_cast<QSettings*>(
-      static_cast<QObject*>(GFStorageSettingsRoot(GFModuleSdkContext())));
-  if (!settings) {
-    LOG_ERROR("application loaded: global settings handle invalid");
-    return GFEventResult::Bad("global settings handle invalid");
-  }
-
-  // ensure that it will not perform at the first startup before wizard is done
-  if (!settings->contains("network/prohibit_update_checking")) {
-    LOG_DEBUG(
-        "application loaded: prohibit_update_checking setting "
-        "not found");
+  // Absent until the setup wizard has run: no check before the user has been
+  // asked whether to check at all.
+  const auto prohibited = gf::sdk::Setting(GFModuleSdkContext(),
+                                           GF_SETTING_HOST, kProhibitKey);
+  if (!prohibited.isValid()) {
+    LOG_DEBUG("application loaded: the setup wizard has not asked yet");
     return GFEventResult::Ok();
   }
-
-  auto update_checking_api =
-      settings->value("network/update_checking_api", "github").toString();
-  FLOG_DEBUG("application loaded: update checking api: %1",
-             update_checking_api);
-
-  // we only check for update if the user did set the option to allow it
-  auto prohibit_update_checking =
-      settings->value("network/prohibit_update_checking", true).toBool();
-  FLOG_DEBUG("application loaded: prohibit update checking: %1",
-             prohibit_update_checking);
-
-  if (prohibit_update_checking) {
+  if (prohibited.toBool()) {
     LOG_DEBUG("application loaded: update checking is prohibited");
     return GFEventResult::Ok();
   }
@@ -209,10 +225,9 @@ auto OnApplicationLoaded(const GFEvent& event) -> GFEventResult {
   auto json = QJsonDocument::fromJson(cache.toUtf8());
 
   if (json.isEmpty() || !json.isObject()) {
-    LOG_DEBUG(
-        "application loaded: no valid cached version info found, "
-        "checking update");
-    return CheckUpdate(event);
+    LOG_DEBUG("application loaded: nothing cached, checking now");
+    CheckUpdate();
+    return GFEventResult::Ok();
   }
 
   SoftwareVersion sv;
@@ -220,7 +235,8 @@ auto OnApplicationLoaded(const GFEvent& event) -> GFEventResult {
 
   FLOG_DEBUG("got software version meta data: %1", json.toJson());
   if (sv.timestamp.addDays(1) < QDateTime::currentDateTime()) {
-    return CheckUpdate(event);
+    CheckUpdate();
+    return GFEventResult::Ok();
   }
 
   FillGrtWithVersionInfo(sv);
@@ -229,235 +245,36 @@ auto OnApplicationLoaded(const GFEvent& event) -> GFEventResult {
       !sv.current_commit_hash_publish_in_remote) {
     LOG_INFO(
         "software version is outdated or not fully released, notifying user");
-
-    QMetaObject::invokeMethod(
-        QApplication::instance(),
-        [=]() {
-          auto* dialog = RaiseUpdateDialog(parent);
-          Q_UNUSED(dialog);
-        },
-        Qt::QueuedConnection);
+    OpenUpdateDialog();
   }
 
-  return GFEventResult::Ok();
-}
-
-auto OnNetworkSettingsTabUiCreated(const GFEvent& event) -> GFEventResult {
-  LOG_DEBUG("network settings tab ui created event: processing");
-
-  auto* tab = GFUIObject<QWidget>(event.Has("network_settings_tab")
-                                      ? event.Str("network_settings_tab")
-                                      : "");
-  if (!tab) {
-    LOG_ERROR(
-        "network settings tab ui created: network_settings_tab handle "
-        "invalid or not QWidget");
-    return GFEventResult::Bad(
-        "network_settings_tab handle invalid or not QWidget");
-  }
-
-  auto* capability_group_box = GFUIObject<QGroupBox>(
-      event.Has("capability_group_box") ? event.Str("capability_group_box")
-                                        : "");
-
-  if (!capability_group_box) {
-    LOG_ERROR(
-        "network settings tab ui created: capability_group_box handle "
-        "invalid or not QGroupBox");
-    return GFEventResult::Bad(
-        "capability_group_box handle invalid or not QGroupBox");
-  }
-
-  QMetaObject::invokeMethod(
-      QApplication::instance(),
-      [=]() {
-        auto* update_checking_check_box = new QCheckBox(
-            QCoreApplication::translate("GTrC",
-                                        "Checking for version updates when the "
-                                        "application starts."),
-            capability_group_box);
-        update_checking_check_box->setObjectName("update_checking_check_box");
-
-        capability_group_box->layout()->addWidget(update_checking_check_box);
-
-        auto* github_radio_button =
-            new QRadioButton(QCoreApplication::translate("GTrC", "GitHub"),
-                             capability_group_box);
-        auto* bktus_radio_button =
-            new QRadioButton(QCoreApplication::translate("GTrC", "BKTUS.com"),
-                             capability_group_box);
-
-        auto layout = new QHBoxLayout();
-        layout->addWidget(new QLabel(
-            QCoreApplication::translate("GTrC", "Update Checking API:"),
-            capability_group_box));
-        layout->addWidget(github_radio_button);
-        layout->addWidget(bktus_radio_button);
-
-        capability_group_box->layout()->addItem(layout);
-
-        auto* update_api_group = new QButtonGroup(tab);
-        update_api_group->setObjectName("update_api_group");
-        update_api_group->addButton(github_radio_button);
-        update_api_group->addButton(bktus_radio_button);
-      },
-      Qt::QueuedConnection);
-
-  return GFEventResult::Ok();
-}
-
-auto OnNetworkSettingsTabApplySettings(const GFEvent& event) -> GFEventResult {
-  LOG_DEBUG("network settings tab apply settings event: processing");
-  auto* settings = qobject_cast<QSettings*>(
-      static_cast<QObject*>(GFStorageSettingsRoot(GFModuleSdkContext())));
-  if (!settings) {
-    LOG_ERROR(
-        "network settings tab apply settings: global settings handle "
-        "invalid");
-    return GFEventResult::Bad("global settings handle invalid");
-  }
-  auto* tab = GFUIObject<QWidget>(event.Has("network_settings_tab")
-                                      ? event.Str("network_settings_tab")
-                                      : "");
-  if (!tab) {
-    LOG_ERROR(
-        "network settings tab apply settings: network_settings_tab "
-        "handle invalid or not QWidget");
-    return GFEventResult::Bad(
-        "network_settings_tab handle invalid or not QWidget");
-  }
-
-  // we need to apply the settings in the main thread to avoid some
-  // potential racing conditions
-  auto p_tab = QPointer<QWidget>(tab);
-
-  QMetaObject::invokeMethod(
-      QApplication::instance(),
-      [=]() {
-        if (!p_tab) {
-          LOG_ERROR(
-              "network settings tab apply settings: network_settings_tab "
-              "already deleted when applying settings");
-          return;
-        }
-        auto* update_checking_check_box =
-            p_tab->findChild<QCheckBox*>("update_checking_check_box");
-        if (update_checking_check_box) {
-          settings->setValue(
-              "network/version_checking/"
-              "check_for_updates_on_startup",
-              update_checking_check_box->isChecked());
-        }
-
-        auto* update_api_group =
-            tab->findChild<QButtonGroup*>("update_api_group");
-        if (update_api_group) {
-          QString api = "github";
-          if (update_api_group->buttons().at(1)->isChecked()) {
-            api = "bktus";
-          }
-          settings->setValue("network/version_checking/update_checking_api",
-                             api);
-        }
-
-        FLOG_DEBUG(
-            "network settings tab apply settings: version checking "
-            "settings applied, "
-            "check for updates on startup: %1, update checking api: %2",
-            update_checking_check_box
-                ? QString::number(update_checking_check_box->isChecked())
-                : "null",
-            update_api_group
-                ? (update_api_group->buttons().at(1)->isChecked() ? "bktus"
-                                                                  : "github")
-                : "null");
-      },
-      Qt::QueuedConnection);
-
-  return GFEventResult::Ok();
-}
-
-auto OnNetworkSettingsTabLoadSettings(const GFEvent& event) -> GFEventResult {
-  LOG_DEBUG("network settings tab load settings event: processing");
-
-  auto* settings = qobject_cast<QSettings*>(
-      static_cast<QObject*>(GFStorageSettingsRoot(GFModuleSdkContext())));
-
-  if (!settings) {
-    LOG_ERROR(
-        "network settings tab load settings: global settings handle "
-        "invalid");
-    return GFEventResult::Bad("global settings handle invalid");
-  }
-
-  auto* tab = GFUIObject<QWidget>(event.Has("network_settings_tab")
-                                      ? event.Str("network_settings_tab")
-                                      : "");
-  if (!tab) {
-    LOG_ERROR(
-        "network settings tab load settings: network_settings_tab "
-        "handle invalid or not QWidget");
-    return GFEventResult::Bad(
-        "network_settings_tab handle invalid or not QWidget");
-  }
-
-  QMetaObject::invokeMethod(
-      QApplication::instance(),
-      [=]() {
-        auto* update_checking_check_box =
-            tab->findChild<QCheckBox*>("update_checking_check_box");
-        if (update_checking_check_box) {
-          auto check_for_updates_on_startup =
-              settings
-                  ->value(
-                      "network/version_checking/"
-                      "check_for_updates_on_startup",
-                      false)
-                  .toBool();
-          update_checking_check_box->setChecked(check_for_updates_on_startup);
-        }
-
-        auto* update_api_group =
-            tab->findChild<QButtonGroup*>("update_api_group");
-        if (update_api_group) {
-          auto update_checking_api =
-              settings
-                  ->value("network/version_checking/update_checking_api",
-                          "github")
-                  .toString();
-          if (update_checking_api == "github") {
-            update_api_group->buttons().at(0)->setChecked(true);
-          } else {
-            update_api_group->buttons().at(1)->setChecked(true);
-          }
-        }
-      },
-      Qt::BlockingQueuedConnection);
-
+  // An observation, answered at once: the check runs on its own.
   return GFEventResult::Ok();
 }
 
 auto OnUnload() -> void { LOG_INFO("version checking module unregistering"); }
 
 // The module's whole framework surface.
-constexpr GFEventBinding kEvents[] = {
+constexpr std::array<GFEventBinding, 1> kEvents = {{
     {"APPLICATION_LOADED", &OnApplicationLoaded},
-    {"MAINWINDOW_MENU_MOUNTED", &OnMainwindowMenuMounted},
-    {"NETWORK_SETTINGS_TAB_APPLY_SETTINGS", &OnNetworkSettingsTabApplySettings},
-    {"NETWORK_SETTINGS_TAB_LOAD_SETTINGS", &OnNetworkSettingsTabLoadSettings},
-    {"NETWORK_SETTINGS_TAB_UI_CREATED", &OnNetworkSettingsTabUiCreated},
+}};
+
+const std::array<gf::cmd::Binding, 1> kCommands = {
+    gf::cmd::Bind<CheckForUpdates, &DoCheckForUpdates>(),
 };
 
-constexpr GFModuleHooks kHooks = {
+const GFModuleHooks kHooks = {
     sizeof(GFModuleHooks),
     GF_MODULE_ID,
     GF_MODULE_VERSION,
     GF_MODULE_TRANSLATION_CONTEXT,
     &OnActivate,
-    nullptr,  // the settings tab is built through events, so nothing to undo
+    nullptr,  // the Host withdraws the command, widgets and script itself
     &OnUnload,
-    kEvents,
-    std::size(kEvents),
+    kEvents.data(),
+    kEvents.size(),
+    kCommands.data(),
+    kCommands.size(),
 };
 
 extern "C" GF_MODULE_EXPORT auto GFModuleGetApi(uint32_t abi)

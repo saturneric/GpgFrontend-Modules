@@ -27,12 +27,7 @@
  */
 
 #include <GFModule.h>
-
-#include <QAction>
-#include <QApplication>
-#include <QMainWindow>
-#include <QMenu>
-#include <QPointer>
+#include <GFSDKHostCommands.hpp>
 
 #include "GFModuleIdentity.h"
 #include "PGPInspectDialog.h"
@@ -52,77 +47,73 @@ auto InspectCurrentTab() -> PGPInspectDocument {
   return PGPInspectBytes(bytes);
 }
 
-void RaiseInspectDialog(QWidget *parent) {
-  const auto bytes = PGPInspectCurrentTabBytes();
-  auto *dialog =
-      new PGPInspectDialog(PGPInspectBytes(bytes), bytes.size(), parent);
-  dialog->setModal(false);
-  dialog->show();
+/**
+ * @brief The module's one action: show the current tab's packet structure.
+ *
+ * Enabled only when the tab holds something to show -- decided when the
+ * menu opens, because what the current tab holds changes constantly and an
+ * entry enabled over plain text promises a window with nothing in it.
+ */
+struct OpenInspector {
+  static constexpr gf::cmd::Meta kMeta{
+      GF_MODULE_ID ".open_inspector",
+      GC_TR("Open OpenPGP Structure Inspector"),
+      GC_TR("Show the packet structure of the current tab"), "", 0,
+      gf::cmd::kNeedsGuiThread};
+  using Args = gf::cmd::Unit;
+  using Result = gf::cmd::Unit;
+
+  static auto State(const gf::cmd::CommandContext& /*ctx*/) -> uint32_t {
+    return PGPInspectHasStructure(InspectCurrentTab())
+               ? GF_CMD_STATE_ENABLED | GF_CMD_STATE_VISIBLE
+               : GF_CMD_STATE_VISIBLE;
+  }
+};
+
+auto DoOpenInspector(const gf::cmd::CommandContext& /*ctx*/,
+                     const gf::cmd::Unit& /*args*/)
+    -> gf::cmd::Outcome<gf::cmd::Unit> {
+  // The dialog is the module's mount; the Host owns its frame and opens it.
+  Commands().Invoke<gf::cmd::host::ViewOpen>(
+      {gf::cmd::ViewRef{QStringLiteral(GF_MODULE_ID ".inspector")}});
+  return gf::cmd::Outcome<gf::cmd::Unit>::Success({});
 }
 
 }  // namespace
 
 auto OnActivate() -> GFResult {
-  // Nothing to register with the host: the module owns no settings page, no
-  // tab view and no metatype. Its whole surface is one menu action, added
-  // when the menu is mounted.
-  return GFResult::Ok();
+  // The inspector, built from the current tab each time it is opened. Where
+  // it is offered is ui/main.lua's business.
+  const bool ok = gf::ui::RegisterNativeWidget<PGPInspectDialog>(
+      "inspector",
+      {GC_TR("OpenPGP Structure"), "", "", "", ":/icons/help.png", 820, 620},
+      [](const QCborMap& /*args*/) {
+        const auto bytes = PGPInspectCurrentTabBytes();
+        return new PGPInspectDialog(PGPInspectBytes(bytes), bytes.size());
+      });
+  return ok ? GFResult::Ok()
+            : GFResult::Fail("the inspector widget was not registered");
 }
 
-auto OnMainWindowMenuMounted(const GFEvent &event) -> GFEventResult {
-  QMainWindow *main_window = nullptr;
-  if (auto r = event.RequireGui("main_window", main_window); !r.ok) return r;
-
-  QMenu *advance_menu = nullptr;
-  if (auto r = event.RequireGui("advance_menu", advance_menu); !r.ok) return r;
-
-  LOG_DEBUG("adding openpgp structure inspector to the advanced menu");
-
-  QMetaObject::invokeMethod(
-      QApplication::instance(),
-      [=]() -> void {
-        auto *action =
-            new QAction(QCoreApplication::translate(
-                            "GTrC", "Open OpenPGP Structure Inspector"),
-                        nullptr);
-        action->setToolTip(QCoreApplication::translate(
-            "GTrC", "Show the packet structure of the current tab"));
-        QObject::connect(action, &QAction::triggered, main_window,
-                         [=]() { RaiseInspectDialog(main_window); });
-        advance_menu->addAction(action);
-
-        // Decided when the menu opens rather than once at mount time: what
-        // the current tab holds changes constantly, and an entry that is
-        // enabled over plain text promises a window that would have nothing
-        // in it.
-        QPointer<QAction> guarded(action);
-        QObject::connect(advance_menu, &QMenu::aboutToShow, action, [guarded] {
-          if (guarded.isNull()) return;
-          guarded->setEnabled(PGPInspectHasStructure(InspectCurrentTab()));
-        });
-      },
-      Qt::BlockingQueuedConnection);
-
-  return GFEventResult::Ok();
-}
-
-// The module's whole framework surface: which events it handles, what runs at
-// each lifecycle point, and one forwarder to the runtime that implements all
-// of it. Everything above is business logic.
-constexpr GFEventBinding kEvents[] = {
-    {"MAINWINDOW_MENU_MOUNTED", &OnMainWindowMenuMounted},
+// The module's whole framework surface: what it provides, what runs at each
+// lifecycle point, and one forwarder to the runtime that implements all of
+// it. Everything above is business logic.
+const std::array<gf::cmd::Binding, 1> kCommands = {
+    gf::cmd::Bind<OpenInspector, &DoOpenInspector>(),
 };
 
-constexpr GFModuleHooks kHooks = {
+const GFModuleHooks kHooks = {
     sizeof(GFModuleHooks),
     GF_MODULE_ID,
     GF_MODULE_VERSION,
     GF_MODULE_TRANSLATION_CONTEXT,
     &OnActivate,
-    nullptr,  // nothing registered with the host, so nothing to undo
+    nullptr,  // the Host withdraws the command, widget and script itself
     nullptr,
-    kEvents,
-    std::size(kEvents),
+    nullptr,  // no events
+    0,
+    kCommands.data(),
+    kCommands.size(),
 };
 
 extern "C" GF_MODULE_EXPORT auto GFModuleGetApi(uint32_t abi)

@@ -28,13 +28,15 @@
 
 #pragma once
 
+#include <GFModule.h>
+
 #include <QDialog>
 
 #include "PKSInterface.h"
 
 class Ui_SearchKeyDialog;
 
-class SearchKeyDialog : public QDialog {
+class SearchKeyDialog : public QDialog, public gf::ui::DialogWidget {
   Q_OBJECT
  public:
   explicit SearchKeyDialog(QWidget* parent = nullptr);

@@ -13,12 +13,15 @@
     "ui.custom"
   ],
   "events": [
-    "KEY_PAIR_OPERA_MENU_CREATED",
-    "MAINWINDOW_MENU_MOUNTED",
     "REQUEST_GET_PUBLIC_KEY_BY_FINGERPRINT",
     "REQUEST_GET_PUBLIC_KEY_BY_KEY_ID",
     "REQUEST_SEARCH_PUBLIC_KEY_BY_FINGERPRINT",
     "REQUEST_UPLOAD_PUBLIC_KEY"
+  ],
+  "commands": [
+    "com.bktus.gpgfrontend.module.key_server_sync.publish_key",
+    "com.bktus.gpgfrontend.module.key_server_sync.refresh_key",
+    "com.bktus.gpgfrontend.module.key_server_sync.search_key"
   ],
   "translation_context": "ModuleKeyServerSync"
 }

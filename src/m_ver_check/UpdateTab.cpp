@@ -205,15 +205,14 @@ void UpdateTab::slot_show_version_status() {
   }
 }
 
-auto UpdateTabFactory(void*) -> void* { return new UpdateTab(); }
-
 void UpdateTab::slot_check_version_update() {
   check_update_btn_->setEnabled(false);
   pb_->show();
 
-  auto api =
-      gf::sdk::StateText(GFModuleSdkContext(), "ui",
-                         "settings.network.update_checking_api", "github");
+  // The one place the choice is stored; the settings page writes it.
+  auto api = gf::sdk::Setting(GFModuleSdkContext(), GF_SETTING_MODULE,
+                              "update_checking_api", "github")
+                 .toString();
 
   if (api == "bktus") {
     auto* task = new BKTUSVersionCheckTask();

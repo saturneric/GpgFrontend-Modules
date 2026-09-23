@@ -28,6 +28,8 @@
 
 #pragma once
 
+#include <GFModule.h>
+
 #include <QWidget>
 #include <memory>
 
@@ -39,30 +41,27 @@ class Ui_KeyServerSettingsPage;
 /**
  * @brief The Key Servers page of the application's Settings dialog.
  *
- * Owned by this module, but hosted by the application: the dialog finds
- * SetSettings() and ApplySettings() by name, the same contract its built-in
- * pages follow, so edits here are staged and only written when the user
- * accepts.
+ * Owned by this module, in a page the application's Settings dialog owns:
+ * LoadSettings() and ApplySettings() are the typed SettingsWidget interface,
+ * so edits here are staged and only written when the user accepts.
  */
-class KeyServerSettingsPage : public QWidget {
+class KeyServerSettingsPage : public QWidget, public gf::ui::SettingsWidget {
   Q_OBJECT
 
  public:
   explicit KeyServerSettingsPage(QWidget* parent = nullptr);
 
- public slots:
+ public:
   /**
    * @brief Load the stored servers, discarding anything staged.
    *
-   * Invoked by name from the host, both when the page is built and when the
-   * user cancels out of a restart confirmation.
+   * Called by the Host both when the page is built and when the user
+   * cancels out of a restart confirmation.
    */
-  void SetSettings();
+  void LoadSettings() override;
 
-  /**
-   * @brief Persist the staged servers. Invoked by name from the host on OK.
-   */
-  void ApplySettings();
+  /// Persist the staged servers. Called by the Host on OK.
+  auto ApplySettings() -> bool override;
 
  private slots:
   void slot_add();
@@ -84,19 +83,9 @@ class KeyServerSettingsPage : public QWidget {
   std::shared_ptr<Ui_KeyServerSettingsPage> ui_;
 
   /// Staged, not stored: the dialog's Cancel has to be able to throw all of
-  /// this away, which it does by calling SetSettings() again.
+  /// this away, which it does by calling LoadSettings() again.
   QList<KeyServerEntry> entries_;
   QString default_url_;
   int pending_probes_{0};
 };
 
-/**
- * @brief Build a page for the host's Settings dialog.
- *
- * Matches QObjectFactory. A fresh page every call: the dialog is rebuilt each
- * time it is opened and takes ownership of what it is given.
- *
- * @param data unused
- * @return void* a new KeyServerSettingsPage
- */
-auto KeyServerSettingsPageFactory(void* data) -> void*;

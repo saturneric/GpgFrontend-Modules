@@ -375,5 +375,5 @@ void SearchKeyDialog::slot_lookup_finished_pks(
     return;
   }
 
-  gf::sdk::ImportKeys(GFModuleSdkContext(), channel, this, key_data);
+  gf::sdk::ImportKeys(GFModuleSdkContext(), channel, nullptr, key_data);
 }

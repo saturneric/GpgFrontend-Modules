@@ -28,4 +28,5 @@
 gf_add_module(
   NAME   ver_check
   QT     Core Network Widgets Xml
-  UI_DIR ui)
+  UI_DIR ui
+  LUA_SCRIPTS ui/main.lua)

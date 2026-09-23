@@ -86,5 +86,3 @@ class UpdateTab : public QWidget {
    */
   void SignalReplyFromUpdateServer(QByteArray data);
 };
-
-auto UpdateTabFactory(void* id) -> void*;

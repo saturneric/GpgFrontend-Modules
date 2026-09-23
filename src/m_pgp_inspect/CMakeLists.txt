@@ -34,7 +34,8 @@ gf_add_module(
   QT      Core Widgets
   SOURCES PGPInspectModule.cpp
           PGPInspectModel.cpp
-          PGPInspectDialog.cpp)
+          PGPInspectDialog.cpp
+  LUA_SCRIPTS ui/main.lua)
 
 if(GPGFRONTEND_MODULES_BUILD_TESTS)
   add_subdirectory(test)
