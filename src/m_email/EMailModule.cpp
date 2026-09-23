@@ -487,14 +487,6 @@ void RunOnGui(const std::function<void()>& fn) {
   QMetaObject::invokeMethod(app, fn, Qt::BlockingQueuedConnection);
 }
 
-/// A warning box, raised from whichever thread happens to be reporting.
-void WarnOnGui(QWidget* parent, const QString& text) {
-  RunOnGui([parent, text]() {
-    QMessageBox::warning(
-        parent, QApplication::translate("EMailModule", "Warning"), text);
-  });
-}
-
 // The preflight dialog: what the user should know before this message leaves.
 //
 // Shown only when there is something to say, and it never refuses the save --
@@ -537,22 +529,6 @@ auto EMailConfirmExport(QWidget* parent, const EMailExportCheck& check)
 }
 
 namespace {
-
-// Where a Save dialog should open. Falls back to the home directory only if
-// the host cannot answer, which it always can in practice.
-auto default_save_dir() -> QString {
-  const auto path = gf::sdk::UserFilePath(GFModuleSdkContext());
-  return path.isEmpty() ? QDir::homePath() : path;
-}
-
-// Ceiling on the size of an .eml this module will open. Generous, because a
-// message with attachments is legitimately large; the protection against a
-// hostile *shape* is EMailParseLimits, not this number.
-constexpr qint64 kMaxEMLFileSize = kMailMaxMessageSize;
-
-/// Identifier of the settings page this module owns.
-constexpr auto kMailSettingsPageId =
-    "com.bktus.gpgfrontend.module.email.accounts";
 
 auto ErrorHelper(int ret, const QString& err) -> QString {
   if (ret == -2) {
