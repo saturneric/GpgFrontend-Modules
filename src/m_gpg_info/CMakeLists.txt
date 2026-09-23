@@ -27,4 +27,5 @@
 # capabilities and translation context -- lives in module.json beside this file.
 gf_add_module(
   NAME gpg_info
-  QT   Core Widgets Concurrent)
+  QT   Core Widgets Concurrent
+  LUA_SCRIPTS ui/main.lua)

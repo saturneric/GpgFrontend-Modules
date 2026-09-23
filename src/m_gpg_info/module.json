@@ -13,9 +13,10 @@
     "ui.custom"
   ],
   "events": [
-    "APPLICATION_LOADED",
-    "MAINWINDOW_MENU_MOUNTED",
     "REQUEST_GATHERING_ALL_GNUPG_INFO"
+  ],
+  "commands": [
+    "com.bktus.gpgfrontend.module.gnupg_info_gathering.show_gnupg_info"
   ],
   "translation_context": "ModuleGnuPGInfoGathering"
 }

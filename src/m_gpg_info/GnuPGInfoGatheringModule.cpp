@@ -32,15 +32,11 @@
 #include <GFSDKLog.h>
 
 // qt
-#include <QApplication>
 #include <QCoreApplication>
 #include <QCryptographicHash>
-#include <QDialog>
 #include <QDir>
 #include <QFileInfo>
 #include <QJsonDocument>
-#include <QMainWindow>
-#include <QMenu>
 #include <QString>
 #include <QVBoxLayout>
 
@@ -49,6 +45,7 @@
 
 #include "GFModule.h"
 #include "GFModuleIdentity.h"
+#include "GFSDKHostCommands.hpp"
 #include "GnupgTab.h"
 #include "GpgInfo.h"
 
@@ -67,40 +64,51 @@ extern auto StartStartGatheringGnuPGComponentsInfo(
     const QString &gpgme_version, const QString &gpgconf_path,
     const QString &default_home_path) -> int;
 
-extern auto GnupgTabFactory(void *id) -> void *;
-
 using Context = struct {
   QString gpgme_version;
   QString gpgconf_path;
   GpgComponentInfo component_info;
 };
 
-auto OnActivate() -> GFResult {
-  LOG_INFO("gnupg info gathering module registering");
-  return GFResult::Ok();
-}
-
 namespace {
 
-auto RaiseUpdateDialog(QWidget *parent) -> QDialog * {
-  auto *dialog = new QDialog(parent);
-  dialog->setWindowTitle(QCoreApplication::translate("GTrC", "GnuPG"));
-  dialog->setModal(true);
-  dialog->setAttribute(Qt::WA_DeleteOnClose);
-  auto *layout = new QVBoxLayout();
-  auto *update_tab = new GnupgTab(dialog);
-  layout->addWidget(update_tab);
-  dialog->setLayout(layout);
-  dialog->resize(500, 600);
-  dialog->show();
-  return dialog;
+/// What GnuPG is installed and how it is configured, in a dialog frame the
+/// Host owns.
+class GnupgInfoWidget : public QWidget, public gf::ui::DialogWidget {
+ public:
+  GnupgInfoWidget() {
+    auto* layout = new QVBoxLayout(this);
+    layout->addWidget(new GnupgTab(this));
+  }
+};
+
+/// Help > GnuPG. Its title and whereabouts are the command's and the
+/// script's; it only opens the module's own dialog.
+struct ShowGnupgInfo {
+  static constexpr gf::cmd::Meta kMeta{
+      GF_MODULE_ID ".show_gnupg_info", GC_TR("GnuPG"),
+      GC_TR("Information about GnuPG"), "", 0, gf::cmd::kNeedsGuiThread};
+  using Args = gf::cmd::Unit;
+  using Result = gf::cmd::Unit;
+};
+
+auto DoShowGnupgInfo(const gf::cmd::CommandContext& /*ctx*/,
+                     const gf::cmd::Unit& /*args*/)
+    -> gf::cmd::Outcome<gf::cmd::Unit> {
+  Commands().Invoke<gf::cmd::host::ViewOpen>(
+      {gf::cmd::ViewRef{QStringLiteral(GF_MODULE_ID ".info")}});
+  return gf::cmd::Outcome<gf::cmd::Unit>::Success({});
 }
+
 }  // namespace
 
-auto OnApplicationLoaded(const GFEvent & /*event*/) -> GFEventResult {
-  // Subscribed but with nothing to do: the module wants the host to consider
-  // it a listener of this event, and answering is all that is required.
-  return GFEventResult::Ok();
+auto OnActivate() -> GFResult {
+  LOG_INFO("gnupg info gathering module registering");
+  const bool ok = gf::ui::RegisterNativeWidget<GnupgInfoWidget>(
+      "info", {GC_TR("GnuPG"), "", "", "", ":/icons/key.png", 500, 600},
+      [](const QCborMap& /*args*/) { return new GnupgInfoWidget(); });
+  return ok ? GFResult::Ok()
+            : GFResult::Fail("the GnuPG information widget was not registered");
 }
 
 auto OnRequestGatheringAllGnuPGInfo(const GFEvent & /*event*/)
@@ -113,53 +121,29 @@ auto OnUnload() -> void {
   LOG_INFO("gnupg info gathering module unregistering");
 }
 
-auto OnMainWindowMenuMounted(const GFEvent &event) -> GFEventResult {
-  QMainWindow *main_window = nullptr;
-  if (auto r = event.RequireGui("main_window", main_window); !r.ok) return r;
-
-  QMenu *help_menu = nullptr;
-  if (auto r = event.RequireGui("help_menu", help_menu); !r.ok) return r;
-
-  LOG_DEBUG("adding check update action to help menu");
-
-  QMetaObject::invokeMethod(
-      QApplication::instance(),
-      [&]() -> void {
-        QWidget *parent =
-            qobject_cast<QWidget *>(static_cast<QObject *>(main_window));
-        auto *action =
-            new QAction(QCoreApplication::translate("GTrC", "GnuPG"), nullptr);
-        action->setToolTip(
-            QCoreApplication::translate("GTrC", "Information about GnuPG"));
-        action->setIcon(QIcon(":/icons/key.png"));
-        QObject::connect(action, &QAction::triggered, parent,
-                         [=]() { RaiseUpdateDialog(parent); });
-        help_menu->addAction(action);
-      },
-      Qt::BlockingQueuedConnection);
-
-  return GFEventResult::Ok();
-}
-
-// The module's whole framework surface: which events it handles, what runs at
-// each lifecycle point, and one forwarder to the runtime that implements all
-// of it. Everything above is business logic.
-constexpr GFEventBinding kEvents[] = {
-    {"APPLICATION_LOADED", &OnApplicationLoaded},
-    {"MAINWINDOW_MENU_MOUNTED", &OnMainWindowMenuMounted},
+// The module's whole framework surface: which events it handles, what it
+// provides, what runs at each lifecycle point, and one forwarder to the
+// runtime that implements all of it. Everything above is business logic.
+constexpr std::array<GFEventBinding, 1> kEvents = {{
     {"REQUEST_GATHERING_ALL_GNUPG_INFO", &OnRequestGatheringAllGnuPGInfo},
+}};
+
+const std::array<gf::cmd::Binding, 1> kCommands = {
+    gf::cmd::Bind<ShowGnupgInfo, &DoShowGnupgInfo>(),
 };
 
-constexpr GFModuleHooks kHooks = {
+const GFModuleHooks kHooks = {
     sizeof(GFModuleHooks),
     GF_MODULE_ID,
     GF_MODULE_VERSION,
     GF_MODULE_TRANSLATION_CONTEXT,
     &OnActivate,
-    nullptr,  // nothing registered with the host, so nothing to undo
+    nullptr,  // the Host withdraws the command, widget and script itself
     &OnUnload,
-    kEvents,
-    std::size(kEvents),
+    kEvents.data(),
+    kEvents.size(),
+    kCommands.data(),
+    kCommands.size(),
 };
 
 extern "C" GF_MODULE_EXPORT auto GFModuleGetApi(uint32_t abi)

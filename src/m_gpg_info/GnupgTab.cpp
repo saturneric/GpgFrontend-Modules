@@ -335,5 +335,3 @@ void GnupgTab::showEvent(QShowEvent* event) {
     slot_gather_gnupg_info();
   }
 }
-
-auto GnupgTabFactory(void*) -> void* { return new GnupgTab(); }
