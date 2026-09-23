@@ -191,8 +191,7 @@ void EMailStructureView::show_part_menu(const QPoint& pos) {
   } else if (import != nullptr && chosen == import) {
     // The host owns the import and whatever it reports about the outcome.
     gf::sdk::ImportKeys(GFModuleSdkContext(),
-                        GFGpgCurrentChannel(GFModuleSdkContext()), this,
-                        part->data);
+                        GFGpgCurrentChannel(GFModuleSdkContext()), part->data);
   } else if (chosen == copy_type) {
     clipboard->setText(part->content_type);
   } else if (chosen == copy_name) {

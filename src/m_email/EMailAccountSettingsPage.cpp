@@ -104,7 +104,7 @@ void SelectSecurity(QComboBox* combo, MailTlsMode mode) {
 EMailAccountSettingsPage::EMailAccountSettingsPage(QWidget* parent)
     : QWidget(parent) {
   build_ui();
-  SetSettings();
+  LoadSettings();
 }
 
 namespace {
@@ -394,7 +394,7 @@ void EMailAccountSettingsPage::build_ui() {
   apply_colors();
 }
 
-void EMailAccountSettingsPage::SetSettings() {
+void EMailAccountSettingsPage::LoadSettings() {
   loading_ = true;
 
   // Checked rather than plain: this page WRITES what it reads, and an empty
@@ -418,7 +418,7 @@ void EMailAccountSettingsPage::SetSettings() {
   refresh_enabled_state();
 }
 
-void EMailAccountSettingsPage::ApplySettings() {
+auto EMailAccountSettingsPage::ApplySettings() -> bool {
   // Refused outright when the stored list could not be read. Writing here
   // would replace a newer build's accounts -- or a list this build simply
   // could not parse -- with an empty one, which is exactly what refusing to
@@ -436,7 +436,7 @@ void EMailAccountSettingsPage::ApplySettings() {
                  "has not changed them.\n\nNothing has been lost. If this "
                  "keeps happening, the stored list may need to be removed by "
                  "hand."));
-    return;
+    return false;
   }
 
   store_selected();
@@ -445,7 +445,7 @@ void EMailAccountSettingsPage::ApplySettings() {
   // whole account list and re-save every stored password on every OK press,
   // whichever settings page the user had actually come for.
   if (!dirty_ && pending_passwords_.isEmpty() && pending_removals_.isEmpty()) {
-    return;
+    return false;
   }
 
   EMailAccountStore::Store(accounts_, default_id_);
@@ -467,6 +467,7 @@ void EMailAccountSettingsPage::ApplySettings() {
   }
 
   wipe_pending_passwords();
+  return true;
 }
 
 auto EMailAccountSettingsPage::selected_index() const -> int {
@@ -1255,6 +1256,3 @@ void EMailAccountSettingsPage::finish_probe(const std::shared_ptr<Probe>& probe,
   report_probe_error(probe->error, probe->imap, status);
 }
 
-auto EMailAccountSettingsPageFactory(void* /*data*/) -> void* {
-  return new EMailAccountSettingsPage(nullptr);
-}

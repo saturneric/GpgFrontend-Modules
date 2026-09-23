@@ -29,3 +29,11 @@
 #pragma once
 
 #include "GFModule.h"
+#include "EMailHelper.h"
+
+class QWidget;
+
+/// The pre-save look at a message, asked of the user when there is
+/// something worth saying. false: they chose not to write the file.
+auto EMailConfirmExport(QWidget* parent, const EMailExportCheck& check)
+    -> bool;

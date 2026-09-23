@@ -58,9 +58,9 @@ constexpr int kEMailCompactActionsWidth = 640;
 constexpr int kEMailRoomyActionsWidth = 700;
 
 /// The settings keys the details window is remembered under.
-constexpr auto kEMailDetailsWidthKey = "email/view/details_width";
-constexpr auto kEMailDetailsHeightKey = "email/view/details_height";
-constexpr auto kEMailDetailsTabKey = "email/view/details_tab";
+constexpr auto kEMailDetailsWidthKey = "view/details_width";
+constexpr auto kEMailDetailsHeightKey = "view/details_height";
+constexpr auto kEMailDetailsTabKey = "view/details_tab";
 
 /**
  * @brief What size the details window may actually open at.

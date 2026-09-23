@@ -28,6 +28,10 @@
 
 #include "EMailPageView.h"
 
+#include <GFSDKHostCommands.hpp>
+
+#include "EMailModule.h"
+
 #include <GFSDKGpg.h>
 #include <GFSDKGpgList.h>
 
@@ -300,7 +304,42 @@ auto GuessMimeType(const QString& path) -> QString {
 
 }  // namespace
 
+namespace {
+
+/// Every message view alive, touched only on the GUI thread. The keyring
+/// notice goes to these and to nothing else in the process. A list rather
+/// than a set: a QPointer turns null as its object dies, which would change
+/// its hash while it sat in a set.
+auto LiveViews() -> QList<QPointer<EMailPageView>>& {
+  static QList<QPointer<EMailPageView>> views;
+  return views;
+}
+
+}  // namespace
+
 EMailPageView::EMailPageView(QWidget* parent) : QWidget(parent) {
+  LiveViews().removeAll(QPointer<EMailPageView>());
+  LiveViews().append(this);
+
+  // The typed interface's notifiers, fed from the signals this view has
+  // always emitted internally.
+  connect(this, &EMailPageView::SignalContentModified, this,
+          [this]() { NotifyModified(); });
+  connect(this, &EMailPageView::SignalCryptoOperationsChanged, this,
+          [this]() { NotifyOpsChanged(); });
+  connect(this, &EMailPageView::SignalCryptoOperationRequested, this,
+          [this](const QString& op) {
+            static const QHash<QString, uint32_t> kOps = {
+                {"encrypt", GF_CRYPTO_OP_ENCRYPT},
+                {"decrypt", GF_CRYPTO_OP_DECRYPT},
+                {"sign", GF_CRYPTO_OP_SIGN},
+                {"verify", GF_CRYPTO_OP_VERIFY},
+                {"encrypt_sign", GF_CRYPTO_OP_ENCRYPT_SIGN},
+                {"decrypt_verify", GF_CRYPTO_OP_DECRYPT_VERIFY},
+            };
+            if (kOps.contains(op)) RequestCrypto(kOps.value(op));
+          });
+
   build_ui();
   // Files can be dropped anywhere on the message to attach them, which is
   // what people try before they look for a button.
@@ -416,19 +455,13 @@ void EMailPageView::build_details_dialog() {
 
   // Restored before the window is ever shown, so it opens where it was left
   // rather than jumping into place afterwards.
-  auto* settings = EMailViewSettings();
-  if (settings == nullptr) {
-    details_dialog_->resize(kEMailDetailsDefaultWidth,
-                            kEMailDetailsDefaultHeight);
-    return;
-  }
-
-  const auto size =
-      EMailClampDetailsSize(settings->value(kEMailDetailsWidthKey, 0).toInt(),
-                            settings->value(kEMailDetailsHeightKey, 0).toInt());
+  const auto size = EMailClampDetailsSize(
+      EMailViewSetting(kEMailDetailsWidthKey, 0).toInt(),
+      EMailViewSetting(kEMailDetailsHeightKey, 0).toInt());
   details_dialog_->resize(size.first, size.second);
   details_tabs_->setCurrentIndex(EMailClampDetailsTab(
-      settings->value(kEMailDetailsTabKey, 0).toInt(), details_tabs_->count()));
+      EMailViewSetting(kEMailDetailsTabKey, 0).toInt(),
+      details_tabs_->count()));
 }
 
 void EMailPageView::apply_colors() {
@@ -1026,13 +1059,11 @@ void EMailPageView::schedule_persist() {
 }
 
 void EMailPageView::persist_details_state() {
-  auto* settings = EMailViewSettings();
-  if (settings == nullptr || details_dialog_ == nullptr) return;
+  if (details_dialog_ == nullptr) return;
 
-  settings->setValue(kEMailDetailsWidthKey, details_dialog_->width());
-  settings->setValue(kEMailDetailsHeightKey, details_dialog_->height());
-  settings->setValue(kEMailDetailsTabKey, details_tabs_->currentIndex());
-  settings->sync();
+  SetEMailViewSetting(kEMailDetailsWidthKey, details_dialog_->width());
+  SetEMailViewSetting(kEMailDetailsHeightKey, details_dialog_->height());
+  SetEMailViewSetting(kEMailDetailsTabKey, details_tabs_->currentIndex());
 }
 
 void EMailPageView::set_source_mode(bool on) {
@@ -1423,62 +1454,6 @@ void EMailPageView::refresh_structure() {
   header_view_->SetMessage(tree_root_, last_source_);
 }
 
-void EMailPageView::AdoptSourceView(QWidget* source) {
-  if (source == nullptr || source_view_ != nullptr) return;
-
-  source_view_ = source;
-
-  // The editor is not shown bare: it gets a row above it saying whether it may
-  // be written to, and the control that changes that.
-  raw_tab_ = new QWidget(this);
-  auto* layout = new QVBoxLayout(raw_tab_);
-  layout->setContentsMargins(0, 4, 0, 0);
-  layout->setSpacing(4);
-
-  auto* bar = new QHBoxLayout();
-  bar->setContentsMargins(0, 0, 0, 0);
-
-  raw_notice_ = new QLabel(raw_tab_);
-  raw_notice_->setWordWrap(true);
-  {
-    auto font = raw_notice_->font();
-    font.setPointSizeF(font.pointSizeF() * 0.92);
-    raw_notice_->setFont(font);
-  }
-  bar->addWidget(raw_notice_, 1);
-
-  raw_unlock_button_ = new QToolButton(raw_tab_);
-  raw_unlock_button_->setCheckable(true);
-  raw_unlock_button_->setAutoRaise(true);
-  raw_unlock_button_->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
-  bar->addWidget(raw_unlock_button_);
-
-  layout->addLayout(bar);
-  layout->addWidget(source, 1);
-
-  connect(raw_unlock_button_, &QToolButton::toggled, this,
-          &EMailPageView::slot_toggle_raw_edit);
-
-  // A page of the body stack rather than a place of its own, so the action row
-  // above it -- and with it the switcher back -- stays on screen while the raw
-  // document is being read. Appended, so the indices the rest of this file
-  // uses for the editor, the rendered body and the locked panel do not move.
-  body_stack_->addWidget(raw_tab_);
-
-  // There is a second mode now, so the switch to it becomes reachable.
-  view_switcher_->setVisible(true);
-
-  // Read-only by default, and not only in forensic mode: these are the exact
-  // octets a signature covers, and an accidental keystroke here is
-  // indistinguishable from a forgery to whoever verifies the message next.
-  // Set through the property system because the page hands over a plain
-  // QWidget; an editor that does not carry the property simply does not gain a
-  // way to be written to.
-  raw_unlocked_ = false;
-  source_view_->setProperty("readOnly", true);
-  refresh_raw_lock_ui();
-}
-
 void EMailPageView::slot_toggle_raw_edit(bool on) {
   if (!on) {
     raw_unlocked_ = false;
@@ -1561,15 +1536,17 @@ void EMailPageView::ApplyEditorFont(const QFont& font) {
   if (body_view_ != nullptr) body_view_->setFont(font);
 }
 
+
 void EMailNotifyKeyringChanged() {
   // The keyring is refreshed on a worker thread, so this can arrive from one;
   // everything below touches widgets and must not.
   QMetaObject::invokeMethod(
       qApp,
       []() {
-        for (auto* widget : QApplication::allWidgets()) {
-          auto* view = qobject_cast<EMailPageView*>(widget);
-          if (view != nullptr) view->NotifyKeyringChanged();
+        auto& views = LiveViews();
+        views.removeAll(QPointer<EMailPageView>());
+        for (const auto& view : views) {
+          if (!view.isNull()) view->NotifyKeyringChanged();
         }
       },
       Qt::QueuedConnection);
@@ -1748,25 +1725,6 @@ void EMailPageView::slot_derive_message(int mode) {
   // action on a message they care about not happen.
   const auto intact = tr("\n\nThis message itself has not been changed.");
 
-  // Walk up to the tab widget that owns this page. The module cannot link the
-  // UI library, so the host is reached by invokable name rather than by type.
-  QObject* edit = parent();
-  while (edit != nullptr &&
-         edit->metaObject()->indexOfMethod(
-             "SlotNewCustomTab(QString,QString,QIcon,QString)") < 0) {
-    edit = edit->parent();
-  }
-
-  if (edit == nullptr) {
-    MLogWarn("cannot derive a message: no tab host above this view");
-    QMessageBox::warning(
-        this, what,
-        tr("A new message cannot be opened from here, because this view is "
-           "not inside a window that holds tabs.") +
-            intact);
-    return;
-  }
-
   // Whichever of our own addresses the message was sent to; used to keep the
   // user out of their own reply-all.
   QString self;
@@ -1802,37 +1760,23 @@ void EMailPageView::slot_derive_message(int mode) {
   auto title = TabTitleForSubject(derived.subject);
   if (title.isEmpty()) title = tr("untitled.eml");
 
-  QWidget* page = nullptr;
-  QMetaObject::invokeMethod(edit, "SlotNewCustomTab", Qt::DirectConnection,
-                            Q_RETURN_ARG(QWidget*, page),
-                            Q_ARG(QString, "email"), Q_ARG(QString, title),
-                            Q_ARG(QIcon, QIcon(":/icons/email.png")),
-                            Q_ARG(QString, ":/icons/email.png"));
-
-  if (page == nullptr) {
-    MLogWarn("the host did not create a tab for the derived message");
-    QMessageBox::warning(
-        this, what,
-        tr("A tab for the new message could not be opened.") + intact);
-    return;
-  }
-
-  // The new tab mounts a view of this same type, so it can be addressed
-  // directly rather than through the host's document.
-  auto* view = page->findChild<EMailPageView*>();
-  if (view == nullptr) {
-    MLogWarn("the new tab has no message view to fill");
-    QMessageBox::warning(
-        this, what,
-        tr("The new tab opened, but it is not showing a message view, so "
-           "there is nowhere to put the reply. The tab can be closed.") +
-            intact);
-    return;
-  }
-
-  view->LoadFromSource(eml);
-  // It is a draft the user has not saved, and the tab should say so.
-  view->mark_dirty();
+  // The Host opens the tab; a document of type "email" gets a view of this
+  // same kind, which loads the message. It is a draft nobody has saved, and
+  // the tab says so.
+  QPointer<EMailPageView> guard(this);
+  Commands().Invoke<gf::cmd::host::DocumentOpen>(
+      {QStringLiteral("email"), title, QString(),
+       gf::cmd::MakeBlob(eml.constData(), static_cast<size_t>(eml.size())),
+       false, true},
+      this, [guard, what, intact](const auto& r) {
+        if (r.Ok() || guard.isNull()) return;
+        MLogWarn("the host did not open a tab for the derived message");
+        QMessageBox::warning(
+            guard, what,
+            EMailPageView::tr("A tab for the new message could not be "
+                              "opened.") +
+                intact);
+      });
 }
 
 auto EMailPageView::build_locked_panel() -> QWidget* {
@@ -2077,7 +2021,7 @@ void EMailPageView::refresh_locked_capability_by_address(
           : tr("You hold private keys for %1.").arg(matched.join(", ")));
 }
 
-auto EMailPageView::AttachPublicKey(const QByteArray& key_data,
+auto EMailPageView::AttachPublicKeyToMessage(const QByteArray& key_data,
                                     const QString& suggested_name) -> int {
   if (key_data.isEmpty()) return kEMAIL_ADD_NOT_HANDLED;
 
@@ -2950,7 +2894,7 @@ void EMailPageView::report_attachment_status(const QString& note) {
   QTimer::singleShot(kStatusNoteMs, this, [this]() { refresh_attachments(); });
 }
 
-auto EMailPageView::SuggestedFileName() -> QString {
+auto EMailPageView::SuggestedFileName() const -> QString {
   // The subject as it is on screen, not as it was loaded: a draft being
   // written has a subject in the field and nothing in message_ until something
   // serializes it, and the name offered should follow what the user typed.
@@ -3029,7 +2973,7 @@ void EMailPageView::slot_send_message() {
   dialog->show();
 }
 
-auto EMailPageView::IsDirty() -> bool { return dirty_; }
+auto EMailPageView::IsDirty() const -> bool { return dirty_; }
 
 auto EMailPageView::BuildOutgoing(EMailOutgoingMessage& out) -> bool {
   collect_fields();
@@ -3335,8 +3279,7 @@ void EMailPageView::import_message_keys() {
   // user already asked for would be a dialog per part.
   for (const auto* part : keys) {
     gf::sdk::ImportKeys(GFModuleSdkContext(),
-                        GFGpgCurrentChannel(GFModuleSdkContext()), this,
-                        part->data);
+                        GFGpgCurrentChannel(GFModuleSdkContext()), part->data);
   }
 
   // The keyring is what the Security tab was reporting against, so it has to
@@ -3351,8 +3294,7 @@ void EMailPageView::import_attachment_key(const EMailAttachment& att) {
   // came of it: this module has no business inventing a second report of the
   // same operation.
   gf::sdk::ImportKeys(GFModuleSdkContext(),
-                      GFGpgCurrentChannel(GFModuleSdkContext()), this,
-                      att.data);
+                      GFGpgCurrentChannel(GFModuleSdkContext()), att.data);
 }
 
 void EMailPageView::open_attachment(QTreeWidgetItem* item) {
@@ -3587,4 +3529,79 @@ void EMailPageView::save_attachments(const QList<EMailAttachment>& chosen) {
   report_attachment_status(written.size() == 1
                                ? tr("Saved 1 file.")
                                : tr("Saved %1 files.").arg(written.size()));
+}
+
+// --- gf::ui::DocumentWidget ------------------------------------------------
+
+void EMailPageView::Load(const QByteArray& bytes) { LoadFromSource(bytes); }
+
+auto EMailPageView::Save() -> std::optional<QByteArray> {
+  return SaveToSource();
+}
+
+auto EMailPageView::CryptoOperations() const -> std::optional<uint32_t> {
+  static const QHash<QString, uint32_t> kOps = {
+      {"encrypt", GF_CRYPTO_OP_ENCRYPT},
+      {"decrypt", GF_CRYPTO_OP_DECRYPT},
+      {"sign", GF_CRYPTO_OP_SIGN},
+      {"verify", GF_CRYPTO_OP_VERIFY},
+      {"encrypt_sign", GF_CRYPTO_OP_ENCRYPT_SIGN},
+      {"decrypt_verify", GF_CRYPTO_OP_DECRYPT_VERIFY},
+  };
+  uint32_t bits = 0;
+  // Only reads what the message is; not const merely by history.
+  for (const auto& op :
+       const_cast<EMailPageView*>(this)->AvailableCryptoOperations()) {
+    bits |= kOps.value(op, 0);
+  }
+  return bits;
+}
+
+void EMailPageView::ApplyVerification(const QByteArray& json) {
+  ApplyVerificationResult(json);
+}
+
+auto EMailPageView::AppendText(const QString& text) -> bool {
+  return AppendBodyText(text) != kEMAIL_ADD_NOT_HANDLED;
+}
+
+auto EMailPageView::AttachPublicKey(const QByteArray& key,
+                                    const QString& name) -> bool {
+  return AttachPublicKeyToMessage(key, name) != kEMAIL_ADD_NOT_HANDLED;
+}
+
+void EMailPageView::ApplyFont(const QFont& font) { ApplyEditorFont(font); }
+
+auto EMailPageView::PrepareSave(const QByteArray& bytes) -> SaveDecision {
+  SaveDecision decision;
+
+  // A message is CRLF on disk. Normalised to LF first: the document may
+  // already hold CRLF, and expanding every "\n" then makes CRCRLF.
+  auto text = bytes;
+  text.replace("\r\n", "\n");
+  text.replace("\n", "\r\n");
+
+  // The last look before the bytes leave, at exactly what would be written.
+  const auto check = CheckBeforeExport(text);
+  if (!EMailConfirmExport(this, check)) {
+    decision.cancelled = true;
+    return decision;
+  }
+  decision.bytes = text;
+  return decision;
+}
+
+auto EMailPageView::SourceLockReason() const -> std::optional<QString> {
+  switch (content_lock()) {
+    case EMailLockReason::kFORENSIC:
+      return tr("This message is locked for inspection. Its source cannot be "
+                "edited.");
+    case EMailLockReason::kPROTECTED:
+      return tr("These bytes are covered by a signature, or are ciphertext. "
+                "Remove the signature, or decrypt the message, before editing "
+                "its source.");
+    case EMailLockReason::kNONE:
+      break;
+  }
+  return std::nullopt;
 }

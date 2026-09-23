@@ -37,6 +37,7 @@
 #include "EMailSecret.h"
 #include "EMailSendDialog.h"
 #include "GFModuleIdentity.h"
+#include "GFSDKHostCommands.hpp"
 
 // qt
 #include <QApplication>
@@ -73,6 +74,7 @@
 #include <vmime/contentTypeField.hpp>
 
 #include "GFModule.h"
+#include "GFSDKHostCommands.hpp"
 
 //
 #include "EMailBasicGpgOpera.h"
@@ -392,8 +394,10 @@ auto BuildResultCardsParam(const QString& operation,
 }  // namespace
 
 /// Identifier of the settings page this module owns.
-constexpr auto kMailSettingsPageId =
-    "com.bktus.gpgfrontend.module.email.accounts";
+namespace {
+auto OpenRawAsEMailTab(const QByteArray& raw, const QString& title) -> bool;
+auto TitleForImported(const QByteArray& raw) -> QString;
+}  // namespace
 
 auto OnActivate() -> GFResult {
   LOG_INFO("email module registering");
@@ -401,15 +405,6 @@ auto OnActivate() -> GFResult {
   // The MIME code carries no SDK symbol of its own so it can be unit-tested
   // without a module host; this is what gives it a logger at runtime.
   SetMimeLogSink([](const QString& m) { MLogDebug(m); });
-  // The message view of an e-mail tab. The host still owns the page and its
-  // document -- this only supplies the widget shown on top of it, with the raw
-  // MIME still one click away.
-  gf::sdk::RegisterTabPageView(
-      GFModuleSdkContext(), "EMAIL",
-      [](void*) -> void* { return new EMailPageView(nullptr); }, nullptr);
-
-  // register file extension handler
-  GFUIRegisterFileExtension(GFModuleSdkContext(), "eml", "EMAIL");
   // These cross thread boundaries as queued signal arguments, so Qt has to
   // know how to copy them before the first connection is made.
   qRegisterMetaType<MailAccountConfig>("MailAccountConfig");
@@ -434,24 +429,37 @@ auto OnActivate() -> GFResult {
   // before any worker exists.
   vmime::platform::getHandler();
 
-  const auto keywords =
-      QStringList{GC_TR("mail"), GC_TR("email"),   GC_TR("imap"),
-                  GC_TR("smtp"), GC_TR("account"), GC_TR("send")}
-          .join('\n');
-  gf::sdk::RegisterSettingsPage(GFModuleSdkContext(), kMailSettingsPageId,
-                                "features", GC_TR("Mail Accounts"),
-                                keywords.toUtf8().constData(),
-                                EMailAccountSettingsPageFactory, nullptr);
+  // The module's own widgets, which ui/main.lua mounts: the message view of
+  // an e-mail document (one per tab; the Host owns the page, its document
+  // and the raw source beside it), the mail accounts settings page, and the
+  // IMAP controller dialog. Presentation is untranslated: the Host
+  // translates it when shown, after the module translators are installed.
+  const bool editor = gf::ui::RegisterNativeWidgetFactory<EMailPageView>(
+      "editor",
+      {GC_TR("E-Mail"), "", "eml", GC_TR("E-Mail Message (*.eml);;All Files (*)"),
+       ":/icons/email.png", 0, 0},
+      [](const QCborMap& /*args*/) { return new EMailPageView(); });
+  const bool settings = gf::ui::RegisterNativeWidget<EMailAccountSettingsPage>(
+      "settings",
+      {GC_TR("Mail Accounts"),
+       GC_TR("mail,email,imap,smtp,account,send"), "", "", "", 0, 0},
+      [](const QCborMap& /*args*/) { return new EMailAccountSettingsPage(); });
+  const bool imap = gf::ui::RegisterNativeWidget<EMailImapController>(
+      "imap", {GC_TR("IMAP Controller"), "", "", "", "", 0, 0},
+      [](const QCborMap& /*args*/) {
+        auto* controller = new EMailImapController();
+        // The narrow boundary: raw bytes in, a document out. The controller
+        // never touches a tab itself.
+        QObject::connect(controller, &EMailImapController::SignalMessageChosen,
+                         controller, [](const QByteArray& raw) {
+                           OpenRawAsEMailTab(raw, TitleForImported(raw));
+                         });
+        return controller;
+      });
 
-  return GFResult::Ok();
-}
-
-auto OnDeactivate() -> GFResult {
-  // A factory pointing into an unloaded shared object would crash the next
-  // time an e-mail tab is opened.
-  GFUIUnregisterTabPageView(GFModuleSdkContext(), "EMAIL");
-  GFUIUnregisterSettingsPage(GFModuleSdkContext(), kMailSettingsPageId);
-  return GFResult::Ok();
+  return editor && settings && imap
+             ? GFResult::Ok()
+             : GFResult::Fail("the mail widgets were not registered");
 }
 
 auto OnUnload() -> void { LOG_INFO("email module unregistering"); }
@@ -520,6 +528,15 @@ auto ConfirmExport(QWidget* parent, const EMailExportCheck& check) -> bool {
   });
   return accepted;
 }
+
+}  // namespace
+
+auto EMailConfirmExport(QWidget* parent, const EMailExportCheck& check)
+    -> bool {
+  return ConfirmExport(parent, check);
+}
+
+namespace {
 
 // Where a Save dialog should open. Falls back to the home directory only if
 // the host cannot answer, which it always can in practice.
@@ -617,35 +634,14 @@ namespace {
  * Must run on the GUI thread.
  */
 auto OpenRawAsEMailTab(const QByteArray& raw, const QString& title) -> bool {
-  auto* edit = GFUIObject<QWidget>("main_window_edit");
-  if (edit == nullptr) {
-    LOG_ERROR("main_window_edit handle invalid or not QWidget");
-    return false;
-  }
-
-  QWidget* page = nullptr;
-  auto ok = QMetaObject::invokeMethod(
-      edit, "SlotNewCustomTab", Qt::DirectConnection,
-      Q_RETURN_ARG(QWidget*, page), Q_ARG(QString, "email"),
-      Q_ARG(QString, title), Q_ARG(QIcon, QIcon(":/icons/email.png")),
-      Q_ARG(QString, ":/icons/email.png"));
-
-  if (!ok || page == nullptr) {
-    LOG_ERROR("create new email tab page failed");
-    return false;
-  }
-
-  // Bytes, not text: the page records which line endings the message arrived
-  // with, and a PGP/MIME signature covers the exact octets. Going through
-  // setPlainText would destroy every signature before anything could check
-  // one.
-  if (!QMetaObject::invokeMethod(page, "SetContentFromBytes",
-                                 Qt::DirectConnection,
-                                 Q_ARG(QByteArray, raw))) {
-    LOG_ERROR("host does not support SetContentFromBytes");
-    return false;
-  }
-  return true;
+  // Bytes, as a Blob: the Host records which line endings the message
+  // arrived with, and a PGP/MIME signature covers the exact octets.
+  return Commands()
+      .Invoke<gf::cmd::host::DocumentOpen>(
+          {QStringLiteral("email"), title, QString(),
+           gf::cmd::MakeBlob(raw.constData(), static_cast<size_t>(raw.size())),
+           false, false})
+      .Ok();
 }
 
 /// A tab title for an imported message: its subject, or a neutral fallback.
@@ -666,121 +662,6 @@ auto TitleForImported(const QByteArray& raw) -> QString {
 }
 
 }  // namespace
-
-auto OnMainwindowMenuMounted(const GFEvent& event) -> GFEventResult {
-  LOG_DEBUG("main window menu mounted event: processing");
-
-  if (!event.Has("main_window")) {
-    LOG_DEBUG("main window menu mounted event: no main_window found");
-    return GFEventResult::Bad("no main_window found");
-  }
-
-  auto* main_window = GFUIObject<QMainWindow>(event.Str("main_window"));
-  if (!main_window) {
-    LOG_ERROR(
-        "main window menu mounted: main_window handle invalid or not "
-        "QMainWindow");
-    return GFEventResult::Bad("main_window handle invalid or not QMainWindow");
-  }
-
-  if (!event.Has("import_key_menu")) {
-    LOG_DEBUG("main window menu mounted event: no import_key_menu found");
-    return GFEventResult::Bad("no import_key_menu found");
-  }
-
-  // Importing over the network is a different kind of act from opening a new
-  // editor, so it belongs in Advanced rather than beside "Mail Editor" in the
-  // workspace menu.
-  auto* advance_menu = GFUIObject<QMenu>(event.Str("advance_menu"));
-  if (advance_menu == nullptr) {
-    LOG_ERROR("advance_menu handle invalid or not QMenu");
-  }
-
-  auto* workspace_menu = GFUIObject<QMenu>(event.Str("file_workspace_menu"));
-  if (!workspace_menu) {
-    LOG_ERROR(
-        "main window menu mounted: workspace_menu handle invalid or not "
-        "QMenu");
-    return GFEventResult::Bad("workspace_menu handle invalid or not QMenu");
-  }
-
-  LOG_DEBUG("adding key server sync actions to import key menu");
-
-  auto* edit = GFUIObject<QWidget>("main_window_edit");
-  if (!edit) {
-    LOG_ERROR(
-        "main window menu mounted: main_window_edit handle invalid or not "
-        "QWidget");
-    return GFEventResult::Bad("main_window_edit handle invalid or not QWidget");
-  }
-
-  QMetaObject::invokeMethod(
-      QApplication::instance(),
-      [&, advance_menu]() -> void {
-        QWidget* parent =
-            qobject_cast<QWidget*>(static_cast<QObject*>(main_window));
-        auto* action = new QAction(
-            QCoreApplication::translate("GTrC", "Mail Editor"), parent);
-
-        action->setToolTip(QCoreApplication::translate(
-            "GTrC", "Open a new text editor for email."));
-        action->setIcon(QIcon(":/icons/email.png"));
-        bool ok =
-            QObject::connect(action, &QAction::triggered, parent, [edit]() {
-              QMetaObject::invokeMethod(
-                  edit, "SlotNewCustomTab", Qt::DirectConnection,
-                  Q_ARG(QString, "email"), Q_ARG(QString, "untitled.eml"),
-                  Q_ARG(QIcon, QIcon(":/icons/email.png")),
-                  Q_ARG(QString, ":/icons/email.png"));
-            });
-
-        if (!ok) {
-          LOG_ERROR("connecting mail editor action failed");
-        }
-
-        workspace_menu->addAction(action);
-
-        // Import from IMAP. Shown only when an account could actually be
-        // browsed: an entry that always fails teaches people to ignore it.
-        // Named and dressed like its neighbours in this menu ("Open Smart
-        // Card Controller", "Open Module Controller"): it opens a controller
-        // rather than prompting for anything, so it takes no ellipsis.
-        auto* import_action = new QAction(
-            QCoreApplication::translate("GTrC", "Open IMAP Controller"),
-            parent);
-        import_action->setIcon(QIcon(":/icons/receive_email.png"));
-        import_action->setToolTip(
-            QCoreApplication::translate("GTrC", "Open IMAP Controller Dialog"));
-        QObject::connect(
-            import_action, &QAction::triggered, parent, [parent]() {
-              if (!EMailImapController::HasUsableAccount()) {
-                QMessageBox::information(
-                    parent,
-                    QCoreApplication::translate("GTrC", "No mail account"),
-                    QCoreApplication::translate(
-                        "GTrC",
-                        "Configure a mail account with IMAP enabled in "
-                        "Settings first."));
-                return;
-              }
-
-              auto* controller = new EMailImapController(parent);
-              controller->setAttribute(Qt::WA_DeleteOnClose);
-
-              // The narrow boundary: raw bytes in, a tab out. The controller
-              // never touches the tab widget itself.
-              QObject::connect(controller,
-                               &EMailImapController::SignalMessageChosen,
-                               parent, [](const QByteArray& raw) {
-                                 OpenRawAsEMailTab(raw, TitleForImported(raw));
-                               });
-              controller->show();
-            });
-        if (advance_menu != nullptr) advance_menu->addAction(import_action);
-      },
-      Qt::BlockingQueuedConnection);
-  return GFEventResult::Ok();
-}
 
 namespace {
 
@@ -1830,274 +1711,87 @@ auto OnEditTabTypeEmailOpDecryptVerify(const GFEvent& event) -> GFEventResult {
   return GFEventResult::Deferred();
 }
 
-auto OnEditTabTypeEmailOpSaveFile(const GFEvent& event) -> GFEventResult {
-  if (event.Str("page").isEmpty()) return GFEventResult::Bad("page is empty");
+namespace {
 
-  auto* page = GFUIObject<QWidget>(event.Str("page"));
-  if (!page) {
-    LOG_ERROR("page handler is not a QWidget");
-    return GFEventResult::Bad("page handle invalid or not QMainWindow");
-  }
+/// File > Workspace > Mail Editor: an empty message, in a tab of its own.
+struct NewMessage {
+  static constexpr gf::cmd::Meta kMeta{
+      GF_MODULE_ID ".new_message", GC_TR("Mail Editor"),
+      GC_TR("Open a new text editor for email."), "", 0,
+      gf::cmd::kNeedsGuiThread};
+  using Args = gf::cmd::Unit;
+  using Result = gf::cmd::Unit;
+};
 
-  auto* tab_widget = GFUIObject<QTabWidget>(event.Str("tab_widget"));
-  if (!tab_widget) {
-    LOG_ERROR("tab widget handler is not a QTabWidget");
-    return GFEventResult::Bad("main_window handle invalid or not QMainWindow");
-  }
-
-  QString filename;
-
-  auto ok = QMetaObject::invokeMethod(page, "GetFilePath",
-                                      Qt::BlockingQueuedConnection,
-                                      Q_RETURN_ARG(QString, filename));
-
-  if (!ok) {
-    LOG_ERROR("invoke GetFilePath failed");
-    return GFEventResult::Bad("invoke GetFilePath failed");
-  }
-
-  if (filename.isEmpty()) {
-    auto ok = QMetaObject::invokeMethod(
-        QCoreApplication::instance(),
-        [&]() -> void {
-          // Named after the message rather than left blank. The view is
-          // the only thing that knows the subject, and it is reached the
-          // same way the rest of this module reaches it.
-          QString suggested;
-          if (auto* view = page->findChild<EMailPageView*>(); view != nullptr) {
-            suggested = view->SuggestedFileName();
-          }
-          if (suggested.isEmpty()) suggested = QStringLiteral("untitled.eml");
-
-          filename = QFileDialog::getSaveFileName(
-              page, QApplication::translate("EMailModule", "Save file"),
-              QDir(default_save_dir()).filePath(suggested),
-              QApplication::translate("EMailModule",
-                                      "E-Mail Message (*.eml);;All Files "
-                                      "(*)"));
-        },
-        Qt::BlockingQueuedConnection);
-
-    if (!ok) {
-      LOG_ERROR("invoke getSaveFileName failed");
-      return GFEventResult::Bad("invoke getSaveFileName failed");
-    }
-  }
-
-  if (filename.isEmpty()) {
-    LOG_INFO("user cancelled to select file to save");
-    return GFEventResult::Ok();
-  }
-
-  QFileInfo file_info(filename);
-  if (file_info.suffix().toLower() != "eml") {
-    file_info.setFile(file_info.path(), file_info.completeBaseName() + ".eml");
-    filename = file_info.absoluteFilePath();
-    FLOG_DEBUG("append .eml suffix to filename: %1", filename);
-  }
-
-  QPlainTextEdit* text_edit = nullptr;
-  ok = QMetaObject::invokeMethod(page, "GetTextPage",
-                                 Qt::BlockingQueuedConnection,
-                                 Q_RETURN_ARG(QPlainTextEdit*, text_edit));
-  if (!ok || text_edit == nullptr) {
-    LOG_ERROR("invoke GetTextPage failed");
-    return GFEventResult::Bad("invoke GetTextPage failed");
-  }
-
-  // Reading a QTextDocument is a GUI-thread operation, and the user may
-  // be typing into this one. Only the read hops over; everything done to
-  // the text afterwards is ordinary work on a copy.
-  QString text;
-  RunOnGui([&]() { text = text_edit->toPlainText(); });
-
-  // Normalize to LF first: the editor may already hold CRLF, and blindly
-  // expanding every "\n" then turns each of those into CRCRLF.
-  text.replace("\r\n", "\n");
-  text.replace("\n", "\r\n");
-
-  const auto bytes = text.toUtf8();
-
-  // Last look before the bytes leave. Deliberately after the content is
-  // assembled and before anything is written, so what is checked is
-  // exactly what would be saved.
-  //
-  // The inspection runs HERE, on the module thread: it parses and walks a
-  // message of whatever size the user has composed, and that is not work
-  // to hand the GUI thread. Only the question that follows is a dialog.
-  const auto check = CheckBeforeExport(bytes);
-  if (!ConfirmExport(page, check)) {
-    LOG_INFO("user cancelled the save after the export check");
-    return GFEventResult::Ok();
-  }
-
-  // Written binary and through QSaveFile: QIODevice::Text would translate
-  // the line endings a second time on Windows, and a plain QFile leaves a
-  // truncated .eml behind if the write fails halfway.
-  QSaveFile file(filename);
-  if (!file.open(QIODevice::WriteOnly)) {
-    WarnOnGui(page, QApplication::translate("EMailModule",
-                                            "Cannot write file %1:\n%2.")
-                        .arg(filename)
-                        .arg(file.errorString()));
-    return GFEventResult::Bad("cannot open file for writing");
-  }
-
-  RunOnGui([]() { QApplication::setOverrideCursor(Qt::WaitCursor); });
-  const bool written = file.write(bytes) == bytes.size() && file.commit();
-  RunOnGui([]() { QApplication::restoreOverrideCursor(); });
-
-  if (!written) {
-    WarnOnGui(page, QApplication::translate("EMailModule",
-                                            "Cannot write file %1:\n%2.")
-                        .arg(filename)
-                        .arg(file.errorString()));
-    return GFEventResult::Bad("writing file failed");
-  }
-
-  // The document's modified flag and the tab's label are widget state, and
-  // the two belong together: a tab renamed without its flag cleared, or the
-  // reverse, is a half-saved file as far as the user can see.
-  const auto shown = QFileInfo(filename).fileName();
-  RunOnGui([&]() {
-    text_edit->document()->setModified(false);
-    tab_widget->setTabText(tab_widget->currentIndex(), shown);
-  });
-
-  QMetaObject::invokeMethod(page, "SetFilePath", Qt::BlockingQueuedConnection,
-                            Q_ARG(QString, filename));
-  QMetaObject::invokeMethod(page, "NotifyFileSaved",
-                            Qt::BlockingQueuedConnection);
-  return GFEventResult::Deferred();
+auto DoNewMessage(const gf::cmd::CommandContext& /*ctx*/,
+                  const gf::cmd::Unit& /*args*/)
+    -> gf::cmd::Outcome<gf::cmd::Unit> {
+  Commands().Invoke<gf::cmd::host::DocumentNew>(
+      {QStringLiteral("email"), QStringLiteral("untitled.eml")});
+  return gf::cmd::Outcome<gf::cmd::Unit>::Success({});
 }
 
-auto OnFileExtEmailOpOpenFile(const GFEvent& event) -> GFEventResult {
-  if (event.Str("file_path").isEmpty())
-    return GFEventResult::Bad("file_path is empty");
+/// Advanced > Open IMAP Controller.
+struct OpenImapController {
+  static constexpr gf::cmd::Meta kMeta{
+      GF_MODULE_ID ".open_imap_controller", GC_TR("Open IMAP Controller"),
+      GC_TR("Open IMAP Controller Dialog"), "", 0, gf::cmd::kNeedsGuiThread};
+  using Args = gf::cmd::Unit;
+  using Result = gf::cmd::Unit;
+};
 
-  auto file_path = event.Str("file_path");
-
-  // Read HERE, on the module thread, and through the one helper that knows
-  // the guards. This is file IO, which is precisely the work not to hand
-  // the GUI thread -- and the kind of file has to be settled before the
-  // read, because a FIFO, a device node or a /proc entry reports a size of
-  // 0 and would then block forever or grow without bound inside it.
-  QByteArray raw;
-  QString read_error;
-  qint64 file_size = 0;
-  const auto admission =
-      ReadFileWithin(file_path, kMaxEMLFileSize, raw, read_error, file_size);
-
-  if (admission == EMailFileAdmission::kNOT_REGULAR) {
-    WarnOnGui(nullptr,
-              QApplication::translate(
-                  "EMailModule",
-                  "%1 is not an ordinary file, so it cannot be opened as a "
-                  "message.")
-                  .arg(file_path));
-    return GFEventResult::Bad("not a regular file");
+auto DoOpenImapController(const gf::cmd::CommandContext& /*ctx*/,
+                          const gf::cmd::Unit& /*args*/)
+    -> gf::cmd::Outcome<gf::cmd::Unit> {
+  // An entry that always fails teaches people to ignore it, so an account
+  // that cannot be browsed gets told why instead of an empty controller.
+  if (!EMailImapController::HasUsableAccount()) {
+    Commands().Invoke<gf::cmd::host::AppMessage>(
+        {gf::cmd::host::AppMessage::Severity::kInfo,
+         QCoreApplication::translate("GTrC", "No mail account"),
+         QCoreApplication::translate(
+             "GTrC",
+             "Configure a mail account with IMAP enabled in Settings first.")});
+    return gf::cmd::Outcome<gf::cmd::Unit>::Success({});
   }
-
-  if (admission == EMailFileAdmission::kTOO_LARGE) {
-    WarnOnGui(nullptr,
-              QApplication::translate(
-                  "EMailModule",
-                  "The file %1 is too large (%2) to be opened. The maximum "
-                  "allowed size is %3.")
-                  .arg(file_path)
-                  .arg(QLocale().formattedDataSize(file_size))
-                  .arg(QLocale().formattedDataSize(kMaxEMLFileSize)));
-    return GFEventResult::Bad("file too large");
-  }
-
-  if (admission != EMailFileAdmission::kOK) {
-    WarnOnGui(nullptr, QApplication::translate("EMailModule",
-                                               "Cannot read file %1:\n%2.")
-                           .arg(file_path)
-                           .arg(read_error));
-    return GFEventResult::Bad("cannot read file");
-  }
-
-  auto* edit = GFUIObject<QWidget>("main_window_edit");
-  if (!edit) {
-    LOG_ERROR(
-        "main window menu mounted: main_window_edit "
-        "handle invalid or not "
-        "QWidget");
-    return GFEventResult::Bad(
-        "main_window_edit handle invalid or not "
-        "QWidget");
-  }
-
-  // Only the tab is built on the GUI thread now: the bytes are already in
-  // hand, so nothing here reads a file or blocks on one.
-  QMetaObject::invokeMethod(QCoreApplication::instance(), [=]() -> void {
-    QWidget* page = nullptr;
-
-    auto ok = QMetaObject::invokeMethod(
-        edit, "SlotNewCustomTab", Qt::DirectConnection,
-        Q_RETURN_ARG(QWidget*, page), Q_ARG(QString, "email"),
-        Q_ARG(QString, QFileInfo(file_path).fileName()),
-        Q_ARG(QIcon, QIcon(":/icons/email.png")),
-        Q_ARG(QString, ":/icons/email.png"));
-
-    if (!ok || !page) {
-      LOG_ERROR("create new email tab page failed");
-      event.Answer().Fail("create new email tab page failed");
-      return;
-    }
-
-    QPlainTextEdit* text_edit = nullptr;
-    ok = QMetaObject::invokeMethod(page, "GetTextPage", Qt::DirectConnection,
-                                   Q_RETURN_ARG(QPlainTextEdit*, text_edit));
-    if (!ok || text_edit == nullptr) {
-      LOG_ERROR("invoke GetTextPage failed");
-      event.Answer().Fail("invoke GetTextPage failed");
-      return;
-    }
-
-    // Handed over as bytes so the page can record which line endings the
-    // message arrived with and reproduce them when it is read back or
-    // saved. Falls back to the old path on a host that does not offer
-    // this, where the endings are lost exactly as they were before.
-    if (!QMetaObject::invokeMethod(page, "SetContentFromBytes",
-                                   Qt::DirectConnection,
-                                   Q_ARG(QByteArray, raw))) {
-      text_edit->setPlainText(QString::fromUtf8(raw));
-      text_edit->document()->setModified(false);
-    }
-
-    QMetaObject::invokeMethod(page, "SetFilePath", Qt::DirectConnection,
-                              Q_ARG(QString, file_path));
-  });
-  return GFEventResult::Deferred();
+  Commands().Invoke<gf::cmd::host::ViewOpen>(
+      {gf::cmd::ViewRef{QStringLiteral(GF_MODULE_ID ".imap")}});
+  return gf::cmd::Outcome<gf::cmd::Unit>::Success({});
 }
+
+}  // namespace
 
 // The module's whole framework surface.
-constexpr GFEventBinding kEvents[] = {
+// The crypto operations stay events: the Host hands the module an e-mail
+// document's bytes and takes the result back, which is data, not UI.
+constexpr std::array<GFEventBinding, 7> kEvents = {{
     {"EDIT_TAB_TYPE_EMAIL_OP_DECRYPT", &OnEditTabTypeEmailOpDecrypt},
     {"EDIT_TAB_TYPE_EMAIL_OP_DECRYPT_VERIFY",
      &OnEditTabTypeEmailOpDecryptVerify},
     {"EDIT_TAB_TYPE_EMAIL_OP_ENCRYPT", &OnEditTabTypeEmailOpEncrypt},
     {"EDIT_TAB_TYPE_EMAIL_OP_ENCRYPT_SIGN", &OnEditTabTypeEmailOpEncryptSign},
-    {"EDIT_TAB_TYPE_EMAIL_OP_SAVE_FILE", &OnEditTabTypeEmailOpSaveFile},
     {"EDIT_TAB_TYPE_EMAIL_OP_SIGN", &OnEditTabTypeEmailOpSign},
     {"EDIT_TAB_TYPE_EMAIL_OP_VERIFY", &OnEditTabTypeEmailOpVerify},
-    {"FILE_EXT_EMAIL_OP_OPEN_FILE", &OnFileExtEmailOpOpenFile},
     {"KEY_DATABASE_REFRESH_DONE", &OnKeyDatabaseRefreshDone},
-    {"MAINWINDOW_MENU_MOUNTED", &OnMainwindowMenuMounted},
+}};
+
+const std::array<gf::cmd::Binding, 2> kCommands = {
+    gf::cmd::Bind<NewMessage, &DoNewMessage>(),
+    gf::cmd::Bind<OpenImapController, &DoOpenImapController>(),
 };
 
-constexpr GFModuleHooks kHooks = {
+const GFModuleHooks kHooks = {
     sizeof(GFModuleHooks),
     GF_MODULE_ID,
     GF_MODULE_VERSION,
     GF_MODULE_TRANSLATION_CONTEXT,
     &OnActivate,
-    &OnDeactivate,
+    nullptr,  // the Host withdraws the commands, widgets and script itself
     &OnUnload,
-    kEvents,
-    std::size(kEvents),
+    kEvents.data(),
+    kEvents.size(),
+    kCommands.data(),
+    kCommands.size(),
 };
 
 extern "C" GF_MODULE_EXPORT auto GFModuleGetApi(uint32_t abi)

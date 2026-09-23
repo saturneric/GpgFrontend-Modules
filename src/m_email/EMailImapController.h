@@ -29,6 +29,8 @@
 #pragma once
 
 #include <QDateTime>
+#include <GFModule.h>
+
 #include <QDialog>
 #include <QHash>
 #include <QList>
@@ -62,7 +64,7 @@ class QToolButton;
  * SignalMessageChosen() and the module decides what to do with it, which is
  * what keeps the picker from growing into a mail client.
  */
-class EMailImapController : public QDialog {
+class EMailImapController : public QDialog, public gf::ui::DialogWidget {
   Q_OBJECT
 
  public:

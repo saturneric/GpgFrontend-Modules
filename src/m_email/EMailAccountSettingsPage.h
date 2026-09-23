@@ -29,6 +29,8 @@
 #pragma once
 
 #include <QList>
+#include <GFModule.h>
+
 #include <QWidget>
 #include <memory>
 #include <mutex>
@@ -61,7 +63,7 @@ class QSpinBox;
  * configurable and must not gain controls here; what a user can legitimately
  * want to vary is which server they use and how much of a mailbox to show.
  */
-class EMailAccountSettingsPage : public QWidget {
+class EMailAccountSettingsPage : public QWidget, public gf::ui::SettingsWidget {
   Q_OBJECT
 
  public:
@@ -70,9 +72,9 @@ class EMailAccountSettingsPage : public QWidget {
 
  public slots:
   /// Load the stored accounts, discarding anything staged.
-  void SetSettings();
+  void LoadSettings() override;
   /// Persist the staged accounts.
-  void ApplySettings();
+  bool ApplySettings() override;  // NOLINT
 
  private slots:
   void slot_add_account();
@@ -121,7 +123,7 @@ class EMailAccountSettingsPage : public QWidget {
   [[nodiscard]] auto selected_index() const -> int;
 
   /// Staged, not stored: the dialog's Cancel throws these away by calling
-  /// SetSettings() again.
+  /// LoadSettings() again.
   QList<MailAccountConfig> accounts_;
   QString default_id_;
   /// Passwords the user typed this session, by account id. Only written to the
@@ -245,10 +247,3 @@ class EMailAccountSettingsPage : public QWidget {
   QWidget* editor_{};
 };
 
-/**
- * @brief Build a page for the host's Settings dialog.
- *
- * Matches QObjectFactory. A fresh page every call: the dialog is rebuilt each
- * time it opens and takes ownership of what it is given.
- */
-auto EMailAccountSettingsPageFactory(void* data) -> void*;

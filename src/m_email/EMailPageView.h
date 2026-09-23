@@ -28,6 +28,8 @@
 
 #pragma once
 
+#include <GFModule.h>
+
 #include <QHash>
 #include <QStringList>
 #include <QTemporaryDir>
@@ -104,7 +106,7 @@ enum EMailAddContentResult : int {
   kEMAIL_ADD_REFUSED = 2,
 };
 
-class EMailPageView : public QWidget {
+class EMailPageView : public QWidget, public gf::ui::DocumentWidget {
   Q_OBJECT
 
  public:
@@ -144,19 +146,6 @@ class EMailPageView : public QWidget {
    */
   void ApplyVerificationResult(const QByteArray& payload);  // NOLINT
 
-  /**
-   * @brief Takes the host's raw document editor and presents it as a mode.
-   *
-   * Optional half of the page/view contract: a page that finds this member
-   * hands over its own editor instead of putting a Message / Raw Source
-   * switcher above this widget, so the switch lives inside the message rather
-   * than in a strip above it.
-   *
-   * The widget passed in is the real editor over the real document, not a
-   * copy. Editing the raw source therefore keeps working, and the document
-   * stays the one canonical content of the tab.
-   */
-  void AdoptSourceView(QWidget* source);  // NOLINT
 
   /**
    * @brief Uses the editor font the application was configured with.
@@ -183,8 +172,8 @@ class EMailPageView : public QWidget {
    *
    * @return one of EMailAddContentResult
    */
-  int AttachPublicKey(const QByteArray& key_data,  // NOLINT
-                      const QString& suggested_name);
+  int AttachPublicKeyToMessage(const QByteArray& key_data,  // NOLINT
+                               const QString& suggested_name);
 
   /**
    * @brief Appends text to the message the view is presenting.
@@ -217,7 +206,7 @@ class EMailPageView : public QWidget {
    * only this view knows the message's subject, which is the thing a message
    * actually calls itself. Already safe to use as a single path component.
    */
-  QString SuggestedFileName();  // NOLINT
+  QString SuggestedFileName() const override;  // NOLINT
 
   /// Optional half of the page/view contract: the save dialog's filter.
   QString FileTypeFilter();  // NOLINT
@@ -251,7 +240,7 @@ class EMailPageView : public QWidget {
   /**
    * @brief Whether the user has edited the view since it was last loaded.
    */
-  bool IsDirty();  // NOLINT
+  bool IsDirty() const override;  // NOLINT
 
   /**
    * @brief The sendable, frozen form of this message.
@@ -277,7 +266,22 @@ class EMailPageView : public QWidget {
    * Covers the attachment buffers as well as the body: a decrypted attachment
    * living on in a QByteArray would defeat the host's wipe-on-close.
    */
-  void WipeContent();  // NOLINT
+  void WipeContent() override;  // NOLINT
+
+ public:
+  // --- gf::ui::DocumentWidget: what the Host asks of a document view ---
+
+  void Load(const QByteArray& bytes) override;
+  std::optional<QByteArray> Save() override;
+  std::optional<uint32_t> CryptoOperations() const override;
+  void ApplyVerification(const QByteArray& json) override;
+  bool AppendText(const QString& text) override;
+  bool AttachPublicKey(const QByteArray& key, const QString& name) override;
+  void ApplyFont(const QFont& font) override;
+  /// CRLF line endings, and a last look before the message leaves.
+  SaveDecision PrepareSave(const QByteArray& bytes) override;
+  /// Signed bytes and ciphertext are not edited by accident.
+  std::optional<QString> SourceLockReason() const override;
 
  signals:
   /**

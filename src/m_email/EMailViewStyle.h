@@ -62,7 +62,9 @@
 /// One colour, by role. Five host entry points became one taking a role, so
 /// the function pointer this used to take is now an int.
 inline auto EMailThemeColor(QWidget* w, int role) -> QColor {
-  const auto rgba = GFUIThemeColor(GFModuleSdkContext(), role, w);
+  // From the application palette, by role: this module's widgets carry the
+  // same palette, and no widget has to cross to the Host to ask.
+  const auto rgba = GFUIThemeColorForRole(GFModuleSdkContext(), role);
   return rgba == 0 ? w->palette().color(QPalette::WindowText)
                    : QColor::fromRgba(rgba);
 }
@@ -331,16 +333,16 @@ inline auto EMailTintedBanner(QWidget* parent, const QColor& tint,
   return banner;
 }
 
-/**
- * @brief The settings the host keeps for the whole application.
- *
- * Same object the account store writes to, reached the same way. Null when the
- * host is not there to ask, which every caller has to be able to live with:
- * nothing here is worth refusing to build a widget over.
- */
-inline auto EMailViewSettings() -> QSettings* {
-  return qobject_cast<QSettings*>(
-      static_cast<QObject*>(GFStorageSettingsRoot(GFModuleSdkContext())));
+/// One of this module's own settings -- the Host keeps them in the module's
+/// group -- or @p fallback when it was never stored.
+inline auto EMailViewSetting(const char* key, const QVariant& fallback)
+    -> QVariant {
+  return gf::sdk::Setting(GFModuleSdkContext(), GF_SETTING_MODULE, key,
+                          fallback);
+}
+
+inline void SetEMailViewSetting(const char* key, const QVariant& value) {
+  gf::sdk::SetSetting(GFModuleSdkContext(), GF_SETTING_MODULE, key, value);
 }
 
 /**

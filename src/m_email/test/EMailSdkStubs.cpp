@@ -16,6 +16,7 @@
 #include <GFSDKContext.h>
 #include <GFSDKHostApi.h>
 
+#include <QCborValue>
 #include <QSettings>
 #include <QString>
 #include <cstdio>
@@ -183,9 +184,14 @@ auto UiUnreg(GFHostContextRef, const char*) -> int { return 0; }
 auto UiRegTab(GFHostContextRef, const GFUITabViewSpec*) -> int { return 0; }
 auto UiRegExt(GFHostContextRef, const char*, const char*) -> int { return 0; }
 
+auto ThemeColorRole(GFHostContextRef ctx, int role) -> uint32_t {
+  return ThemeColor(ctx, role, nullptr);
+}
+
 const GFHostUiApi kUi = {
     sizeof(GFHostUiApi), &UiCreate, &UiNull,   &UiShow,  &ThemeColor, &UiPath,
     &UiRegSettings,      &UiUnreg,  &UiRegTab, &UiUnreg, &UiRegExt,
+    &ThemeColorRole,
 };
 
 /* --- storage -------------------------------------------------------------- */
@@ -196,6 +202,38 @@ auto SettingsRoot(GFHostContextRef) -> void* {
     settings = new QSettings("/tmp/gf-focus-harness.ini", QSettings::IniFormat);
   }
   return settings;
+}
+
+/// Settings by key, kept in the same file the old settings root used, under
+/// the group the Host would give this module.
+auto SettingKey(const char* key) -> QString {
+  return QStringLiteral("email/") + QString::fromUtf8(key);
+}
+
+auto SettingGet(GFHostContextRef ctx, int, const char* key, GFBufferRef* out)
+    -> int {
+  if (out != nullptr) *out = nullptr;
+  auto* settings = static_cast<QSettings*>(SettingsRoot(ctx));
+  if (!settings->contains(SettingKey(key))) return -1;
+  const auto bytes =
+      QCborValue::fromVariant(settings->value(SettingKey(key))).toCbor();
+  *out = BufNew(ctx, bytes.constData(), static_cast<size_t>(bytes.size()));
+  return 0;
+}
+
+auto SettingSet(GFHostContextRef ctx, int, const char* key, GFBufferView cbor)
+    -> int {
+  auto* settings = static_cast<QSettings*>(SettingsRoot(ctx));
+  const auto bytes =
+      QByteArray(static_cast<const char*>(BufData(ctx, cbor)),
+                 static_cast<int>(BufSize(ctx, cbor)));
+  settings->setValue(SettingKey(key), QCborValue::fromCbor(bytes).toVariant());
+  return 0;
+}
+
+auto SettingRemove(GFHostContextRef ctx, int, const char* key) -> int {
+  static_cast<QSettings*>(SettingsRoot(ctx))->remove(SettingKey(key));
+  return 0;
 }
 
 auto CacheGet(GFHostContextRef, int, const char*, GFBufferRef* out) -> int {
@@ -246,6 +284,9 @@ const GFHostStorageApi kStorage = {
     &StateGetBool,
     &StateSetBool,
     &StateChildren,
+    &SettingGet,
+    &SettingSet,
+    &SettingRemove,
 };
 
 /* --- the table ------------------------------------------------------------ */

@@ -17,12 +17,13 @@
     "EDIT_TAB_TYPE_EMAIL_OP_DECRYPT_VERIFY",
     "EDIT_TAB_TYPE_EMAIL_OP_ENCRYPT",
     "EDIT_TAB_TYPE_EMAIL_OP_ENCRYPT_SIGN",
-    "EDIT_TAB_TYPE_EMAIL_OP_SAVE_FILE",
     "EDIT_TAB_TYPE_EMAIL_OP_SIGN",
     "EDIT_TAB_TYPE_EMAIL_OP_VERIFY",
-    "FILE_EXT_EMAIL_OP_OPEN_FILE",
-    "KEY_DATABASE_REFRESH_DONE",
-    "MAINWINDOW_MENU_MOUNTED"
+    "KEY_DATABASE_REFRESH_DONE"
+  ],
+  "commands": [
+    "com.bktus.gpgfrontend.module.email.new_message",
+    "com.bktus.gpgfrontend.module.email.open_imap_controller"
   ],
   "translation_context": "ModuleEMail"
 }

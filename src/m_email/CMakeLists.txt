@@ -66,6 +66,7 @@ gf_add_module(
   NAME email
   QT   Core Widgets Concurrent Network
   LINK vmime-static
+  LUA_SCRIPTS ui/main.lua
   INCLUDE_DIRS
     "${CMAKE_CURRENT_SOURCE_DIR}/vmime/src"
     "${CMAKE_BINARY_DIR}/src/vmime"

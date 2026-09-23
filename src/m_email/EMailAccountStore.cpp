@@ -40,18 +40,26 @@
 
 namespace {
 
-constexpr auto kSchemaVersionKey = "email/schema_version";
-constexpr auto kAccountsKey = "email/accounts";
-constexpr auto kDefaultAccountKey = "email/default_account";
+// Relative: the Host places them in this module's own settings group, which
+// is where they always were ("email/..."), so no account moves.
+constexpr auto kSchemaVersionKey = "schema_version";
+constexpr auto kAccountsKey = "accounts";
+constexpr auto kDefaultAccountKey = "default_account";
 constexpr auto kSchemaVersion = 1;
 
-/// The settings object is shared with the host, and QSettings is only
-/// reentrant, so every read-modify-write of our keys has to be serialized.
+/// A read-modify-write of the account list is several calls; the mutex keeps
+/// this module's own threads from interleaving them. No settings object is
+/// shared: every call reaches the Host's settings through the storage
+/// capability.
 Q_GLOBAL_STATIC(QMutex, settings_mutex)
 
-auto GlobalSettings() -> QSettings* {
-  return qobject_cast<QSettings*>(
-      static_cast<QObject*>(GFStorageSettingsRoot(GFModuleSdkContext())));
+auto Get(const char* key, const QVariant& fallback = {}) -> QVariant {
+  return gf::sdk::Setting(GFModuleSdkContext(), GF_SETTING_MODULE, key,
+                          fallback);
+}
+
+void Put(const char* key, const QVariant& value) {
+  gf::sdk::SetSetting(GFModuleSdkContext(), GF_SETTING_MODULE, key, value);
 }
 
 }  // namespace
@@ -63,20 +71,7 @@ auto Load() -> QList<MailAccountConfig> { return LoadChecked().accounts; }
 auto LoadChecked() -> LoadResult {
   QMutexLocker locker(settings_mutex());
 
-  auto* settings = GlobalSettings();
-  if (settings == nullptr) {
-    LOG_ERROR("global settings unavailable, no mail accounts loaded");
-    // Not kOK: nothing was read, so nothing may be written back over whatever
-    // is actually there.
-    return {{}, LoadOutcome::kUNREADABLE};
-  }
-
-  // The host writes through its own short-lived QSettings objects, and this one
-  // outlives them all; without a sync it would keep serving whatever it read at
-  // startup.
-  settings->sync();
-
-  const auto version = settings->value(kSchemaVersionKey, 0).toInt();
+  const auto version = Get(kSchemaVersionKey, 0).toInt();
   if (version > kSchemaVersion) {
     // Written by a newer build. Refusing to read it is the honest answer:
     // silently reinterpreting fields we do not understand could downgrade a
@@ -85,7 +80,7 @@ auto LoadChecked() -> LoadResult {
     return {{}, LoadOutcome::kNEWER};
   }
 
-  const auto raw = settings->value(kAccountsKey).toString();
+  const auto raw = Get(kAccountsKey).toString();
   const auto document = QJsonDocument::fromJson(raw.toUtf8());
   if (!document.isArray()) {
     // An absent value is not a corrupt one: a profile that has never had a
@@ -109,20 +104,13 @@ void Store(const QList<MailAccountConfig>& accounts,
            const QString& default_id) {
   QMutexLocker locker(settings_mutex());
 
-  auto* settings = GlobalSettings();
-
   // Refused here, not only in the settings page. A newer build may have
   // written a schema this one cannot represent, and stamping kSchemaVersion
   // over it would discard those accounts irreversibly. The page checks too and
   // gives the user a reason; this is what makes the rule hold for any future
   // caller that forgets to.
-  if (settings != nullptr &&
-      settings->value(kSchemaVersionKey, 0).toInt() > kSchemaVersion) {
+  if (Get(kSchemaVersionKey, 0).toInt() > kSchemaVersion) {
     LOG_WARN("refusing to overwrite mail accounts written by a newer version");
-    return;
-  }
-  if (settings == nullptr) {
-    LOG_ERROR("global settings unavailable, mail accounts not stored");
     return;
   }
 
@@ -140,15 +128,10 @@ void Store(const QList<MailAccountConfig>& accounts,
   if (!ids.contains(resolved))
     resolved = ids.isEmpty() ? QString() : ids.first();
 
-  settings->setValue(kSchemaVersionKey, kSchemaVersion);
-  settings->setValue(
-      kAccountsKey,
-      QString::fromUtf8(QJsonDocument(array).toJson(QJsonDocument::Compact)));
-  settings->setValue(kDefaultAccountKey, resolved);
-
-  // Our QSettings is a different object from the host's, so without this the
-  // host would keep reading the previous values.
-  settings->sync();
+  Put(kSchemaVersionKey, kSchemaVersion);
+  Put(kAccountsKey, QString::fromUtf8(
+                        QJsonDocument(array).toJson(QJsonDocument::Compact)));
+  Put(kDefaultAccountKey, resolved);
 }
 
 auto DefaultAccount() -> MailAccountConfig {
@@ -158,9 +141,7 @@ auto DefaultAccount() -> MailAccountConfig {
   QString default_id;
   {
     QMutexLocker locker(settings_mutex());
-    if (auto* settings = GlobalSettings(); settings != nullptr) {
-      default_id = settings->value(kDefaultAccountKey).toString();
-    }
+    default_id = Get(kDefaultAccountKey).toString();
   }
 
   for (const auto& account : accounts) {
