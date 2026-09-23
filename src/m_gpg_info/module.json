@@ -9,7 +9,8 @@
     "gpg",
     "process",
     "storage",
-    "ui"
+    "ui",
+    "ui.custom"
   ],
   "events": [
     "APPLICATION_LOADED",

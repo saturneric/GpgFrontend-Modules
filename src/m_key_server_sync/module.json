@@ -9,7 +9,8 @@
     "gpg",
     "network",
     "storage",
-    "ui"
+    "ui",
+    "ui.custom"
   ],
   "events": [
     "KEY_PAIR_OPERA_MENU_CREATED",

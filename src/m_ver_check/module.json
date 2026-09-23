@@ -8,7 +8,8 @@
   "capabilities": [
     "network",
     "storage",
-    "ui"
+    "ui",
+    "ui.custom"
   ],
   "events": [
     "APPLICATION_LOADED",
