@@ -12,9 +12,7 @@
     "ui",
     "ui.custom"
   ],
-  "events": [
-    "REQUEST_GATHERING_ALL_GNUPG_INFO"
-  ],
+  "events": [],
   "commands": [
     "com.bktus.gpgfrontend.module.gnupg_info_gathering.show_gnupg_info"
   ],

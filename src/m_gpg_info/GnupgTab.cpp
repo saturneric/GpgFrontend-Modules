@@ -316,7 +316,7 @@ GnupgTabWatcher::GnupgTabWatcher(GnupgTab* tab) {
 
   auto future = QtConcurrent::run(QThreadPool::globalInstance(), [=]() {
     if (StartGatheringAllGnuPGInfo() >= 0) {
-      gf::sdk::SetStateBool(GFModuleSdkContext(), "ui",
+      gf::sdk::SetStateBool(GFModuleSdkContext(), GFModuleId(),
                             "env.state.gnupg_info_gathering", 1);
       emit SignalGnuPGInfoGathered();
     }
@@ -327,7 +327,7 @@ GnupgTabWatcher::GnupgTabWatcher(GnupgTab* tab) {
 void GnupgTab::showEvent(QShowEvent* event) {
   QWidget::showEvent(event);
 
-  int gathered = gf::sdk::StateBool(GFModuleSdkContext(), "ui",
+  int gathered = gf::sdk::StateBool(GFModuleSdkContext(), GFModuleId(),
                                     "env.state.gnupg_info_gathering", 0);
   if (gathered == 1) {
     slot_process_software_info();

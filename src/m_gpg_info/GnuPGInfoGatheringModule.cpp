@@ -41,7 +41,9 @@
 #include <QVBoxLayout>
 
 // c++
+#include <memory>
 #include <optional>
+#include <vector>
 
 #include "GFModule.h"
 #include "GFModuleIdentity.h"
@@ -77,7 +79,7 @@ namespace {
 class GnupgInfoWidget : public QWidget, public gf::ui::DialogWidget {
  public:
   GnupgInfoWidget() {
-    auto* layout = new QVBoxLayout(this);
+    auto *layout = new QVBoxLayout(this);
     layout->addWidget(new GnupgTab(this));
   }
 };
@@ -85,15 +87,18 @@ class GnupgInfoWidget : public QWidget, public gf::ui::DialogWidget {
 /// Help > GnuPG. Its title and whereabouts are the command's and the
 /// script's; it only opens the module's own dialog.
 struct ShowGnupgInfo {
-  static constexpr gf::cmd::Meta kMeta{
-      GF_MODULE_ID ".show_gnupg_info", GC_TR("GnuPG"),
-      GC_TR("Information about GnuPG"), "", 0, gf::cmd::kNeedsGuiThread};
+  static constexpr gf::cmd::Meta kMeta{GF_MODULE_ID ".show_gnupg_info",
+                                       GC_TR("GnuPG"),
+                                       GC_TR("Information about GnuPG"),
+                                       "",
+                                       0,
+                                       gf::cmd::kNeedsGuiThread};
   using Args = gf::cmd::Unit;
   using Result = gf::cmd::Unit;
 };
 
-auto DoShowGnupgInfo(const gf::cmd::CommandContext& /*ctx*/,
-                     const gf::cmd::Unit& /*args*/)
+auto DoShowGnupgInfo(const gf::cmd::CommandContext & /*ctx*/,
+                     const gf::cmd::Unit & /*args*/)
     -> gf::cmd::Outcome<gf::cmd::Unit> {
   Commands().Invoke<gf::cmd::host::ViewOpen>(
       {gf::cmd::ViewRef{QStringLiteral(GF_MODULE_ID ".info")}});
@@ -106,27 +111,19 @@ auto OnActivate() -> GFResult {
   LOG_INFO("gnupg info gathering module registering");
   const bool ok = gf::ui::RegisterNativeWidget<GnupgInfoWidget>(
       "info", {GC_TR("GnuPG"), "", "", "", ":/icons/key.png", 500, 600},
-      [](const QCborMap& /*args*/) { return new GnupgInfoWidget(); });
+      [](const QCborMap & /*args*/) { return new GnupgInfoWidget(); });
   return ok ? GFResult::Ok()
             : GFResult::Fail("the GnuPG information widget was not registered");
-}
-
-auto OnRequestGatheringAllGnuPGInfo(const GFEvent & /*event*/)
-    -> GFEventResult {
-  StartGatheringAllGnuPGInfo();
-  return GFEventResult::Ok();
 }
 
 auto OnUnload() -> void {
   LOG_INFO("gnupg info gathering module unregistering");
 }
 
-// The module's whole framework surface: which events it handles, what it
-// provides, what runs at each lifecycle point, and one forwarder to the
-// runtime that implements all of it. Everything above is business logic.
-constexpr std::array<GFEventBinding, 1> kEvents = {{
-    {"REQUEST_GATHERING_ALL_GNUPG_INFO", &OnRequestGatheringAllGnuPGInfo},
-}};
+// The module's whole framework surface: what it provides, what runs at each
+// lifecycle point, and one forwarder to the runtime that implements all of
+// it. Everything above is business logic. It handles no events: the tab
+// gathers what it shows itself, when it is shown.
 
 const std::array<gf::cmd::Binding, 1> kCommands = {
     gf::cmd::Bind<ShowGnupgInfo, &DoShowGnupgInfo>(),
@@ -140,8 +137,8 @@ const GFModuleHooks kHooks = {
     &OnActivate,
     nullptr,  // the Host withdraws the command, widget and script itself
     &OnUnload,
-    kEvents.data(),
-    kEvents.size(),
+    nullptr,
+    0,
     kCommands.data(),
     kCommands.size(),
 };
@@ -194,6 +191,7 @@ auto StartGatheringAllGnuPGInfo() -> int {
   // process.execute borrows everything it is given; RunCommands keeps the
   // strings alive for the call, so nothing here is allocated for the host.
   QList<gf::sdk::Command> commands;
+  std::vector<std::unique_ptr<Context>> contexts;
   commands.push_back({gpgconf_path,
                       {"--homedir", default_home_path, "--list-dirs"},
                       GetGpgDirectoryInfos,
@@ -225,16 +223,16 @@ auto StartGatheringAllGnuPGInfo() -> int {
       continue;
     }
 
-    auto *context =
-        new (GFMemAlloc(GFModuleSdkContext(), GF_ARENA_NORMAL, sizeof(Context)))
-            Context{gpgme_version, gpgconf_path, component_info};
-
-    // The context is freed by GetGpgOptionInfos once the command finishes.
+    // Owned here, not by the callback: RunCommands() returns only once every
+    // command has finished, and a callback that bails out early -- or never
+    // runs at all -- used to leak its context.
+    contexts.push_back(std::make_unique<Context>(
+        Context{gpgme_version, gpgconf_path, component_info}));
     commands.push_back({gpgconf_path,
                         {"--homedir", default_home_path, "--list-options",
                          component_info.name},
                         GetGpgOptionInfos,
-                        context});
+                        contexts.back().get()});
   }
 
   gf::sdk::RunCommands(GFModuleSdkContext(), commands);
@@ -496,7 +494,4 @@ void GetGpgOptionInfos(void *data, int exit_code, const char *out,
         (QJsonDocument(jsonlized_option_info).toJson()).constData());
     options_infos.push_back(info);
   }
-
-  context->~Context();
-  GFMemFree(GFModuleSdkContext(), GF_ARENA_NORMAL, context);
 }
