@@ -141,23 +141,7 @@ auto AppText(GFHostContextRef) -> const char* { return "test"; }
 auto AppLocale(GFHostContextRef) -> char* { return StrDupNormal("en_US"); }
 auto AppZero(GFHostContextRef) -> int { return 0; }
 
-// --- the four crypto entry points -------------------------------------------
-//
-// Both forms are provided. The string forms mirror the real SDK exactly,
-// truncation included, so a test can still demonstrate what the old boundary
-// did; the N forms record the length they were given.
-
-namespace {
-// Mirrors GFBytesDup on the host side: byte-exact, NUL-terminated one past the
-// end, with the true length reported separately.
-auto BytesOut(const QByteArray& b, size_t* size) -> char* {
-  auto* d = static_cast<char*>(MemAllocNormal(b.size() + 1));
-  std::memcpy(d, b.constData(), b.size());
-  d[b.size()] = '\0';
-  if (size != nullptr) *size = static_cast<size_t>(b.size());
-  return d;
-}
-}  // namespace
+// --- the crypto entry points ---------------------------------------------
 
 auto GpgAnalyse(GFHostContextRef, int, int, uint32_t, const char* capsule_id,
                 uint32_t, GFGpgAnalysis* out) -> int {
