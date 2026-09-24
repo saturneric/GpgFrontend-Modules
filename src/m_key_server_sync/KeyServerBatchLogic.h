@@ -68,6 +68,13 @@ auto Normalise(const std::optional<BatchKey>& key,
  */
 auto JoinForImport(const QList<QByteArray>& blocks) -> QByteArray;
 
+/// What a lookup failure says when the server simply does not have the key:
+/// not an error, and never the transport's own wording.
+auto NotFoundText() -> QString;
+
+/// Whether @p error is NotFoundText().
+auto IsNotFound(const QString& error) -> bool;
+
 /// What a finished refresh says, e.g. "3 of 4 keys fetched" plus failures.
 auto RefreshSummary(int fetched, int total, const QStringList& failures)
     -> QString;

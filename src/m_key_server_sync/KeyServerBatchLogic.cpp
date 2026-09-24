@@ -73,6 +73,15 @@ auto JoinForImport(const QList<QByteArray>& blocks) -> QByteArray {
   return out;
 }
 
+auto NotFoundText() -> QString {
+  return QCoreApplication::translate("GTrC",
+                                     "The key server does not have this key.");
+}
+
+auto IsNotFound(const QString& error) -> bool {
+  return error == NotFoundText();
+}
+
 auto RefreshSummary(int fetched, int total, const QStringList& failures)
     -> QString {
   return WithFailures(

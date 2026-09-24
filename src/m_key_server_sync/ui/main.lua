@@ -37,15 +37,32 @@ ui.action { id = "refresh", anchor = ui.anchor("key.details.actions"),
 ui.action { id = "check", anchor = ui.anchor("key.details.actions"),
             command = check, update = for_this_key }
 
--- The same operations on whatever a key list has selected: one key or many,
--- sent as one batch.
-local function for_the_selection(ctx)
-  local keys = ctx.keys
-  if not keys or #keys == 0 then return { visible = false } end
-  return { args = { keys = keys } }
+-- The same operations on the keys a key list acts on: the checked ones, or
+-- else the selection, sent as one batch. A key group is not a key a server
+-- holds, so a target that includes one greys the entries out.
+local function for_the_targets(hide_when_empty)
+  return function(ctx)
+    local keys = ctx.keys
+    local none = not keys or #keys == 0
+    if none and not ctx:has_key_group() then
+      if hide_when_empty then return { visible = false } end
+      return { enabled = false }
+    end
+    if ctx:has_key_group() or none then return { enabled = false } end
+    return { args = { keys = keys } }
+  end
 end
 
+-- Right-clicking a key: shown only when there is something to act on.
 ui.action { id = "publish_selected", anchor = ui.anchor("key.list.context"),
-            command = publish, update = for_the_selection }
+            command = publish, update = for_the_targets(true) }
 ui.action { id = "refresh_selected", anchor = ui.anchor("key.list.context"),
-            command = refresh, update = for_the_selection }
+            command = refresh, update = for_the_targets(true) }
+
+-- Key Management's menu bar: always there, greyed until keys are checked.
+ui.action { id = "publish_checked",
+            anchor = ui.anchor("key.manager.menu.operations"),
+            command = publish, update = for_the_targets(false) }
+ui.action { id = "refresh_checked",
+            anchor = ui.anchor("key.manager.menu.operations"),
+            command = refresh, update = for_the_targets(false) }

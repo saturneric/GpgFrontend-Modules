@@ -41,6 +41,7 @@
 #include <QUrlQuery>
 
 #include "GFModule.h"
+#include "KeyServerBatchLogic.h"
 
 namespace {
 /// Matches the HKP side; without it a stalled server hangs the caller forever.
@@ -144,7 +145,12 @@ void VKSInterface::RequestVerify(const QString& token,
 
 void VKSInterface::on_reply_finished(QNetworkReply* reply) {
   if (reply->error() != QNetworkReply::NoError) {
-    emit SignalErrorOccurred(reply->errorString(), reply->readAll());
+    // A 404 from a lookup is an answer, not a failure: the server has no
+    // such key. Said plainly, rather than as Qt's transfer error.
+    const auto error = reply->error() == QNetworkReply::ContentNotFoundError
+                           ? KeyServerBatchLogic::NotFoundText()
+                           : reply->errorString();
+    emit SignalErrorOccurred(error, reply->readAll());
     reply->deleteLater();
     return;
   }

@@ -71,10 +71,12 @@ TEST(KeyServerBatchLogicTest, AKeyWithoutAFingerprintIsDropped) {
 }
 
 TEST(KeyServerBatchLogicTest, BlocksJoinIntoOneImportOnSeparateLines) {
-  const QByteArray a = "-----BEGIN PGP PUBLIC KEY BLOCK-----\nA\n"
-                       "-----END PGP PUBLIC KEY BLOCK-----";
-  const QByteArray b = "-----BEGIN PGP PUBLIC KEY BLOCK-----\nB\n"
-                       "-----END PGP PUBLIC KEY BLOCK-----\n";
+  const QByteArray a =
+      "-----BEGIN PGP PUBLIC KEY BLOCK-----\nA\n"
+      "-----END PGP PUBLIC KEY BLOCK-----";
+  const QByteArray b =
+      "-----BEGIN PGP PUBLIC KEY BLOCK-----\nB\n"
+      "-----END PGP PUBLIC KEY BLOCK-----\n";
   const auto joined = KeyServerBatchLogic::JoinForImport({a, "", "  \n", b});
   EXPECT_EQ(joined, a + "\n" + b);
   EXPECT_TRUE(KeyServerBatchLogic::JoinForImport({}).isEmpty());
@@ -90,8 +92,19 @@ TEST(KeyServerBatchLogicTest, SummariesCountAndListFailures) {
   EXPECT_TRUE(partial.contains("1 of 2"));
   EXPECT_TRUE(partial.contains("BBBB: not found"));
 
-  const auto published = KeyServerBatchLogic::PublishSummary(
-      2, 2, "keys.openpgp.org", {});
+  const auto published =
+      KeyServerBatchLogic::PublishSummary(2, 2, "keys.openpgp.org", {});
   EXPECT_TRUE(published.contains("2 of 2"));
   EXPECT_TRUE(published.contains("keys.openpgp.org"));
+}
+
+// "The server does not have this key" is an answer, told apart from a real
+// failure by the caller, and never shown in the transport's own wording.
+TEST(KeyServerBatchLogicTest, NotFoundIsItsOwnPlainAnswer) {
+  EXPECT_TRUE(
+      KeyServerBatchLogic::IsNotFound(KeyServerBatchLogic::NotFoundText()));
+  EXPECT_FALSE(KeyServerBatchLogic::IsNotFound(
+      "Error transferring https://keys.openpgp.org/vks/v1/by-fingerprint/X - "
+      "server replied: "));
+  EXPECT_FALSE(KeyServerBatchLogic::NotFoundText().contains("http"));
 }
