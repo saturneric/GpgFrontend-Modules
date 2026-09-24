@@ -390,3 +390,20 @@ class EMailImapWorker : public QObject {
   Impl* impl_;
   EMailCancelTokenPtr token_;
 };
+
+/**
+ * @brief Stop a mail worker thread, or let it go.
+ *
+ * The one stop sequence every mail window uses. Asks the thread's event loop
+ * to quit (a thread without one is unaffected), then waits a bounded time.
+ * Deliberately never terminate(): killing a thread inside OpenSSL or
+ * getaddrinfo corrupts process state. A thread that does not come back is
+ * detached -- unparented so no owner's destructor reaches ~QThread on a
+ * running thread, which is fatal -- and deletes itself if it ever finishes.
+ *
+ * Cancel the worker's token first: that is what unblocks a socket call, and
+ * quit() alone only reaches an event loop the thread may not be in.
+ *
+ * @param what names the thread in the log if it has to be left running
+ */
+void StopMailWorkerThread(QThread* thread, const char* what);

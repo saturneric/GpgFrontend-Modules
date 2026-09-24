@@ -432,22 +432,10 @@ void EMailSendDialog::stop_workers() {
   if (smtp_worker_ != nullptr) smtp_worker_->Token()->CancelAll();
   if (imap_worker_ != nullptr) imap_worker_->Token()->CancelAll();
 
-  for (auto* pair : {&smtp_thread_, &imap_thread_}) {
-    auto*& thread = *pair;
-    if (thread == nullptr) continue;
-    thread->quit();
-    if (thread->wait(5000)) {
-      thread->deleteLater();
-    } else {
-      LOG_ERROR("mail worker thread did not stop; detaching it");
-      // deleteLater() here would be fatal, not a leak: ~QThread on a running
-      // thread is qFatal, and these threads are children of this dialog, so
-      // its destructor would reach the same path. Unparent and self-delete.
-      thread->setParent(nullptr);
-      connect(thread, &QThread::finished, thread, &QObject::deleteLater);
-    }
-    thread = nullptr;
-  }
+  StopMailWorkerThread(smtp_thread_, "SMTP worker thread");
+  StopMailWorkerThread(imap_thread_, "IMAP worker thread");
+  smtp_thread_ = nullptr;
+  imap_thread_ = nullptr;
   smtp_worker_ = nullptr;
   imap_worker_ = nullptr;
 }

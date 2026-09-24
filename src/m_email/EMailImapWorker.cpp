@@ -29,6 +29,7 @@
 #include "EMailImapWorker.h"
 
 #include <QCoreApplication>
+#include <QThread>
 #include <algorithm>
 #include <optional>
 #include <string>
@@ -1210,4 +1211,16 @@ auto EMailImapWorker::ResolveSentFolder() -> QString {
   }
 
   return {};
+}
+
+void StopMailWorkerThread(QThread* thread, const char* what) {
+  if (thread == nullptr) return;
+  thread->quit();
+  if (thread->wait(5000)) {
+    thread->deleteLater();
+    return;
+  }
+  LOG_ERROR(QString("%1 did not stop; detaching it").arg(what));
+  thread->setParent(nullptr);
+  QObject::connect(thread, &QThread::finished, thread, &QObject::deleteLater);
 }

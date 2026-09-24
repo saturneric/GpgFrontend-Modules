@@ -1210,19 +1210,8 @@ EMailAccountSettingsPage::~EMailAccountSettingsPage() {
     if (probe_->token != nullptr) probe_->token->CancelAll();
   }
 
-  if (probe_thread_ != nullptr) {
-    // Bounded, and deliberately not followed by terminate(): killing a thread
-    // inside OpenSSL or getaddrinfo corrupts process state. A thread that will
-    // not come back is left to finish and delete itself.
-    if (probe_thread_->wait(5000)) {
-      delete probe_thread_;
-    } else {
-      LOG_ERROR("mail account test thread did not stop; detaching it");
-      connect(probe_thread_, &QThread::finished, probe_thread_,
-              &QObject::deleteLater);
-    }
-    probe_thread_ = nullptr;
-  }
+  StopMailWorkerThread(probe_thread_, "mail account test thread");
+  probe_thread_ = nullptr;
 }
 
 void EMailAccountSettingsPage::finish_probe(const std::shared_ptr<Probe>& probe,
@@ -1255,4 +1244,3 @@ void EMailAccountSettingsPage::finish_probe(const std::shared_ptr<Probe>& probe,
 
   report_probe_error(probe->error, probe->imap, status);
 }
-

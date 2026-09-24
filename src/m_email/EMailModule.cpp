@@ -436,13 +436,14 @@ auto OnActivate() -> GFResult {
   // translates it when shown, after the module translators are installed.
   const bool editor = gf::ui::RegisterNativeWidgetFactory<EMailPageView>(
       "editor",
-      {GC_TR("E-Mail"), "", "eml", GC_TR("E-Mail Message (*.eml);;All Files (*)"),
-       ":/icons/email.png", 0, 0},
+      {GC_TR("E-Mail"), "", "eml",
+       GC_TR("E-Mail Message (*.eml);;All Files (*)"), ":/icons/email.png", 0,
+       0},
       [](const QCborMap& /*args*/) { return new EMailPageView(); });
   const bool settings = gf::ui::RegisterNativeWidget<EMailAccountSettingsPage>(
       "settings",
-      {GC_TR("Mail Accounts"),
-       GC_TR("mail,email,imap,smtp,account,send"), "", "", "", 0, 0},
+      {GC_TR("Mail Accounts"), GC_TR("mail,email,imap,smtp,account,send"), "",
+       "", "", 0, 0},
       [](const QCborMap& /*args*/) { return new EMailAccountSettingsPage(); });
   const bool imap = gf::ui::RegisterNativeWidget<EMailImapController>(
       "imap", {GC_TR("IMAP Controller"), "", "", "", "", 0, 0},
@@ -470,7 +471,7 @@ namespace {
  * @brief Runs @p fn on the GUI thread and waits for it.
  *
  * Module event handlers do NOT run on the GUI thread -- they run on the
- * module task runner (see GlobalModuleContext) -- and a QWidget may only be
+ * module task runner (see ModuleManager) -- and a QWidget may only be
  * created, shown or read from the thread that owns it. Every widget touch in
  * this file goes through here.
  *
@@ -1692,8 +1693,11 @@ namespace {
 /// File > Workspace > Mail Editor: an empty message, in a tab of its own.
 struct NewMessage {
   static constexpr gf::cmd::Meta kMeta{
-      GF_MODULE_ID ".new_message", GC_TR("Mail Editor"),
-      GC_TR("Open a new text editor for email."), "", 0,
+      GF_MODULE_ID ".new_message",
+      GC_TR("Mail Editor"),
+      GC_TR("Open a new text editor for email."),
+      "",
+      0,
       gf::cmd::kNeedsGuiThread};
   using Args = gf::cmd::Unit;
   using Result = gf::cmd::Unit;
@@ -1709,9 +1713,12 @@ auto DoNewMessage(const gf::cmd::CommandContext& /*ctx*/,
 
 /// Advanced > Open IMAP Controller.
 struct OpenImapController {
-  static constexpr gf::cmd::Meta kMeta{
-      GF_MODULE_ID ".open_imap_controller", GC_TR("Open IMAP Controller"),
-      GC_TR("Open IMAP Controller Dialog"), "", 0, gf::cmd::kNeedsGuiThread};
+  static constexpr gf::cmd::Meta kMeta{GF_MODULE_ID ".open_imap_controller",
+                                       GC_TR("Open IMAP Controller"),
+                                       GC_TR("Open IMAP Controller Dialog"),
+                                       "",
+                                       0,
+                                       gf::cmd::kNeedsGuiThread};
   using Args = gf::cmd::Unit;
   using Result = gf::cmd::Unit;
 };

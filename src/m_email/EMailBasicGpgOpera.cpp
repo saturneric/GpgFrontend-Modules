@@ -541,8 +541,8 @@ auto SignPlainText(int channel, const QString& key,
     signature_part_content_disp_header_field->setFilename(
         vmime::word(std::string{"OpenPGP_signature.asc"}));
 
-    auto public_key =
-        UDUP(gf::sdk::PublicKey(GFModuleSdkContext(), channel, (key), 1 != 0));
+    auto public_key = QString::fromUtf8(
+        gf::sdk::PublicKey(GFModuleSdkContext(), channel, (key), true));
     if (public_key.isEmpty()) {
       eml_data = "Get Public Key of Sign Key Failed";
       return kFAILED;
@@ -776,8 +776,8 @@ auto SignEMLData(int channel, const QString& key,
     signature_part_content_disp_header_field->setFilename(
         vmime::word(std::string{"OpenPGP_signature.asc"}));
 
-    auto public_key =
-        UDUP(gf::sdk::PublicKey(GFModuleSdkContext(), channel, (key), 1 != 0));
+    auto public_key = QString::fromUtf8(
+        gf::sdk::PublicKey(GFModuleSdkContext(), channel, (key), true));
     if (public_key.isEmpty()) {
       eml_data = "Get Public Key of Sign Key Failed";
       return kFAILED;
