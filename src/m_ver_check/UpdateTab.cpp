@@ -239,11 +239,14 @@ void UpdateTab::showEvent(QShowEvent* event) {
   auto is_loading_done = gf::sdk::StateBool(
       GFModuleSdkContext(), GFGetModuleID(), "version.loading_done", 0);
 
-  auto prohibit =
-      gf::sdk::StateBool(GFModuleSdkContext(), "ui",
-                         "settings.network.prohibit_update_checking", 0);
+  // The Host's own switch, the one the setup wizard and this module's
+  // settings page share. This used to read a register-table key nothing ever
+  // wrote, so the tab checked for updates whatever the user had chosen.
+  const auto prohibit = gf::sdk::Setting(GFModuleSdkContext(), GF_SETTING_HOST,
+                                         "network/prohibit_update_check", false)
+                            .toBool();
 
-  if ((prohibit == 0) && is_loading_done == 0) {
+  if (!prohibit && is_loading_done == 0) {
     slot_check_version_update();
   } else {
     slot_show_version_status();

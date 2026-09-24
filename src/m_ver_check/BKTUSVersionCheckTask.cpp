@@ -72,6 +72,9 @@ auto BKTUSVersionCheckTask::Run() -> int {
   int index = 0;
   for (const QUrl& url : urls) {
     QNetworkRequest request(url);
+    // A check that never answers holds its task, and the tab waiting on it,
+    // for the rest of the run.
+    request.setTransferTimeout(30000);
     request.setHeader(QNetworkRequest::UserAgentHeader,
                       GFAppUserAgent(GFModuleSdkContext()));
     auto* reply = network_manager_->get(request);

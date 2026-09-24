@@ -42,54 +42,27 @@ auto ExtractVersionFromRawTag(const QString& raw_tag) -> QString {
 }
 
 void FillGrtWithVersionInfo(const SoftwareVersion& version) {
-  gf::sdk::SetStateText(GFModuleSdkContext(), GFGetModuleID(),
-                        GFMemStrDup(GFModuleSdkContext(), GF_ARENA_NORMAL,
-                                    "version.current_version"),
-                        GFMemStrDup(GFModuleSdkContext(), GF_ARENA_NORMAL,
-                                    version.current_version.toUtf8()));
-  gf::sdk::SetStateText(GFModuleSdkContext(), GFGetModuleID(),
-                        GFMemStrDup(GFModuleSdkContext(), GF_ARENA_NORMAL,
-                                    "version.latest_version"),
-                        GFMemStrDup(GFModuleSdkContext(), GF_ARENA_NORMAL,
-                                    version.latest_version.toUtf8()));
-  gf::sdk::SetStateText(GFModuleSdkContext(), GFGetModuleID(),
-                        GFMemStrDup(GFModuleSdkContext(), GF_ARENA_NORMAL,
-                                    "version.local_commit_hash"),
-                        GFMemStrDup(GFModuleSdkContext(), GF_ARENA_NORMAL,
-                                    version.local_commit_hash.toUtf8()));
+  // Plain QStrings: the SDK borrows its arguments. Each of these used to be a
+  // GFMemStrDup() that nothing freed, a dozen leaks per update check.
+  auto* ctx = GFModuleSdkContext();
+  const auto ns = GFModuleId();
+  const auto text = [&](const char* key, const QString& value) {
+    gf::sdk::SetStateText(ctx, ns, QString::fromLatin1(key), value);
+  };
+  const auto flag = [&](const char* key, bool value) {
+    gf::sdk::SetStateBool(ctx, ns, QString::fromLatin1(key), value);
+  };
 
-  gf::sdk::SetStateBool(
-      GFModuleSdkContext(), GFGetModuleID(),
-      GFMemStrDup(GFModuleSdkContext(), GF_ARENA_NORMAL,
-                  "version.current_version_publish_in_remote"),
-      version.current_version_publish_in_remote ? 1 : 0);
-  gf::sdk::SetStateBool(
-      GFModuleSdkContext(), GFGetModuleID(),
-      GFMemStrDup(GFModuleSdkContext(), GF_ARENA_NORMAL,
-                  "version.current_commit_hash_publish_in_remote"),
-      version.current_commit_hash_publish_in_remote ? 1 : 0);
-  gf::sdk::SetStateBool(GFModuleSdkContext(), GFGetModuleID(),
-                        GFMemStrDup(GFModuleSdkContext(), GF_ARENA_NORMAL,
-                                    "version.need_upgrade"),
-                        version.NeedUpgrade() ? 1 : 0);
-  gf::sdk::SetStateBool(GFModuleSdkContext(), GFGetModuleID(),
-                        GFMemStrDup(GFModuleSdkContext(), GF_ARENA_NORMAL,
-                                    "version.current_version_released"),
-                        version.CurrentVersionReleased() ? 1 : 0);
-
-  gf::sdk::SetStateText(GFModuleSdkContext(), GFGetModuleID(),
-                        GFMemStrDup(GFModuleSdkContext(), GF_ARENA_NORMAL,
-                                    "version.release_note"),
-                        GFMemStrDup(GFModuleSdkContext(), GF_ARENA_NORMAL,
-                                    version.release_note.toUtf8()));
-
-  gf::sdk::SetStateText(
-      GFModuleSdkContext(), GFGetModuleID(),
-      GFMemStrDup(GFModuleSdkContext(), GF_ARENA_NORMAL, "version.api"),
-      GFMemStrDup(GFModuleSdkContext(), GF_ARENA_NORMAL, version.api.toUtf8()));
-
-  gf::sdk::SetStateBool(GFModuleSdkContext(), GFGetModuleID(),
-                        GFMemStrDup(GFModuleSdkContext(), GF_ARENA_NORMAL,
-                                    "version.loading_done"),
-                        version.IsInfoValid() ? 1 : 0);
+  text("version.current_version", version.current_version);
+  text("version.latest_version", version.latest_version);
+  text("version.local_commit_hash", version.local_commit_hash);
+  flag("version.current_version_publish_in_remote",
+       version.current_version_publish_in_remote);
+  flag("version.current_commit_hash_publish_in_remote",
+       version.current_commit_hash_publish_in_remote);
+  flag("version.need_upgrade", version.NeedUpgrade());
+  flag("version.current_version_released", version.CurrentVersionReleased());
+  text("version.release_note", version.release_note);
+  text("version.api", version.api);
+  flag("version.loading_done", version.IsInfoValid());
 }
