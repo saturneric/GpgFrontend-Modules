@@ -50,3 +50,4 @@ target_link_libraries(gf_mod_key_server_sync_test PRIVATE
 
 set_target_properties(gf_mod_key_server_sync_test PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY "${GPGFRONTEND_MODULE_TEST_OUTPUT_DIR}")
+gf_register_module_test(gf_mod_key_server_sync_test)

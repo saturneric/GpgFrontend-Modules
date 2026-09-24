@@ -31,6 +31,9 @@ add_subdirectory(m_email)
 # fine in the sandboxed build too.
 add_subdirectory(m_pgp_inspect)
 
+# Local only: tokens are made and read in memory, so the sandbox keeps it.
+add_subdirectory(m_im)
+
 # modules that are not needed in sandboxed environment
 if(NOT GPGFRONTEND_XCODE_ENABLE_SANDBOX)
   add_subdirectory(m_ver_check)
