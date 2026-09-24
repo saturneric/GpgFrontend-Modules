@@ -283,6 +283,9 @@ void PKSInterface::UploadKey(const QString& url, const QByteArray& key_data) {
                     GFAppUserAgent(GFModuleSdkContext()));
   request.setHeader(QNetworkRequest::ContentTypeHeader,
                     "application/x-www-form-urlencoded");
+  // Like every other request here: an upload that never answers would leave
+  // the event that asked for it waiting for ever.
+  request.setTransferTimeout(15000);
 
   post_data.append("keytext").append("=").append(data);
 
