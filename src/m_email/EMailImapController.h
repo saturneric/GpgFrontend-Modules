@@ -28,9 +28,9 @@
 
 #pragma once
 
-#include <QDateTime>
 #include <GFModule.h>
 
+#include <QDateTime>
 #include <QDialog>
 #include <QHash>
 #include <QList>
@@ -86,9 +86,6 @@ class EMailImapController : public QDialog, public gf::ui::DialogWidget {
  protected:
   void closeEvent(QCloseEvent* event) override;
 
-  /// Every dismissal -- Close, Escape, accept -- passes through here, which
-  /// closeEvent() does not: reject() never delivers one.
-  void done(int result) override;
   void changeEvent(QEvent* event) override;
   /// Watches the Message-ID label so its elision follows the pane's width.
   auto eventFilter(QObject* watched, QEvent* event) -> bool override;

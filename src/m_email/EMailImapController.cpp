@@ -148,8 +148,10 @@ class MessageRowDelegate : public QStyledItemDelegate {
 }  // namespace
 
 EMailImapController::EMailImapController(QWidget* parent) : QDialog(parent) {
+  // No size of its own: it is a child of the Host's dialog frame, which
+  // opens at the size this module declares for it and then at whatever the
+  // user leaves it at.
   setWindowTitle(tr("IMAP Controller"));
-  resize(960, 600);
   build_ui();
 
   accounts_ = EMailAccountStore::ImapAccounts();
@@ -292,7 +294,14 @@ void EMailImapController::disable_account(const QString& account_id,
   refresh_account_availability();
 }
 
-EMailImapController::~EMailImapController() { stop_worker(); }
+EMailImapController::~EMailImapController() {
+  // Here rather than in done() or closeEvent(): mounted in the Host's frame,
+  // this widget is not a window, and the frame's own close button closes it
+  // without ever asking. Destruction is the one step every way of leaving the
+  // window shares.
+  remember_current_account();
+  stop_worker();
+}
 
 auto EMailImapController::HasUsableAccount() -> bool {
   return !EMailAccountStore::ImapAccounts().isEmpty();
@@ -692,21 +701,6 @@ void EMailImapController::closeEvent(QCloseEvent* event) {
   closing_ = true;
   if (worker_ != nullptr) worker_->Token()->CancelAll();
   QDialog::closeEvent(event);
-}
-
-void EMailImapController::done(int result) {
-  // Here rather than in closeEvent(), which is the whole reason the cache
-  // appeared not to work: the Close button and Escape both go through
-  // reject(), and reject() does NOT deliver a close event -- only the window's
-  // own X button does. done() is the one path every dismissal takes.
-  //
-  // Leaving the picker is the ordinary way to finish with it, so it is the
-  // case the cache exists to survive; remembering only on an account switch
-  // meant the cache was written by the one path a user with a single account
-  // never takes.
-  remember_current_account();
-
-  QDialog::done(result);
 }
 
 void EMailImapController::connect_to_selected_account() {

@@ -446,7 +446,7 @@ auto OnActivate() -> GFResult {
        "", "", 0, 0},
       [](const QCborMap& /*args*/) { return new EMailAccountSettingsPage(); });
   const bool imap = gf::ui::RegisterNativeWidget<EMailImapController>(
-      "imap", {GC_TR("IMAP Controller"), "", "", "", "", 0, 0},
+      "imap", {GC_TR("IMAP Controller"), "", "", "", "", 1100, 720},
       [](const QCborMap& /*args*/) {
         auto* controller = new EMailImapController();
         // The narrow boundary: raw bytes in, a document out. The controller
