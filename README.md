@@ -18,6 +18,7 @@ namespace directory under the modules root (see
 | `m_key_server_sync` | `…module.key_server_sync`      | Searches and syncs keys with HKP/VKS servers.  |
 | `m_email`           | `…module.email`                | E-mail helpers built on vmime.                 |
 | `m_pgp_inspect`     | `…module.pgp_inspect`          | Inspects the packet structure of OpenPGP data. |
+| `m_im`              | `…module.im`                   | OpenPGP messages as single-line chat tokens.   |
 
 ## Repository Layout
 
@@ -29,6 +30,7 @@ modules/
 │   ├── m_key_server_sync/      # Key server sync module
 │   ├── m_email/                # E-mail module
 │   ├── m_pgp_inspect/          # OpenPGP structure inspector
+│   ├── m_im/                   # Instant messaging tokens
 │   └── CMakeLists.txt
 └── CMakeLists.txt
 ```
@@ -548,6 +550,25 @@ ui.action { id = "publish", anchor = ui.anchor("key.details.actions"),
               return { args = { key = ctx.key } }
             end }
 ```
+
+**An action on selected keys.** The `key.list.context` anchor adds an entry
+to the key lists' context menus. `ctx.keys` holds the keys the Host's own key
+actions would act on: the checked keys when any are checked, otherwise the
+selected ones. `ctx.key` is set too when there is exactly one. The command declares
+`std::optional<QList<gf::cmd::KeyRef>> keys`.
+
+```lua
+ui.action { id = "refresh_selected", anchor = ui.anchor("key.list.context"),
+            command = refresh,
+            update = function(ctx)
+              if #ctx.keys == 0 then return { visible = false } end
+              return { args = { keys = ctx.keys } }
+            end }
+```
+
+**A shortcut.** An action on a `main.menu.*` anchor may set `shortcut =
+"Ctrl+M"`. A key sequence the Host or an earlier module already uses is
+dropped, with a warning in the log.
 
 **A dialog with a parent.** Before: `GUI_OBJECT`, `GFUIShowDialog(ctx, dlg,
 parent)`. After: a `DialogWidget`, a dialog mount, and the host command
