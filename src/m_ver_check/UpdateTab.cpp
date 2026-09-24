@@ -29,226 +29,176 @@
 #include "UpdateTab.h"
 
 #include "GFModule.h"
+#include "UpdateChecker.h"
+#include "UpdatePresentation.h"
 #include "VersionCheckingModule.h"
 
-//
-#include "BKTUSVersionCheckTask.h"
-#include "GitHubVersionCheckTask.h"
+namespace {
+
+constexpr auto kDownloadPage =
+    "https://www.gpgfrontend.bktus.com/overview/downloads/";
+
+auto ToneIcon(const QStyle* style, UpdateTone tone) -> QIcon {
+  switch (tone) {
+    case UpdateTone::kGood:
+      return style->standardIcon(QStyle::SP_DialogApplyButton);
+    case UpdateTone::kAttention:
+      return style->standardIcon(QStyle::SP_MessageBoxWarning);
+    case UpdateTone::kNeutral:
+      break;
+  }
+  return style->standardIcon(QStyle::SP_MessageBoxInformation);
+}
+
+}  // namespace
 
 UpdateTab::UpdateTab(QWidget* parent)
-    : QWidget(parent), current_version_(GFAppVersion(GFModuleSdkContext())) {
-  auto* layout = new QVBoxLayout();
+    : QWidget(parent), checker_(VersionChecker()) {
+  icon_ = new QLabel(this);
+  icon_->setAlignment(Qt::AlignTop);
 
-  current_version_box_ = new QGroupBox(tr("Current Version Information"));
-  auto* current_version_layout = new QVBoxLayout();
-  current_version_label_ = new QLabel();
-  current_version_label_->setText("<center>" + tr("Current Version") +
-                                  tr(": ") + "<b>" + current_version_ +
-                                  "</b></center>");
-  current_version_label_->setWordWrap(true);
-  latest_version_label_ = new QLabel();
-  current_version_layout->addWidget(current_version_label_);
-  current_version_layout->addWidget(latest_version_label_);
-  current_version_box_->setLayout(current_version_layout);
+  headline_ = new QLabel(this);
+  headline_->setWordWrap(true);
+  auto headline_font = headline_->font();
+  headline_font.setBold(true);
+  headline_font.setPointSizeF(headline_font.pointSizeF() * 1.25);
+  headline_->setFont(headline_font);
 
-  upgrade_info_box_ = new QGroupBox(tr("Upgrade Information"));
-  auto* upgrade_info_layout = new QVBoxLayout();
-  upgrade_label_ = new QLabel();
-  upgrade_label_->setWordWrap(true);
-  upgrade_label_->setOpenExternalLinks(true);
-  upgrade_label_->setHidden(true);
+  detail_ = new QLabel(this);
+  detail_->setWordWrap(true);
 
-  pb_ = new QProgressBar();
-  pb_->setRange(0, 0);
-  pb_->setTextVisible(false);
+  notice_ = new QLabel(this);
+  notice_->setWordWrap(true);
 
-  upgrade_info_layout->addWidget(upgrade_label_);
-  upgrade_info_box_->setLayout(upgrade_info_layout);
+  freshness_ = new QLabel(this);
+  freshness_->setWordWrap(true);
+  freshness_->setForegroundRole(QPalette::PlaceholderText);
+  auto small_font = freshness_->font();
+  small_font.setPointSizeF(small_font.pointSizeF() * 0.9);
+  freshness_->setFont(small_font);
 
-  check_update_btn_ = new QPushButton(tr("Check for Updates"));
-  check_update_btn_->setIcon(QIcon::fromTheme("view-refresh"));
-  check_update_btn_->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+  auto* text_column = new QVBoxLayout();
+  text_column->setSpacing(4);
+  text_column->addWidget(headline_);
+  text_column->addWidget(detail_);
+  text_column->addWidget(notice_);
+  text_column->addWidget(freshness_);
 
-  release_note_box_ = new QGroupBox(tr("Release Notes"));
-  auto* release_note_layout = new QVBoxLayout();
-  release_note_viewer_ = new QTextEdit();
-  release_note_viewer_->setReadOnly(true);
-  release_note_viewer_->setAcceptRichText(true);
-  release_note_viewer_->hide();
-  release_note_layout->addWidget(release_note_viewer_);
-  release_note_box_->setLayout(release_note_layout);
+  auto* header = new QHBoxLayout();
+  header->setSpacing(12);
+  header->addWidget(icon_, 0, Qt::AlignTop);
+  header->addLayout(text_column, 1);
 
-  current_version_box_->hide();
-  release_note_box_->hide();
-  upgrade_info_box_->hide();
+  busy_ = new QProgressBar(this);
+  busy_->setRange(0, 0);
+  busy_->setTextVisible(false);
+  busy_->setMaximumHeight(6);
 
-  layout->addWidget(current_version_box_);
-  layout->addWidget(upgrade_info_box_);
-  layout->addWidget(release_note_box_);
+  check_btn_ = new QPushButton(this);
+  check_btn_->setIcon(QIcon::fromTheme("view-refresh"));
 
-  auto* hbox = new QHBoxLayout();
-  hbox->addWidget(pb_, 1);
-  hbox->addWidget(check_update_btn_, 0, Qt::AlignRight);
-  layout->addLayout(hbox);
+  download_btn_ = new QPushButton(this);
+  download_btn_->setIcon(QIcon::fromTheme("download"));
+  download_btn_->setDefault(true);
 
-  connect(check_update_btn_, &QPushButton::clicked, this,
-          &UpdateTab::slot_check_version_update);
+  auto* actions = new QHBoxLayout();
+  actions->addWidget(busy_, 1);
+  actions->addStretch();
+  actions->addWidget(check_btn_);
+  actions->addWidget(download_btn_);
 
-  setLayout(layout);
+  notes_toggle_ = new QToolButton(this);
+  notes_toggle_->setText(tr("Release notes"));
+  notes_toggle_->setCheckable(true);
+  notes_toggle_->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+  notes_toggle_->setArrowType(Qt::RightArrow);
+  notes_toggle_->setAutoRaise(true);
 
-  slot_show_version_status();
+  notes_ = new QTextBrowser(this);
+  notes_->setOpenExternalLinks(true);
+  notes_->hide();
+
+  auto* layout = new QVBoxLayout(this);
+  layout->addLayout(header);
+  layout->addSpacing(8);
+  layout->addLayout(actions);
+  layout->addSpacing(8);
+  layout->addWidget(notes_toggle_, 0, Qt::AlignLeft);
+  layout->addWidget(notes_, 1);
+  layout->addStretch();
+
+  connect(notes_toggle_, &QToolButton::toggled, this, [this](bool open) {
+    notes_toggle_->setArrowType(open ? Qt::DownArrow : Qt::RightArrow);
+    notes_->setVisible(open);
+  });
+
+  connect(check_btn_, &QPushButton::clicked, this, [this] {
+    if (!checker_.isNull()) checker_->Start(CheckMode::kForce);
+  });
+
+  connect(download_btn_, &QPushButton::clicked, this, [] {
+    QDesktopServices::openUrl(QUrl(QString::fromLatin1(kDownloadPage)));
+  });
+
+  if (!checker_.isNull()) {
+    connect(checker_, &UpdateChecker::Changed, this, &UpdateTab::render);
+  }
+
+  // Readable at once: a check that finished before this dialog existed has
+  // left its answer in the checker, not in a signal already gone.
+  render();
 }
 
-void UpdateTab::slot_show_version_status() {
-  check_update_btn_->setEnabled(true);
-  this->pb_->setHidden(true);
-
-  auto is_loading_done = gf::sdk::StateBool(
-      GFModuleSdkContext(), GFGetModuleID(), "version.loading_done", 0);
-
-  if (is_loading_done == 0) {
-    MLogDebug("version info loading haven't been done yet.");
-
-    upgrade_label_->setText(
-        "<center>" +
-        tr("Unable to retrieve the latest version information. This may be "
-           "due to a network issue or the server being unavailable.") +
-        "</center><center>" +
-        tr("Please check your internet connection or try again later.") +
-        "</center><center>" + tr("Alternatively, you can visit the") +
-        " <a "
-        "href=\"https://www.gpgfrontend.bktus.com/overview/downloads/\">" +
-        tr("official download page") + "</a> " +
-        tr("to check for the latest version.") + "</center>");
-    upgrade_label_->show();
-    upgrade_info_box_->show();
+void UpdateTab::render() {
+  if (checker_.isNull()) {
+    UpdateView view;
+    view.headline = tr("Update checking is unavailable");
+    view.check_enabled = false;
+    view.check_label = tr("Check now");
+    apply(view);
     return;
   }
-
-  auto is_need_upgrade = gf::sdk::StateBool(
-      GFModuleSdkContext(), GFGetModuleID(), "version.need_upgrade", 0);
-
-  auto is_current_version_publish_in_remote =
-      gf::sdk::StateBool(GFModuleSdkContext(), GFGetModuleID(),
-                         "version.current_version_publish_in_remote", 0);
-
-  auto is_current_commit_hash_publish_in_remote =
-      gf::sdk::StateBool(GFModuleSdkContext(), GFGetModuleID(),
-                         "version.current_commit_hash_publish_in_remote", 0);
-
-  QString const latest_version = gf::sdk::StateText(
-      GFModuleSdkContext(), GFGetModuleID(), "version.latest_version", "");
-
-  QString const release_note = gf::sdk::StateText(
-      GFModuleSdkContext(), GFGetModuleID(), "version.release_note", "");
-
-  QString const api = gf::sdk::StateText(GFModuleSdkContext(), GFGetModuleID(),
-                                         "version.api", "Unknown");
-
-  FLOG_INFO("latest version from remote: %1", latest_version);
-
-  latest_version_label_->setText("<center><b>" +
-                                 tr("Latest Version From %1").arg(api) + ": " +
-                                 latest_version + "</b></center>");
-  current_version_box_->show();
-
-  if (is_need_upgrade != 0) {
-    upgrade_label_->setText(
-        "<center>" + tr("Your current version is outdated.") +
-        "</center><center>" + tr("Click") +
-        " <a "
-        "href=\"https://www.gpgfrontend.bktus.com/overview/downloads/\">" +
-        tr("here") + "</a> " + tr("to download the latest version.") +
-        "</center>");
-    upgrade_label_->show();
-    upgrade_info_box_->show();
-  } else if ((!latest_version.trimmed().isEmpty() &&
-              is_current_version_publish_in_remote == 0)) {
-    upgrade_label_->setText(
-        "<center>" +
-        tr("This version is either withdrawn due to critical issues or is an "
-           "unreleased build. "
-           "Please stop using it and download the latest version.") +
-        "</center><center>" + tr("Click") +
-        " <a href=\"https://www.gpgfrontend.bktus.com/overview/downloads/\">" +
-        tr("here") + "</a> " + tr("to download the latest version.") +
-        "</center>");
-    upgrade_label_->show();
-    upgrade_info_box_->show();
-  } else if (is_current_commit_hash_publish_in_remote == 0) {
-    upgrade_label_->setText(
-        "<center>" +
-        tr("The commit hash for this build was not found in the official "
-           "repository. This may indicate a modified or unofficial version.") +
-        "</center><center>" + tr("Click") +
-        " <a "
-        "href=\"https://www.gpgfrontend.bktus.com/overview/downloads/\">" +
-        tr("here") + "</a> " +
-        tr("to verify your installation or download the official build.") +
-        "</center>");
-    upgrade_label_->show();
-    upgrade_info_box_->show();
-  } else {
-    upgrade_label_->setText("<center>" +
-                            tr("You are using the latest version. No "
-                               "action is required.") +
-                            "</center>");
-    upgrade_label_->show();
-    upgrade_info_box_->show();
-  }
-
-  if (!release_note.trimmed().isEmpty()) {
-    release_note_viewer_->clear();
-    release_note_viewer_->setMarkdown(release_note);
-    release_note_viewer_->show();
-    release_note_box_->show();
-  }
+  apply(PresentUpdate(checker_->State(), QDateTime::currentDateTime()));
 }
 
-void UpdateTab::slot_check_version_update() {
-  check_update_btn_->setEnabled(false);
-  pb_->show();
+void UpdateTab::apply(const UpdateView& view) {
+  const auto icon_size = style()->pixelMetric(QStyle::PM_MessageBoxIconSize);
+  icon_->setPixmap(ToneIcon(style(), view.tone).pixmap(icon_size, icon_size));
 
-  // The one place the choice is stored; the settings page writes it.
-  auto api = gf::sdk::Setting(GFModuleSdkContext(), GF_SETTING_MODULE,
-                              "update_checking_api", "github")
-                 .toString();
+  headline_->setText(view.headline);
+  detail_->setText(view.detail);
+  detail_->setVisible(!view.detail.isEmpty());
+  notice_->setText(view.notice);
+  notice_->setVisible(!view.notice.isEmpty());
+  freshness_->setText(view.freshness);
+  freshness_->setVisible(!view.freshness.isEmpty());
 
-  if (api == "bktus") {
-    auto* task = new BKTUSVersionCheckTask();
-    connect(
-        task, &BKTUSVersionCheckTask::SignalUpgradeVersion, this,
-        [this](const SoftwareVersion&) -> void { slot_show_version_status(); });
-    connect(task, &BKTUSVersionCheckTask::SignalUpgradeVersion, task,
-            &QObject::deleteLater);
-    task->Run();
+  busy_->setVisible(view.busy);
+  check_btn_->setText(view.check_label);
+  check_btn_->setEnabled(view.check_enabled);
+
+  download_btn_->setText(view.download_label);
+  download_btn_->setVisible(view.show_download);
+
+  notes_toggle_->setVisible(view.show_notes);
+  if (view.show_notes) {
+    notes_->setMarkdown(view.notes);
+    notes_->setVisible(notes_toggle_->isChecked());
   } else {
-    auto* task = new GitHubVersionCheckTask();
-    connect(
-        task, &GitHubVersionCheckTask::SignalUpgradeVersion, this,
-        [this](const SoftwareVersion&) -> void { slot_show_version_status(); });
-    connect(task, &GitHubVersionCheckTask::SignalUpgradeVersion, task,
-            &QObject::deleteLater);
-    task->Run();
+    notes_->clear();
+    notes_->hide();
   }
 }
 
 void UpdateTab::showEvent(QShowEvent* event) {
   QWidget::showEvent(event);
-
-  auto is_loading_done = gf::sdk::StateBool(
-      GFModuleSdkContext(), GFGetModuleID(), "version.loading_done", 0);
+  render();
 
   // The Host's own switch, the one the setup wizard and this module's
-  // settings page share. This used to read a register-table key nothing ever
-  // wrote, so the tab checked for updates whatever the user had chosen.
+  // settings page share. Off, the dialog still offers the button: pressing
+  // it is the user asking.
   const auto prohibit = gf::sdk::Setting(GFModuleSdkContext(), GF_SETTING_HOST,
                                          "network/prohibit_update_check", false)
                             .toBool();
-
-  if (!prohibit && is_loading_done == 0) {
-    slot_check_version_update();
-  } else {
-    slot_show_version_status();
-  }
+  if (!prohibit && !checker_.isNull()) checker_->Start(CheckMode::kIfStale);
 }

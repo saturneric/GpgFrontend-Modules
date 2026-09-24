@@ -25,8 +25,23 @@
 
 # Everything about this module -- id, version, name, description, author,
 # capabilities and translation context -- lives in module.json beside this file.
+#
+# SOURCES is spelled out rather than left to aux_source_directory: the test
+# directory below compiles the Host-free half (ReleaseCheck, UpdateChecker,
+# UpdatePresentation, SoftwareVersion) on its own.
 gf_add_module(
-  NAME   ver_check
-  QT     Core Network Widgets Xml
-  UI_DIR ui
+  NAME    ver_check
+  QT      Core Network Widgets
+  SOURCES VersionCheckingModule.cpp
+          ReleaseCheck.cpp
+          SoftwareVersion.cpp
+          UpdateChecker.cpp
+          UpdatePresentation.cpp
+          UpdateTab.cpp
+          Utils.cpp
+  UI_DIR  ui
   LUA_SCRIPTS ui/main.lua)
+
+if(GPGFRONTEND_MODULES_BUILD_TESTS)
+  add_subdirectory(test)
+endif()

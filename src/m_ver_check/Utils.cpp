@@ -30,20 +30,31 @@
 
 #include <GFSDKLog.h>
 
-#include <QRegularExpression>
-
+#include "ReleaseCheck.h"
 #include "VersionCheckingModule.h"
 
-auto ExtractVersionFromRawTag(const QString& raw_tag) -> QString {
-  static const QRegularExpression kVersionRe(
-      R"(^[vV](\d+\.)?(\d+\.)?(\*|\d+))");
-  auto match = kVersionRe.match(raw_tag);
-  return match.hasMatch() ? match.captured(0) : QString{};
+namespace {
+
+auto VerdictName(Verdict v) -> QString {
+  switch (v) {
+    case Verdict::kUpdateAvailable:
+      return QStringLiteral("update_available");
+    case Verdict::kWithdrawnOrUnreleased:
+      return QStringLiteral("withdrawn_or_unreleased");
+    case Verdict::kUnofficialBuild:
+      return QStringLiteral("unofficial_build");
+    case Verdict::kUpToDate:
+      return QStringLiteral("up_to_date");
+    case Verdict::kUnknown:
+      break;
+  }
+  return QStringLiteral("unknown");
 }
 
-void FillGrtWithVersionInfo(const SoftwareVersion& version) {
-  // Plain QStrings: the SDK borrows its arguments. Each of these used to be a
-  // GFMemStrDup() that nothing freed, a dozen leaks per update check.
+}  // namespace
+
+void FillGrtWithVersionInfo(const UpdateSnapshot& state) {
+  // Plain QStrings: the SDK borrows its arguments.
   auto* ctx = GFModuleSdkContext();
   const auto ns = GFModuleId();
   const auto text = [&](const char* key, const QString& value) {
@@ -53,16 +64,13 @@ void FillGrtWithVersionInfo(const SoftwareVersion& version) {
     gf::sdk::SetStateBool(ctx, ns, QString::fromLatin1(key), value);
   };
 
-  text("version.current_version", version.current_version);
-  text("version.latest_version", version.latest_version);
-  text("version.local_commit_hash", version.local_commit_hash);
-  flag("version.current_version_publish_in_remote",
-       version.current_version_publish_in_remote);
-  flag("version.current_commit_hash_publish_in_remote",
-       version.current_commit_hash_publish_in_remote);
-  flag("version.need_upgrade", version.NeedUpgrade());
-  flag("version.current_version_released", version.CurrentVersionReleased());
-  text("version.release_note", version.release_note);
-  text("version.api", version.api);
-  flag("version.loading_done", version.IsInfoValid());
+  const auto& good = state.last_good;
+  text("version.verdict",
+       good ? VerdictName(Decide(*good)) : VerdictName(Verdict::kUnknown));
+  text("version.current_version", good ? good->current_version : QString{});
+  text("version.latest_version", good ? good->list.latest.version : QString{});
+  text("version.checked_at",
+       good ? good->checked_at.toString(Qt::ISODate) : QString{});
+  flag("version.last_attempt_failed", state.last_attempt_failed);
+  flag("version.loading_done", good.has_value());
 }

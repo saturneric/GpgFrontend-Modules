@@ -29,25 +29,20 @@
 #include "VersionCheckingModule.h"
 
 #include <GFSDKBuildInfo.h>
-#include <GFSDKHostCommands.hpp>
 #include <GFSDKLog.h>
 #include <GFSDKUI.h>
 
-#include <QButtonGroup>
+#include <GFSDKHostCommands.hpp>
 #include <QCheckBox>
 #include <QGroupBox>
-#include <QHBoxLayout>
-#include <QLabel>
-#include <QMetaType>
-#include <QRadioButton>
+#include <QPointer>
 #include <QVBoxLayout>
 #include <QtNetwork>
+#include <atomic>
 
-#include "BKTUSVersionCheckTask.h"
 #include "GFModule.h"
 #include "GFModuleIdentity.h"
-#include "GitHubVersionCheckTask.h"
-#include "SoftwareVersion.h"
+#include "UpdateChecker.h"
 #include "UpdateTab.h"
 #include "Utils.h"
 
@@ -58,46 +53,86 @@ namespace {
 /// than a second one that could disagree.
 constexpr auto kProhibitKey = "network/prohibit_update_check";
 
-/// Which service to ask. The module's own setting.
-constexpr auto kApiKey = "update_checking_api";
+/// The checker's state, last known good result included.
+constexpr auto kStateKey = "update_checking_state";
 
-auto Api() -> QString {
-  return gf::sdk::Setting(GFModuleSdkContext(), GF_SETTING_MODULE, kApiKey,
-                          "github")
-      .toString();
+std::atomic<bool> g_stopped{false};
+QPointer<UpdateChecker> g_checker;
+
+/// A GitHub API GET through Qt. Every request answers, success or not: a
+/// transport failure is status 0, and the transfer timeout bounds a server
+/// that never replies.
+auto MakeFetcher(QNetworkAccessManager* nam) -> UpdateChecker::Fetcher {
+  return [nam = QPointer<QNetworkAccessManager>(nam)](
+             const QUrl& url, const UpdateChecker::Reply& reply) {
+    if (nam.isNull()) {
+      reply(0, {});
+      return;
+    }
+
+    QNetworkRequest request(url);
+    request.setTransferTimeout(30000);
+    request.setHeader(QNetworkRequest::UserAgentHeader,
+                      GFAppUserAgent(GFModuleSdkContext()));
+    request.setRawHeader("Accept", "application/vnd.github+json");
+    request.setRawHeader("X-GitHub-Api-Version", "2022-11-28");
+
+    auto* r = nam->get(request);
+    QObject::connect(r, &QNetworkReply::finished, r, [r, reply] {
+      const int status =
+          r->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+      FLOG_DEBUG("update check reply: %1, http status: %2, error: %3",
+                 r->url().toString(), status, r->errorString());
+      const auto body = r->readAll();
+      r->deleteLater();
+      reply(status, body);
+    });
+  };
 }
 
-void StoreResult(const SoftwareVersion& sv) {
-  gf::sdk::SetCacheText(GFModuleSdkContext(), GF_STORE_DURABLE,
-                        "update_checking_cache",
-                        (QJsonDocument(sv.ToJson()).toJson()).constData());
+auto MakeStore() -> UpdateChecker::Store {
+  return {
+      [] {
+        return gf::sdk::CacheText(GFModuleSdkContext(), GF_STORE_DURABLE,
+                                  kStateKey)
+            .toUtf8();
+      },
+      [](const QByteArray& data) {
+        gf::sdk::SetCacheText(GFModuleSdkContext(), GF_STORE_DURABLE, kStateKey,
+                              QString::fromUtf8(data));
+      },
+  };
 }
 
-/// Ask the service; cache what it says for the next start. The task always
-/// reports, success or not, so it is always released.
-void CheckUpdate() {
-  if (Api() == "bktus") {
-    MLogInfo("checking updating using api of bktus.com");
-    auto* task = new BKTUSVersionCheckTask();
-    QObject::connect(task, &BKTUSVersionCheckTask::SignalUpgradeVersion,
-                     QCoreApplication::instance(), &StoreResult);
-    QObject::connect(task, &BKTUSVersionCheckTask::SignalUpgradeVersion, task,
-                     &QObject::deleteLater);
-    task->Run();
-  } else {
-    MLogInfo("checking updating using api of github.com");
-    auto* task = new GitHubVersionCheckTask();
-    QObject::connect(task, &GitHubVersionCheckTask::SignalUpgradeVersion,
-                     QCoreApplication::instance(), &StoreResult);
-    QObject::connect(task, &GitHubVersionCheckTask::SignalUpgradeVersion, task,
-                     &QObject::deleteLater);
-    task->Run();
-  }
+/// On the GUI thread, where the checker and its requests live.
+template <typename F>
+void OnGuiThread(F&& f) {
+  QMetaObject::invokeMethod(QCoreApplication::instance(), std::forward<F>(f));
 }
 
 void OpenUpdateDialog() {
   Commands().Invoke<gf::cmd::host::ViewOpen>(
       {gf::cmd::ViewRef{QStringLiteral(GF_MODULE_ID ".update")}});
+}
+
+/// Once per run: the startup check's answer, or a fresh stored one.
+void CheckAtStartup() {
+  auto* checker = VersionChecker();
+  if (checker == nullptr) return;
+
+  auto watch = std::make_shared<QMetaObject::Connection>();
+  const auto decide = [checker, watch] {
+    if (checker->State().checking) return;
+    QObject::disconnect(*watch);
+    if (ShouldPromptOnStartup(checker->State())) {
+      LOG_INFO("a newer release is available, notifying user");
+      OpenUpdateDialog();
+    }
+  };
+
+  *watch = QObject::connect(checker, &UpdateChecker::Changed, checker, decide);
+  checker->Start(CheckMode::kIfStale);
+  decide();
 }
 
 /// The update dialog, in a frame the Host owns.
@@ -109,7 +144,8 @@ class UpdateWidget : public QWidget, public gf::ui::DialogWidget {
   }
 };
 
-/// Settings > Updates: whether to check at startup, and where.
+/// Settings > Updates: whether to check at startup. Nothing else is worth a
+/// setting: there is one release server, and a day is the right interval.
 class UpdateSettingsWidget : public QWidget, public gf::ui::SettingsWidget {
  public:
   UpdateSettingsWidget() {
@@ -117,27 +153,13 @@ class UpdateSettingsWidget : public QWidget, public gf::ui::SettingsWidget {
         QCoreApplication::translate("GTrC", "Update Checking"), this);
     auto* column = new QVBoxLayout(box);
 
-    check_ = new QCheckBox(
-        QCoreApplication::translate(
-            "GTrC", "Checking for version updates when the application "
-                    "starts."),
-        box);
+    check_ =
+        new QCheckBox(QCoreApplication::translate(
+                          "GTrC",
+                          "Checking for version updates when the application "
+                          "starts."),
+                      box);
     column->addWidget(check_);
-
-    auto* row = new QHBoxLayout();
-    row->addWidget(new QLabel(
-        QCoreApplication::translate("GTrC", "Update Checking API:"), box));
-    github_ = new QRadioButton(QCoreApplication::translate("GTrC", "GitHub"),
-                               box);
-    bktus_ = new QRadioButton(QCoreApplication::translate("GTrC", "BKTUS.com"),
-                              box);
-    auto* group = new QButtonGroup(this);
-    group->addButton(github_);
-    group->addButton(bktus_);
-    row->addWidget(github_);
-    row->addWidget(bktus_);
-    row->addStretch();
-    column->addLayout(row);
 
     auto* layout = new QVBoxLayout(this);
     layout->addWidget(box);
@@ -148,33 +170,25 @@ class UpdateSettingsWidget : public QWidget, public gf::ui::SettingsWidget {
     check_->setChecked(!gf::sdk::Setting(GFModuleSdkContext(), GF_SETTING_HOST,
                                          kProhibitKey, true)
                             .toBool());
-    const bool bktus = Api() == "bktus";
-    bktus_->setChecked(bktus);
-    github_->setChecked(!bktus);
   }
 
   auto ApplySettings() -> bool override {
-    const bool host_ok =
-        gf::sdk::SetSetting(GFModuleSdkContext(), GF_SETTING_HOST,
-                            kProhibitKey, !check_->isChecked());
-    const bool module_ok = gf::sdk::SetSetting(
-        GFModuleSdkContext(), GF_SETTING_MODULE, kApiKey,
-        bktus_->isChecked() ? QStringLiteral("bktus")
-                            : QStringLiteral("github"));
-    return host_ok && module_ok;
+    return gf::sdk::SetSetting(GFModuleSdkContext(), GF_SETTING_HOST,
+                               kProhibitKey, !check_->isChecked());
   }
 
  private:
   QCheckBox* check_;
-  QRadioButton* github_;
-  QRadioButton* bktus_;
 };
 
 /// Help > Check for Updates.
 struct CheckForUpdates {
   static constexpr gf::cmd::Meta kMeta{
-      GF_MODULE_ID ".check_for_updates", GC_TR("Check for Updates"),
-      GC_TR("See whether a newer GpgFrontend is available"), "", 0,
+      GF_MODULE_ID ".check_for_updates",
+      GC_TR("Check for Updates"),
+      GC_TR("See whether a newer GpgFrontend is available"),
+      "",
+      0,
       gf::cmd::kNeedsGuiThread};
   using Args = gf::cmd::Unit;
   using Result = gf::cmd::Unit;
@@ -189,19 +203,58 @@ auto DoCheckForUpdates(const gf::cmd::CommandContext& /*ctx*/,
 
 }  // namespace
 
+auto VersionChecker() -> UpdateChecker* {
+  if (g_stopped.load()) return nullptr;
+  if (g_checker.isNull()) {
+    auto* ctx = GFModuleSdkContext();
+    auto* nam = new QNetworkAccessManager();
+    g_checker = new UpdateChecker({QString::fromUtf8(GFAppVersion(ctx)),
+                                   QString::fromUtf8(GFAppGitCommitHash(ctx))},
+                                  MakeFetcher(nam), MakeStore());
+    nam->setParent(g_checker);
+
+    QObject::connect(g_checker, &UpdateChecker::Changed, g_checker,
+                     [checker = g_checker.data()] {
+                       FillGrtWithVersionInfo(checker->State());
+                     });
+    FillGrtWithVersionInfo(g_checker->State());
+  }
+  return g_checker;
+}
+
 auto OnActivate() -> GFResult {
   LOG_INFO("version checking module activating");
+  g_stopped.store(false);
+
+  // Left behind by 1.5 and earlier: a cache in the old format, and the choice
+  // of a check service that no longer exists.
+  gf::sdk::RemoveCache(GFModuleSdkContext(), GF_STORE_DURABLE,
+                       "update_checking_cache");
+  gf::sdk::RemoveSetting(GFModuleSdkContext(), GF_SETTING_MODULE,
+                         "update_checking_api");
+
   const bool dialog = gf::ui::RegisterNativeWidget<UpdateWidget>(
       "update", {GC_TR("Check for Updates"), "", "", "", "", 500, 600},
       [](const QCborMap& /*args*/) { return new UpdateWidget(); });
   const bool settings = gf::ui::RegisterNativeWidget<UpdateSettingsWidget>(
       "settings",
-      {GC_TR("Updates"), GC_TR("update,version,check,github,bktus"), "", "",
-       "", 0, 0},
+      {GC_TR("Updates"), GC_TR("update,version,check,github"), "", "", "", 0,
+       0},
       [](const QCborMap& /*args*/) { return new UpdateSettingsWidget(); });
   return dialog && settings
              ? GFResult::Ok()
              : GFResult::Fail("the update widgets were not registered");
+}
+
+auto OnDeactivate() -> GFResult {
+  // No check starts from here on; the checker and its requests go with the
+  // event loop's next turn, on the thread that owns them.
+  g_stopped.store(true);
+  if (!g_checker.isNull()) {
+    QMetaObject::invokeMethod(g_checker.data(), &QObject::deleteLater,
+                              Qt::QueuedConnection);
+  }
+  return GFResult::Ok();
 }
 
 auto OnApplicationLoaded(const GFEvent& /*event*/) -> GFEventResult {
@@ -209,8 +262,8 @@ auto OnApplicationLoaded(const GFEvent& /*event*/) -> GFEventResult {
 
   // Absent until the setup wizard has run: no check before the user has been
   // asked whether to check at all.
-  const auto prohibited = gf::sdk::Setting(GFModuleSdkContext(),
-                                           GF_SETTING_HOST, kProhibitKey);
+  const auto prohibited =
+      gf::sdk::Setting(GFModuleSdkContext(), GF_SETTING_HOST, kProhibitKey);
   if (!prohibited.isValid()) {
     LOG_DEBUG("application loaded: the setup wizard has not asked yet");
     return GFEventResult::Ok();
@@ -220,33 +273,7 @@ auto OnApplicationLoaded(const GFEvent& /*event*/) -> GFEventResult {
     return GFEventResult::Ok();
   }
 
-  auto cache = gf::sdk::CacheText(GFModuleSdkContext(), GF_STORE_DURABLE,
-                                  "update_checking_cache");
-  auto json = QJsonDocument::fromJson(cache.toUtf8());
-
-  if (json.isEmpty() || !json.isObject()) {
-    LOG_DEBUG("application loaded: nothing cached, checking now");
-    CheckUpdate();
-    return GFEventResult::Ok();
-  }
-
-  SoftwareVersion sv;
-  sv.FromJson(json.object());
-
-  FLOG_DEBUG("got software version meta data: %1", json.toJson());
-  if (sv.timestamp.addDays(1) < QDateTime::currentDateTime()) {
-    CheckUpdate();
-    return GFEventResult::Ok();
-  }
-
-  FillGrtWithVersionInfo(sv);
-
-  if (sv.NeedUpgrade() || !sv.CurrentVersionReleased() ||
-      !sv.current_commit_hash_publish_in_remote) {
-    LOG_INFO(
-        "software version is outdated or not fully released, notifying user");
-    OpenUpdateDialog();
-  }
+  OnGuiThread(&CheckAtStartup);
 
   // An observation, answered at once: the check runs on its own.
   return GFEventResult::Ok();
@@ -269,7 +296,7 @@ const GFModuleHooks kHooks = {
     GF_MODULE_VERSION,
     GF_MODULE_TRANSLATION_CONTEXT,
     &OnActivate,
-    nullptr,  // the Host withdraws the command, widgets and script itself
+    &OnDeactivate,  // stops a running check; the Host withdraws the rest
     &OnUnload,
     kEvents.data(),
     kEvents.size(),

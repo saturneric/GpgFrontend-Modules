@@ -29,75 +29,66 @@
 #pragma once
 
 #include <QDateTime>
-#include <QJsonDocument>
+#include <QJsonObject>
 #include <QString>
+#include <optional>
 
 /**
- * @brief
+ * @brief What one lookup established about this build on the release server.
  *
+ * Three states, not a bool: a lookup that could not be made (offline, rate
+ * limited, a server error) says nothing, and must never read as "not found".
+ */
+enum class RemoteFact { kUnknown, kConfirmed, kNotFound };
+
+/**
+ * @brief How the release list turned out. A valid list with no release in
+ * this build's series is an answer (kNoMatch), not a failure.
+ */
+enum class ListOutcome { kFailed, kNoMatch, kFound };
+
+struct LatestRelease {
+  QString version;       ///< normalized, e.g. "v2.1.9"
+  QString published_at;  ///< as the server wrote it
+  QString notes;         ///< markdown
+  QString html_url;      ///< the release page
+};
+
+struct ListResult {
+  ListOutcome outcome = ListOutcome::kFailed;
+  LatestRelease latest;  ///< meaningful only for kFound
+};
+
+/**
+ * @brief One update check, for one build.
+ *
+ * `complete` is set when the check that produced this result answered every
+ * question itself. A result can be usable (the release list came back) while
+ * incomplete (a lookup failed); only a complete one is trusted enough to skip
+ * the next startup check.
  */
 struct SoftwareVersion {
-  QString api;
-  QString latest_version;   ///<
-  QString current_version;  ///<
+  static constexpr int kSchema = 2;
 
-  bool current_version_publish_in_remote = false;      ///<
-  bool current_commit_hash_publish_in_remote = false;  ///<
-
-  QString publish_date;  ///<
-  QString release_note;  ///<
+  QString current_version;
   QString local_commit_hash;
 
-  QDateTime timestamp;
+  ListResult list;
+  RemoteFact tag_fact = RemoteFact::kUnknown;
+  RemoteFact commit_fact = RemoteFact::kUnknown;
+  bool complete = false;
 
-  /**
-   * @brief
-   *
-   * @return true
-   * @return false
-   */
-  [[nodiscard]] auto IsInfoValid() const -> bool {
-    return !latest_version.isEmpty();
-  }
+  QDateTime checked_at;
 
-  /**
-   * @brief
-   *
-   * @return true
-   * @return false
-   */
-  [[nodiscard]] auto NeedUpgrade() const -> bool;
+  /// Whether this result describes the given build.
+  [[nodiscard]] auto SameBuild(const QString& version,
+                               const QString& commit) const -> bool;
 
-  /**
-   * @brief
-   *
-   * @return true
-   * @return false
-   */
-  [[nodiscard]] auto VersionWithdrawn() const -> bool;
-
-  /**
-   * @brief
-   *
-   * @return true
-   * @return false
-   */
-  [[nodiscard]] auto CurrentVersionReleased() const -> bool;
-
-  /**
-   * @brief
-   *
-   * @return QJsonDocument
-   */
   [[nodiscard]] auto ToJson() const -> QJsonObject;
 
-  /**
-   * @brief
-   *
-   * @param obj
-   * @return auto
-   */
-  void FromJson(const QJsonObject& obj);
+  /// @return nothing for a malformed object or one from an older schema
+  [[nodiscard]] static auto FromJson(const QJsonObject& obj)
+      -> std::optional<SoftwareVersion>;
 
   /**
    * @brief Return the release series ("channel") a version belongs to, i.e. its
@@ -116,7 +107,4 @@ struct SoftwareVersion {
    */
   [[nodiscard]] static auto SameSeries(const QString& a, const QString& b)
       -> bool;
-
- private:
-  static auto version_compare(const QString& a, const QString& b) -> int;
 };

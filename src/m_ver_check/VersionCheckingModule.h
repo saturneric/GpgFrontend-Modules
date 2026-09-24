@@ -29,3 +29,12 @@
 #pragma once
 
 #include "GFModule.h"
+
+class UpdateChecker;
+
+/**
+ * @brief The module's one update checker, created on first use.
+ *
+ * GUI thread only. Null once the module is deactivating.
+ */
+auto VersionChecker() -> UpdateChecker*;

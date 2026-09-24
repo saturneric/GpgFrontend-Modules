@@ -28,40 +28,100 @@
 
 #include "SoftwareVersion.h"
 
-#include <GFModule.h>
-#include <GFSDKLog.h>
-
-#include <QJsonDocument>
 #include <QJsonObject>
 #include <QString>
+#include <array>
+#include <utility>
 
-auto SoftwareVersion::NeedUpgrade() const -> bool {
-  return !latest_version.isEmpty() &&
-         GFCompareSoftwareVersion(current_version.toUtf8().constData(),
-                                  latest_version.toUtf8().constData()) < 0;
+namespace {
+
+// Names, not enum values, on disk: a reordered enum must not flip a cached
+// "not found" into "confirmed".
+constexpr std::array<std::pair<RemoteFact, const char*>, 3> kFactNames = {{
+    {RemoteFact::kUnknown, "unknown"},
+    {RemoteFact::kConfirmed, "confirmed"},
+    {RemoteFact::kNotFound, "not_found"},
+}};
+
+constexpr std::array<std::pair<ListOutcome, const char*>, 3> kListNames = {{
+    {ListOutcome::kFailed, "failed"},
+    {ListOutcome::kNoMatch, "no_match"},
+    {ListOutcome::kFound, "found"},
+}};
+
+template <typename Enum, std::size_t N>
+auto NameOf(const std::array<std::pair<Enum, const char*>, N>& names,
+            Enum value) -> QString {
+  for (const auto& [e, name] : names) {
+    if (e == value) return QString::fromLatin1(name);
+  }
+  return QString::fromLatin1(names.front().second);
 }
 
-auto SoftwareVersion::VersionWithdrawn() const -> bool {
-  return !latest_version.isEmpty() && !current_version_publish_in_remote;
+template <typename Enum, std::size_t N>
+auto ValueOf(const std::array<std::pair<Enum, const char*>, N>& names,
+             const QString& name) -> Enum {
+  for (const auto& [e, n] : names) {
+    if (name == QLatin1String(n)) return e;
+  }
+  return names.front().first;
 }
 
-auto SoftwareVersion::CurrentVersionReleased() const -> bool {
-  return !latest_version.isEmpty() && current_version_publish_in_remote;
+}  // namespace
+
+auto SoftwareVersion::SameBuild(const QString& version,
+                                const QString& commit) const -> bool {
+  return current_version == version && local_commit_hash == commit;
 }
 
 auto SoftwareVersion::ToJson() const -> QJsonObject {
+  QJsonObject latest;
+  latest["version"] = list.latest.version;
+  latest["published_at"] = list.latest.published_at;
+  latest["notes"] = list.latest.notes;
+  latest["html_url"] = list.latest.html_url;
+
   QJsonObject obj;
-  obj["api"] = api;
-  obj["latest_version"] = latest_version;
+  obj["schema"] = kSchema;
   obj["current_version"] = current_version;
-  obj["current_version_publish_in_remote"] = current_version_publish_in_remote;
-  obj["current_commit_hash_publish_in_remote"] =
-      current_commit_hash_publish_in_remote;
-  obj["publish_date"] = publish_date;
-  obj["release_note"] = release_note;
   obj["local_commit_hash"] = local_commit_hash;
-  obj["timestamp"] = timestamp.toSecsSinceEpoch();
+  obj["list"] = NameOf(kListNames, list.outcome);
+  obj["latest"] = latest;
+  obj["tag_fact"] = NameOf(kFactNames, tag_fact);
+  obj["commit_fact"] = NameOf(kFactNames, commit_fact);
+  obj["complete"] = complete;
+  obj["checked_at"] = checked_at.toSecsSinceEpoch();
   return obj;
+}
+
+auto SoftwareVersion::FromJson(const QJsonObject& obj)
+    -> std::optional<SoftwareVersion> {
+  if (obj.value("schema").toInt() != kSchema) return std::nullopt;
+  if (!obj.value("checked_at").isDouble()) return std::nullopt;
+
+  SoftwareVersion sv;
+  sv.current_version = obj.value("current_version").toString();
+  sv.local_commit_hash = obj.value("local_commit_hash").toString();
+  sv.list.outcome = ValueOf(kListNames, obj.value("list").toString());
+
+  const auto latest = obj.value("latest").toObject();
+  sv.list.latest.version = latest.value("version").toString();
+  sv.list.latest.published_at = latest.value("published_at").toString();
+  sv.list.latest.notes = latest.value("notes").toString();
+  sv.list.latest.html_url = latest.value("html_url").toString();
+
+  sv.tag_fact = ValueOf(kFactNames, obj.value("tag_fact").toString());
+  sv.commit_fact = ValueOf(kFactNames, obj.value("commit_fact").toString());
+  sv.complete = obj.value("complete").toBool();
+  sv.checked_at =
+      QDateTime::fromSecsSinceEpoch(obj.value("checked_at").toInteger());
+
+  // A "found" list without a version is not something ToJson() writes.
+  if (sv.list.outcome == ListOutcome::kFound &&
+      sv.list.latest.version.isEmpty()) {
+    return std::nullopt;
+  }
+  return sv;
 }
 
 auto SoftwareVersion::VersionSeries(const QString& version) -> QString {
@@ -86,18 +146,4 @@ auto SoftwareVersion::VersionSeries(const QString& version) -> QString {
 auto SoftwareVersion::SameSeries(const QString& a, const QString& b) -> bool {
   auto series_a = VersionSeries(a);
   return !series_a.isEmpty() && series_a == VersionSeries(b);
-}
-
-void SoftwareVersion::FromJson(const QJsonObject& obj) {
-  api = obj.value("api").toString();
-  latest_version = obj.value("latest_version").toString();
-  current_version = obj.value("current_version").toString();
-  current_version_publish_in_remote =
-      obj.value("current_version_publish_in_remote").toBool();
-  current_commit_hash_publish_in_remote =
-      obj.value("current_commit_hash_publish_in_remote").toBool();
-  publish_date = obj.value("publish_date").toString();
-  release_note = obj.value("release_note").toString();
-  local_commit_hash = obj.value("local_commit_hash").toString();
-  timestamp = QDateTime::fromSecsSinceEpoch(obj.value("timestamp").toInt());
 }

@@ -28,61 +28,41 @@
 
 #pragma once
 
+#include <QPointer>
 #include <QtWidgets/QtWidgets>
 
+class UpdateChecker;
+struct UpdateView;
+
 /**
- * @brief Class containing the main tab of about dialog
+ * @brief The update dialog's content: renders UpdateView, offers the actions.
  *
+ * It decides nothing itself. The checker holds the state and PresentUpdate()
+ * turns it into text; this only draws it and forwards the two buttons.
  */
 class UpdateTab : public QWidget {
   Q_OBJECT
 
-  QLabel* current_version_label_;   ///<
-  QLabel* latest_version_label_;    ///<
-  QLabel* upgrade_label_;           ///<
-  QProgressBar* pb_;                ///<
-  QTextEdit* release_note_viewer_;  ///<
-  QString current_version_;         ///<
-  QGroupBox* release_note_box_;
-  QGroupBox* upgrade_info_box_;
-  QGroupBox* current_version_box_;
-  QPushButton* check_update_btn_;
-
  public:
-  /**
-   * @brief Construct a new Update Tab object
-   *
-   * @param parent
-   */
   explicit UpdateTab(QWidget* parent = nullptr);
 
  protected:
-  /**
-   * @brief
-   *
-   * @param event
-   */
   void showEvent(QShowEvent* event) override;
 
- private slots:
-  /**
-   * @brief
-   *
-   * @param version
-   */
-  void slot_show_version_status();
+ private:
+  void render();
+  void apply(const UpdateView& view);
 
-  /**
-   * @brief
-   *
-   */
-  void slot_check_version_update();
+  QPointer<UpdateChecker> checker_;
 
- signals:
-  /**
-   * @brief
-   *
-   * @param data
-   */
-  void SignalReplyFromUpdateServer(QByteArray data);
+  QLabel* icon_;
+  QLabel* headline_;
+  QLabel* detail_;
+  QLabel* notice_;
+  QLabel* freshness_;
+  QProgressBar* busy_;
+  QPushButton* check_btn_;
+  QPushButton* download_btn_;
+  QToolButton* notes_toggle_;
+  QTextBrowser* notes_;
 };
