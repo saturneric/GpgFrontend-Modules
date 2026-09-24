@@ -38,6 +38,7 @@
 #include "GFModuleIdentity.h"
 #include "GFSDKHostCommands.hpp"
 #include "GFSDKUI.h"
+#include "KeyServerBatchLogic.h"
 #include "KeyServerList.h"
 #include "KeyServerSettingsPage.h"
 #include "PKSInterface.h"
@@ -83,17 +84,19 @@ using ErrorCallback = std::function<void(const QString&, const QString&)>;
  *
  * @param by_fingerprint VKS has separate endpoints for the two handle kinds;
  *        HKP does not care.
+ * @param owner when given, owns the request: deleting it aborts the request
+ *        and guarantees neither callback runs.
  */
 void FetchKey(const KeyServerList::Route& route, const QString& handle,
               bool by_fingerprint, const KeyCallback& on_key,
-              const ErrorCallback& on_error) {
+              const ErrorCallback& on_error, QObject* owner = nullptr) {
+  QObject* context =
+      owner != nullptr ? owner : static_cast<QObject*>(QThread::currentThread());
   if (route.vks) {
-    auto* vks = new VKSInterface(route.url);
-    QObject::connect(vks, &VKSInterface::SignalKeyRetrieved,
-                     QThread::currentThread(),
+    auto* vks = new VKSInterface(route.url, owner);
+    QObject::connect(vks, &VKSInterface::SignalKeyRetrieved, context,
                      [on_key](const QString& key) { on_key(key); });
-    QObject::connect(vks, &VKSInterface::SignalErrorOccurred,
-                     QThread::currentThread(),
+    QObject::connect(vks, &VKSInterface::SignalErrorOccurred, context,
                      [on_error](const QString& error, const QString& data) {
                        on_error(error, data);
                      });
@@ -110,10 +113,9 @@ void FetchKey(const KeyServerList::Route& route, const QString& handle,
     return;
   }
 
-  auto* pks = new PKSInterface();
+  auto* pks = new PKSInterface(owner);
   QObject::connect(
-      pks, &PKSInterface::SignalKeyServerKeyLookupResult,
-      QThread::currentThread(),
+      pks, &PKSInterface::SignalKeyServerKeyLookupResult, context,
       [on_key, on_error](QNetworkReply::NetworkError error,
                          const QString& error_string, const QByteArray& data) {
         if (error != QNetworkReply::NoError) {
@@ -163,10 +165,175 @@ auto ConfirmHkpPublish(const QString& url) -> bool {
              QMessageBox::Ok | QMessageBox::Cancel,
              QMessageBox::Cancel) == QMessageBox::Ok;
 }
+
+using KeyServerBatchLogic::BatchKey;
+
+/// Set when the module deactivates; every batch step checks it first.
+std::atomic<bool> g_stopped{false};
+
+/**
+ * @brief Refreshes or publishes several keys, one request at a time.
+ *
+ * Owns its requests: deleting it aborts them, and no callback runs after.
+ * Spaced out so a large selection does not hammer the server, and finished
+ * with one import (one dialog) and one summary rather than one per key.
+ */
+class KeyServerBatch : public QObject {
+ public:
+  enum class Kind { kRefresh, kPublish };
+
+  /// Between two requests of one batch.
+  static constexpr int kSpacingMs = 200;
+
+  KeyServerBatch(Kind kind, QList<BatchKey> keys)
+      : kind_(kind), keys_(std::move(keys)),
+        route_(KeyServerList::SyncRoute()) {}
+
+  /// @return false when the user declined, and the batch is already gone
+  auto Start() -> bool {
+    if (kind_ == Kind::kPublish && !route_.vks &&
+        !ConfirmHkpPublish(route_.url)) {
+      deleteLater();
+      return false;
+    }
+    Next();
+    return true;
+  }
+
+ private:
+  void Next() {
+    if (g_stopped.load()) return;
+    if (index_ >= keys_.size()) return Finish();
+    const auto key = keys_[index_++];
+    if (kind_ == Kind::kRefresh) {
+      FetchKey(
+          route_, key.fingerprint, true,
+          [this](const QString& data) {
+            blocks_.append(data.toUtf8());
+            Schedule();
+          },
+          [this, key](const QString& error, const QString&) {
+            failures_.append(QStringLiteral("%1: %2").arg(key.fingerprint,
+                                                          error));
+            Schedule();
+          },
+          this);
+      return;
+    }
+    Publish(key);
+  }
+
+  void Publish(const BatchKey& key) {
+    const auto exported =
+        gf::sdk::ExportKey(GFModuleSdkContext(),
+                           static_cast<int>(key.channel), key.key_id, true);
+    if (exported.isEmpty()) {
+      failures_.append(QCoreApplication::translate(
+                           "GTrC", "%1: the public key could not be exported")
+                           .arg(key.fingerprint));
+      return Schedule();
+    }
+    const auto ok = [this]() {
+      ++done_;
+      Schedule();
+    };
+    const auto failed = [this, key](const QString& error) {
+      failures_.append(QStringLiteral("%1: %2").arg(key.fingerprint, error));
+      Schedule();
+    };
+    if (route_.vks) {
+      auto* vks = new VKSInterface(route_.url, this);
+      connect(vks, &VKSInterface::SignalKeyUploaded, this,
+              [ok](const QString&, const QJsonObject&, const QString&) {
+                ok();
+              });
+      connect(vks, &VKSInterface::SignalErrorOccurred, this,
+              [failed](const QString& error, const QString&) {
+                failed(error);
+              });
+      vks->UploadKey(QString::fromUtf8(exported));
+      return;
+    }
+    auto* pks = new PKSInterface(this);
+    connect(pks, &PKSInterface::SignalKeyServerKeyUploadResult, this,
+            [ok, failed](QNetworkReply::NetworkError error,
+                         const QString& error_string) {
+              if (error != QNetworkReply::NoError) return failed(error_string);
+              ok();
+            });
+    pks->UploadKey(route_.url, exported);
+  }
+
+  void Schedule() {
+    if (g_stopped.load()) return;
+    QTimer::singleShot(kSpacingMs, this, [this]() { Next(); });
+  }
+
+  void Finish() {
+    const auto total = static_cast<int>(keys_.size());
+    const auto severity =
+        failures_.isEmpty() ? Severity::kInfo : Severity::kWarning;
+    if (kind_ == Kind::kRefresh) {
+      if (!blocks_.isEmpty()) {
+        gf::sdk::ImportKeys(GFModuleSdkContext(),
+                            static_cast<int>(keys_.front().channel),
+                            KeyServerBatchLogic::JoinForImport(blocks_));
+      }
+      Tell(severity,
+           QCoreApplication::translate("GTrC", "Key Refresh Finished"),
+           KeyServerBatchLogic::RefreshSummary(
+               static_cast<int>(blocks_.size()), total, failures_));
+    } else {
+      Tell(severity,
+           QCoreApplication::translate("GTrC", "Key Publishing Finished"),
+           KeyServerBatchLogic::PublishSummary(done_, total,
+                                               QUrl(route_.url).host(),
+                                               failures_));
+    }
+    deleteLater();
+  }
+
+  Kind kind_;
+  QList<BatchKey> keys_;
+  KeyServerList::Route route_;
+  qsizetype index_ = 0;
+  int done_ = 0;
+  QList<QByteArray> blocks_;
+  QStringList failures_;
+};
+
+/// The one batch that may run; a second request waits for it to finish.
+QPointer<KeyServerBatch> g_batch;
+
+void StartBatch(KeyServerBatch::Kind kind, QList<BatchKey> keys) {
+  if (!g_batch.isNull()) {
+    Tell(Severity::kInfo, QCoreApplication::translate("GTrC", "Key Server"),
+         QCoreApplication::translate(
+             "GTrC", "A key server operation is already running. Try again "
+                     "when it has finished."));
+    return;
+  }
+  auto* batch = new KeyServerBatch(kind, std::move(keys));
+  g_batch = batch;
+  batch->Start();
+}
+
 }  // namespace
+
+auto OnDeactivate() -> GFResult {
+  // No batch step runs from here on; the batch and its requests go with the
+  // event loop's next turn, on the thread that owns them.
+  g_stopped.store(true);
+  if (!g_batch.isNull()) {
+    QMetaObject::invokeMethod(g_batch.data(), &QObject::deleteLater,
+                              Qt::QueuedConnection);
+  }
+  return GFResult::Ok();
+}
 
 auto OnActivate() -> GFResult {
   LOG_INFO("key server sync module registering");
+  g_stopped.store(false);
 
   // Presentation is registered untranslated: the module translators are not
   // installed yet, so anything translated here would be stuck at the source
@@ -340,13 +507,32 @@ auto UpdateKeyFromKeyServer(int channel, const QString& fpr) -> int {
 
 namespace {
 
-/// Both key commands act on one key, named by the Host's context.
+/// The key commands act on one key (the key details dialog) or on a
+/// selection (a key list's context menu), named by the Host's context.
 struct KeyArgs {
-  gf::cmd::KeyRef key;
+  std::optional<gf::cmd::KeyRef> key;
+  std::optional<QList<gf::cmd::KeyRef>> keys;
   static constexpr auto Fields() {
-    return std::make_tuple(gf::cmd::F("key", &KeyArgs::key));
+    return std::make_tuple(gf::cmd::F("key", &KeyArgs::key),
+                           gf::cmd::F("keys", &KeyArgs::keys));
   }
 };
+
+auto ToBatchKey(const gf::cmd::KeyRef& k) -> BatchKey {
+  return {k.channel, k.key_id, k.fingerprint};
+}
+
+/// Every key the arguments name, once each.
+auto KeysOf(const KeyArgs& a) -> QList<BatchKey> {
+  std::optional<BatchKey> one;
+  if (a.key.has_value()) one = ToBatchKey(*a.key);
+  std::optional<QList<BatchKey>> many;
+  if (a.keys.has_value()) {
+    many.emplace();
+    for (const auto& k : *a.keys) many->append(ToBatchKey(k));
+  }
+  return KeyServerBatchLogic::Normalise(one, many);
+}
 
 struct PublishKey {
   static constexpr gf::cmd::Meta kMeta{
@@ -366,6 +552,16 @@ struct RefreshKey {
   using Result = gf::cmd::Unit;
 };
 
+struct CheckPublication {
+  static constexpr gf::cmd::Meta kMeta{
+      GF_MODULE_ID ".check_publication",
+      GC_TR("Check Publication Status"),
+      GC_TR("Ask the key server whether it has this public key"),
+      GC_TR("Key Server Operations"), 0, gf::cmd::kNeedsGuiThread};
+  using Args = KeyArgs;
+  using Result = gf::cmd::Unit;
+};
+
 struct SearchKey {
   static constexpr gf::cmd::Meta kMeta{
       GF_MODULE_ID ".search_key", GC_TR("Key Server"),
@@ -380,11 +576,23 @@ struct SearchKey {
   using Result = gf::cmd::Unit;
 };
 
+auto NoKey() -> gf::cmd::Outcome<gf::cmd::Unit> {
+  return gf::cmd::Outcome<gf::cmd::Unit>::Failure(GF_CMD_E_BAD_ARGS,
+                                                  "no key was given");
+}
+
 auto DoPublishKey(const gf::cmd::CommandContext& /*ctx*/, const KeyArgs& a)
     -> gf::cmd::Outcome<gf::cmd::Unit> {
-  // Any key with a public part can be published, mirroring the Key
-  // Management "Publish Key to Keyserver" action.
-  UploadKeyToServer(static_cast<int>(a.key.channel), a.key.key_id);
+  // Any key with a public part can be published. One key keeps the detailed
+  // per-key report; several go as one batch with one summary.
+  const auto keys = KeysOf(a);
+  if (keys.isEmpty()) return NoKey();
+  if (keys.size() == 1) {
+    UploadKeyToServer(static_cast<int>(keys.front().channel),
+                      keys.front().key_id);
+  } else {
+    StartBatch(KeyServerBatch::Kind::kPublish, keys);
+  }
   return gf::cmd::Outcome<gf::cmd::Unit>::Success({});
 }
 
@@ -392,7 +600,42 @@ auto DoRefreshKey(const gf::cmd::CommandContext& /*ctx*/, const KeyArgs& a)
     -> gf::cmd::Outcome<gf::cmd::Unit> {
   // Refresh re-imports the latest public key from the server; it is valid
   // for any key, including your own.
-  UpdateKeyFromKeyServer(static_cast<int>(a.key.channel), a.key.fingerprint);
+  const auto keys = KeysOf(a);
+  if (keys.isEmpty()) return NoKey();
+  if (keys.size() == 1) {
+    UpdateKeyFromKeyServer(static_cast<int>(keys.front().channel),
+                           keys.front().fingerprint);
+  } else {
+    StartBatch(KeyServerBatch::Kind::kRefresh, keys);
+  }
+  return gf::cmd::Outcome<gf::cmd::Unit>::Success({});
+}
+
+auto DoCheckPublication(const gf::cmd::CommandContext& /*ctx*/,
+                        const KeyArgs& a) -> gf::cmd::Outcome<gf::cmd::Unit> {
+  // Asked for, never automatic: looking a key up tells the server which key
+  // the user is interested in.
+  const auto keys = KeysOf(a);
+  if (keys.isEmpty()) return NoKey();
+  const auto fpr = keys.front().fingerprint;
+  const auto route = KeyServerList::SyncRoute();
+  const auto host = QUrl(route.url).host();
+  const auto title =
+      QCoreApplication::translate("GTrC", "Publication Status");
+  FetchKey(
+      route, fpr, true,
+      [title, host](const QString&) {
+        Tell(Severity::kInfo, title,
+             QCoreApplication::translate(
+                 "GTrC", "The public key has been published on %1.")
+                 .arg(host));
+      },
+      [title, host](const QString& error, const QString&) {
+        Tell(Severity::kInfo, title,
+             QCoreApplication::translate(
+                 "GTrC", "%1 did not return this public key.\n%2")
+                 .arg(host, error));
+      });
   return gf::cmd::Outcome<gf::cmd::Unit>::Success({});
 }
 
@@ -539,9 +782,10 @@ constexpr std::array<GFEventBinding, 4> kEvents = {{
     {"REQUEST_UPLOAD_PUBLIC_KEY", &OnRequestUploadPublicKey},
 }};
 
-const std::array<gf::cmd::Binding, 3> kCommands = {
+const std::array<gf::cmd::Binding, 4> kCommands = {
     gf::cmd::Bind<PublishKey, &DoPublishKey>(),
     gf::cmd::Bind<RefreshKey, &DoRefreshKey>(),
+    gf::cmd::Bind<CheckPublication, &DoCheckPublication>(),
     gf::cmd::Bind<SearchKey, &DoSearchKey>(),
 };
 
@@ -551,7 +795,7 @@ const GFModuleHooks kHooks = {
     GF_MODULE_VERSION,
     GF_MODULE_TRANSLATION_CONTEXT,
     &OnActivate,
-    nullptr,  // the Host withdraws the commands, widgets and script itself
+    &OnDeactivate,  // stops a running batch; the Host withdraws the rest
     &OnUnload,
     kEvents.data(),
     kEvents.size(),

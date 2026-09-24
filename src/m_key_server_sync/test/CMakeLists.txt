@@ -23,13 +23,30 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-# Everything about this module -- id, version, name, description, author,
-# capabilities and translation context -- lives in module.json beside this file.
-gf_add_module(
-  NAME key_server_sync
-  QT   Core Widgets Network
-  LUA_SCRIPTS ui/main.lua)
+# Unit tests for the SDK-free half of the key server batch.
+#
+# KeyServerBatchLogic.cpp carries no GF SDK symbol, no widget and no network,
+# so it compiles straight into a plain gtest binary with nothing but Qt Core
+# behind it. Keep it that way, or this target stops linking.
 
-if(GPGFRONTEND_MODULES_BUILD_TESTS)
-  add_subdirectory(test)
+if(NOT TARGET GTest::gtest)
+  find_package(GTest QUIET)
 endif()
+
+if(NOT TARGET GTest::gtest)
+  message(STATUS "GTest not found; skipping key server sync module tests")
+  return()
+endif()
+
+add_executable(gf_mod_key_server_sync_test
+  KeyServerBatchLogicTest.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/../KeyServerBatchLogic.cpp)
+
+target_include_directories(gf_mod_key_server_sync_test PRIVATE
+  "${CMAKE_CURRENT_SOURCE_DIR}/..")
+
+target_link_libraries(gf_mod_key_server_sync_test PRIVATE
+  GTest::gtest GTest::gtest_main Qt::Core)
+
+set_target_properties(gf_mod_key_server_sync_test PROPERTIES
+  RUNTIME_OUTPUT_DIRECTORY "${GPGFRONTEND_MODULE_TEST_OUTPUT_DIR}")

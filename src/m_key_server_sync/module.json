@@ -19,6 +19,7 @@
     "REQUEST_UPLOAD_PUBLIC_KEY"
   ],
   "commands": [
+    "com.bktus.gpgfrontend.module.key_server_sync.check_publication",
     "com.bktus.gpgfrontend.module.key_server_sync.publish_key",
     "com.bktus.gpgfrontend.module.key_server_sync.refresh_key",
     "com.bktus.gpgfrontend.module.key_server_sync.search_key"
