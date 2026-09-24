@@ -124,16 +124,16 @@ not declare is simply absent, and the matching SDK call returns its failure
 value and logs once instead of doing anything. Two kinds of name go in the
 list:
 
-| declared  | kind     | effect                                                           |
-| --------- | -------- | ---------------------------------------------------------------- |
-| `gpg`     | granted  | sign, encrypt, decrypt, verify, keys, key lists, result analysis |
-| `pgp`     | granted  | packet-structure inspection, no keyring or engine                |
-| `ui`      | granted  | a UI script, commands, theme colours by role                     |
-| `ui.custom` | granted | adds native widgets mounted by the script; requires `ui`       |
-| `editor`  | granted  | reading the document the user currently has open                 |
-| `storage` | granted  | application settings, the caches, the runtime register table     |
-| `process` | granted  | running an external program                                      |
-| `network` | recorded | **not** enforced — see below                                     |
+| declared    | kind     | effect                                                           |
+| ----------- | -------- | ---------------------------------------------------------------- |
+| `gpg`       | granted  | sign, encrypt, decrypt, verify, keys, key lists, result analysis |
+| `pgp`       | granted  | packet-structure inspection, no keyring or engine                |
+| `ui`        | granted  | a UI script, commands, theme colours by role                     |
+| `ui.custom` | granted  | adds native widgets mounted by the script; requires `ui`         |
+| `editor`    | granted  | reading the document the user currently has open                 |
+| `storage`   | granted  | application settings, the caches, the runtime register table     |
+| `process`   | granted  | running an external program                                      |
+| `network`   | recorded | **not** enforced — see below                                     |
 
 Buffers, memory, logging, event subscription and translations are always
 available and are not declared.
@@ -597,7 +597,7 @@ Things the sections above do not show, each documented in its header:
 - **Commands** (`GFSDKCommand.hpp`, `GFModuleCommand.h`). A handler may take a
   `gf::cmd::Reply<Result>` as a third argument and answer later, from any
   thread. A command type may define `static auto State(const CommandContext&)
-  -> uint32_t` to say whether it is enabled, visible or checked; `kCheckable`
+-> uint32_t` to say whether it is enabled, visible or checked; `kCheckable`
   in its `kMeta` flags makes it a toggle. A long handler polls
   `ctx.Cancelled()`. `Commands()` also offers `InvokeDynamic` (by id, CBOR
   arguments), `Cancel`, `Describe` and `List`.
