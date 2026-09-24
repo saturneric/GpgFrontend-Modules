@@ -93,6 +93,7 @@ Add `add_subdirectory(my_module)` to `modules/src/CMakeLists.txt`.
   "author": "Your Name",
   "capabilities": ["ui"],
   "events": ["APPLICATION_LOADED"],
+  "commands": ["com.example.my_module.show_about"],
   "translation_context": "ModuleMyModule"
 }
 ```
@@ -112,6 +113,11 @@ list against your handler table and will not activate if they disagree, so
 listing an event you don't handle — or handling one you didn't list — is an
 error rather than a silent no-op.
 
+`commands` lists every command the module provides. Each id starts with the
+module id and a dot, is lower-case and dotted, and appears once. Like
+`events`, it is checked in both directions: the runtime will not activate a
+module whose bound commands and signed list disagree.
+
 `capabilities` decides what your module can reach, and it is enforced. At
 activation the host mints a capability table from this list; a group you did
 not declare is simply absent, and the matching SDK call returns its failure
@@ -122,7 +128,8 @@ list:
 | --------- | -------- | ---------------------------------------------------------------- |
 | `gpg`     | granted  | sign, encrypt, decrypt, verify, keys, key lists, result analysis |
 | `pgp`     | granted  | packet-structure inspection, no keyring or engine                |
-| `ui`      | granted  | widgets, dialogs, theme colours, settings pages, tab views       |
+| `ui`      | granted  | a UI script, commands, theme colours by role                     |
+| `ui.custom` | granted | adds native widgets mounted by the script; requires `ui`       |
 | `editor`  | granted  | reading the document the user currently has open                 |
 | `storage` | granted  | application settings, the caches, the runtime register table     |
 | `process` | granted  | running an external program                                      |
@@ -152,35 +159,47 @@ vocabulary.
 
 ### 3. Implement the module
 
+A module's UI is two parts: typed C++ **commands**, which do the work and
+carry every user-visible word, and a Lua **UI script**, which says where those
+commands are offered and when they are enabled.
+
 ```cpp
 // MyModule.cpp
 #include <GFModule.h>
+#include <GFSDKHostCommands.hpp>  // the Host's own commands: AppMessage, ...
 #include "GFModuleIdentity.h"  // generated from module.json by gf_add_module()
+
+struct ShowAbout {
+  static constexpr gf::cmd::Meta kMeta{GF_MODULE_ID ".show_about",
+                                       GC_TR("About My Module"), "", "", 0,
+                                       gf::cmd::kNeedsGuiThread};
+  using Args = gf::cmd::Unit;
+  using Result = gf::cmd::Unit;
+};
+
+auto DoShowAbout(const gf::cmd::CommandContext&, const gf::cmd::Unit&)
+    -> gf::cmd::Outcome<gf::cmd::Unit> {
+  Commands().Invoke<gf::cmd::host::AppMessage>(
+      {gf::cmd::host::AppMessage::Severity::kInfo,
+       QCoreApplication::translate("GTrC", "About My Module"),
+       QCoreApplication::translate("GTrC", "Hello.")});
+  return gf::cmd::Outcome<gf::cmd::Unit>::Success({});
+}
 
 auto OnActivate() -> GFResult {
   LOG_INFO("MyModule activating");
   return GFResult::Ok();
 }
 
-auto OnMainWindowMenuMounted(const GFEvent& event) -> GFEventResult {
-  QMenu* help_menu = nullptr;
-  if (auto r = event.RequireGui("help_menu", help_menu); !r.ok) return r;
-  // ... add actions to help_menu ...
-  return GFEventResult::Ok();
-}
+const std::array<gf::cmd::Binding, 1> kCommands = {
+    gf::cmd::Bind<ShowAbout, &DoShowAbout>()};
 
-auto OnDeactivate() -> GFResult { return GFResult::Ok(); }
-auto OnUnload() -> void { LOG_INFO("MyModule unloading"); }
-
-constexpr GFEventBinding kEvents[] = {
-    {"MAINWINDOW_MENU_MOUNTED", &OnMainWindowMenuMounted},
-};
-
-constexpr GFModuleHooks kHooks = {
+const GFModuleHooks kHooks = {
     sizeof(GFModuleHooks),
     GF_MODULE_ID, GF_MODULE_VERSION, GF_MODULE_TRANSLATION_CONTEXT,
-    &OnActivate, &OnDeactivate, &OnUnload,
-    kEvents, std::size(kEvents),
+    &OnActivate, nullptr, nullptr,
+    nullptr, 0,                          // events it handles
+    kCommands.data(), kCommands.size(),  // commands it provides
 };
 
 extern "C" GF_MODULE_EXPORT auto GFModuleGetApi(uint32_t abi)
@@ -189,14 +208,29 @@ extern "C" GF_MODULE_EXPORT auto GFModuleGetApi(uint32_t abi)
 }
 ```
 
-Every hook in `GFModuleHooks` is optional — pass `nullptr` for one you have
-nothing to say about, as the real `m_ver_check` module does for
-`on_deactivate` when everything it registered was event-driven rather than
-handed to the host directly. `GFModuleGetApi` is the one piece of ABI a
-module writes by hand, deliberately not hidden behind a macro: it is what
-makes the linker keep `gf_module_runtime`'s entry point, since nothing else
-in a module references it — the host resolves the symbol after the module is
-linked.
+```lua
+-- ui/main.lua: where the command is offered. No user-visible text here.
+local about = commands.get("com.example.my_module.show_about")
+ui.action { id = "about", anchor = ui.anchor("main.menu.help"), command = about }
+```
+
+Every hook in `GFModuleHooks` is optional; pass `nullptr` for one you have
+nothing to say about. The runtime registers the commands before
+`on_activate` and loads the script after it. At deactivation the host
+withdraws everything the module registered -- commands, widgets, script,
+subscriptions, translations -- before `on_deactivate` runs, so nothing has to
+be unregistered by hand. What `on_deactivate` is for is the module's OWN work:
+stop the threads it started, the timers it runs, the network requests it has
+in flight. A module that starts none of those passes `nullptr`. `GFModuleGetApi` is
+the one piece of ABI a module writes by hand, deliberately not hidden behind
+a macro: it is what makes the linker keep `gf_module_runtime`'s entry point,
+since nothing else in a module references it. The host resolves the symbol
+after the module is linked.
+
+Check the real modules for complete examples:
+[`m_pgp_inspect`](src/m_pgp_inspect) (a command and a dialog widget) and
+[`m_key_server_sync`](src/m_key_server_sync) (commands with arguments, a
+dialog, a settings page and key details buttons).
 
 ### 4. Add CMakeLists.txt
 
@@ -204,18 +238,25 @@ linked.
 gf_add_module(
   NAME   my_module
   QT     Core Widgets
+  LUA_SCRIPTS ui/main.lua   # embedded, signed with the module, loaded by the host
   # UI_DIR ui              # if you have a Qt Designer forms directory
   # LINK   some_target      # extra libraries, if any
 )
 ```
+
+`LUA_SCRIPTS` compiles the listed scripts into the module under
+`:/gf_module/<id>/lua/`. They are data: the host runs them in its own sandbox,
+and a module must never link an interpreter of its own
+(`scripts/check_module_boundary.sh` refuses one).
 
 `gf_add_module()` reads `module.json`, builds the target from every source
 file in the directory (or `SOURCES` if given explicitly), generates the
 identity header, wires up translations for every locale in
 `GPGFRONTEND_SUPPORTED_LOCALES`, and builds + signs the resulting
 `.gfmodule` package — all from those handful of values. See
-[`modules/src/m_ver_check/CMakeLists.txt`](src/m_ver_check/CMakeLists.txt)
-for a real, minimal example.
+[`modules/src/m_pgp_inspect/CMakeLists.txt`](src/m_pgp_inspect/CMakeLists.txt)
+for a real, small example. `RESOURCES` adds Qt resource files and
+`INCLUDE_DIRS` extra include directories.
 
 After adding or changing `tr()`/`GC_TR()` strings, run
 [`scripts/update_translations.sh`](../scripts/update_translations.sh) to sync
@@ -324,8 +365,11 @@ QString locale = UDUP(GFAppLocale(GFModuleSdkContext()));
 The one exception to "arguments are borrowed" is a struct a module builds and
 hands over _whole_ — `GFModuleEvent`, `GFModuleEventParam`,
 `GFCommandExecuteContext` and the like — whose `char*` members still have to
-be allocated with `GFModuleStrDup` (`DUP(...)`), because ownership of the
-whole struct is what transfers.
+be allocated with `GFMemStrDup` (`DUP(...)`), because ownership of the
+whole struct is what transfers. `UDUP` takes a `char*` the SDK handed you;
+it does not accept a `QByteArray` or `QString` -- those are already owned,
+and freeing their storage through the SDK corrupts the heap, so the call does
+not compile.
 
 ```cpp
 DUP("hello")      // char* owned by the callee — only for a transferred struct field
@@ -350,52 +394,47 @@ records:
 
 - **observe or extend.** Most events tell you something happened and do not
   read your reply. A small, deliberate set are extension points where what
-  you return, or what you do to a borrowed host object, changes the outcome —
-  the `EDIT_TAB_TYPE_*_OP_*` operations (your reply replaces the user's
-  document), the `FILE_EXT_*` handoffs (the host stops and leaves the work to
-  you), the key-server requests, and the menu/tab mounting points.
-- **whether the reply is read at all.** `MAINWINDOW_MENU_MOUNTED` hands you a
-  menu and ignores what you return; you extend by mutating the menu, not by
-  answering.
+  you return changes the outcome: the six `EDIT_TAB_TYPE_<TYPE>_OP_*` crypto
+  operations (your reply replaces the user's document) and the key-server
+  requests.
+- **whether the reply is read at all.** `TAB_ACTIVATED` tells you a fact and
+  ignores what you return.
 - **whether you may defer.** Where the flag allows it, return
   `GFEventResult::Deferred()` and answer later through `event.Answer()`,
-  from any thread.
+  from any thread. The host accepts one answer per delivered event. If your
+  module is deactivated before it answers, the host answers for it, with a
+  failure, and refuses the late answer.
 
 Nothing is a veto. No trigger site cancels an operation on a module's word,
 and `TriggerEvent` is asynchronous and returns nothing, so a veto is not
 expressible today.
 
-```cpp
-auto OnMainWindowMenuMounted(const GFEvent& event) -> GFEventResult {
-  QMenu* menu = nullptr;
-  if (auto r = event.RequireGui("help_menu", menu); !r.ok) return r;
-  // ... add actions ...
-  return GFEventResult::Ok();
-}
-```
+No event carries a Host object. Everything an event hands you is data, and
+UI comes from your script and your own widgets (see [UI](#ui)).
 
 A handler that starts asynchronous work returns `GFEventResult::Deferred()`
-and answers later through `event.Answer()`, from any thread, at most once —
-see `CheckUpdate()` in
-[`m_ver_check/VersionCheckingModule.cpp`](src/m_ver_check/VersionCheckingModule.cpp)
+and answers later through `event.Answer()`, from any thread, at most once.
+See the key-server requests in
+[`m_key_server_sync/KeyServerSyncModule.cpp`](src/m_key_server_sync/KeyServerSyncModule.cpp)
 for a real example.
 
 ### Runtime values
 
 A shared, typed register table (`storage` capability) for live
-configuration, visible to the host and to other modules. Keys and namespaces
-are lower-case; text and bool are kept apart because a lookup of the wrong
+configuration, visible to the host and to other modules. A module may read any
+namespace but WRITES only its own, which is its module id (`GFModuleId()`).
+Keys and namespaces are lower-case; text and bool are kept apart because a lookup of the wrong
 type is a miss, not a conversion. Use the `gf::sdk::` wrappers
 (`GFSDK.hpp`), which apply a fallback where the raw calls only report
 absence:
 
 ```cpp
 auto* ctx = GFModuleSdkContext();
-gf::sdk::SetStateBool(ctx, "my_module", "ready", true);
-bool ready = gf::sdk::StateBool(ctx, "my_module", "ready", /*fallback=*/false);
+gf::sdk::SetStateBool(ctx, GFModuleId(), "ready", true);
+bool ready = gf::sdk::StateBool(ctx, GFModuleId(), "ready", /*fallback=*/false);
 
-gf::sdk::SetStateText(ctx, "my_module", "last_error", message);
-QString v = gf::sdk::StateText(ctx, "my_module", "last_error");
+gf::sdk::SetStateText(ctx, GFModuleId(), "last_error", message);
+QString v = gf::sdk::StateText(ctx, GFModuleId(), "last_error");
 ```
 
 ### Cache
@@ -446,115 +485,145 @@ real, complete call sites including error handling.
 
 If you need the same structured result the host's own crypto dialogs show
 (recipients, signatures, validity), use `gf::sdk::AnalyseResult(ctx,
-operation, channel, err, r.CapsuleId())` — this is engine neutral, working
+channel, operation, err, r.CapsuleId())` — this is engine neutral, working
 the same way whether the active engine is GnuPG or rPGP.
 
 ### UI
 
-All Qt widget creation and dialog display must happen on the main thread. The
-SDK handles the dispatch automatically.
+The full reference (the Lua API, the anchor catalog, the sandbox, the typed
+widget protocols) is in [`src/sdk/README.md`](../src/sdk/README.md#ui-integration).
+In short:
+
+- **Commands** (`ui`) are the semantic layer. A command has a title, a
+  description and a category, all `GC_TR` strings, and typed arguments.
+  Invoke one with `Commands().Invoke<C>(args)`, the host's included
+  (`gf::cmd::host`, in `GFSDKHostCommands.hpp`).
+- **The UI script** (`ui`) places commands on anchors with `ui.action`, and
+  reacts to a small, closed set of UI events with `ui.subscribe`.
+- **Native widgets** (`ui.custom`) are your own `QWidget`s. Derive from one of
+  `gf::ui::DocumentWidget`, `SettingsWidget` or `DialogWidget`, register it in
+  `OnActivate()`, and mount it from the script with `ui.mount`. The host owns
+  the frame around it: the dialog, the settings page, the document tab.
 
 ```cpp
-// Create a widget on the main thread (dispatches there for you if called
-// from a worker)
-void* dlg = GUI_OBJECT(MyDialogFactory, QVariant("arg"));
-
-// Show it (non-blocking); "main_window" style handles come from an event's
-// own parameters, resolved with event.RequireGui<T>() — see Events below
-GFUIShowDialog(GFModuleSdkContext(), dlg, parent_handle);
-```
-
-None of the shipped modules currently build a dialog off the main thread —
-`m_ver_check`'s update dialog, for example, is built directly with `new
-QDialog(parent)` from a menu-click handler, which already runs on the main
-thread. Reach for `GUI_OBJECT`/`GFUIShowDialog` only when you need to build
-or show UI from code that is not already there.
-
-#### Settings pages
-
-A module can own a page in the application's Settings dialog. Register it
-from `OnActivate()` and drop it again in `OnDeactivate()` — the registry
-holds a function pointer into your shared object, and leaving it behind
-would crash the next time the dialog is built.
-
-```cpp
-constexpr auto kSettingsPageId = "com.example.mymodule.settings";
-
-auto MySettingsPageFactory(void* /*data*/) -> void* {
-  return new MySettingsPage();  // fresh, unparented, one per dialog
-}
-
 auto OnActivate() -> GFResult {
-  const auto keywords = QStringList{GC_TR("proxy"), GC_TR("timeout")}.join('\n');
-  gf::sdk::RegisterSettingsPage(GFModuleSdkContext(), kSettingsPageId,
-                                "features", GC_TR("My Module"),
-                                keywords.toUtf8().constData(),
-                                MySettingsPageFactory, nullptr);
-  return GFResult::Ok();
-}
-
-auto OnDeactivate() -> GFResult {
-  GFUIUnregisterSettingsPage(GFModuleSdkContext(), kSettingsPageId);
+  gf::ui::RegisterNativeWidget<MySettingsPage>(
+      "settings", {GC_TR("My Module"), GC_TR("proxy,timeout")},
+      [](const QCborMap&) { return new MySettingsPage(); });
   return GFResult::Ok();
 }
 ```
 
-`gf::sdk::RegisterSettingsPage` (from `GFSDK.hpp`) fills in the append-only
-`GFUISettingsPageSpec` struct for you; see
-[`m_key_server_sync/KeyServerSyncModule.cpp`](src/m_key_server_sync/KeyServerSyncModule.cpp)
-for the real, complete pattern.
+```lua
+ui.mount { id = "settings", anchor = ui.anchor.settings { section = "features" },
+           widget = native.widget("settings") }
+```
 
-The dialog finds your page's `SetSettings()` and `ApplySettings()` **by
-name**, so declare both as `public slots` (or `Q_INVOKABLE`). `SetSettings()`
-loads the stored values and is called again if the user cancels;
-`ApplySettings()` writes them on OK. Stage edits in the widget and only
-persist them in `ApplySettings()` — that is what makes Cancel discard them.
-Declare a `void SignalRestartNeeded(int)` signal if a change on your page
-needs one; the dialog connects to it if it is there.
+Register titles and keywords untranslated, with `GC_TR(...)`: the host
+translates them when it shows them, so they follow a language change.
+Settings sections are `application`, `keys_engines`, `features` and `system`.
 
-Register `title` and `keywords` untranslated, with `GC_TR(...)`: modules are
-activated before their translator is installed, so anything translated at
-registration time would be frozen at its source text for the rest of the
-session. `section_id` is one of `application`, `keys_engines`, `features`,
-`system`; anything else becomes its own section after those.
+#### Migrating from the object-based UI API
 
-### Project settings
+Every entry point that handed a module a Host object, or took one, now
+refuses (and logs the replacement once). One example per pattern:
 
-Use `GFStorageSettingsRoot(ctx)` (`storage` capability — reading a
-preference is not drawing, so it does not need `ui`) to read and write
-persistent application settings. Settings are shared across all modules and
-the host application, so prefix every key with your module name to avoid
-collisions.
+**A menu entry.** Before: handle `MAINWINDOW_MENU_MOUNTED`, `RequireGui` the
+menu, `addAction`. After: a command, placed by the script.
+
+```lua
+ui.action { id = "check", anchor = ui.anchor("main.menu.help"),
+            command = commands.get("com.example.my_module.check") }
+```
+
+**A key details button.** Before: handle `KEY_PAIR_OPERA_MENU_CREATED`. After:
+the `key.details.actions` anchor; the host groups buttons by command category
+and passes the key.
+
+```lua
+ui.action { id = "publish", anchor = ui.anchor("key.details.actions"),
+            command = publish,
+            update = function(ctx)
+              if not ctx.key then return { visible = false } end
+              return { args = { key = ctx.key } }
+            end }
+```
+
+**A dialog with a parent.** Before: `GUI_OBJECT`, `GFUIShowDialog(ctx, dlg,
+parent)`. After: a `DialogWidget`, a dialog mount, and the host command
+`org.gpgfrontend.view.open`, which accepts only your own mounts.
+
+```lua
+local inspector = ui.mount { id = "inspector", anchor = ui.anchor.dialog {},
+                             widget = native.widget("inspector") }
+```
+
+**A settings page, or widgets injected into the Network tab.** Before:
+`RegisterSettingsPage` with `SetSettings`/`ApplySettings` found by name, or the
+`NETWORK_SETTINGS_TAB_*` events. After: a `SettingsWidget`
+(`LoadSettings`/`ApplySettings`) and a settings mount, as above.
+
+**Reading and writing settings.** Before: `GFStorageSettingsRoot` and a cast
+to `QSettings*`. After: the module's own group, no cast.
 
 ```cpp
-auto* settings = qobject_cast<QSettings*>(
-    static_cast<QObject*>(GFStorageSettingsRoot(GFModuleSdkContext())));
-
-// Write a value
-settings->setValue("my_module/check_on_startup", true);
-
-// Read a value with a default
-bool check = settings->value("my_module/check_on_startup", false).toBool();
+auto* ctx = GFModuleSdkContext();
+bool check = gf::sdk::Setting(ctx, GF_SETTING_MODULE, "check_on_startup", true)
+                 .toBool();
+gf::sdk::SetSetting(ctx, GF_SETTING_MODULE, "check_on_startup", false);
 ```
 
-Settings are typically read in a `..._LOAD_SETTINGS` event handler and
-written in a `..._APPLY_SETTINGS` handler, following the pattern used by the
-built-in modules — see `OnNetworkSettingsTabLoadSettings()` /
-`OnNetworkSettingsTabApplySettings()` in
-[`m_ver_check/VersionCheckingModule.cpp`](src/m_ver_check/VersionCheckingModule.cpp)
-for the full, real pattern, including dispatching the actual widget access
-onto the main thread with `QMetaObject::invokeMethod`.
+In Lua, `state.get` / `state.set` read and write the same group.
+
+**Opening a document in a new tab.** Before: `invokeMethod(edit,
+"SlotNewCustomTab")` and `setTabText` on the host's tab widget. After:
+`Commands().Invoke<gf::cmd::host::DocumentOpen>` with the content as a `gf::cmd::Blob`.
+
+**A document type of your own.** Before: `RegisterTabPageView`,
+`register_file_extension` with its `FILE_EXT_*` events, and an
+`EDIT_TAB_TYPE_*_OP_SAVE_FILE` handler. After: a `DocumentWidget`
+registered with `RegisterNativeWidgetFactory`, mounted on
+`ui.anchor.editor { document_type = ..., extensions = { ... } }`. The host
+opens those files, and saves through your `Save` and `PrepareSave`.
+
+**Showing the raw source.** Before: `AdoptSourceView(QWidget*)` took the
+host's editor. After: the page's own switcher shows the source; ask for it
+with `ShowSource(true)`, and keep it read-only with `SourceLockReason`.
+
+### More of the module-facing API
+
+Things the sections above do not show, each documented in its header:
+
+- **Commands** (`GFSDKCommand.hpp`, `GFModuleCommand.h`). A handler may take a
+  `gf::cmd::Reply<Result>` as a third argument and answer later, from any
+  thread. A command type may define `static auto State(const CommandContext&)
+  -> uint32_t` to say whether it is enabled, visible or checked; `kCheckable`
+  in its `kMeta` flags makes it a toggle. A long handler polls
+  `ctx.Cancelled()`. `Commands()` also offers `InvokeDynamic` (by id, CBOR
+  arguments), `Cancel`, `Describe` and `List`.
+- **Events** (`GFModuleEvent.h`). `event.Bytes(key)` for a binary parameter
+  (no base64 round trip), `event.Require(key, out)` for a mandatory one,
+  `event.Params()` for all of them; `event.Answer()` gives the handle a
+  deferred handler answers through (`Ok`, `Fail`, `Send`, `Answered`).
+- **Facts** (`GFModule.h`). `GFModuleId()`, `GFModuleVersion()`,
+  `GFModuleHasCapability(name)`, `GFModuleIsVerified()`.
+- **Logging** (`GFModuleLog.h`). `MLogTrace` through `MLogError` take one
+  QString; `LOG_*` take a format string and `FLOG_*` a format string with
+  `%1`-style arguments.
 
 ### Translations
 
 Wrap strings with `QCoreApplication::translate("GTrC", "...")` (or `GC_TR`
-for a string that must stay untranslated until later — see
-[Settings pages](#settings-pages)). `GTrC` is a single, fixed translation
+for a string that must stay untranslated until later, such as a command
+title). `GTrC` is a single, fixed translation
 context declared by `GFModule.h`; it is unrelated to a module's own
 `translation_context` field in `module.json`, which only names the `.qm`
-file. There is nothing left to register: `gf_module_runtime` installs the
-module's translator automatically during activation, before any event
-subscription and before `OnActivate()` runs.
+file. There is nothing left to register: `gf_module_runtime` hands the host
+the module's translator during activation, before any event subscription and
+before `OnActivate()` runs, and the host installs it on the GUI thread. It is
+in place by the time anything the module mounts is shown -- but not
+necessarily while `OnActivate()` itself runs, so translate there with
+`GC_TR` and let the host translate later.
 
 `.ts` files go in `ts/<translation_context>.<locale>.ts` and are embedded as
 Qt resources under `:/i18n/`. The locale set is not chosen per module — it
@@ -566,12 +635,20 @@ every locale's `.ts`.
 
 ## Packaging, Signing & Distribution
 
-Every module ships as a signed `.gfmodule` package (a manifest, its Ed25519
-signature, and — for an externally-distributed module — the build public key
-that signature was made with) plus the native shared library it names. The
-package format, verification rules, and trust model live in
-[`src/core/module/`](../src/core/module) — this section only summarises the
+Every module ships as a signed `.gfmodule` package (a manifest and its Ed25519
+signature, plus, for an external module, the publisher public key that
+signature was made with) and the native shared library it names. The package
+format, verification rules, and trust model live in
+[`src/core/module/`](../src/core/module); this section only summarises the
 parts that matter for building and distributing a module.
+
+There are three tools, one per trust role:
+
+| Tool                    | Role                                                                     |
+| ----------------------- | ------------------------------------------------------------------------ |
+| `gf_module_keygen`      | the integrated build identity: one ephemeral key per build tree          |
+| `gf_module_packager`    | builds, reseals and verifies integrated packages                         |
+| `gf_module_externalize` | turns a verified integrated package into a publisher-signed external one |
 
 ### Integrated modules (the ones in this directory)
 
@@ -606,29 +683,72 @@ layout as above. For it to load:
 1. The user sets **Settings → General → Module Discovery** to "Also Look For
    Modules I've Added". This only controls whether the `mods/` directory is
    scanned at all — finding a module there never implies running it.
-2. In the **Module Controller**, the user trusts the build key the module was
-   signed with ("signatures by this key are worth considering") and then
+2. In the **Module Controller**, the user trusts the publisher key the module
+   was signed with ("signatures by this key are worth considering") and then
    enables that specific module ("run this one"). These are deliberately two
    separate decisions: trusting a key applies to every module that key ever
    signs, so collapsing it with "run this one" into a single click would
    make the first of them too easy to grant by accident.
 3. Both take effect on the next restart.
 
-**Current limitation:** there is no first-party tool to sign an external
-module with your own keypair. `gf_module_packager` (the CLI `gf_add_module`
-calls internally) only signs against the build tree's own compiled-in key,
-so it can only ever produce _integrated_-shaped packages. Producing a valid
-external `.gfmodule` today means reproducing the format by hand: a
-canonically-serialised `manifest.json` (see
-[`ModuleManifest.h`](../src/core/module/ModuleManifest.h) for the schema),
-an Ed25519 detached signature over its exact bytes, and the signer's public
-key, zipped together as `META-INF/manifest.json`, `META-INF/manifest.sig`,
-and `META-INF/build-key.pub`. The test suite constructs exactly this by hand
-with libsodium — see
-[`src/test/core/ModuleDescriptorArchive.h`](../src/test/core/ModuleDescriptorArchive.h)
-and
-[`src/test/core/GpgCoreTestModuleExternalTrust.cpp`](../src/test/core/GpgCoreTestModuleExternalTrust.cpp)
-— but there is no supported command-line workflow for it yet.
+The publisher key inside the package only names the signer. It never grants
+trust by itself: trust comes only from the user's decision about that exact
+key. A publisher name or URL in the manifest is an unverified claim. The
+build's own integrated key is refused wherever a publisher key is expected.
+
+#### Publishing an external module
+
+External modules are made from integrated ones, never built directly. The
+integrated package is the proof of what was built; externalizing it is a
+trust-domain transition from "this build signed it" to "this publisher signs
+it", done once, as the last release step.
+
+1. **Create a publisher key**, once. It is your lasting identity, so keep the
+   secret file safe and publish the `.pub` file (or its fingerprint) through a
+   channel your users trust:
+
+   ```bash
+   gf_module_externalize new-key --out publisher.key   # writes publisher.key (0600) + publisher.key.pub
+   gf_module_externalize fingerprint --key publisher.key.pub
+   ```
+
+   The key files are typed text files. A raw 32-byte seed, such as a build
+   tree's `module-build.seed`, is refused, so the build key can never be used
+   as a publisher key by mistake.
+
+2. **Build with native binding required**, so the integrated descriptor binds
+   the exact bytes of its native. Finish every step that rewrites the native
+   (strip, `patchelf`, deploy tools) and the integrated reseal first:
+
+   ```bash
+   cmake -B build -DGPGFRONTEND_INTEGRATED_MODULE_NATIVE_BINDING=REQUIRED
+   ```
+
+3. **Externalize** the module's namespace directory:
+
+   ```bash
+   gf_module_externalize \
+     --input build/artifacts/modules/<key> \
+     --publisher-key publisher.key \
+     --output-root dist \
+     [--publisher-name "Example"] [--publisher-url https://example.com]
+   ```
+
+   The input is first verified as an integrated module of this build, and
+   refused if its native is unbound or its `native/` directory holds anything
+   besides the entry native. The output is `dist/<key>/module.gfmodule` plus
+   `dist/<key>/native/<entry>`, ready to drop into a user's `mods/`. Every
+   manifest field is carried over unchanged except the optional publisher
+   metadata; the tool refuses a manifest field it has no rule for. It never
+   overwrites an existing output.
+
+4. **Do not modify the output.** The descriptor binds the native's bytes, and
+   there is no external reseal: that would need your secret key wherever the
+   rewrite happened. The one exception is Authenticode-signing a Windows
+   native, whose binding digest excludes the signature by design.
+
+`gf_module_packager verify-module-set` checks integrated trees only, and
+refuses an externalized namespace.
 
 ### macOS has no external modules
 
