@@ -118,6 +118,3 @@ auto Merge(const std::optional<SoftwareVersion>& prev,
  */
 auto Decide(const SoftwareVersion& r) -> Verdict;
 
-/// Only a confirmed update interrupts startup; everything else waits for the
-/// user to open the dialog.
-auto ShouldPromptAtStartup(Verdict v) -> bool;

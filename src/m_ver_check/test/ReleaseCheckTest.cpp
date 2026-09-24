@@ -222,14 +222,6 @@ TEST(ReleaseCheckTest, UnknownFactsNeverAssertAnything) {
   }
 }
 
-TEST(ReleaseCheckTest, OnlyAConfirmedUpdatePromptsAtStartup) {
-  EXPECT_TRUE(ShouldPromptAtStartup(Verdict::kUpdateAvailable));
-  EXPECT_FALSE(ShouldPromptAtStartup(Verdict::kUnknown));
-  EXPECT_FALSE(ShouldPromptAtStartup(Verdict::kUpToDate));
-  EXPECT_FALSE(ShouldPromptAtStartup(Verdict::kWithdrawnOrUnreleased));
-  EXPECT_FALSE(ShouldPromptAtStartup(Verdict::kUnofficialBuild));
-}
-
 TEST(ReleaseCheckTest, CompletenessAndAuthority) {
   auto full = Result(ListOutcome::kFound, RemoteFact::kConfirmed,
                      RemoteFact::kNotFound);

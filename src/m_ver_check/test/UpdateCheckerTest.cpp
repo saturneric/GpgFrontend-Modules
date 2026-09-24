@@ -299,31 +299,126 @@ TEST(UpdateCheckerTest, ReplyAfterDestructionIsIgnored) {
   EXPECT_EQ(h.saves, 0);
 }
 
-TEST(UpdateCheckerTest, StartupPromptOnlyForConfirmedUpdate) {
+TEST(UpdateCheckerTest, DiscoveredUpdateAsksForAttention) {
   Harness h;
   auto c = h.Make();
-  EXPECT_FALSE(ShouldPromptOnStartup(c->State()));  // nothing known
+  EXPECT_EQ(AttentionFor(c->State()), UpdateAttention::kNone);  // nothing known
 
   c->Start(CheckMode::kIfStale);
-  EXPECT_FALSE(ShouldPromptOnStartup(c->State()));  // still checking
-  h.server.AnswerAll(false);
-  EXPECT_FALSE(ShouldPromptOnStartup(c->State()));  // failed
-
-  c->Start(CheckMode::kIfStale);
-  h.server.AnswerPartial();
-  EXPECT_FALSE(ShouldPromptOnStartup(c->State()));  // partial, no update
-
-  c->Start(CheckMode::kIfStale);
-  h.server.AnswerAll(true);
-  EXPECT_TRUE(ShouldPromptOnStartup(c->State()));  // confirmed update
-
-  // A later failure does not unlearn a confirmed update.
-  c->Start(CheckMode::kForce);
-  h.server.AnswerAll(false);
-  EXPECT_TRUE(ShouldPromptOnStartup(c->State()));
+  EXPECT_EQ(AttentionFor(c->State()), UpdateAttention::kNone);  // checking
+  h.server.AnswerAll(true, "v2.1.9");
+  EXPECT_EQ(AttentionFor(c->State()), UpdateAttention::kUpdateAvailable);
 }
 
-TEST(UpdateCheckerTest, StartupNeverPromptsForUnofficialOrWithdrawn) {
+TEST(UpdateCheckerTest, OpeningThePageAcknowledgesTheUpdate) {
+  Harness h;
+  auto c = h.Make();
+  c->Start(CheckMode::kForce);
+  h.server.AnswerAll(true, "v2.1.9");
+
+  int changes = 0;
+  QObject::connect(c.get(), &UpdateChecker::Changed, [&] { ++changes; });
+  c->Acknowledge();
+  EXPECT_EQ(changes, 1);
+  EXPECT_EQ(c->State().last_seen_update_version, "v2.1.9");
+  EXPECT_EQ(AttentionFor(c->State()), UpdateAttention::kNone);
+
+  // Nothing new to acknowledge: no change, no write.
+  const int saves = h.saves;
+  c->Acknowledge();
+  EXPECT_EQ(changes, 1);
+  EXPECT_EQ(h.saves, saves);
+
+  // The page still offers the update itself.
+  EXPECT_EQ(Decide(*c->State().last_good), Verdict::kUpdateAvailable);
+}
+
+TEST(UpdateCheckerTest, SameUpdateRediscoveredStaysQuiet) {
+  Harness h;
+  auto c = h.Make();
+  c->Start(CheckMode::kForce);
+  h.server.AnswerAll(true, "v2.1.9");
+  c->Acknowledge();
+
+  c->Start(CheckMode::kForce);
+  h.server.AnswerAll(true, "v2.1.9");
+  EXPECT_EQ(AttentionFor(c->State()), UpdateAttention::kNone);
+}
+
+TEST(UpdateCheckerTest, NewerUpdateAsksAgain) {
+  Harness h;
+  auto c = h.Make();
+  c->Start(CheckMode::kForce);
+  h.server.AnswerAll(true, "v2.1.9");
+  c->Acknowledge();
+
+  c->Start(CheckMode::kForce);
+  h.server.AnswerAll(true, "v2.1.10");
+  EXPECT_EQ(AttentionFor(c->State()), UpdateAttention::kUpdateAvailable);
+  c->Acknowledge();
+  EXPECT_EQ(c->State().last_seen_update_version, "v2.1.10");
+  EXPECT_EQ(AttentionFor(c->State()), UpdateAttention::kNone);
+}
+
+TEST(UpdateCheckerTest, FailedOrUnknownCheckNeverAsksForAttention) {
+  Harness h;
+  auto c = h.Make();
+  c->Start(CheckMode::kForce);
+  h.server.AnswerAll(false);
+  EXPECT_EQ(AttentionFor(c->State()), UpdateAttention::kNone);
+
+  c->Start(CheckMode::kForce);
+  h.server.AnswerPartial();  // rate-limited lookups, no newer release
+  EXPECT_EQ(AttentionFor(c->State()), UpdateAttention::kNone);
+}
+
+TEST(UpdateCheckerTest, FailureAfterAcknowledgementStaysQuiet) {
+  Harness h;
+  auto c = h.Make();
+  c->Start(CheckMode::kForce);
+  h.server.AnswerAll(true, "v2.1.9");
+  c->Acknowledge();
+
+  c->Start(CheckMode::kForce);
+  h.server.AnswerAll(false);
+  EXPECT_TRUE(c->State().last_attempt_failed);
+  EXPECT_EQ(c->State().last_seen_update_version, "v2.1.9");
+  EXPECT_EQ(AttentionFor(c->State()), UpdateAttention::kNone);
+}
+
+TEST(UpdateCheckerTest, FailureBeforeAcknowledgementKeepsAttention) {
+  Harness h;
+  auto c = h.Make();
+  c->Start(CheckMode::kForce);
+  h.server.AnswerAll(true, "v2.1.9");
+  c->Start(CheckMode::kForce);
+  h.server.AnswerAll(false);
+  // A confirmed update is not unlearned by a failed refresh.
+  EXPECT_EQ(AttentionFor(c->State()), UpdateAttention::kUpdateAvailable);
+}
+
+TEST(UpdateCheckerTest, AcknowledgementPersistsAcrossRestart) {
+  Harness h;
+  {
+    auto c = h.Make();
+    c->Start(CheckMode::kForce);
+    h.server.AnswerAll(true, "v2.1.9");
+    c->Acknowledge();
+  }
+  auto restarted = h.Make();
+  EXPECT_EQ(restarted->State().last_seen_update_version, "v2.1.9");
+  EXPECT_EQ(AttentionFor(restarted->State()), UpdateAttention::kNone);
+
+  // Also across a rebuild, whose stored result is dropped.
+  auto rebuilt = h.Make({"v2.1.8", "def456"});
+  EXPECT_FALSE(rebuilt->State().last_good);
+  EXPECT_EQ(rebuilt->State().last_seen_update_version, "v2.1.9");
+  rebuilt->Start(CheckMode::kIfStale);
+  h.server.AnswerAll(true, "v2.1.9");
+  EXPECT_EQ(AttentionFor(rebuilt->State()), UpdateAttention::kNone);
+}
+
+TEST(UpdateCheckerTest, WithdrawnOrUnofficialNeverAskForAttention) {
   UpdateSnapshot s;
   SoftwareVersion r;
   r.current_version = "v2.1.8";
@@ -332,9 +427,9 @@ TEST(UpdateCheckerTest, StartupNeverPromptsForUnofficialOrWithdrawn) {
   r.commit_fact = RemoteFact::kNotFound;
   s.last_good = r;
   EXPECT_EQ(Decide(r), Verdict::kWithdrawnOrUnreleased);
-  EXPECT_FALSE(ShouldPromptOnStartup(s));
+  EXPECT_EQ(AttentionFor(s), UpdateAttention::kNone);
 
   s.last_good->tag_fact = RemoteFact::kConfirmed;
   EXPECT_EQ(Decide(*s.last_good), Verdict::kUnofficialBuild);
-  EXPECT_FALSE(ShouldPromptOnStartup(s));
+  EXPECT_EQ(AttentionFor(s), UpdateAttention::kNone);
 }

@@ -141,7 +141,11 @@ UpdateTab::UpdateTab(QWidget* parent)
   });
 
   if (!checker_.isNull()) {
-    connect(checker_, &UpdateChecker::Changed, this, &UpdateTab::render);
+    connect(checker_, &UpdateChecker::Changed, this, [this] {
+      // An update found while the page is open has been seen.
+      if (isVisible()) checker_->Acknowledge();
+      render();
+    });
   }
 
   // Readable at once: a check that finished before this dialog existed has
@@ -192,6 +196,9 @@ void UpdateTab::apply(const UpdateView& view) {
 
 void UpdateTab::showEvent(QShowEvent* event) {
   QWidget::showEvent(event);
+  // Opening the page is seeing whatever update it advertises: the badge on
+  // the menu entry goes, until a still newer release turns up.
+  if (!checker_.isNull()) checker_->Acknowledge();
   render();
 
   // The Host's own switch, the one the setup wizard and this module's

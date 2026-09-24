@@ -49,6 +49,17 @@ struct UpdateSnapshot {
   std::optional<SoftwareVersion> last_good;
   QDateTime last_attempt;
   bool last_attempt_failed = false;
+
+  /// The newest update the user has already been shown. Kept across builds
+  /// and failed checks: seeing it once is enough.
+  QString last_seen_update_version;
+};
+
+/// Whether the update entry point asks for attention. Derived from the
+/// state, never stored: the UI does not read network results itself.
+enum class UpdateAttention {
+  kNone,
+  kUpdateAvailable,  ///< a confirmed newer release the user has not seen
 };
 
 enum class CheckMode {
@@ -98,6 +109,10 @@ class UpdateChecker : public QObject {
   /// A recent authoritative result for this build: no startup check needed.
   [[nodiscard]] auto IsFresh() const -> bool;
 
+  /// The user has seen the update page: whatever update it advertises no
+  /// longer asks for attention. A no-op when there is none.
+  void Acknowledge();
+
   /// The state as stored; FromStorage() reads it back for @p build only.
   [[nodiscard]] static auto ToStorage(const UpdateSnapshot& s) -> QByteArray;
   [[nodiscard]] static auto FromStorage(const QByteArray& data,
@@ -120,5 +135,6 @@ class UpdateChecker : public QObject {
   int pending_ = 0;
 };
 
-/// Whether the startup check should open the update dialog now.
-auto ShouldPromptOnStartup(const UpdateSnapshot& s) -> bool;
+/// kUpdateAvailable while the last known result offers a release newer than
+/// the last one the user has seen; a failed check changes nothing.
+auto AttentionFor(const UpdateSnapshot& s) -> UpdateAttention;

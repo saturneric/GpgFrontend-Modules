@@ -115,26 +115,6 @@ void OpenUpdateDialog() {
       {gf::cmd::ViewRef{QStringLiteral(GF_MODULE_ID ".update")}});
 }
 
-/// Once per run: the startup check's answer, or a fresh stored one.
-void CheckAtStartup() {
-  auto* checker = VersionChecker();
-  if (checker == nullptr) return;
-
-  auto watch = std::make_shared<QMetaObject::Connection>();
-  const auto decide = [checker, watch] {
-    if (checker->State().checking) return;
-    QObject::disconnect(*watch);
-    if (ShouldPromptOnStartup(checker->State())) {
-      LOG_INFO("a newer release is available, notifying user");
-      OpenUpdateDialog();
-    }
-  };
-
-  *watch = QObject::connect(checker, &UpdateChecker::Changed, checker, decide);
-  checker->Start(CheckMode::kIfStale);
-  decide();
-}
-
 /// The update dialog, in a frame the Host owns.
 class UpdateWidget : public QWidget, public gf::ui::DialogWidget {
  public:
@@ -273,7 +253,11 @@ auto OnApplicationLoaded(const GFEvent& /*event*/) -> GFEventResult {
     return GFEventResult::Ok();
   }
 
-  OnGuiThread(&CheckAtStartup);
+  // In the background, and quietly: a newer release shows as a badge on
+  // Help > Check for Updates, never as a window.
+  OnGuiThread([] {
+    if (auto* checker = VersionChecker()) checker->Start(CheckMode::kIfStale);
+  });
 
   // An observation, answered at once: the check runs on its own.
   return GFEventResult::Ok();

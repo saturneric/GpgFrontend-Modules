@@ -175,7 +175,3 @@ auto Decide(const SoftwareVersion& r) -> Verdict {
   if (r.commit_fact == RemoteFact::kNotFound) return Verdict::kUnofficialBuild;
   return Verdict::kUpToDate;
 }
-
-auto ShouldPromptAtStartup(Verdict v) -> bool {
-  return v == Verdict::kUpdateAvailable;
-}

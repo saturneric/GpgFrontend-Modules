@@ -28,6 +28,8 @@
 
 #include "UpdateChecker.h"
 
+#include <GFSDKApp.h>
+
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QPointer>
@@ -58,6 +60,13 @@ auto UpdateChecker::IsFresh() const -> bool {
   return good && IsAuthoritative(*good) &&
          good->SameBuild(build_.version, build_.commit) &&
          good->checked_at.secsTo(clock_()) < kFreshSeconds;
+}
+
+void UpdateChecker::Acknowledge() {
+  if (AttentionFor(state_) == UpdateAttention::kNone) return;
+  state_.last_seen_update_version = state_.last_good->list.latest.version;
+  if (store_.save) store_.save(ToStorage(state_));
+  emit Changed();
 }
 
 void UpdateChecker::Start(CheckMode mode) {
@@ -130,6 +139,9 @@ auto UpdateChecker::ToStorage(const UpdateSnapshot& s) -> QByteArray {
     obj["last_attempt"] = s.last_attempt.toSecsSinceEpoch();
   }
   obj["last_attempt_failed"] = s.last_attempt_failed;
+  if (!s.last_seen_update_version.isEmpty()) {
+    obj["last_seen_update_version"] = s.last_seen_update_version;
+  }
   return QJsonDocument(obj).toJson(QJsonDocument::Compact);
 }
 
@@ -141,6 +153,10 @@ auto UpdateChecker::FromStorage(const QByteArray& data, const Build& build)
 
   const auto obj = doc.object();
   if (obj.value("schema").toInt() != kStorageSchema) return s;
+
+  // Which update the user has seen is not a fact about this build: an
+  // upgrade, or a rebuild, must not advertise it again.
+  s.last_seen_update_version = obj.value("last_seen_update_version").toString();
 
   auto good = SoftwareVersion::FromJson(obj.value("last_good").toObject());
   // What was learned about another build says nothing about this one, and
@@ -156,7 +172,16 @@ auto UpdateChecker::FromStorage(const QByteArray& data, const Build& build)
   return s;
 }
 
-auto ShouldPromptOnStartup(const UpdateSnapshot& s) -> bool {
-  return !s.checking && s.last_good &&
-         ShouldPromptAtStartup(Decide(*s.last_good));
+auto AttentionFor(const UpdateSnapshot& s) -> UpdateAttention {
+  if (!s.last_good || Decide(*s.last_good) != Verdict::kUpdateAvailable) {
+    return UpdateAttention::kNone;
+  }
+  const auto& latest = s.last_good->list.latest.version;
+  const auto& seen = s.last_seen_update_version;
+  if (!seen.isEmpty() &&
+      GFCompareSoftwareVersion(latest.toUtf8().constData(),
+                               seen.toUtf8().constData()) <= 0) {
+    return UpdateAttention::kNone;
+  }
+  return UpdateAttention::kUpdateAvailable;
 }
