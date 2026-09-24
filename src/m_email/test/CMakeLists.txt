@@ -82,6 +82,7 @@ target_compile_definitions(gf_mod_email_test PRIVATE
 
 set_target_properties(gf_mod_email_test PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY "${GPGFRONTEND_MODULE_TEST_OUTPUT_DIR}")
+gf_register_module_test(gf_mod_email_test)
 
 # --- transport tests that need a server -------------------------------------
 #
@@ -130,6 +131,7 @@ target_compile_definitions(gf_mod_email_net_test PRIVATE
 
 set_target_properties(gf_mod_email_net_test PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY "${GPGFRONTEND_MODULE_TEST_OUTPUT_DIR}")
+gf_register_module_test(gf_mod_email_net_test)
 
 # --- crypto boundary tests --------------------------------------------------
 #
@@ -174,6 +176,7 @@ target_compile_definitions(gf_mod_email_crypto_test PRIVATE
 
 set_target_properties(gf_mod_email_crypto_test PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY "${GPGFRONTEND_MODULE_TEST_OUTPUT_DIR}")
+gf_register_module_test(gf_mod_email_crypto_test)
 
 # --- fuzzing (opt-in, clang only) -------------------------------------------
 #
