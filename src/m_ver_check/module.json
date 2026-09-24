@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "id": "com.bktus.gpgfrontend.module.version_checking",
-  "version": "1.5.0",
+  "version": "2.0.0",
   "name": "VersionChecking",
   "description": "Try checking GpgFrontend version.",
   "author": "Saturneric",
