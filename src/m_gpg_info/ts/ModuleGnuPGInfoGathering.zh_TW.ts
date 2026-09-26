@@ -4,15 +4,12 @@
 <context>
     <name>GTrC</name>
     <message>
-        <location filename="../GnuPGInfoGatheringModule.cpp" line="103"/>
-        <location filename="../GnuPGInfoGatheringModule.cpp" line="173"/>
         <source>GnuPG</source>
-        <translation>GnuPG</translation>
+        <translation type="vanished">GnuPG</translation>
     </message>
     <message>
-        <location filename="../GnuPGInfoGatheringModule.cpp" line="175"/>
         <source>Information about GnuPG</source>
-        <translation>關於 GnuPG</translation>
+        <translation type="vanished">關於 GnuPG</translation>
     </message>
 </context>
 <context>
@@ -46,53 +43,53 @@
 <context>
     <name>GnupgTab</name>
     <message>
-        <location filename="../GnupgTab.cpp" line="49"/>
+        <location filename="../GnupgTab.cpp" line="48"/>
         <source>Name</source>
         <translation>名稱</translation>
     </message>
     <message>
-        <location filename="../GnupgTab.cpp" line="49"/>
-        <location filename="../GnupgTab.cpp" line="96"/>
+        <location filename="../GnupgTab.cpp" line="48"/>
+        <location filename="../GnupgTab.cpp" line="95"/>
         <source>Description</source>
         <translation>描述</translation>
     </message>
     <message>
-        <location filename="../GnupgTab.cpp" line="49"/>
+        <location filename="../GnupgTab.cpp" line="48"/>
         <source>Version</source>
         <translation>版本</translation>
     </message>
     <message>
-        <location filename="../GnupgTab.cpp" line="50"/>
+        <location filename="../GnupgTab.cpp" line="49"/>
         <source>Checksum</source>
         <translation>校驗碼</translation>
     </message>
     <message>
-        <location filename="../GnupgTab.cpp" line="50"/>
+        <location filename="../GnupgTab.cpp" line="49"/>
         <source>Binary Path</source>
         <translation>執行檔路徑</translation>
     </message>
     <message>
-        <location filename="../GnupgTab.cpp" line="52"/>
+        <location filename="../GnupgTab.cpp" line="51"/>
         <source>Components</source>
         <translation>元件</translation>
     </message>
     <message>
-        <location filename="../GnupgTab.cpp" line="53"/>
+        <location filename="../GnupgTab.cpp" line="52"/>
         <source>Directories</source>
         <translation>目錄</translation>
     </message>
     <message>
-        <location filename="../GnupgTab.cpp" line="54"/>
+        <location filename="../GnupgTab.cpp" line="53"/>
         <source>Options</source>
         <translation>選項</translation>
     </message>
     <message>
-        <location filename="../GnupgTab.cpp" line="74"/>
+        <location filename="../GnupgTab.cpp" line="73"/>
         <source>Directory Type</source>
         <translation>目錄類型</translation>
     </message>
     <message>
-        <location filename="../GnupgTab.cpp" line="74"/>
+        <location filename="../GnupgTab.cpp" line="73"/>
         <source>Path</source>
         <translation>路徑</translation>
     </message>
@@ -101,27 +98,27 @@
         <translation type="obsolete">配置</translation>
     </message>
     <message>
-        <location filename="../GnupgTab.cpp" line="95"/>
+        <location filename="../GnupgTab.cpp" line="94"/>
         <source>Component</source>
         <translation>元件</translation>
     </message>
     <message>
-        <location filename="../GnupgTab.cpp" line="95"/>
+        <location filename="../GnupgTab.cpp" line="94"/>
         <source>Group</source>
         <translation>群組</translation>
     </message>
     <message>
-        <location filename="../GnupgTab.cpp" line="95"/>
+        <location filename="../GnupgTab.cpp" line="94"/>
         <source>Key</source>
         <translation>金鑰</translation>
     </message>
     <message>
-        <location filename="../GnupgTab.cpp" line="96"/>
+        <location filename="../GnupgTab.cpp" line="95"/>
         <source>Default Value</source>
         <translation>預設值</translation>
     </message>
     <message>
-        <location filename="../GnupgTab.cpp" line="97"/>
+        <location filename="../GnupgTab.cpp" line="96"/>
         <source>Value</source>
         <translation>值</translation>
     </message>

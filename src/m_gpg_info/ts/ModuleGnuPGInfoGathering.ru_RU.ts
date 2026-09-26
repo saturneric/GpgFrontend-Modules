@@ -4,15 +4,12 @@
 <context>
     <name>GTrC</name>
     <message>
-        <location filename="../GnuPGInfoGatheringModule.cpp" line="103"/>
-        <location filename="../GnuPGInfoGatheringModule.cpp" line="173"/>
         <source>GnuPG</source>
-        <translation>GnuPG</translation>
+        <translation type="vanished">GnuPG</translation>
     </message>
     <message>
-        <location filename="../GnuPGInfoGatheringModule.cpp" line="175"/>
         <source>Information about GnuPG</source>
-        <translation>Информация о GnuPG</translation>
+        <translation type="vanished">Информация о GnuPG</translation>
     </message>
 </context>
 <context>
@@ -46,78 +43,78 @@
 <context>
     <name>GnupgTab</name>
     <message>
-        <location filename="../GnupgTab.cpp" line="49"/>
+        <location filename="../GnupgTab.cpp" line="48"/>
         <source>Name</source>
         <translation>Имя</translation>
     </message>
     <message>
-        <location filename="../GnupgTab.cpp" line="49"/>
-        <location filename="../GnupgTab.cpp" line="96"/>
+        <location filename="../GnupgTab.cpp" line="48"/>
+        <location filename="../GnupgTab.cpp" line="95"/>
         <source>Description</source>
         <translation>Описание</translation>
     </message>
     <message>
-        <location filename="../GnupgTab.cpp" line="49"/>
+        <location filename="../GnupgTab.cpp" line="48"/>
         <source>Version</source>
         <translation>Версия</translation>
     </message>
     <message>
-        <location filename="../GnupgTab.cpp" line="50"/>
+        <location filename="../GnupgTab.cpp" line="49"/>
         <source>Checksum</source>
         <translation>Контрольная сумма</translation>
     </message>
     <message>
-        <location filename="../GnupgTab.cpp" line="50"/>
+        <location filename="../GnupgTab.cpp" line="49"/>
         <source>Binary Path</source>
         <translation>Путь к двоичному файлу</translation>
     </message>
     <message>
-        <location filename="../GnupgTab.cpp" line="52"/>
+        <location filename="../GnupgTab.cpp" line="51"/>
         <source>Components</source>
         <translation>Компоненты</translation>
     </message>
     <message>
-        <location filename="../GnupgTab.cpp" line="53"/>
+        <location filename="../GnupgTab.cpp" line="52"/>
         <source>Directories</source>
         <translation>Каталоги</translation>
     </message>
     <message>
-        <location filename="../GnupgTab.cpp" line="54"/>
+        <location filename="../GnupgTab.cpp" line="53"/>
         <source>Options</source>
         <translation>Параметры</translation>
     </message>
     <message>
-        <location filename="../GnupgTab.cpp" line="74"/>
+        <location filename="../GnupgTab.cpp" line="73"/>
         <source>Directory Type</source>
         <translation>Тип каталога</translation>
     </message>
     <message>
-        <location filename="../GnupgTab.cpp" line="74"/>
+        <location filename="../GnupgTab.cpp" line="73"/>
         <source>Path</source>
         <translation>Путь</translation>
     </message>
     <message>
-        <location filename="../GnupgTab.cpp" line="95"/>
+        <location filename="../GnupgTab.cpp" line="94"/>
         <source>Component</source>
         <translation>Компонент</translation>
     </message>
     <message>
-        <location filename="../GnupgTab.cpp" line="95"/>
+        <location filename="../GnupgTab.cpp" line="94"/>
         <source>Group</source>
         <translation>Группа</translation>
     </message>
     <message>
-        <location filename="../GnupgTab.cpp" line="95"/>
+        <location filename="../GnupgTab.cpp" line="94"/>
         <source>Key</source>
         <translation>Ключ</translation>
     </message>
     <message>
-        <location filename="../GnupgTab.cpp" line="96"/>
+        <location filename="../GnupgTab.cpp" line="95"/>
         <source>Default Value</source>
         <translation>Значение по умолчанию</translation>
     </message>
     <message>
-        <location filename="../GnupgTab.cpp" line="97"/>
+        <location filename="../GnupgTab.cpp" line="96"/>
         <source>Value</source>
         <translation>Значение</translation>
     </message>
