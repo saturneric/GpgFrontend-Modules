@@ -4,19 +4,19 @@
 <context>
     <name>GTrC</name>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="252"/>
+        <location filename="../KeyServerSyncModule.cpp" line="431"/>
         <source>The following email addresses have status:
 </source>
         <translation>Les adresses e-mail suivantes ont le statut suivant :</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="262"/>
+        <location filename="../KeyServerSyncModule.cpp" line="441"/>
         <source>Could not parse status information.</source>
         <translation>Impossible d&apos;analyser les informations de statut.</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="230"/>
-        <location filename="../KeyServerSyncModule.cpp" line="273"/>
+        <location filename="../KeyServerSyncModule.cpp" line="409"/>
+        <location filename="../KeyServerSyncModule.cpp" line="452"/>
         <source>Public Key Upload Successful</source>
         <translation>Téléversement de la clé publique réussi</translation>
     </message>
@@ -37,21 +37,21 @@ Veuillez vérifier votre e-mail (%3) pour la vérification supplémentaire de ke
 Remarque : Pour la vérification, vous pouvez trouver plus d&apos;informations ici : https://keys.openpgp.org/about</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="189"/>
-        <location filename="../KeyServerSyncModule.cpp" line="217"/>
-        <location filename="../KeyServerSyncModule.cpp" line="289"/>
+        <location filename="../KeyServerSyncModule.cpp" line="372"/>
+        <location filename="../KeyServerSyncModule.cpp" line="397"/>
+        <location filename="../KeyServerSyncModule.cpp" line="468"/>
         <source>Key Upload Failed</source>
         <translation>Échec du téléversement de la clé</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="190"/>
+        <location filename="../KeyServerSyncModule.cpp" line="373"/>
         <source>Failed to export the public key before uploading.
 Key: %1</source>
         <translation>Échec de l&apos;exportation de la clé publique avant le téléversement.
 Clé : %1</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="274"/>
+        <location filename="../KeyServerSyncModule.cpp" line="453"/>
         <source>The public key was successfully uploaded to the key server %4.
 Fingerprint: %1
 
@@ -64,8 +64,8 @@ Empreinte : %1
 Veuillez vérifier votre e-mail (%3) pour la vérification supplémentaire de %4.</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="218"/>
-        <location filename="../KeyServerSyncModule.cpp" line="290"/>
+        <location filename="../KeyServerSyncModule.cpp" line="398"/>
+        <location filename="../KeyServerSyncModule.cpp" line="469"/>
         <source>Failed to upload public key to the server.
 Fingerprint: %1
 Error: %2</source>
@@ -74,17 +74,16 @@ Empreinte : %1
 Erreur : %2</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="101"/>
         <source>The key server did not return a key.</source>
-        <translation>Le serveur de clés n&apos;a pas retourné de clé.</translation>
+        <translation type="vanished">Le serveur de clés n&apos;a pas retourné de clé.</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="127"/>
+        <location filename="../KeyServerSyncModule.cpp" line="155"/>
         <source>Publish Without Verification?</source>
         <translation>Publier sans vérification ?</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="129"/>
+        <location filename="../KeyServerSyncModule.cpp" line="157"/>
         <source>%1 does not support verified publishing (VKS), so the key would be uploaded over HKP instead.
 
 The server will not confirm your email address, and the upload cannot be undone: HKP key servers do not allow keys to be removed.
@@ -98,24 +97,68 @@ Publier sur %1 quand même ?</translation>
     </message>
     <message>
         <location filename="../KeyServerSyncModule.cpp" line="232"/>
+        <source>%1: the public key could not be exported</source>
+        <translation>%1 : la clé publique n&apos;a pas pu être exportée.</translation>
+    </message>
+    <message>
+        <location filename="../KeyServerSyncModule.cpp" line="282"/>
+        <source>Key Refresh Finished</source>
+        <translation>Actualisation des clés terminée.</translation>
+    </message>
+    <message>
+        <location filename="../KeyServerSyncModule.cpp" line="287"/>
+        <source>Key Publishing Finished</source>
+        <translation>Publication des clés terminée.</translation>
+    </message>
+    <message>
+        <location filename="../KeyServerSyncModule.cpp" line="309"/>
+        <source>A key server operation is already running. Try again when it has finished.</source>
+        <translation>Une opération de serveur de clés est déjà en cours. Réessayez lorsqu&apos;elle sera terminée.</translation>
+    </message>
+    <message>
+        <location filename="../KeyServerSyncModule.cpp" line="411"/>
         <source>The public key was uploaded to the key server %2 over HKP.
 Fingerprint: %1</source>
         <translation>La clé publique a été téléversée sur le serveur de clés %2 via HKP.
 Empreinte : %1</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="325"/>
+        <location filename="../KeyServerSyncModule.cpp" line="501"/>
         <source>Key Update Failed</source>
         <translation>Échec de la mise à jour de la clé</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="326"/>
+        <location filename="../KeyServerSyncModule.cpp" line="502"/>
         <source>Failed to retrieve public key from %3.
 Key ID: %1
 Error: %2</source>
         <translation>Échec de la récupération de la clé publique depuis %3.
 Identifiant de clé : %1
 Erreur : %2</translation>
+    </message>
+    <message>
+        <location filename="../KeyServerSyncModule.cpp" line="640"/>
+        <source>Publication Status</source>
+        <translation>Statut de publication</translation>
+    </message>
+    <message>
+        <location filename="../KeyServerSyncModule.cpp" line="645"/>
+        <source>The public key has been published on %1.</source>
+        <translation>La clé publique a été publiée sur %1.</translation>
+    </message>
+    <message>
+        <location filename="../KeyServerSyncModule.cpp" line="652"/>
+        <source>The public key is not published on %1.</source>
+        <translation>La clé publique n&apos;est pas publiée sur %1.</translation>
+    </message>
+    <message>
+        <location filename="../KeyServerSyncModule.cpp" line="658"/>
+        <source>Could not ask %1 about this key.
+
+%2</source>
+        <translation>Impossible d&apos;interroger %1 à propos de cette clé.
+
+%2</translation>
     </message>
     <message>
         <source>Failed to retrieve public key from the server.
@@ -126,87 +169,103 @@ Identifiant de clé : %1
 Erreur : %2</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="375"/>
+        <location filename="../KeyServerSyncModule.cpp" line="308"/>
         <source>Key Server</source>
         <translation>Serveur de clés</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="376"/>
         <source>Import public keys from a trusted key server.</source>
-        <translation>Importer des clés publiques depuis un serveur de clés de confiance.</translation>
+        <translation type="vanished">Importer des clés publiques depuis un serveur de clés de confiance.</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="424"/>
         <source>Key Server Operations</source>
-        <translation>Opérations du serveur de clés</translation>
+        <translation type="vanished">Opérations du serveur de clés</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="429"/>
         <source>Publish Public Key to Key Server</source>
-        <translation>Publier la clé publique sur le serveur de clés</translation>
+        <translation type="vanished">Publier la clé publique sur le serveur de clés</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="436"/>
         <source>Refresh Public Key From Key Server</source>
-        <translation>Actualiser la clé publique depuis le serveur de clés</translation>
+        <translation type="vanished">Actualiser la clé publique depuis le serveur de clés</translation>
     </message>
     <message>
-        <location filename="../KeyServerProbe.cpp" line="247"/>
+        <location filename="../KeyServerProbe.cpp" line="245"/>
         <source>The server could not be reached.</source>
         <translation>Le serveur est inaccessible.</translation>
     </message>
     <message>
-        <location filename="../KeyServerProbe.cpp" line="249"/>
+        <location filename="../KeyServerProbe.cpp" line="247"/>
         <source>The server responded, but not as a key server: it supports neither the HKP nor the VKS interface.</source>
         <translation>Le serveur a répondu, mais pas en tant que serveur de clés : il ne prend en charge ni l&apos;interface HKP ni l&apos;interface VKS.</translation>
+    </message>
+    <message>
+        <location filename="../KeyServerBatchLogic.cpp" line="42"/>
+        <source>Failed:</source>
+        <translation>Échec :</translation>
+    </message>
+    <message>
+        <location filename="../KeyServerBatchLogic.cpp" line="77"/>
+        <source>The key server does not have this key.</source>
+        <translation>Le serveur de clés ne possède pas cette clé.</translation>
+    </message>
+    <message>
+        <location filename="../KeyServerBatchLogic.cpp" line="88"/>
+        <source>%1 of %2 keys were fetched from the key server.</source>
+        <translation>%1 clé(s) sur %2 ont été récupérées depuis le serveur de clés.</translation>
+    </message>
+    <message>
+        <location filename="../KeyServerBatchLogic.cpp" line="99"/>
+        <source>%1 of %2 keys were published to the key server %3.</source>
+        <translation>%1 clé(s) sur %2 ont été publiées sur le serveur de clés %3.</translation>
     </message>
 </context>
 <context>
     <name>KeyServerSettingsPage</name>
     <message>
         <location filename="../KeyServerSettingsPage.ui" line="17"/>
-        <location filename="../KeyServerSettingsPage.cpp" line="58"/>
+        <location filename="../KeyServerSettingsPage.cpp" line="57"/>
         <source>Key Server List</source>
         <translation>Liste des serveurs de clés</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.ui" line="49"/>
-        <location filename="../KeyServerSettingsPage.cpp" line="59"/>
+        <location filename="../KeyServerSettingsPage.cpp" line="58"/>
         <source>Add a Key Server</source>
         <translation>Ajouter un serveur de clés</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.ui" line="82"/>
-        <location filename="../KeyServerSettingsPage.cpp" line="60"/>
+        <location filename="../KeyServerSettingsPage.cpp" line="59"/>
         <source>Operations</source>
         <translation>Opérations</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.ui" line="60"/>
-        <location filename="../KeyServerSettingsPage.cpp" line="62"/>
+        <location filename="../KeyServerSettingsPage.cpp" line="61"/>
         <source>Add</source>
         <translation>Ajouter</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.ui" line="88"/>
-        <location filename="../KeyServerSettingsPage.cpp" line="63"/>
+        <location filename="../KeyServerSettingsPage.cpp" line="62"/>
         <source>Set As Default</source>
         <translation>Définir par défaut</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.ui" line="95"/>
-        <location filename="../KeyServerSettingsPage.cpp" line="64"/>
+        <location filename="../KeyServerSettingsPage.cpp" line="63"/>
         <source>Test Selected</source>
         <translation>Tester la sélection</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.ui" line="102"/>
-        <location filename="../KeyServerSettingsPage.cpp" line="65"/>
+        <location filename="../KeyServerSettingsPage.cpp" line="64"/>
         <source>Delete Selected</source>
         <translation>Supprimer la sélection</translation>
     </message>
     <message>
-        <location filename="../KeyServerSettingsPage.cpp" line="67"/>
+        <location filename="../KeyServerSettingsPage.cpp" line="66"/>
         <source>https://keys.example.org</source>
         <translation>https://keys.example.org</translation>
     </message>
@@ -215,37 +274,37 @@ Erreur : %2</translation>
         <translation type="vanished">Un nouveau serveur de clés est testé sur les interfaces HKP et VKS avant d&apos;être ajouté. La recherche utilise HKP ; la publication et l&apos;actualisation utilisent VKS.</translation>
     </message>
     <message>
-        <location filename="../KeyServerSettingsPage.cpp" line="68"/>
+        <location filename="../KeyServerSettingsPage.cpp" line="67"/>
         <source>A new key server is tested against the HKP and VKS interfaces before it is added. Searching uses HKP. Publishing and refreshing always use the default server: over VKS where it offers it, over HKP otherwise.</source>
         <translation>Un nouveau serveur de clés est testé sur les interfaces HKP et VKS avant d&apos;être ajouté. La recherche utilise HKP. La publication et l&apos;actualisation utilisent toujours le serveur par défaut : sur VKS quand celui-ci le propose, sinon sur HKP.</translation>
     </message>
     <message>
-        <location filename="../KeyServerSettingsPage.cpp" line="75"/>
+        <location filename="../KeyServerSettingsPage.cpp" line="74"/>
         <source>Default</source>
         <translation>Par défaut</translation>
     </message>
     <message>
-        <location filename="../KeyServerSettingsPage.cpp" line="75"/>
+        <location filename="../KeyServerSettingsPage.cpp" line="74"/>
         <source>Address</source>
         <translation>Adresse</translation>
     </message>
     <message>
-        <location filename="../KeyServerSettingsPage.cpp" line="75"/>
+        <location filename="../KeyServerSettingsPage.cpp" line="74"/>
         <source>HKP</source>
         <translation>HKP</translation>
     </message>
     <message>
-        <location filename="../KeyServerSettingsPage.cpp" line="75"/>
+        <location filename="../KeyServerSettingsPage.cpp" line="74"/>
         <source>VKS</source>
         <translation>VKS</translation>
     </message>
     <message>
-        <location filename="../KeyServerSettingsPage.cpp" line="75"/>
+        <location filename="../KeyServerSettingsPage.cpp" line="74"/>
         <source>Status</source>
         <translation>Statut</translation>
     </message>
     <message>
-        <location filename="../KeyServerSettingsPage.cpp" line="76"/>
+        <location filename="../KeyServerSettingsPage.cpp" line="75"/>
         <source>Last Tested</source>
         <translation>Dernier test</translation>
     </message>

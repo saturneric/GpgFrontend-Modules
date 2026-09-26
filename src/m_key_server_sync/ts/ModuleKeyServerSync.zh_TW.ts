@@ -4,19 +4,19 @@
 <context>
     <name>GTrC</name>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="252"/>
+        <location filename="../KeyServerSyncModule.cpp" line="431"/>
         <source>The following email addresses have status:
 </source>
         <translation>以下電子郵件地址的狀態為：</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="262"/>
+        <location filename="../KeyServerSyncModule.cpp" line="441"/>
         <source>Could not parse status information.</source>
         <translation>無法解析狀態資訊。</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="230"/>
-        <location filename="../KeyServerSyncModule.cpp" line="273"/>
+        <location filename="../KeyServerSyncModule.cpp" line="409"/>
+        <location filename="../KeyServerSyncModule.cpp" line="452"/>
         <source>Public Key Upload Successful</source>
         <translation>公鑰上傳成功</translation>
     </message>
@@ -37,21 +37,21 @@ Note: For verification, you can find more information here: https://keys.openpgp
 注意：如需驗證相關資訊，請參閱此處：https://keys.openpgp.org/about</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="189"/>
-        <location filename="../KeyServerSyncModule.cpp" line="217"/>
-        <location filename="../KeyServerSyncModule.cpp" line="289"/>
+        <location filename="../KeyServerSyncModule.cpp" line="372"/>
+        <location filename="../KeyServerSyncModule.cpp" line="397"/>
+        <location filename="../KeyServerSyncModule.cpp" line="468"/>
         <source>Key Upload Failed</source>
         <translation>金鑰上傳失敗</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="190"/>
+        <location filename="../KeyServerSyncModule.cpp" line="373"/>
         <source>Failed to export the public key before uploading.
 Key: %1</source>
         <translation>上傳前匯出公鑰失敗。
 金鑰：%1</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="274"/>
+        <location filename="../KeyServerSyncModule.cpp" line="453"/>
         <source>The public key was successfully uploaded to the key server %4.
 Fingerprint: %1
 
@@ -64,8 +64,8 @@ Please check your email (%3) for further verification from %4.</source>
 請檢查您的電子郵件（%3）以接收 %4 的進一步驗證通知。</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="218"/>
-        <location filename="../KeyServerSyncModule.cpp" line="290"/>
+        <location filename="../KeyServerSyncModule.cpp" line="398"/>
+        <location filename="../KeyServerSyncModule.cpp" line="469"/>
         <source>Failed to upload public key to the server.
 Fingerprint: %1
 Error: %2</source>
@@ -74,17 +74,16 @@ Error: %2</source>
 錯誤：%2</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="101"/>
         <source>The key server did not return a key.</source>
-        <translation>金鑰伺服器未回傳金鑰。</translation>
+        <translation type="vanished">金鑰伺服器未回傳金鑰。</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="127"/>
+        <location filename="../KeyServerSyncModule.cpp" line="155"/>
         <source>Publish Without Verification?</source>
         <translation>不經驗證即發布？</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="129"/>
+        <location filename="../KeyServerSyncModule.cpp" line="157"/>
         <source>%1 does not support verified publishing (VKS), so the key would be uploaded over HKP instead.
 
 The server will not confirm your email address, and the upload cannot be undone: HKP key servers do not allow keys to be removed.
@@ -98,24 +97,68 @@ Publish to %1 anyway?</source>
     </message>
     <message>
         <location filename="../KeyServerSyncModule.cpp" line="232"/>
+        <source>%1: the public key could not be exported</source>
+        <translation>%1：無法匯出公鑰</translation>
+    </message>
+    <message>
+        <location filename="../KeyServerSyncModule.cpp" line="282"/>
+        <source>Key Refresh Finished</source>
+        <translation>金鑰重新整理完成</translation>
+    </message>
+    <message>
+        <location filename="../KeyServerSyncModule.cpp" line="287"/>
+        <source>Key Publishing Finished</source>
+        <translation>金鑰發布完成</translation>
+    </message>
+    <message>
+        <location filename="../KeyServerSyncModule.cpp" line="309"/>
+        <source>A key server operation is already running. Try again when it has finished.</source>
+        <translation>已有金鑰伺服器操作正在執行。請等它完成後再試一次。</translation>
+    </message>
+    <message>
+        <location filename="../KeyServerSyncModule.cpp" line="411"/>
         <source>The public key was uploaded to the key server %2 over HKP.
 Fingerprint: %1</source>
         <translation>公鑰已透過 HKP 上傳至金鑰伺服器 %2。
 指紋：%1</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="325"/>
+        <location filename="../KeyServerSyncModule.cpp" line="501"/>
         <source>Key Update Failed</source>
         <translation>金鑰更新失敗</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="326"/>
+        <location filename="../KeyServerSyncModule.cpp" line="502"/>
         <source>Failed to retrieve public key from %3.
 Key ID: %1
 Error: %2</source>
         <translation>無法從 %3 擷取公鑰。
 金鑰 ID：%1
 錯誤：%2</translation>
+    </message>
+    <message>
+        <location filename="../KeyServerSyncModule.cpp" line="640"/>
+        <source>Publication Status</source>
+        <translation>發布狀態</translation>
+    </message>
+    <message>
+        <location filename="../KeyServerSyncModule.cpp" line="645"/>
+        <source>The public key has been published on %1.</source>
+        <translation>公鑰已發布於 %1。</translation>
+    </message>
+    <message>
+        <location filename="../KeyServerSyncModule.cpp" line="652"/>
+        <source>The public key is not published on %1.</source>
+        <translation>公鑰未發布於 %1。</translation>
+    </message>
+    <message>
+        <location filename="../KeyServerSyncModule.cpp" line="658"/>
+        <source>Could not ask %1 about this key.
+
+%2</source>
+        <translation>無法向 %1 查詢此金鑰。
+
+%2</translation>
     </message>
     <message>
         <source>Failed to retrieve public key from the server.
@@ -126,87 +169,103 @@ Error: %2</source>
 錯誤：%2</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="375"/>
+        <location filename="../KeyServerSyncModule.cpp" line="308"/>
         <source>Key Server</source>
         <translation>金鑰伺服器</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="376"/>
         <source>Import public keys from a trusted key server.</source>
-        <translation>從受信任的金鑰伺服器匯入公鑰。</translation>
+        <translation type="vanished">從受信任的金鑰伺服器匯入公鑰。</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="424"/>
         <source>Key Server Operations</source>
-        <translation>金鑰伺服器操作</translation>
+        <translation type="vanished">金鑰伺服器操作</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="429"/>
         <source>Publish Public Key to Key Server</source>
-        <translation>將公鑰發佈至金鑰伺服器</translation>
+        <translation type="vanished">將公鑰發佈至金鑰伺服器</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="436"/>
         <source>Refresh Public Key From Key Server</source>
-        <translation>從金鑰伺服器更新公鑰</translation>
+        <translation type="vanished">從金鑰伺服器更新公鑰</translation>
     </message>
     <message>
-        <location filename="../KeyServerProbe.cpp" line="247"/>
+        <location filename="../KeyServerProbe.cpp" line="245"/>
         <source>The server could not be reached.</source>
         <translation>無法連線至伺服器。</translation>
     </message>
     <message>
-        <location filename="../KeyServerProbe.cpp" line="249"/>
+        <location filename="../KeyServerProbe.cpp" line="247"/>
         <source>The server responded, but not as a key server: it supports neither the HKP nor the VKS interface.</source>
         <translation>伺服器已回應，但並非金鑰伺服器：既不支援 HKP 也不支援 VKS 介面。</translation>
+    </message>
+    <message>
+        <location filename="../KeyServerBatchLogic.cpp" line="42"/>
+        <source>Failed:</source>
+        <translation>失敗：</translation>
+    </message>
+    <message>
+        <location filename="../KeyServerBatchLogic.cpp" line="77"/>
+        <source>The key server does not have this key.</source>
+        <translation>金鑰伺服器沒有此金鑰。</translation>
+    </message>
+    <message>
+        <location filename="../KeyServerBatchLogic.cpp" line="88"/>
+        <source>%1 of %2 keys were fetched from the key server.</source>
+        <translation>已從金鑰伺服器取得 %2 個金鑰中的 %1 個。</translation>
+    </message>
+    <message>
+        <location filename="../KeyServerBatchLogic.cpp" line="99"/>
+        <source>%1 of %2 keys were published to the key server %3.</source>
+        <translation>已將 %2 個金鑰中的 %1 個發布至金鑰伺服器 %3。</translation>
     </message>
 </context>
 <context>
     <name>KeyServerSettingsPage</name>
     <message>
         <location filename="../KeyServerSettingsPage.ui" line="17"/>
-        <location filename="../KeyServerSettingsPage.cpp" line="58"/>
+        <location filename="../KeyServerSettingsPage.cpp" line="57"/>
         <source>Key Server List</source>
         <translation>金鑰伺服器清單</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.ui" line="49"/>
-        <location filename="../KeyServerSettingsPage.cpp" line="59"/>
+        <location filename="../KeyServerSettingsPage.cpp" line="58"/>
         <source>Add a Key Server</source>
         <translation>新增金鑰伺服器</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.ui" line="82"/>
-        <location filename="../KeyServerSettingsPage.cpp" line="60"/>
+        <location filename="../KeyServerSettingsPage.cpp" line="59"/>
         <source>Operations</source>
         <translation>操作</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.ui" line="60"/>
-        <location filename="../KeyServerSettingsPage.cpp" line="62"/>
+        <location filename="../KeyServerSettingsPage.cpp" line="61"/>
         <source>Add</source>
         <translation>新增</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.ui" line="88"/>
-        <location filename="../KeyServerSettingsPage.cpp" line="63"/>
+        <location filename="../KeyServerSettingsPage.cpp" line="62"/>
         <source>Set As Default</source>
         <translation>設為預設</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.ui" line="95"/>
-        <location filename="../KeyServerSettingsPage.cpp" line="64"/>
+        <location filename="../KeyServerSettingsPage.cpp" line="63"/>
         <source>Test Selected</source>
         <translation>測試選取項目</translation>
     </message>
     <message>
         <location filename="../KeyServerSettingsPage.ui" line="102"/>
-        <location filename="../KeyServerSettingsPage.cpp" line="65"/>
+        <location filename="../KeyServerSettingsPage.cpp" line="64"/>
         <source>Delete Selected</source>
         <translation>刪除選取項目</translation>
     </message>
     <message>
-        <location filename="../KeyServerSettingsPage.cpp" line="67"/>
+        <location filename="../KeyServerSettingsPage.cpp" line="66"/>
         <source>https://keys.example.org</source>
         <translation>https://keys.example.org</translation>
     </message>
@@ -215,37 +274,37 @@ Error: %2</source>
         <translation type="vanished">新增金鑰伺服器前，會先測試其 HKP 與 VKS 介面。搜尋使用 HKP；發布與重新整理使用 VKS。</translation>
     </message>
     <message>
-        <location filename="../KeyServerSettingsPage.cpp" line="68"/>
+        <location filename="../KeyServerSettingsPage.cpp" line="67"/>
         <source>A new key server is tested against the HKP and VKS interfaces before it is added. Searching uses HKP. Publishing and refreshing always use the default server: over VKS where it offers it, over HKP otherwise.</source>
         <translation>新增金鑰伺服器前，會先測試其 HKP 與 VKS 介面。搜尋使用 HKP。發布與重新整理一律使用預設伺服器：若支援 VKS 則使用 VKS，否則使用 HKP。</translation>
     </message>
     <message>
-        <location filename="../KeyServerSettingsPage.cpp" line="75"/>
+        <location filename="../KeyServerSettingsPage.cpp" line="74"/>
         <source>Default</source>
         <translation>預設</translation>
     </message>
     <message>
-        <location filename="../KeyServerSettingsPage.cpp" line="75"/>
+        <location filename="../KeyServerSettingsPage.cpp" line="74"/>
         <source>Address</source>
         <translation>位址</translation>
     </message>
     <message>
-        <location filename="../KeyServerSettingsPage.cpp" line="75"/>
+        <location filename="../KeyServerSettingsPage.cpp" line="74"/>
         <source>HKP</source>
         <translation>HKP</translation>
     </message>
     <message>
-        <location filename="../KeyServerSettingsPage.cpp" line="75"/>
+        <location filename="../KeyServerSettingsPage.cpp" line="74"/>
         <source>VKS</source>
         <translation>VKS</translation>
     </message>
     <message>
-        <location filename="../KeyServerSettingsPage.cpp" line="75"/>
+        <location filename="../KeyServerSettingsPage.cpp" line="74"/>
         <source>Status</source>
         <translation>狀態</translation>
     </message>
     <message>
-        <location filename="../KeyServerSettingsPage.cpp" line="76"/>
+        <location filename="../KeyServerSettingsPage.cpp" line="75"/>
         <source>Last Tested</source>
         <translation>上次測試</translation>
     </message>
