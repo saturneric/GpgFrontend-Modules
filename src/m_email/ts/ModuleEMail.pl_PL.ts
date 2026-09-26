@@ -173,23 +173,23 @@ Nothing has been lost. If this keeps happening, the stored list may need to be r
 Nic nie zostało utracone. Jeśli to się powtarza, zapisana lista może wymagać ręcznego usunięcia.</translation>
     </message>
     <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="480"/>
+        <location filename="../EMailAccountSettingsPage.cpp" line="481"/>
         <source>Untitled account</source>
         <translation>Konto bez nazwy</translation>
     </message>
     <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="498"/>
-        <location filename="../EMailAccountSettingsPage.cpp" line="520"/>
+        <location filename="../EMailAccountSettingsPage.cpp" line="499"/>
+        <location filename="../EMailAccountSettingsPage.cpp" line="521"/>
         <source>%1 (default)</source>
         <translation>%1 (domyślne)</translation>
     </message>
     <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="568"/>
+        <location filename="../EMailAccountSettingsPage.cpp" line="569"/>
         <source>Remove Account</source>
         <translation>Usuń konto</translation>
     </message>
     <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="569"/>
+        <location filename="../EMailAccountSettingsPage.cpp" line="570"/>
         <source>Remove %1?
 
 Its stored password is forgotten as well. This cannot be undone once you press OK in this dialog.</source>
@@ -198,32 +198,32 @@ Its stored password is forgotten as well. This cannot be undone once you press O
 Zapisane hasło również zostanie zapomniane. Tej operacji nie można cofnąć po naciśnięciu OK w tym oknie.</translation>
     </message>
     <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="679"/>
+        <location filename="../EMailAccountSettingsPage.cpp" line="680"/>
         <source>This account needs an e-mail address.</source>
         <translation>To konto wymaga adresu e-mail.</translation>
     </message>
     <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="681"/>
+        <location filename="../EMailAccountSettingsPage.cpp" line="682"/>
         <source>&quot;%1&quot; does not look like an e-mail address.</source>
         <translation>&quot;%1&quot; nie wygląda na adres e-mail.</translation>
     </message>
     <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="686"/>
+        <location filename="../EMailAccountSettingsPage.cpp" line="687"/>
         <source>Receiving is turned on but no server is set.</source>
         <translation>Odbieranie jest włączone, ale nie ustawiono serwera.</translation>
     </message>
     <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="689"/>
+        <location filename="../EMailAccountSettingsPage.cpp" line="690"/>
         <source>Sending is turned on but no server is set.</source>
         <translation>Wysyłanie jest włączone, ale nie ustawiono serwera.</translation>
     </message>
     <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="694"/>
+        <location filename="../EMailAccountSettingsPage.cpp" line="695"/>
         <source>Turn on receiving, sending, or both. An account that does neither cannot be used.</source>
         <translation>Włącz odbieranie, wysyłanie lub oba. Konto, które nie robi żadnego z nich, nie może być używane.</translation>
     </message>
     <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="709"/>
+        <location filename="../EMailAccountSettingsPage.cpp" line="710"/>
         <source>Another account already uses this address. They cannot be told apart wherever accounts are offered.</source>
         <translation>Inne konto już używa tego adresu. Nie można ich rozróżnić, gdziekolwiek oferowane są konta.</translation>
     </message>
@@ -232,72 +232,72 @@ Zapisane hasło również zostanie zapomniane. Tej operacji nie można cofnąć 
         <translation type="vanished">Inne konto już używa tego adresu. Nie można ich rozróżnić, gdy oferowane są konta.</translation>
     </message>
     <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="737"/>
+        <location filename="../EMailAccountSettingsPage.cpp" line="738"/>
         <source>Port %1</source>
         <translation>Port %1</translation>
     </message>
     <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="876"/>
+        <location filename="../EMailAccountSettingsPage.cpp" line="877"/>
         <source>Trusting one certificate: %1 &amp;nbsp; &lt;a href=&quot;forget&quot;&gt;Stop trusting it&lt;/a&gt;</source>
         <translation>Ufasz jednemu certyfikatowi: %1 &amp;nbsp; &lt;a href=&quot;forget&quot;&gt;Przestań mu ufać&lt;/a&gt;</translation>
     </message>
     <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="976"/>
+        <location filename="../EMailAccountSettingsPage.cpp" line="977"/>
         <source>Check the user name and password.</source>
         <translation>Sprawdź nazwę użytkownika i hasło.</translation>
     </message>
     <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="979"/>
+        <location filename="../EMailAccountSettingsPage.cpp" line="980"/>
         <source>Check the server address for a typo.</source>
         <translation>Sprawdź, czy adres serwera nie zawiera literówki.</translation>
     </message>
     <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="983"/>
+        <location filename="../EMailAccountSettingsPage.cpp" line="984"/>
         <source>The address resolves but nothing answered. Check the connection type, and whether the server is reachable from here.</source>
         <translation>Adres jest rozwiązywany, ale nikt nie odpowiedział. Sprawdź typ połączenia i czy serwer jest osiągalny z tego miejsca.</translation>
     </message>
     <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="989"/>
+        <location filename="../EMailAccountSettingsPage.cpp" line="990"/>
         <source>The server&apos;s certificate is not signed by an authority this computer trusts. If you run this server yourself, you can choose to trust its certificate.</source>
         <translation>Certyfikat serwera nie jest podpisany przez autorytet, któremu ten komputer ufa. Jeśli sam prowadzisz ten serwer, możesz wybrać zaufanie do jego certyfikatu.</translation>
     </message>
     <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="995"/>
+        <location filename="../EMailAccountSettingsPage.cpp" line="996"/>
         <source>The server&apos;s certificate is expired or not yet valid. Check the clock on both machines before anything else.</source>
         <translation>Certyfikat serwera wygasł lub nie jest jeszcze ważny. Najpierw sprawdź zegar na obu maszynach.</translation>
     </message>
     <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="1000"/>
+        <location filename="../EMailAccountSettingsPage.cpp" line="1001"/>
         <source>The server&apos;s certificate is for a different host. Check the server address.</source>
         <translation>Certyfikat serwera dotyczy innego hosta. Sprawdź adres serwera.</translation>
     </message>
     <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="1005"/>
+        <location filename="../EMailAccountSettingsPage.cpp" line="1006"/>
         <source>The server would not start an encrypted session. Nothing was sent to it.</source>
         <translation>Serwer nie chciał rozpocząć szyfrowanej sesji. Nic do niego nie wysłano.</translation>
     </message>
     <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="1009"/>
+        <location filename="../EMailAccountSettingsPage.cpp" line="1010"/>
         <source>The encrypted connection could not be established.</source>
         <translation>Nie udało się nawiązać szyfrowanego połączenia.</translation>
     </message>
     <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="1012"/>
+        <location filename="../EMailAccountSettingsPage.cpp" line="1013"/>
         <source>The server stopped answering. Try again.</source>
         <translation>Serwer przestał odpowiadać. Spróbuj ponownie.</translation>
     </message>
     <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="1015"/>
+        <location filename="../EMailAccountSettingsPage.cpp" line="1016"/>
         <source>This is a fault in GpgFrontend rather than in the server.</source>
         <translation>To błąd w GpgFrontend, a nie w serwerze.</translation>
     </message>
     <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="1024"/>
+        <location filename="../EMailAccountSettingsPage.cpp" line="1025"/>
         <source>This may be temporary. Try again.</source>
         <translation>To może być przejściowe. Spróbuj ponownie.</translation>
     </message>
     <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="1059"/>
+        <location filename="../EMailAccountSettingsPage.cpp" line="1060"/>
         <source>This server presented a certificate that no authority vouches for. That is normal for a server you run yourself, and it is also what an interception looks like.
 
 %1
@@ -312,47 +312,47 @@ SHA-256: %2
 Zaufać temu konkretnemu certyfikatowi dla tego konta? Każdy inny certyfikat, w tym późniejszy zamiennik tego, nadal będzie odrzucany.</translation>
     </message>
     <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="1065"/>
+        <location filename="../EMailAccountSettingsPage.cpp" line="1066"/>
         <source>(no certificate details)</source>
         <translation>(brak szczegółów certyfikatu)</translation>
     </message>
     <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="1068"/>
+        <location filename="../EMailAccountSettingsPage.cpp" line="1069"/>
         <source>Trust This Certificate?</source>
         <translation>Zaufać temu certyfikatowi?</translation>
     </message>
     <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="1081"/>
+        <location filename="../EMailAccountSettingsPage.cpp" line="1082"/>
         <source>Certificate trusted for this account. Test again to confirm.</source>
         <translation>Certyfikat jest zaufany dla tego konta. Przetestuj ponownie, aby potwierdzić.</translation>
     </message>
     <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="1107"/>
+        <location filename="../EMailAccountSettingsPage.cpp" line="1108"/>
         <source>Enter a server address first.</source>
         <translation>Najpierw wprowadź adres serwera.</translation>
     </message>
     <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="1121"/>
+        <location filename="../EMailAccountSettingsPage.cpp" line="1122"/>
         <source>Enter a password first.</source>
         <translation>Najpierw wprowadź hasło.</translation>
     </message>
     <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="1129"/>
+        <location filename="../EMailAccountSettingsPage.cpp" line="1130"/>
         <source>Testing...</source>
         <translation>Testowanie...</translation>
     </message>
     <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="1237"/>
+        <location filename="../EMailAccountSettingsPage.cpp" line="1227"/>
         <source>Stopped.</source>
         <translation>Zatrzymano.</translation>
     </message>
     <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="1245"/>
+        <location filename="../EMailAccountSettingsPage.cpp" line="1235"/>
         <source>Connected successfully.</source>
         <translation>Połączono pomyślnie.</translation>
     </message>
     <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="1250"/>
+        <location filename="../EMailAccountSettingsPage.cpp" line="1240"/>
         <source>Could not connect, and the reason is not known.</source>
         <translation>Nie udało się połączyć, a przyczyna nie jest znana.</translation>
     </message>
@@ -408,43 +408,43 @@ Zaufać temu konkretnemu certyfikatowi dla tego konta? Każdy inny certyfikat, w
 <context>
     <name>EMailImapController</name>
     <message>
-        <location filename="../EMailImapController.cpp" line="151"/>
+        <location filename="../EMailImapController.cpp" line="154"/>
         <source>IMAP Controller</source>
         <translation>Kontroler IMAP</translation>
     </message>
     <message>
-        <location filename="../EMailImapController.cpp" line="193"/>
+        <location filename="../EMailImapController.cpp" line="205"/>
         <source>No mail account with IMAP enabled is configured yet.</source>
         <translation>Nie skonfigurowano jeszcze żadnego konta pocztowego z włączonym IMAP.</translation>
     </message>
     <message>
-        <location filename="../EMailImapController.cpp" line="200"/>
+        <location filename="../EMailImapController.cpp" line="212"/>
         <source>No configured account can be opened. Check Settings, under Mail Accounts.</source>
         <translation>Nie można otworzyć żadnego skonfigurowanego konta. Sprawdź ustawienia, w sekcji Konta pocztowe.</translation>
     </message>
     <message>
-        <location filename="../EMailImapController.cpp" line="224"/>
+        <location filename="../EMailImapController.cpp" line="236"/>
         <source>IMAP is turned off for this account</source>
         <translation>IMAP jest wyłączony dla tego konta</translation>
     </message>
     <message>
-        <location filename="../EMailImapController.cpp" line="226"/>
+        <location filename="../EMailImapController.cpp" line="238"/>
         <source>no server is configured</source>
         <translation>nie skonfigurowano serwera</translation>
     </message>
     <message>
-        <location filename="../EMailImapController.cpp" line="228"/>
+        <location filename="../EMailImapController.cpp" line="240"/>
         <source>no username is configured</source>
         <translation>nie skonfigurowano nazwy użytkownika</translation>
     </message>
     <message>
-        <location filename="../EMailImapController.cpp" line="233"/>
-        <location filename="../EMailImapController.cpp" line="696"/>
+        <location filename="../EMailImapController.cpp" line="245"/>
+        <location filename="../EMailImapController.cpp" line="732"/>
         <source>no password is stored</source>
         <translation>nie zapisano hasła</translation>
     </message>
     <message>
-        <location filename="../EMailImapController.cpp" line="265"/>
+        <location filename="../EMailImapController.cpp" line="277"/>
         <source>This account could not be opened: %1.
 
 Use Refresh to try again.</source>
@@ -453,75 +453,75 @@ Use Refresh to try again.</source>
 Użyj opcji Odśwież, aby spróbować ponownie.</translation>
     </message>
     <message>
-        <location filename="../EMailImapController.cpp" line="268"/>
-        <location filename="../EMailImapController.cpp" line="684"/>
+        <location filename="../EMailImapController.cpp" line="280"/>
+        <location filename="../EMailImapController.cpp" line="720"/>
         <source>This account cannot be opened: %1.</source>
         <translation>Nie można otworzyć tego konta: %1.</translation>
     </message>
     <message>
-        <location filename="../EMailImapController.cpp" line="303"/>
+        <location filename="../EMailImapController.cpp" line="322"/>
         <source>Search subject or sender</source>
         <translation>Szukaj tematu lub nadawcy</translation>
     </message>
     <message>
-        <location filename="../EMailImapController.cpp" line="312"/>
+        <location filename="../EMailImapController.cpp" line="331"/>
         <source>Reload this folder from the server</source>
         <translation>Wczytaj ponownie ten folder z serwera</translation>
     </message>
     <message>
-        <location filename="../EMailImapController.cpp" line="568"/>
+        <location filename="../EMailImapController.cpp" line="618"/>
         <source>Folder</source>
         <translation>Folder</translation>
     </message>
     <message>
-        <location filename="../EMailImapController.cpp" line="392"/>
+        <location filename="../EMailImapController.cpp" line="427"/>
         <source>Previous</source>
         <translation>Poprzedni</translation>
     </message>
     <message>
-        <location filename="../EMailImapController.cpp" line="314"/>
+        <location filename="../EMailImapController.cpp" line="333"/>
         <source>&amp;Account</source>
         <translation>&amp;Konto</translation>
     </message>
     <message>
-        <location filename="../EMailImapController.cpp" line="317"/>
+        <location filename="../EMailImapController.cpp" line="336"/>
         <source>F&amp;older</source>
         <translation>F&amp;older</translation>
     </message>
     <message>
-        <location filename="../EMailImapController.cpp" line="393"/>
+        <location filename="../EMailImapController.cpp" line="428"/>
         <source>Next</source>
         <translation>Następny</translation>
     </message>
     <message>
-        <location filename="../EMailImapController.cpp" line="396"/>
-        <location filename="../EMailImapController.cpp" line="853"/>
+        <location filename="../EMailImapController.cpp" line="431"/>
+        <location filename="../EMailImapController.cpp" line="981"/>
         <source>Open</source>
         <translation>Otwórz</translation>
     </message>
     <message>
-        <location filename="../EMailImapController.cpp" line="398"/>
-        <location filename="../EMailImapController.cpp" line="1418"/>
+        <location filename="../EMailImapController.cpp" line="433"/>
+        <location filename="../EMailImapController.cpp" line="1650"/>
         <source>Close</source>
         <translation>Zamknij</translation>
     </message>
     <message>
-        <location filename="../EMailImapController.cpp" line="474"/>
+        <location filename="../EMailImapController.cpp" line="524"/>
         <source>Select a message to see its details.</source>
         <translation>Wybierz wiadomość, aby zobaczyć jej szczegóły.</translation>
     </message>
     <message>
-        <location filename="../EMailImapController.cpp" line="562"/>
+        <location filename="../EMailImapController.cpp" line="612"/>
         <source>Copy the whole Message-ID</source>
         <translation>Skopiuj cały identyfikator Message-ID</translation>
     </message>
     <message>
-        <location filename="../EMailImapController.cpp" line="565"/>
+        <location filename="../EMailImapController.cpp" line="615"/>
         <source>Message-ID</source>
         <translation>Message-ID</translation>
     </message>
     <message>
-        <location filename="../EMailImapController.cpp" line="676"/>
+        <location filename="../EMailImapController.cpp" line="712"/>
         <source>Choose an account to open.</source>
         <translation>Wybierz konto do otwarcia.</translation>
     </message>
@@ -530,33 +530,33 @@ Użyj opcji Odśwież, aby spróbować ponownie.</translation>
         <translation type="vanished">Nie zapisano hasła dla tego konta. Ustaw je w Ustawieniach, w sekcji Konta pocztowe, a następnie użyj opcji Spróbuj ponownie.</translation>
     </message>
     <message>
-        <location filename="../EMailImapController.cpp" line="716"/>
+        <location filename="../EMailImapController.cpp" line="752"/>
         <source>Connecting...</source>
         <translation>Łączenie...</translation>
     </message>
     <message>
-        <location filename="../EMailImapController.cpp" line="857"/>
+        <location filename="../EMailImapController.cpp" line="985"/>
         <source>Copy Subject</source>
         <translation>Kopiuj temat</translation>
     </message>
     <message>
-        <location filename="../EMailImapController.cpp" line="859"/>
+        <location filename="../EMailImapController.cpp" line="987"/>
         <source>Copy Sender</source>
         <translation>Kopiuj nadawcę</translation>
     </message>
     <message>
-        <location filename="../EMailImapController.cpp" line="861"/>
+        <location filename="../EMailImapController.cpp" line="989"/>
         <source>Copy Message-ID</source>
         <translation>Kopiuj Message-ID</translation>
     </message>
     <message>
-        <location filename="../EMailImapController.cpp" line="941"/>
-        <location filename="../EMailImapController.cpp" line="1357"/>
+        <location filename="../EMailImapController.cpp" line="1072"/>
+        <location filename="../EMailImapController.cpp" line="1566"/>
         <source>(no subject)</source>
         <translation>(brak tematu)</translation>
     </message>
     <message>
-        <location filename="../EMailImapController.cpp" line="950"/>
+        <location filename="../EMailImapController.cpp" line="1081"/>
         <source>Date not stated</source>
         <translation>Data niepodana</translation>
     </message>
@@ -565,128 +565,143 @@ Użyj opcji Odśwież, aby spróbować ponownie.</translation>
         <translation type="vanished">Ta wiadomość jest większa, niż może otworzyć ta aplikacja, więc nie można jej zaimportować.</translation>
     </message>
     <message>
-        <location filename="../EMailImapController.cpp" line="698"/>
+        <location filename="../EMailImapController.cpp" line="734"/>
         <source>No password is stored for this account. Set one in Settings, under Mail Accounts, then use Refresh.</source>
         <translation>Dla tego konta nie zapisano hasła. Ustaw je w Ustawieniach, w sekcji Konta pocztowe, a następnie użyj Odśwież.</translation>
     </message>
     <message>
-        <location filename="../EMailImapController.cpp" line="961"/>
+        <location filename="../EMailImapController.cpp" line="1092"/>
         <source>This message is too large for this application to open, so it cannot be imported.</source>
         <translation>Ta wiadomość jest zbyt duża, aby ta aplikacja mogła ją otworzyć, więc nie można jej zaimportować.</translation>
     </message>
     <message>
-        <location filename="../EMailImapController.cpp" line="967"/>
+        <location filename="../EMailImapController.cpp" line="1098"/>
         <source>Shown from the previous visit to this account; refreshing.</source>
         <translation>Pokazano z poprzedniej wizyty na tym koncie; odświeżanie.</translation>
     </message>
     <message>
-        <location filename="../EMailImapController.cpp" line="989"/>
+        <location filename="../EMailImapController.cpp" line="1120"/>
         <source>None</source>
         <translation>Brak</translation>
     </message>
     <message>
-        <location filename="../EMailImapController.cpp" line="1061"/>
+        <location filename="../EMailImapController.cpp" line="1205"/>
         <source>Searching...</source>
         <translation>Wyszukiwanie...</translation>
     </message>
     <message>
-        <location filename="../EMailImapController.cpp" line="1109"/>
+        <location filename="../EMailImapController.cpp" line="1253"/>
         <source>Loading messages...</source>
         <translation>Wczytywanie wiadomości...</translation>
     </message>
     <message>
-        <location filename="../EMailImapController.cpp" line="1121"/>
+        <location filename="../EMailImapController.cpp" line="1265"/>
         <source>Loading folders...</source>
         <translation>Wczytywanie folderów...</translation>
     </message>
     <message>
-        <location filename="../EMailImapController.cpp" line="1146"/>
+        <location filename="../EMailImapController.cpp" line="1290"/>
         <source>This account has no folders that can be opened.</source>
         <translation>To konto nie ma folderów, które można otworzyć.</translation>
     </message>
     <message>
-        <location filename="../EMailImapController.cpp" line="1210"/>
+        <location filename="../EMailImapController.cpp" line="1338"/>
+        <source>Checking for new messages...</source>
+        <translation>Sprawdzanie nowych wiadomości...</translation>
+    </message>
+    <message>
+        <location filename="../EMailImapController.cpp" line="1374"/>
+        <source>Up to date.</source>
+        <translation>Wszystko aktualne.</translation>
+    </message>
+    <message>
+        <location filename="../EMailImapController.cpp" line="1419"/>
         <source>Showing the first %1 matches; narrow the search to see fewer.</source>
         <translation>Wyświetlanie pierwszych %1 dopasowań; zawęź wyszukiwanie, aby zobaczyć mniej.</translation>
     </message>
     <message>
-        <location filename="../EMailImapController.cpp" line="1213"/>
+        <location filename="../EMailImapController.cpp" line="1422"/>
         <source>%1 matches.</source>
         <translation>%1 dopasowań.</translation>
     </message>
     <message>
-        <location filename="../EMailImapController.cpp" line="1225"/>
+        <location filename="../EMailImapController.cpp" line="1434"/>
         <source>Page %1 of %2</source>
         <translation>Strona %1 z %2</translation>
     </message>
     <message>
-        <location filename="../EMailImapController.cpp" line="1228"/>
-        <location filename="../EMailImapController.cpp" line="1385"/>
+        <location filename="../EMailImapController.cpp" line="1437"/>
+        <location filename="../EMailImapController.cpp" line="1612"/>
         <source>This folder is empty.</source>
         <translation>Ten folder jest pusty.</translation>
     </message>
     <message>
-        <location filename="../EMailImapController.cpp" line="1229"/>
+        <location filename="../EMailImapController.cpp" line="1438"/>
         <source>%1-%2 of %3</source>
         <translation>%1-%2 z %3</translation>
     </message>
     <message>
-        <location filename="../EMailImapController.cpp" line="1241"/>
+        <location filename="../EMailImapController.cpp" line="1450"/>
         <source>That message came back empty.</source>
         <translation>Ta wiadomość wróciła pusta.</translation>
     </message>
     <message>
-        <location filename="../EMailImapController.cpp" line="1253"/>
+        <location filename="../EMailImapController.cpp" line="1462"/>
         <source>Opened in a new tab.</source>
         <translation>Otwarto w nowej karcie.</translation>
     </message>
     <message>
-        <location filename="../EMailImapController.cpp" line="1262"/>
+        <location filename="../EMailImapController.cpp" line="1471"/>
         <source>Downloading message, %1 of %2...</source>
         <translation>Pobieranie wiadomości, %1 z %2...</translation>
     </message>
     <message>
-        <location filename="../EMailImapController.cpp" line="1277"/>
+        <location filename="../EMailImapController.cpp" line="1486"/>
         <source>Stopped.</source>
         <translation>Zatrzymano.</translation>
     </message>
     <message>
-        <location filename="../EMailImapController.cpp" line="1288"/>
+        <location filename="../EMailImapController.cpp" line="1497"/>
         <source>the password was refused</source>
         <translation>hasło zostało odrzucone</translation>
     </message>
     <message>
-        <location filename="../EMailImapController.cpp" line="1291"/>
+        <location filename="../EMailImapController.cpp" line="1500"/>
         <source>the server was not found</source>
         <translation>nie znaleziono serwera</translation>
     </message>
     <message>
-        <location filename="../EMailImapController.cpp" line="1305"/>
+        <location filename="../EMailImapController.cpp" line="1514"/>
         <source>the secure connection was refused</source>
         <translation>odrzucono bezpieczne połączenie</translation>
     </message>
     <message>
-        <location filename="../EMailImapController.cpp" line="1321"/>
+        <location filename="../EMailImapController.cpp" line="1530"/>
         <source>Downloading message...</source>
         <translation>Pobieranie wiadomości...</translation>
     </message>
     <message>
-        <location filename="../EMailImapController.cpp" line="1351"/>
+        <location filename="../EMailImapController.cpp" line="1560"/>
         <source>Unknown sender</source>
         <translation>Nieznany nadawca</translation>
     </message>
     <message>
-        <location filename="../EMailImapController.cpp" line="1382"/>
+        <location filename="../EMailImapController.cpp" line="1593"/>
+        <source>Loading...</source>
+        <translation>Wczytywanie...</translation>
+    </message>
+    <message>
+        <location filename="../EMailImapController.cpp" line="1609"/>
         <source>No message in this folder matches that search.</source>
         <translation>Żadna wiadomość w tym folderze nie pasuje do wyszukiwania.</translation>
     </message>
     <message>
-        <location filename="../EMailImapController.cpp" line="1384"/>
+        <location filename="../EMailImapController.cpp" line="1611"/>
         <source>Choose a folder to see the messages in it.</source>
         <translation>Wybierz folder, aby zobaczyć znajdujące się w nim wiadomości.</translation>
     </message>
     <message>
-        <location filename="../EMailImapController.cpp" line="1410"/>
+        <location filename="../EMailImapController.cpp" line="1642"/>
         <source>Stop</source>
         <translation>Zatrzymaj</translation>
     </message>
@@ -761,60 +776,60 @@ Użyj opcji Odśwież, aby spróbować ponownie.</translation>
 <context>
     <name>EMailModule</name>
     <message>
-        <location filename="../EMailModule.cpp" line="107"/>
+        <location filename="../EMailModule.cpp" line="103"/>
         <source>E-Mail</source>
         <translation>E-mail</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="108"/>
-        <location filename="../EMailModule.cpp" line="978"/>
-        <location filename="../EMailModule.cpp" line="1143"/>
-        <location filename="../EMailModule.cpp" line="1866"/>
+        <location filename="../EMailModule.cpp" line="104"/>
+        <location filename="../EMailModule.cpp" line="803"/>
+        <location filename="../EMailModule.cpp" line="947"/>
+        <location filename="../EMailModule.cpp" line="1607"/>
         <source>From</source>
         <translation>Od</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="109"/>
-        <location filename="../EMailModule.cpp" line="981"/>
-        <location filename="../EMailModule.cpp" line="1146"/>
-        <location filename="../EMailModule.cpp" line="1869"/>
+        <location filename="../EMailModule.cpp" line="105"/>
+        <location filename="../EMailModule.cpp" line="806"/>
+        <location filename="../EMailModule.cpp" line="950"/>
+        <location filename="../EMailModule.cpp" line="1610"/>
         <source>To</source>
         <translation>Do</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="110"/>
-        <location filename="../EMailModule.cpp" line="985"/>
-        <location filename="../EMailModule.cpp" line="1150"/>
-        <location filename="../EMailModule.cpp" line="1873"/>
+        <location filename="../EMailModule.cpp" line="106"/>
+        <location filename="../EMailModule.cpp" line="809"/>
+        <location filename="../EMailModule.cpp" line="953"/>
+        <location filename="../EMailModule.cpp" line="1613"/>
         <source>Subject</source>
         <translation>Temat</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="111"/>
-        <location filename="../EMailModule.cpp" line="988"/>
-        <location filename="../EMailModule.cpp" line="1153"/>
-        <location filename="../EMailModule.cpp" line="1876"/>
+        <location filename="../EMailModule.cpp" line="107"/>
+        <location filename="../EMailModule.cpp" line="812"/>
+        <location filename="../EMailModule.cpp" line="956"/>
+        <location filename="../EMailModule.cpp" line="1616"/>
         <source>CC</source>
         <translation>DW</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="112"/>
-        <location filename="../EMailModule.cpp" line="991"/>
-        <location filename="../EMailModule.cpp" line="1156"/>
-        <location filename="../EMailModule.cpp" line="1879"/>
+        <location filename="../EMailModule.cpp" line="108"/>
+        <location filename="../EMailModule.cpp" line="815"/>
+        <location filename="../EMailModule.cpp" line="959"/>
+        <location filename="../EMailModule.cpp" line="1619"/>
         <source>BCC</source>
         <translation>UDW</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="113"/>
-        <location filename="../EMailModule.cpp" line="994"/>
-        <location filename="../EMailModule.cpp" line="1159"/>
-        <location filename="../EMailModule.cpp" line="1882"/>
+        <location filename="../EMailModule.cpp" line="109"/>
+        <location filename="../EMailModule.cpp" line="818"/>
+        <location filename="../EMailModule.cpp" line="962"/>
+        <location filename="../EMailModule.cpp" line="1622"/>
         <source>Date</source>
         <translation>Data</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="120"/>
+        <location filename="../EMailModule.cpp" line="116"/>
         <source>OpenPGP</source>
         <translation>OpenPGP</translation>
     </message>
@@ -827,21 +842,21 @@ Użyj opcji Odśwież, aby spróbować ponownie.</translation>
         <translation type="vanished">Algorytm kontroli integralności wiadomości</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="124"/>
-        <location filename="../EMailModule.cpp" line="1003"/>
-        <location filename="../EMailModule.cpp" line="1901"/>
+        <location filename="../EMailModule.cpp" line="120"/>
+        <location filename="../EMailModule.cpp" line="827"/>
+        <location filename="../EMailModule.cpp" line="1641"/>
         <source>Digest of Signed MIME Entity (SHA-256)</source>
         <translation>Skrót podpisanej jednostki MIME (SHA-256)</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="127"/>
-        <location filename="../EMailModule.cpp" line="1008"/>
-        <location filename="../EMailModule.cpp" line="1906"/>
+        <location filename="../EMailModule.cpp" line="123"/>
+        <location filename="../EMailModule.cpp" line="831"/>
+        <location filename="../EMailModule.cpp" line="1646"/>
         <source>Declared Signature Hash (micalg)</source>
         <translation>Zadeklarowany skrót podpisu (micalg)</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="163"/>
+        <location filename="../EMailModule.cpp" line="159"/>
         <source>Attachments</source>
         <translation>Załączniki</translation>
     </message>
@@ -914,17 +929,17 @@ Użyj opcji Odśwież, aby spróbować ponownie.</translation>
         <translation>Podpisujący</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="534"/>
+        <location filename="../EMailModule.cpp" line="509"/>
         <source>Check before exporting</source>
         <translation>Sprawdź przed eksportem</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="535"/>
+        <location filename="../EMailModule.cpp" line="510"/>
         <source>Something about this message is worth checking before you save it.</source>
         <translation>Coś w tej wiadomości warto sprawdzić przed jej zapisaniem.</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="569"/>
+        <location filename="../EMailModule.cpp" line="537"/>
         <source># EML Data Error
 
 The provided EML data does not conform to RFC 3156 standards and cannot be processed.
@@ -955,7 +970,7 @@ EML to format pliku służący do zapisywania wiadomości e-mail, zwykle zawiera
 Po poprawieniu danych EML spróbuj ponownie wykonać operację.</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="594"/>
+        <location filename="../EMailModule.cpp" line="562"/>
         <source># Email Operation Error
 
 An error occurred during the email operation. The process could not be completed.
@@ -998,73 +1013,73 @@ Podczas operacji e-mail wystąpił błąd. Proces nie mógł zostać ukończony.
 Jeśli problem będzie się powtarzać, rozważ skorzystanie z pomocy technicznej lub z dokumentacji.</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="864"/>
+        <location filename="../EMailModule.cpp" line="694"/>
         <source> The bytes the signature covers were rewritten after it was made: their line endings are no longer CRLF. This is usually caused by a program that changed them while saving or copying the message. Checking the signature requires the original bytes.</source>
         <translation>Bajty objęte podpisem zostały zmienione po jego utworzeniu: ich zakończenia linii nie są już CRLF. Zwykle jest to spowodowane przez program, który zmienił je podczas zapisywania lub kopiowania wiadomości. Sprawdzenie podpisu wymaga oryginalnych bajtów.</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="875"/>
+        <location filename="../EMailModule.cpp" line="705"/>
         <source>The signature is valid, and the key that made it speaks for the address this message says it is from.</source>
         <translation>Podpis jest prawidłowy, a klucz, który go utworzył, potwierdza adres, z którego według tej wiadomości pochodzi.</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="881"/>
+        <location filename="../EMailModule.cpp" line="711"/>
         <source>The signature itself is valid, but the key that made it does not speak for the address this message says it is from. That is what a signature moved from another message looks like, so it is worth checking who the signer is before trusting the contents.</source>
         <translation>Sam podpis jest prawidłowy, ale klucz, który go złożył, nie potwierdza adresu, z którego według tej wiadomości pochodzi. Tak wygląda podpis przeniesiony z innej wiadomości, więc warto sprawdzić, kto jest podpisującym, zanim zaufasz treści.</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="889"/>
+        <location filename="../EMailModule.cpp" line="719"/>
         <source>The key that made this signature is not in your keyring, so nothing here can say whether the signature is genuine. Import the sender&apos;s key and verify again.</source>
         <translation>Klucz, który złożył ten podpis, nie znajduje się w Twojej bazie kluczy, więc nic tutaj nie może stwierdzić, czy podpis jest autentyczny. Zaimportuj klucz nadawcy i zweryfikuj ponownie.</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="896"/>
+        <location filename="../EMailModule.cpp" line="726"/>
         <source>The signature was made with a key that has expired, or the signature itself has. It may still be genuine; what cannot be confirmed is that the key was valid at the time it was used.</source>
         <translation>Podpis został złożony kluczem, który wygasł, lub sam podpis wygasł. Może być nadal autentyczny; nie można jednak potwierdzić, że klucz był ważny w momencie jego użycia.</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="903"/>
+        <location filename="../EMailModule.cpp" line="733"/>
         <source>The signature does not match the bytes it covers. Either the message was changed after it was signed, or the signature was not made for this message.</source>
         <translation>Podpis nie odpowiada bajtom, które obejmuje. Albo wiadomość została zmieniona po jej podpisaniu, albo podpis nie został utworzony dla tej wiadomości.</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="911"/>
+        <location filename="../EMailModule.cpp" line="741"/>
         <source>The check could not be completed, so nothing is known about this signature either way. This is not a statement that the signature is bad.</source>
         <translation>Nie można było ukończyć sprawdzania, więc nic nie wiadomo o tym podpisie. Nie jest to stwierdzenie, że podpis jest zły.</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="919"/>
+        <location filename="../EMailModule.cpp" line="749"/>
         <source>This message claims to carry an OpenPGP signature, but its structure does not hold up well enough to check one.</source>
         <translation>Ta wiadomość twierdzi, że zawiera podpis OpenPGP, ale jej struktura nie jest wystarczająco spójna, aby go sprawdzić.</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="925"/>
+        <location filename="../EMailModule.cpp" line="755"/>
         <source>The signatures in this message cover the encrypted data rather than the content you read. They confirm who encrypted the message, but say nothing about who wrote what is inside it.</source>
         <translation>Podpisy w tej wiadomości obejmują zaszyfrowane dane, a nie treść, którą czytasz. Potwierdzają, kto zaszyfrował wiadomość, ale nie mówią nic o tym, kto napisał to, co jest w środku.</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="936"/>
+        <location filename="../EMailModule.cpp" line="766"/>
         <source>There was no signature in this message to check.</source>
         <translation>W tej wiadomości nie było podpisu do sprawdzenia.</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1016"/>
-        <location filename="../EMailModule.cpp" line="1915"/>
+        <location filename="../EMailModule.cpp" line="839"/>
+        <location filename="../EMailModule.cpp" line="1655"/>
         <source>**Note**: the signed part is not in canonical form, because its line endings are not CRLF. Something rewrote this message after it was signed, which is usually a program that changed line endings while saving or copying it. A signature cannot verify against these bytes, and importing the sender&apos;s key will not change that.</source>
         <translation>**Uwaga**: podpisana część nie jest w formie kanonicznej, ponieważ jej zakończenia linii nie są CRLF. Coś przepisało tę wiadomość po jej podpisaniu – zwykle program, który zmienił zakończenia linii podczas zapisu lub kopiowania. Podpis nie może zostać zweryfikowany względem tych bajtów, a zaimportowanie klucza nadawcy tego nie zmieni.</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1032"/>
+        <location filename="../EMailModule.cpp" line="855"/>
         <source>Verify E-Mail</source>
         <translation>Zweryfikuj e-mail</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="153"/>
+        <location filename="../EMailModule.cpp" line="149"/>
         <source>, an OpenPGP key</source>
         <translation>, klucz OpenPGP</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="156"/>
+        <location filename="../EMailModule.cpp" line="152"/>
         <source>, not covered by the signature</source>
         <translation>, nieobjęty podpisem</translation>
     </message>
@@ -1073,67 +1088,64 @@ Jeśli problem będzie się powtarzać, rozważ skorzystanie z pomocy techniczne
         <translation type="vanished">w %1, ale niezaszyfrowany do niego: nie można odczytać</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1098"/>
-        <location filename="../EMailModule.cpp" line="1173"/>
+        <location filename="../EMailModule.cpp" line="906"/>
+        <location filename="../EMailModule.cpp" line="976"/>
         <source>Decrypt E-Mail</source>
         <translation>Odszyfruj e-mail</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1241"/>
-        <location filename="../EMailModule.cpp" line="1306"/>
-        <location filename="../EMailModule.cpp" line="1362"/>
-        <location filename="../EMailModule.cpp" line="1390"/>
+        <location filename="../EMailModule.cpp" line="1032"/>
+        <location filename="../EMailModule.cpp" line="1085"/>
+        <location filename="../EMailModule.cpp" line="1136"/>
+        <location filename="../EMailModule.cpp" line="1161"/>
         <source>Sign E-Mail</source>
         <translation>Podpisz e-mail</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1443"/>
-        <location filename="../EMailModule.cpp" line="1511"/>
-        <location filename="../EMailModule.cpp" line="1556"/>
-        <location filename="../EMailModule.cpp" line="1586"/>
+        <location filename="../EMailModule.cpp" line="1206"/>
+        <location filename="../EMailModule.cpp" line="1263"/>
+        <location filename="../EMailModule.cpp" line="1306"/>
+        <location filename="../EMailModule.cpp" line="1331"/>
         <source>Encrypt E-Mail</source>
         <translation>Zaszyfruj e-mail</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1728"/>
-        <location filename="../EMailModule.cpp" line="1761"/>
+        <location filename="../EMailModule.cpp" line="1475"/>
+        <location filename="../EMailModule.cpp" line="1504"/>
         <source>Encrypt and Sign E-Mail</source>
         <translation>Zaszyfruj i podpisz e-mail</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1800"/>
+        <location filename="../EMailModule.cpp" line="1541"/>
         <source>This message is not signed, so there is no signature to check. It was decrypted successfully.</source>
         <translation>Ta wiadomość nie jest podpisana, więc nie ma podpisu do sprawdzenia. Została pomyślnie odszyfrowana.</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1804"/>
+        <location filename="../EMailModule.cpp" line="1545"/>
         <source>The decrypted content is not a MIME message, so there is no signature to check. It was decrypted successfully.</source>
         <translation>Odszyfrowana zawartość nie jest wiadomością MIME, więc nie ma podpisu do sprawdzenia. Została pomyślnie odszyfrowana.</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1894"/>
+        <location filename="../EMailModule.cpp" line="1634"/>
         <source>This message was decrypted. It carries no signature, so nothing here says who sent it.</source>
         <translation>Ta wiadomość została odszyfrowana. Nie zawiera podpisu, więc nic tutaj nie mówi, kto ją wysłał.</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1939"/>
+        <location filename="../EMailModule.cpp" line="1679"/>
         <source>Decrypt and Verify E-Mail</source>
         <translation>Odszyfruj i zweryfikuj e-mail</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1998"/>
         <source>Save file</source>
-        <translation>Zapisz plik</translation>
+        <translation type="vanished">Zapisz plik</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="2000"/>
         <source>E-Mail Message (*.eml);;All Files (*)</source>
-        <translation>Wiadomość e-mail (*.eml);;Wszystkie pliki (*)</translation>
+        <translation type="vanished">Wiadomość e-mail (*.eml);;Wszystkie pliki (*)</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="512"/>
         <source>Warning</source>
-        <translation>Ostrzeżenie</translation>
+        <translation type="vanished">Ostrzeżenie</translation>
     </message>
     <message>
         <location filename="../EMailModule.cpp" line="290"/>
@@ -1151,22 +1163,18 @@ Jeśli problem będzie się powtarzać, rozważ skorzystanie z pomocy techniczne
         <translation>nadawca ukrył ten identyfikator klucza</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="2065"/>
-        <location filename="../EMailModule.cpp" line="2077"/>
         <source>Cannot write file %1:
 %2.</source>
-        <translation>Nie można zapisać pliku %1:
+        <translation type="vanished">Nie można zapisać pliku %1:
 %2.</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="2120"/>
         <source>%1 is not an ordinary file, so it cannot be opened as a message.</source>
-        <translation>%1 nie jest zwykłym plikiem, więc nie można go otworzyć jako wiadomości.</translation>
+        <translation type="vanished">%1 nie jest zwykłym plikiem, więc nie można go otworzyć jako wiadomości.</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="2130"/>
         <source>The file %1 is too large (%2) to be opened. The maximum allowed size is %3.</source>
-        <translation>Plik %1 jest zbyt duży, aby go otworzyć (%2). Maksymalny dozwolony rozmiar to %3.</translation>
+        <translation type="vanished">Plik %1 jest zbyt duży, aby go otworzyć (%2). Maksymalny dozwolony rozmiar to %3.</translation>
     </message>
     <message>
         <source>Cannot read file%1:
@@ -1179,10 +1187,9 @@ Jeśli problem będzie się powtarzać, rozważ skorzystanie z pomocy techniczne
         <translation type="vanished">Plik %1 jest zbyt duży, aby go otworzyć (%2 bajtów). Maksymalny dozwolony rozmiar to 1 MB.</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="2141"/>
         <source>Cannot read file %1:
 %2.</source>
-        <translation>Nie można odczytać pliku %1:
+        <translation type="vanished">Nie można odczytać pliku %1:
 %2.</translation>
     </message>
 </context>
@@ -1193,369 +1200,401 @@ Jeśli problem będzie się powtarzać, rozważ skorzystanie z pomocy techniczne
         <translation type="vanished">oddziel kilka adresów średnikiem &quot;;&quot;</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="542"/>
+        <location filename="../EMailPageView.cpp" line="577"/>
         <source>From:</source>
         <translation>Od:</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="555"/>
+        <location filename="../EMailPageView.cpp" line="590"/>
         <source>Cc/Bcc</source>
         <translation>DW/UDW</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="564"/>
+        <location filename="../EMailPageView.cpp" line="599"/>
         <source>To:</source>
         <translation>Do:</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="565"/>
+        <location filename="../EMailPageView.cpp" line="600"/>
         <source>Cc:</source>
         <translation>DW:</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="566"/>
+        <location filename="../EMailPageView.cpp" line="601"/>
         <source>Bcc:</source>
         <translation>UDW:</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="577"/>
+        <location filename="../EMailPageView.cpp" line="612"/>
         <source>Subject:</source>
         <translation>Temat:</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="710"/>
+        <location filename="../EMailPageView.cpp" line="745"/>
         <source>Send...</source>
         <translation>Wyślij...</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="711"/>
+        <location filename="../EMailPageView.cpp" line="746"/>
         <source>Send this message through a configured mail account.</source>
         <translation>Wyślij tę wiadomość przez skonfigurowane konto pocztowe.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="788"/>
-        <location filename="../EMailPageView.cpp" line="1270"/>
+        <location filename="../EMailPageView.cpp" line="823"/>
+        <location filename="../EMailPageView.cpp" line="1303"/>
         <source>Write your message here.</source>
         <translation>Wpisz tutaj swoją wiadomość.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="907"/>
+        <location filename="../EMailPageView.cpp" line="942"/>
         <source>Add one or more files to this message. Files can also be dropped onto the message.</source>
         <translation>Dodaj jeden lub więcej plików do tej wiadomości. Pliki można również przeciągnąć i upuścić na wiadomość.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="915"/>
+        <location filename="../EMailPageView.cpp" line="950"/>
         <source>Take the selected attachments out of this message.</source>
         <translation>Usuń zaznaczone załączniki z tej wiadomości.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="918"/>
+        <location filename="../EMailPageView.cpp" line="953"/>
         <source>Write the selected attachments to a folder.</source>
         <translation>Zapisz wybrane załączniki do folderu.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="921"/>
+        <location filename="../EMailPageView.cpp" line="956"/>
         <source>Write every attachment to a folder.</source>
         <translation>Zapisz wszystkie załączniki do folderu.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1181"/>
+        <location filename="../EMailPageView.cpp" line="1214"/>
         <source>This message is encrypted. Decrypt it before editing it.</source>
         <translation>Ta wiadomość jest zaszyfrowana. Odszyfruj ją przed edycją.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1185"/>
+        <location filename="../EMailPageView.cpp" line="1218"/>
         <source>This message is encrypted and signed. Decrypt it, then remove the signature, before editing it.</source>
         <translation>Ta wiadomość jest zaszyfrowana i podpisana. Odszyfruj ją, a następnie usuń podpis przed edycją.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="634"/>
+        <location filename="../EMailPageView.cpp" line="669"/>
         <source>Raw Source</source>
         <translation>Surowe źródło</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="517"/>
+        <location filename="../EMailPageView.cpp" line="552"/>
         <source>Separate several addresses with &quot;;&quot;</source>
         <translation>Oddziel kilka adresów średnikiem &quot;;&quot;</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1498"/>
+        <location filename="../EMailPageView.cpp" line="1475"/>
         <source>Protected Message</source>
         <translation>Zabezpieczona wiadomość</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1499"/>
+        <location filename="../EMailPageView.cpp" line="1476"/>
+        <location filename="../EMailPageView.cpp" line="3600"/>
         <source>These bytes are covered by a signature, or are ciphertext. Remove the signature, or decrypt the message, before editing its source.</source>
         <translation>Te bajty są objęte podpisem lub są szyfrogramem. Usuń podpis lub odszyfruj wiadomość przed edycją jej źródła.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1521"/>
+        <location filename="../EMailPageView.cpp" line="1498"/>
         <source>Stop Editing</source>
         <translation>Zakończ edycję</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1522"/>
+        <location filename="../EMailPageView.cpp" line="1499"/>
         <source>Edit Raw Source</source>
         <translation>Edytuj surowe źródło</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1528"/>
+        <location filename="../EMailPageView.cpp" line="1505"/>
         <source>You are editing the raw message source. What you type here is the document.</source>
         <translation>Edytujesz surowe źródło wiadomości. To, co tu wpisujesz, jest dokumentem.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1535"/>
+        <location filename="../EMailPageView.cpp" line="1512"/>
+        <location filename="../EMailPageView.cpp" line="3597"/>
         <source>This message is locked for inspection. Its source cannot be edited.</source>
         <translation>Ta wiadomość jest zablokowana do podglądu. Nie można edytować jej źródła.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1544"/>
+        <location filename="../EMailPageView.cpp" line="1521"/>
         <source>Read-only. Unlock to edit the message source directly.</source>
         <translation>Tylko do odczytu. Odblokuj, aby bezpośrednio edytować źródło wiadomości.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1823"/>
-        <location filename="../EMailPageView.cpp" line="1872"/>
+        <location filename="../EMailPageView.cpp" line="1761"/>
+        <source>untitled.eml</source>
+        <translation>bez nazwy.eml</translation>
+    </message>
+    <message>
+        <location filename="../EMailPageView.cpp" line="1793"/>
+        <location filename="../EMailPageView.cpp" line="1842"/>
         <source>This message is encrypted</source>
         <translation>Ta wiadomość jest zaszyfrowana</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1851"/>
-        <location filename="../EMailPageView.cpp" line="2537"/>
-        <location filename="../EMailPageView.cpp" line="2548"/>
+        <location filename="../EMailPageView.cpp" line="1821"/>
+        <location filename="../EMailPageView.cpp" line="2602"/>
+        <location filename="../EMailPageView.cpp" line="2613"/>
         <source>Decrypt</source>
         <translation>Odszyfruj</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1871"/>
+        <location filename="../EMailPageView.cpp" line="1841"/>
         <source>This message is encrypted and signed</source>
         <translation>Ta wiadomość jest zaszyfrowana i podpisana</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1895"/>
+        <location filename="../EMailPageView.cpp" line="1865"/>
         <source>The recipients are not named in the headers.</source>
         <translation>Odbiorcy nie są wymienieni w nagłówkach.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1896"/>
+        <location filename="../EMailPageView.cpp" line="1866"/>
         <source>Addressed to %1</source>
         <translation>Adresowana do %1</translation>
     </message>
     <message>
         <location filename="../EMailPageView.cpp" line="1933"/>
+        <source>You hold the private key for %1, so this message can be opened here.</source>
+        <translation>Masz klucz prywatny do %1, więc tę wiadomość można otworzyć tutaj.</translation>
+    </message>
+    <message>
+        <location filename="../EMailPageView.cpp" line="1936"/>
+        <source>You hold private keys for %1, so this message can be opened here.</source>
+        <translation>Masz klucze prywatne do %1, więc tę wiadomość można otworzyć tutaj.</translation>
+    </message>
+    <message>
+        <location filename="../EMailPageView.cpp" line="1945"/>
+        <source>This message is encrypted to keys you do not hold the private half of, so it cannot be opened on this computer.</source>
+        <translation>Ta wiadomość jest zaszyfrowana do kluczy, których części prywatnej nie posiadasz, więc nie można jej otworzyć na tym komputerze.</translation>
+    </message>
+    <message>
+        <location filename="../EMailPageView.cpp" line="1953"/>
+        <source>Some recipients of this message were deliberately not named, so there is no way to tell whether you can open it until you try.</source>
+        <translation>Niektórzy odbiorcy tej wiadomości celowo nie zostali wymienieni, więc nie sposób stwierdzić, czy możesz ją otworzyć, dopóki nie spróbujesz.</translation>
+    </message>
+    <message>
+        <location filename="../EMailPageView.cpp" line="1956"/>
+        <source>The recipients of this message cannot be read, so there is no way to tell whether you can open it until you try.</source>
+        <translation>Odbiorców tej wiadomości nie można odczytać, więc nie sposób stwierdzić, czy możesz ją otworzyć, dopóki nie spróbujesz.</translation>
+    </message>
+    <message>
+        <location filename="../EMailPageView.cpp" line="1994"/>
         <source>The recipients are not named, so there is no way to tell whether you can open this until you try.</source>
         <translation>Odbiorcy nie są wymienieni, więc nie sposób stwierdzić, czy możesz otworzyć tę wiadomość, dopóki nie spróbujesz.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1966"/>
+        <location filename="../EMailPageView.cpp" line="2028"/>
         <source>attach a public key</source>
         <translation>dołącz klucz publiczny</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1987"/>
+        <location filename="../EMailPageView.cpp" line="2049"/>
         <source>add text to this message</source>
         <translation>dodaj tekst do tej wiadomości</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2004"/>
+        <location filename="../EMailPageView.cpp" line="2066"/>
         <source>Message Locked</source>
         <translation>Wiadomość zablokowana</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2005"/>
+        <location filename="../EMailPageView.cpp" line="2067"/>
         <source>This message is open for inspection only, so it is not possible to %1.</source>
         <translation>Ta wiadomość jest otwarta tylko do podglądu, więc nie można %1.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2014"/>
+        <location filename="../EMailPageView.cpp" line="2076"/>
         <source>Message Is Encrypted</source>
         <translation>Wiadomość jest zaszyfrowana</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2015"/>
+        <location filename="../EMailPageView.cpp" line="2077"/>
         <source>Decrypt this message before trying to %1.</source>
         <translation>Odszyfruj tę wiadomość, zanim spróbujesz %1.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2023"/>
+        <location filename="../EMailPageView.cpp" line="2085"/>
         <source>Message Is Signed</source>
         <translation>Wiadomość jest podpisana</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2073"/>
+        <location filename="../EMailPageView.cpp" line="2135"/>
         <source>This is a draft you are still writing, not a message that was received, so there is nothing here to act on yet.</source>
         <translation>To jest wersja robocza, którą wciąż piszesz, a nie odebrana wiadomość, więc nie ma tu jeszcze nic do zrobienia.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2102"/>
+        <location filename="../EMailPageView.cpp" line="2164"/>
         <source>This message cannot be edited anyway: it is signed or encrypted, so it is already protected from being rewritten.</source>
         <translation>Tej wiadomości nie można edytować: jest podpisana lub zaszyfrowana, więc jest już chroniona przed zmianą.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2216"/>
+        <location filename="../EMailPageView.cpp" line="2278"/>
         <source>No mail account is set up yet. Add one in Settings, under Mail Accounts, and this message can be sent.</source>
         <translation>Nie skonfigurowano jeszcze żadnego konta pocztowego. Dodaj je w Ustawieniach, w obszarze Konta pocztowe, a ta wiadomość będzie mogła zostać wysłana.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2219"/>
+        <location filename="../EMailPageView.cpp" line="2281"/>
         <source>Fill in who this message is from.</source>
         <translation>Uzupełnij, od kogo pochodzi ta wiadomość.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2221"/>
+        <location filename="../EMailPageView.cpp" line="2283"/>
         <source>The From address does not look like an e-mail address.</source>
         <translation>Adres nadawcy nie wygląda na adres e-mail.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2223"/>
+        <location filename="../EMailPageView.cpp" line="2285"/>
         <source>Add at least one recipient.</source>
         <translation>Dodaj co najmniej jednego odbiorcę.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2225"/>
+        <location filename="../EMailPageView.cpp" line="2287"/>
         <source>Give this message a subject.</source>
         <translation>Nadaj tej wiadomości temat.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2234"/>
+        <location filename="../EMailPageView.cpp" line="2296"/>
         <source>This does not look like an e-mail address: %1</source>
         <translation>To nie wygląda na adres e-mail: %1</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2353"/>
+        <location filename="../EMailPageView.cpp" line="2418"/>
         <source>Encrypted</source>
         <translation>Zaszyfrowane</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2389"/>
+        <location filename="../EMailPageView.cpp" line="2454"/>
         <source>Signature could not be checked</source>
         <translation>Nie można było sprawdzić podpisu</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2393"/>
+        <location filename="../EMailPageView.cpp" line="2458"/>
         <source>Malformed OpenPGP structure</source>
         <translation>Nieprawidłowa struktura OpenPGP</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2400"/>
+        <location filename="../EMailPageView.cpp" line="2465"/>
         <source>Not signed or encrypted</source>
         <translation>Nie podpisano ani nie zaszyfrowano</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2502"/>
+        <location filename="../EMailPageView.cpp" line="2567"/>
         <source>This message is locked for inspection.</source>
         <translation>Ta wiadomość jest zablokowana do wglądu.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2517"/>
+        <location filename="../EMailPageView.cpp" line="2582"/>
         <source>Sign...</source>
         <translation>Podpisz...</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2518"/>
+        <location filename="../EMailPageView.cpp" line="2583"/>
         <source>Encrypt...</source>
         <translation>Szyfruj...</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2519"/>
+        <location filename="../EMailPageView.cpp" line="2584"/>
         <source>Encrypt and Sign...</source>
         <translation>Szyfruj i podpisz...</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2523"/>
+        <location filename="../EMailPageView.cpp" line="2588"/>
         <source>Verify Signature</source>
         <translation>Weryfikuj podpis</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2524"/>
+        <location filename="../EMailPageView.cpp" line="2589"/>
         <source>Signature Details...</source>
         <translation>Szczegóły podpisu...</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2528"/>
+        <location filename="../EMailPageView.cpp" line="2593"/>
         <source>Sign Again With Another Key...</source>
         <translation>Podpisz ponownie innym kluczem...</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2529"/>
-        <location filename="../EMailPageView.cpp" line="2554"/>
+        <location filename="../EMailPageView.cpp" line="2594"/>
+        <location filename="../EMailPageView.cpp" line="2619"/>
         <source>Remove Signature...</source>
         <translation>Usuń podpis...</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2538"/>
-        <location filename="../EMailPageView.cpp" line="2547"/>
+        <location filename="../EMailPageView.cpp" line="2603"/>
+        <location filename="../EMailPageView.cpp" line="2612"/>
         <source>Decrypt and Verify</source>
         <translation>Odszyfruj i zweryfikuj</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2540"/>
+        <location filename="../EMailPageView.cpp" line="2605"/>
         <source>Encryption Details...</source>
         <translation>Szczegóły szyfrowania...</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="745"/>
-        <location filename="../EMailPageView.cpp" line="2550"/>
+        <location filename="../EMailPageView.cpp" line="780"/>
+        <location filename="../EMailPageView.cpp" line="2615"/>
         <source>Details...</source>
         <translation>Szczegóły...</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2564"/>
+        <location filename="../EMailPageView.cpp" line="2629"/>
         <source>Decrypt this message first.</source>
         <translation>Najpierw odszyfruj tę wiadomość.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2573"/>
+        <location filename="../EMailPageView.cpp" line="2638"/>
         <source>What Is Wrong With This Message?</source>
         <translation>Co jest nie tak z tą wiadomością?</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2577"/>
+        <location filename="../EMailPageView.cpp" line="2642"/>
         <source>Try to Verify Anyway</source>
         <translation>Spróbuj mimo wszystko zweryfikować</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2578"/>
+        <location filename="../EMailPageView.cpp" line="2643"/>
         <source>Try to Decrypt Anyway</source>
         <translation>Spróbuj mimo wszystko odszyfrować</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2593"/>
+        <location filename="../EMailPageView.cpp" line="2658"/>
         <source>Signature Not Reachable</source>
         <translation>Podpis nieosiągalny</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2594"/>
+        <location filename="../EMailPageView.cpp" line="2659"/>
         <source>The signature is inside the encrypted part of this message. Decrypt it first.</source>
         <translation>Podpis znajduje się w zaszyfrowanej części tej wiadomości. Najpierw ją odszyfruj.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2598"/>
+        <location filename="../EMailPageView.cpp" line="2663"/>
         <source>Nothing to Remove</source>
         <translation>Nie ma czego usunąć</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2599"/>
+        <location filename="../EMailPageView.cpp" line="2664"/>
         <source>This message carries no signature.</source>
         <translation>Ta wiadomość nie zawiera podpisu.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2603"/>
+        <location filename="../EMailPageView.cpp" line="2668"/>
         <source>Cannot Remove the Signature</source>
         <translation>Nie można usunąć podpisu</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2604"/>
+        <location filename="../EMailPageView.cpp" line="2669"/>
         <source>This message does not follow RFC 3156 closely enough to take its signature off safely. Edit the raw source instead.</source>
         <translation>Ta wiadomość nie jest wystarczająco zgodna z RFC 3156, aby bezpiecznie usunąć z niej podpis. Zamiast tego edytuj surowy tekst źródłowy.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2612"/>
+        <location filename="../EMailPageView.cpp" line="2677"/>
         <source>Remove Signature</source>
         <translation>Usuń podpis</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2613"/>
+        <location filename="../EMailPageView.cpp" line="2678"/>
         <source>Remove the signature from this message?
 
 The signature is discarded and the message becomes an ordinary, unsigned one. The message itself is kept exactly as it is. This cannot be undone.</source>
@@ -1564,12 +1603,12 @@ The signature is discarded and the message becomes an ordinary, unsigned one. Th
 Podpis zostanie odrzucony, a wiadomość stanie się zwykłą, niepodpisaną. Sama wiadomość pozostanie dokładnie taka, jak jest. Tej operacji nie można cofnąć.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2730"/>
+        <location filename="../EMailPageView.cpp" line="2795"/>
         <source>signed</source>
         <translation>podpisana</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2756"/>
+        <location filename="../EMailPageView.cpp" line="2821"/>
         <source>unsigned</source>
         <translation>niepodpisana</translation>
     </message>
@@ -1578,42 +1617,42 @@ Podpis zostanie odrzucony, a wiadomość stanie się zwykłą, niepodpisaną. Sa
         <translation type="vanished">Nie można wysłać</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2894"/>
+        <location filename="../EMailPageView.cpp" line="2959"/>
         <source>This message needs a sender and at least one recipient before it can be sent.</source>
         <translation>Ta wiadomość wymaga nadawcy i co najmniej jednego odbiorcy, zanim będzie można ją wysłać.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="860"/>
+        <location filename="../EMailPageView.cpp" line="895"/>
         <source>Type</source>
         <translation>Typ</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="632"/>
+        <location filename="../EMailPageView.cpp" line="667"/>
         <source>Message</source>
         <translation>Wiadomość</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="383"/>
+        <location filename="../EMailPageView.cpp" line="424"/>
         <source>Structure</source>
         <translation>Struktura</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="382"/>
+        <location filename="../EMailPageView.cpp" line="423"/>
         <source>Security</source>
         <translation>Bezpieczeństwo</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="363"/>
+        <location filename="../EMailPageView.cpp" line="404"/>
         <source>Message Details</source>
         <translation>Szczegóły wiadomości</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="384"/>
+        <location filename="../EMailPageView.cpp" line="425"/>
         <source>Headers</source>
         <translation>Nagłówki</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="523"/>
+        <location filename="../EMailPageView.cpp" line="558"/>
         <source>%1.
 
 Blind recipients are never written into the message: a Bcc header would tell every recipient who was blind-copied. They are used to choose encryption recipients and are not saved with the file.</source>
@@ -1622,198 +1661,196 @@ Blind recipients are never written into the message: a Bcc header would tell eve
 Odbiorcy ukryci nigdy nie są zapisywani w wiadomości: nagłówek Bcc ujawniłby każdemu odbiorcy, kto otrzymał kopię ukrytą. Są oni używani do wyboru odbiorców szyfrowania i nie są zapisywani razem z plikiem.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="560"/>
+        <location filename="../EMailPageView.cpp" line="595"/>
         <source>Show carbon copy and blind carbon copy (%1)</source>
         <translation>Pokaż DW i UDW (%1)</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="623"/>
-        <location filename="../EMailPageView.cpp" line="678"/>
-        <location filename="../EMailPageView.cpp" line="749"/>
-        <location filename="../EMailPageView.cpp" line="899"/>
+        <location filename="../EMailPageView.cpp" line="658"/>
+        <location filename="../EMailPageView.cpp" line="713"/>
+        <location filename="../EMailPageView.cpp" line="784"/>
+        <location filename="../EMailPageView.cpp" line="934"/>
         <source>%1 (%2)</source>
         <translation>%1 (%2)</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="632"/>
+        <location filename="../EMailPageView.cpp" line="667"/>
         <source>Show the message</source>
         <translation>Pokaż wiadomość</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="634"/>
+        <location filename="../EMailPageView.cpp" line="669"/>
         <source>Show the raw document</source>
         <translation>Pokaż surowy dokument</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="686"/>
+        <location filename="../EMailPageView.cpp" line="721"/>
         <source>Reply</source>
         <translation>Odpowiedz</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="687"/>
+        <location filename="../EMailPageView.cpp" line="722"/>
         <source>Write a reply to the sender.</source>
         <translation>Napisz odpowiedź do nadawcy.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="690"/>
+        <location filename="../EMailPageView.cpp" line="725"/>
         <source>Reply All</source>
         <translation>Odpowiedz wszystkim</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="691"/>
+        <location filename="../EMailPageView.cpp" line="726"/>
         <source>Write a reply to the sender and everyone else who was addressed. Blind recipients are not included.</source>
         <translation>Napisz odpowiedź do nadawcy i wszystkich pozostałych adresatów. Odbiorcy ukryci nie są uwzględniani.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="695"/>
+        <location filename="../EMailPageView.cpp" line="730"/>
         <source>Forward</source>
         <translation>Przekaż</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="696"/>
+        <location filename="../EMailPageView.cpp" line="731"/>
         <source>Pass this message on, with its attachments.</source>
         <translation>Przekaż tę wiadomość wraz z załącznikami.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="727"/>
+        <location filename="../EMailPageView.cpp" line="762"/>
         <source>Read-only</source>
         <translation>Tylko do odczytu</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="728"/>
+        <location filename="../EMailPageView.cpp" line="763"/>
         <source>Lock this message so it cannot be edited or rewritten. Reply and Forward still work and produce new messages.</source>
         <translation>Zablokuj tę wiadomość, aby nie można było jej edytować ani modyfikować. Odpowiedź i przekazanie nadal działają i tworzą nowe wiadomości.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="750"/>
+        <location filename="../EMailPageView.cpp" line="785"/>
         <source>Show what is known about this message: its signatures, its structure and its headers.</source>
         <translation>Pokaż, co wiadomo o tej wiadomości: jej podpisy, strukturę i nagłówki.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="860"/>
+        <location filename="../EMailPageView.cpp" line="895"/>
         <source>Size</source>
         <translation>Rozmiar</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="860"/>
+        <location filename="../EMailPageView.cpp" line="895"/>
         <source>Signed</source>
         <translation>Podpisano</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="860"/>
+        <location filename="../EMailPageView.cpp" line="895"/>
         <source>Name</source>
         <translation>Nazwa</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="906"/>
+        <location filename="../EMailPageView.cpp" line="941"/>
         <source>Attach File...</source>
         <translation>Załącz plik...</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="914"/>
-        <location filename="../EMailPageView.cpp" line="3179"/>
+        <location filename="../EMailPageView.cpp" line="949"/>
+        <location filename="../EMailPageView.cpp" line="3244"/>
         <source>Remove</source>
         <translation>Usuń</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="917"/>
-        <location filename="../EMailPageView.cpp" line="3166"/>
+        <location filename="../EMailPageView.cpp" line="952"/>
+        <location filename="../EMailPageView.cpp" line="3231"/>
         <source>Save...</source>
         <translation>Zapisz...</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="921"/>
+        <location filename="../EMailPageView.cpp" line="956"/>
         <source>Save All...</source>
         <translation>Zapisz wszystko...</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1172"/>
+        <location filename="../EMailPageView.cpp" line="1205"/>
         <source>This message is open for inspection only. It cannot be edited or rewritten; Reply and Forward still work, and produce new messages.</source>
         <translation>Ta wiadomość jest otwarta wyłącznie do podglądu. Nie można jej edytować ani przepisać; Odpowiedz i Przekaż nadal działają i tworzą nowe wiadomości.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1192"/>
+        <location filename="../EMailPageView.cpp" line="1225"/>
         <source>This message is signed. Remove the signature before editing it. An edit under a signature reads as a forgery.</source>
         <translation>Ta wiadomość jest podpisana. Usuń podpis przed jej edycją. Edycja pod podpisem jest odczytywana jako fałszerstwo.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1209"/>
+        <location filename="../EMailPageView.cpp" line="1242"/>
         <source>This message was written in HTML. It is shown as its source rather than rendered: nothing here loads images or follows links.</source>
         <translation>Ta wiadomość została napisana w HTML. Jest pokazywana jako źródło, a nie renderowana: nic tutaj nie ładuje obrazów ani nie otwiera linków.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1540"/>
+        <location filename="../EMailPageView.cpp" line="1517"/>
         <source>Read-only. These bytes are protected. Remove the signature, or decrypt the message, to edit them.</source>
         <translation>Tylko do odczytu. Te bajty są chronione. Usuń podpis lub odszyfruj wiadomość, aby je edytować.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1625"/>
+        <location filename="../EMailPageView.cpp" line="1621"/>
         <source>This message could not be assembled for inspection, so there is nothing to show here. The message itself is unchanged.</source>
         <translation>Nie można było przygotować tej wiadomości do podglądu, więc nie ma tu nic do pokazania. Sama wiadomość pozostaje niezmieniona.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1718"/>
+        <location filename="../EMailPageView.cpp" line="1714"/>
         <source>Cannot Reply</source>
         <translation>Nie można odpowiedzieć</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1720"/>
+        <location filename="../EMailPageView.cpp" line="1716"/>
         <source>Cannot Reply to All</source>
         <translation>Nie można odpowiedzieć wszystkim</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1724"/>
+        <location filename="../EMailPageView.cpp" line="1720"/>
         <source>Cannot Forward</source>
         <translation>Nie można przekazać</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1730"/>
+        <location filename="../EMailPageView.cpp" line="1726"/>
         <source>
 
 This message itself has not been changed.</source>
         <translation>Sama wiadomość nie została zmieniona.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1745"/>
         <source>A new message cannot be opened from here, because this view is not inside a window that holds tabs.</source>
-        <translation>Nie można otworzyć nowej wiadomości z tego miejsca, ponieważ ten widok nie znajduje się w oknie z kartami.</translation>
+        <translation type="vanished">Nie można otworzyć nowej wiadomości z tego miejsca, ponieważ ten widok nie znajduje się w oknie z kartami.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1772"/>
+        <location filename="../EMailPageView.cpp" line="1749"/>
         <source>The new message could not be assembled. This usually means a part of the original could not be re-encoded, most often an attachment.</source>
         <translation>Nowa wiadomość nie mogła zostać złożona. Zwykle oznacza to, że część oryginalnej wiadomości nie mogła zostać ponownie zakodowana, najczęściej załącznik.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1790"/>
+        <location filename="../EMailPageView.cpp" line="1776"/>
         <source>A tab for the new message could not be opened.</source>
         <translation>Nie można było otworzyć karty dla nowej wiadomości.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1801"/>
         <source>The new tab opened, but it is not showing a message view, so there is nowhere to put the reply. The tab can be closed.</source>
-        <translation>Nowa karta została otwarta, ale nie wyświetla widoku wiadomości, więc nie ma gdzie umieścić odpowiedzi. Kartę można zamknąć.</translation>
+        <translation type="vanished">Nowa karta została otwarta, ale nie wyświetla widoku wiadomości, więc nie ma gdzie umieścić odpowiedzi. Kartę można zamknąć.</translation>
     </message>
     <message>
         <source>The recipients are not named, so whether you can open this cannot be told until you try.</source>
         <translation type="vanished">Odbiorcy nie są wymienieni, więc nie można stwierdzić, czy możesz to otworzyć, dopóki nie spróbujesz.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1949"/>
+        <location filename="../EMailPageView.cpp" line="2011"/>
         <source>You do not hold a private key for any of these addresses. Unless the message was also encrypted to a key that is not named here, it cannot be opened on this computer.</source>
         <translation>Nie posiadasz klucza prywatnego dla żadnego z tych adresów. Jeśli wiadomość nie została również zaszyfrowana do klucza, który nie jest tutaj wymieniony, nie można jej otworzyć na tym komputerze.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1958"/>
+        <location filename="../EMailPageView.cpp" line="2020"/>
         <source>You hold the private key for %1.</source>
         <translation>Posiadasz klucz prywatny dla %1.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1959"/>
+        <location filename="../EMailPageView.cpp" line="2021"/>
         <source>You hold private keys for %1.</source>
         <translation>Posiadasz klucze prywatne dla %1.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2024"/>
+        <location filename="../EMailPageView.cpp" line="2086"/>
         <source>This message is signed, so it cannot be changed: an edit under a signature reads as a forgery.
 
 Remove the signature and make it an ordinary message?</source>
@@ -1822,113 +1859,113 @@ Remove the signature and make it an ordinary message?</source>
 Usunąć podpis i uczynić z niej zwykłą wiadomość?</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2360"/>
+        <location filename="../EMailPageView.cpp" line="2425"/>
         <source>Encrypted, signature not checked</source>
         <translation>Zaszyfrowano, podpis nie sprawdzony</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2361"/>
+        <location filename="../EMailPageView.cpp" line="2426"/>
         <source>Signature not checked</source>
         <translation>Podpis niezweryfikowany</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2365"/>
+        <location filename="../EMailPageView.cpp" line="2430"/>
         <source>Encrypted, signature verified</source>
         <translation>Zaszyfrowano, podpis zweryfikowano</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2366"/>
+        <location filename="../EMailPageView.cpp" line="2431"/>
         <source>Signature verified</source>
         <translation>Podpis zweryfikowano</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2370"/>
+        <location filename="../EMailPageView.cpp" line="2435"/>
         <source>Signed by a different address</source>
         <translation>Podpisano innym adresem</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2374"/>
+        <location filename="../EMailPageView.cpp" line="2439"/>
         <source>Signature or key expired</source>
         <translation>Podpis lub klucz wygasł</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2378"/>
+        <location filename="../EMailPageView.cpp" line="2443"/>
         <source>Signed by an unknown key</source>
         <translation>Podpisano nieznanym kluczem</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2382"/>
+        <location filename="../EMailPageView.cpp" line="2447"/>
         <source>Bad signature</source>
         <translation>Nieprawidłowy podpis</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2733"/>
+        <location filename="../EMailPageView.cpp" line="2798"/>
         <source>signed, not checked</source>
         <translation>podpisany, niezweryfikowany</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2738"/>
+        <location filename="../EMailPageView.cpp" line="2803"/>
         <source>signed, could not be checked</source>
         <translation>podpisana, nie można było sprawdzić</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2744"/>
+        <location filename="../EMailPageView.cpp" line="2809"/>
         <source>signature not good</source>
         <translation>podpis nieprawidłowy</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2772"/>
+        <location filename="../EMailPageView.cpp" line="2837"/>
         <source>Some parts are outside the signed section of this message. They are not covered by the signature and could have been added by anyone.</source>
         <translation>Niektóre części znajdują się poza podpisaną sekcją tej wiadomości. Nie są objęte podpisem i mogły zostać dodane przez kogokolwiek.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2786"/>
+        <location filename="../EMailPageView.cpp" line="2851"/>
         <source>1 attachment</source>
         <translation>1 załącznik</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2787"/>
+        <location filename="../EMailPageView.cpp" line="2852"/>
         <source>%1 attachments</source>
         <translation>Załączniki: %1</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2842"/>
+        <location filename="../EMailPageView.cpp" line="2907"/>
         <source>E-Mail Message (*.eml);;All Files (*)</source>
         <translation>Wiadomość e-mail (*.eml);;Wszystkie pliki (*)</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2893"/>
+        <location filename="../EMailPageView.cpp" line="2958"/>
         <source>Cannot Send</source>
         <translation>Nie można wysłać</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3029"/>
-        <location filename="../EMailPageView.cpp" line="3096"/>
+        <location filename="../EMailPageView.cpp" line="3094"/>
+        <location filename="../EMailPageView.cpp" line="3161"/>
         <source>Attach Files</source>
         <translation>Załącz pliki</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3059"/>
+        <location filename="../EMailPageView.cpp" line="3124"/>
         <source>%1 is a folder</source>
         <translation>%1 to folder</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3060"/>
+        <location filename="../EMailPageView.cpp" line="3125"/>
         <source>%1 is not an ordinary file</source>
         <translation>%1 nie jest zwykłym plikiem</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3065"/>
+        <location filename="../EMailPageView.cpp" line="3130"/>
         <source>%1 is too large (%2); the most that can be attached is %3</source>
         <translation>%1 jest za duży (%2); maksymalny rozmiar załącznika to %3</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3071"/>
+        <location filename="../EMailPageView.cpp" line="3136"/>
         <source>%1: %2</source>
         <translation>%1: %2</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3098"/>
+        <location filename="../EMailPageView.cpp" line="3163"/>
         <source>Nothing was attached:
 
 %1</source>
@@ -1937,7 +1974,7 @@ Usunąć podpis i uczynić z niej zwykłą wiadomość?</translation>
 %1</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3099"/>
+        <location filename="../EMailPageView.cpp" line="3164"/>
         <source>These were not attached:
 
 %1</source>
@@ -1946,30 +1983,30 @@ Usunąć podpis i uczynić z niej zwykłą wiadomość?</translation>
 %1</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3165"/>
+        <location filename="../EMailPageView.cpp" line="3230"/>
         <source>Open</source>
         <translation>Otwórz</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3174"/>
+        <location filename="../EMailPageView.cpp" line="3239"/>
         <source>Import Key</source>
         <translation>Importuj klucz</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3178"/>
+        <location filename="../EMailPageView.cpp" line="3243"/>
         <source>Copy Name</source>
         <translation>Kopiuj nazwę</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3252"/>
-        <location filename="../EMailPageView.cpp" line="3267"/>
-        <location filename="../EMailPageView.cpp" line="3282"/>
-        <location filename="../EMailPageView.cpp" line="3290"/>
+        <location filename="../EMailPageView.cpp" line="3316"/>
+        <location filename="../EMailPageView.cpp" line="3331"/>
+        <location filename="../EMailPageView.cpp" line="3346"/>
+        <location filename="../EMailPageView.cpp" line="3354"/>
         <source>Open Attachment</source>
         <translation>Otwórz załącznik</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3253"/>
+        <location filename="../EMailPageView.cpp" line="3317"/>
         <source>%1 is not a kind of file this program will open for you, because opening it would mean running it or handing it to something that might.
 
 Save it instead, and open it yourself if you are sure of where it came from.</source>
@@ -1978,27 +2015,27 @@ Save it instead, and open it yourself if you are sure of where it came from.</so
 Zapisz go zamiast tego i otwórz sam, jeśli masz pewność, skąd pochodzi.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3268"/>
+        <location filename="../EMailPageView.cpp" line="3332"/>
         <source>A temporary folder to open %1 from could not be created.</source>
         <translation>Nie można było utworzyć folderu tymczasowego do otwarcia %1.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3283"/>
+        <location filename="../EMailPageView.cpp" line="3347"/>
         <source>%1 could not be written out to be opened.</source>
         <translation>Nie można było zapisać %1, aby go otworzyć.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3291"/>
+        <location filename="../EMailPageView.cpp" line="3355"/>
         <source>Nothing on this system is registered to open %1.</source>
         <translation>Nic w tym systemie nie jest zarejestrowane do otwierania %1.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3326"/>
+        <location filename="../EMailPageView.cpp" line="3390"/>
         <source>Remove Attachment</source>
         <translation>Usuń załącznik</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3327"/>
+        <location filename="../EMailPageView.cpp" line="3391"/>
         <source>Take out of this message:
 
 %1
@@ -2011,12 +2048,12 @@ This message came from somewhere else, so unless these have been saved already t
 Ta wiadomość pochodzi skądinąd, więc jeśli te pliki nie zostały już zapisane, to jest to jedyna ich kopia. Usunięcie ich nie może być cofnięte.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3453"/>
+        <location filename="../EMailPageView.cpp" line="3517"/>
         <source>%1 -&gt; %2</source>
         <translation>%1 -&gt; %2</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3459"/>
+        <location filename="../EMailPageView.cpp" line="3523"/>
         <source>Saved. Some names were already taken in that folder, so these were written under a different name:
 
 %1</source>
@@ -2025,35 +2062,35 @@ Ta wiadomość pochodzi skądinąd, więc jeśli te pliki nie zostały już zapi
 %1</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3466"/>
+        <location filename="../EMailPageView.cpp" line="3530"/>
         <source>Saved 1 file.</source>
         <translation>Zapisano 1 plik.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3467"/>
+        <location filename="../EMailPageView.cpp" line="3531"/>
         <source>Saved %1 files.</source>
         <translation>Zapisano %1 plików.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3407"/>
-        <location filename="../EMailPageView.cpp" line="3416"/>
+        <location filename="../EMailPageView.cpp" line="3471"/>
+        <location filename="../EMailPageView.cpp" line="3480"/>
         <source>Save Attachment</source>
         <translation>Zapisz załącznik</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3417"/>
+        <location filename="../EMailPageView.cpp" line="3481"/>
         <source>Cannot write %1.</source>
         <translation>Nie można zapisać %1.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3423"/>
-        <location filename="../EMailPageView.cpp" line="3440"/>
-        <location filename="../EMailPageView.cpp" line="3458"/>
+        <location filename="../EMailPageView.cpp" line="3487"/>
+        <location filename="../EMailPageView.cpp" line="3504"/>
+        <location filename="../EMailPageView.cpp" line="3522"/>
         <source>Save Attachments</source>
         <translation>Zapisz załączniki</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3441"/>
+        <location filename="../EMailPageView.cpp" line="3505"/>
         <source>Could not write: %1</source>
         <translation>Nie można zapisać: %1</translation>
     </message>
@@ -2061,43 +2098,43 @@ Ta wiadomość pochodzi skądinąd, więc jeśli te pliki nie zostały już zapi
 <context>
     <name>EMailSecurityView</name>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="75"/>
+        <location filename="../EMailSecurityView.cpp" line="76"/>
         <source>usable</source>
         <translation>używalny</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="77"/>
+        <location filename="../EMailSecurityView.cpp" line="78"/>
         <source>expiring soon</source>
         <translation>wkrótce wygaśnie</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="79"/>
+        <location filename="../EMailSecurityView.cpp" line="80"/>
         <source>expired</source>
         <translation>wygasł</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="81"/>
+        <location filename="../EMailSecurityView.cpp" line="82"/>
         <source>revoked</source>
         <translation>unieważniony</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="83"/>
+        <location filename="../EMailSecurityView.cpp" line="84"/>
         <source>disabled</source>
         <translation>wyłączony</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="85"/>
-        <location filename="../EMailSecurityView.cpp" line="112"/>
+        <location filename="../EMailSecurityView.cpp" line="86"/>
+        <location filename="../EMailSecurityView.cpp" line="113"/>
         <source>unknown</source>
         <translation>nieznany</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="93"/>
+        <location filename="../EMailSecurityView.cpp" line="94"/>
         <source>valid</source>
         <translation>ważny</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="95"/>
+        <location filename="../EMailSecurityView.cpp" line="96"/>
         <source>valid, with issues</source>
         <translation>ważny, z problemami</translation>
     </message>
@@ -2106,163 +2143,163 @@ Ta wiadomość pochodzi skądinąd, więc jeśli te pliki nie zostały już zapi
         <translation type="vanished">ważny, klucz nie w pełni zaufany</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="100"/>
+        <location filename="../EMailSecurityView.cpp" line="101"/>
         <source>invalid</source>
         <translation>nieważny</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="102"/>
+        <location filename="../EMailSecurityView.cpp" line="103"/>
         <source>public key missing</source>
         <translation>brak klucza publicznego</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="104"/>
+        <location filename="../EMailSecurityView.cpp" line="105"/>
         <source>signing key revoked</source>
         <translation>klucz podpisujący unieważniony</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="107"/>
+        <location filename="../EMailSecurityView.cpp" line="108"/>
         <source>signature expired</source>
         <translation>podpis wygasł</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="109"/>
+        <location filename="../EMailSecurityView.cpp" line="110"/>
         <source>signing key expired</source>
         <translation>klucz podpisujący wygasł</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="126"/>
+        <location filename="../EMailSecurityView.cpp" line="127"/>
         <source>bad signature: signing key revoked</source>
         <translation>błędny podpis: klucz podpisujący unieważniony</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="128"/>
+        <location filename="../EMailSecurityView.cpp" line="129"/>
         <source>BAD signature: it does not match these bytes</source>
         <translation>BŁĘDNY PODPIS: nie pasuje do tych bajtów</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="132"/>
+        <location filename="../EMailSecurityView.cpp" line="133"/>
         <source>valid, but signed by another address</source>
         <translation>prawidłowy, ale podpisany przez inny adres</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="180"/>
+        <location filename="../EMailSecurityView.cpp" line="181"/>
         <source>Item</source>
         <translation>Element</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="180"/>
+        <location filename="../EMailSecurityView.cpp" line="181"/>
         <source>Detail</source>
         <translation>Szczegóły</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="195"/>
-        <location filename="../EMailSecurityView.cpp" line="223"/>
+        <location filename="../EMailSecurityView.cpp" line="196"/>
+        <location filename="../EMailSecurityView.cpp" line="224"/>
         <source>No message is open.</source>
         <translation>Nie otwarto żadnej wiadomości.</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="263"/>
+        <location filename="../EMailSecurityView.cpp" line="264"/>
         <source>Copy Value</source>
         <translation>Kopiuj wartość</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="268"/>
+        <location filename="../EMailSecurityView.cpp" line="269"/>
         <source>Copy Fingerprint</source>
         <translation>Kopiuj odcisk klucza</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="275"/>
+        <location filename="../EMailSecurityView.cpp" line="276"/>
         <source>Copy Address</source>
         <translation>Kopiuj adres</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="281"/>
+        <location filename="../EMailSecurityView.cpp" line="282"/>
         <source>Import the Key in This Message</source>
         <translation>Importuj klucz z tej wiadomości</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="297"/>
+        <location filename="../EMailSecurityView.cpp" line="298"/>
         <source>Verify Signatures</source>
         <translation>Zweryfikuj podpisy</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="298"/>
+        <location filename="../EMailSecurityView.cpp" line="299"/>
         <source>Verify Again</source>
         <translation>Zweryfikuj ponownie</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="353"/>
+        <location filename="../EMailSecurityView.cpp" line="354"/>
         <source>Signatures</source>
         <translation>Podpisy</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="357"/>
+        <location filename="../EMailSecurityView.cpp" line="358"/>
         <source>Signature %1</source>
         <translation>Podpis %1</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="360"/>
+        <location filename="../EMailSecurityView.cpp" line="361"/>
         <source>covers %1</source>
         <translation>obejmuje %1</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="361"/>
+        <location filename="../EMailSecurityView.cpp" line="362"/>
         <source>covers %1, nested %2 deep</source>
         <translation>obejmuje %1, zagnieżdżone %2 poziomów</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="374"/>
+        <location filename="../EMailSecurityView.cpp" line="375"/>
         <source>Result</source>
         <translation>Wynik</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="385"/>
+        <location filename="../EMailSecurityView.cpp" line="386"/>
         <source>this section is signed, but nothing has verified it yet</source>
         <translation>Ta sekcja jest podpisana, ale nic jeszcze jej nie zweryfikowało.</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="386"/>
+        <location filename="../EMailSecurityView.cpp" line="387"/>
         <source>this section is signed, but verifying it produced no result: the signing key may not be in your keyring</source>
         <translation>Ta sekcja jest podpisana, ale weryfikacja nie dała wyniku: klucz podpisujący może nie znajdować się w Twojej bazie kluczy.</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="394"/>
+        <location filename="../EMailSecurityView.cpp" line="395"/>
         <source>Unknown signer</source>
         <translation>Nieznany podpisujący</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="409"/>
+        <location filename="../EMailSecurityView.cpp" line="410"/>
         <source>Different address</source>
         <translation>Inny adres</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="412"/>
+        <location filename="../EMailSecurityView.cpp" line="413"/>
         <source>the signature is valid, but the key belongs to %1 while this message says it is from %2. A valid signature says who signed the bytes, not who sent the message.</source>
         <translation>podpis jest prawidłowy, ale klucz należy do %1, podczas gdy ta wiadomość mówi, że pochodzi od %2. Prawidłowy podpis mówi, kto podpisał dane, a nie kto wysłał wiadomość.</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="428"/>
+        <location filename="../EMailSecurityView.cpp" line="429"/>
         <source>Public key algorithm</source>
         <translation>Algorytm klucza publicznego</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="429"/>
+        <location filename="../EMailSecurityView.cpp" line="430"/>
         <source>Signed at</source>
         <translation>Podpisano dnia</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="435"/>
+        <location filename="../EMailSecurityView.cpp" line="436"/>
         <source>Declared hash (micalg)</source>
         <translation>Zadeklarowany algorytm skrótu (micalg)</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="436"/>
+        <location filename="../EMailSecurityView.cpp" line="437"/>
         <source>Signature hash</source>
         <translation>Algorytm skrótu podpisu</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="440"/>
+        <location filename="../EMailSecurityView.cpp" line="441"/>
         <source>Hash mismatch</source>
         <translation>Niezgodność algorytmu skrótu</translation>
     </message>
@@ -2271,62 +2308,62 @@ Ta wiadomość pochodzi skądinąd, więc jeśli te pliki nie zostały już zapi
         <translation type="vanished">Wiadomość deklaruje %1, ale w podpisie użyto %2</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="449"/>
+        <location filename="../EMailSecurityView.cpp" line="450"/>
         <source>Warning</source>
         <translation>Ostrzeżenie</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="461"/>
+        <location filename="../EMailSecurityView.cpp" line="462"/>
         <source>Recipients</source>
         <translation>Odbiorcy</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="468"/>
+        <location filename="../EMailSecurityView.cpp" line="469"/>
         <source>addressed and encrypted to</source>
         <translation>zaadresowano i zaszyfrowano do</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="498"/>
+        <location filename="../EMailSecurityView.cpp" line="499"/>
         <source>the sender chose not to record who this recipient is</source>
         <translation>nadawca postanowił nie zapisywać, kim jest ten odbiorca</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="662"/>
+        <location filename="../EMailSecurityView.cpp" line="675"/>
         <source>This message claims to use OpenPGP, but its structure does not follow RFC 3156.</source>
         <translation>Ta wiadomość deklaruje użycie OpenPGP, ale jej struktura nie jest zgodna z RFC 3156.</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="704"/>
+        <location filename="../EMailSecurityView.cpp" line="717"/>
         <source>There is nothing further to report about this message.</source>
         <translation>Brak dalszych informacji o tej wiadomości.</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="487"/>
+        <location filename="../EMailSecurityView.cpp" line="488"/>
         <source>Key %1</source>
         <translation>Klucz %1</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="97"/>
+        <location filename="../EMailSecurityView.cpp" line="98"/>
         <source>valid, but key not fully trusted</source>
         <translation>ważny, ale klucz nie jest w pełni zaufany</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="442"/>
+        <location filename="../EMailSecurityView.cpp" line="443"/>
         <source>the message declares %1, but the signature used %2</source>
         <translation>wiadomość deklaruje %1, ale podpis użył %2</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="478"/>
+        <location filename="../EMailSecurityView.cpp" line="479"/>
         <source>in %1, but not encrypted to it: they cannot read this message</source>
         <translation>w %1, ale nie zaszyfrowano do niego: nie mogą odczytać tej wiadomości</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="490"/>
+        <location filename="../EMailSecurityView.cpp" line="491"/>
         <source>encrypted to, but not in the visible headers</source>
         <translation>zaszyfrowano do, ale nie w widocznych nagłówkach</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="495"/>
+        <location filename="../EMailSecurityView.cpp" line="496"/>
         <source>Hidden recipient</source>
         <translation>Ukryty odbiorca</translation>
     </message>
@@ -2335,11 +2372,11 @@ Ta wiadomość pochodzi skądinąd, więc jeśli te pliki nie zostały już zapi
         <translation type="vanished">nadawca nie zapisał, kim jest ten odbiorca</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="250"/>
-        <location filename="../EMailSecurityView.cpp" line="253"/>
-        <location filename="../EMailSecurityView.cpp" line="427"/>
-        <location filename="../EMailSecurityView.cpp" line="505"/>
-        <location filename="../EMailSecurityView.cpp" line="568"/>
+        <location filename="../EMailSecurityView.cpp" line="251"/>
+        <location filename="../EMailSecurityView.cpp" line="254"/>
+        <location filename="../EMailSecurityView.cpp" line="428"/>
+        <location filename="../EMailSecurityView.cpp" line="506"/>
+        <location filename="../EMailSecurityView.cpp" line="576"/>
         <source>Fingerprint</source>
         <translation>Odcisk klucza</translation>
     </message>
@@ -2348,88 +2385,88 @@ Ta wiadomość pochodzi skądinąd, więc jeśli te pliki nie zostały już zapi
         <translation type="vanished">w %1, ale nie jest do niego zaszyfrowana: nie mogą tego odczytać</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="512"/>
-        <location filename="../EMailSecurityView.cpp" line="593"/>
+        <location filename="../EMailSecurityView.cpp" line="513"/>
+        <location filename="../EMailSecurityView.cpp" line="606"/>
         <source>Note</source>
         <translation>Uwaga</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="514"/>
+        <location filename="../EMailSecurityView.cpp" line="515"/>
         <source>the engine reported the primary key rather than the encryption subkey actually used</source>
         <translation>silnik podał klucz główny zamiast faktycznie użytego podklucza szyfrującego</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="525"/>
+        <location filename="../EMailSecurityView.cpp" line="526"/>
         <source>Keys for these addresses</source>
         <translation>Klucze dla tych adresów</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="540"/>
+        <location filename="../EMailSecurityView.cpp" line="545"/>
         <source>no key found</source>
         <translation>nie znaleziono klucza</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="550"/>
+        <location filename="../EMailSecurityView.cpp" line="555"/>
         <source>1 key</source>
         <translation>1 klucz</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="550"/>
+        <location filename="../EMailSecurityView.cpp" line="555"/>
         <source>%1 keys</source>
         <translation>%1 kluczy</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="561"/>
+        <location filename="../EMailSecurityView.cpp" line="570"/>
         <source>key is %1</source>
         <translation>Klucz: %1</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="576"/>
+        <location filename="../EMailSecurityView.cpp" line="587"/>
         <source>Identity</source>
         <translation>Tożsamość</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="579"/>
+        <location filename="../EMailSecurityView.cpp" line="591"/>
         <source>this address is on a REVOKED user ID of the key</source>
         <translation>ten adres należy do UNIEWAŻNIONEGO identyfikatora użytkownika klucza</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="582"/>
+        <location filename="../EMailSecurityView.cpp" line="595"/>
         <source>this address is the key&apos;s primary user ID</source>
         <translation>ten adres jest głównym identyfikatorem użytkownika klucza</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="587"/>
+        <location filename="../EMailSecurityView.cpp" line="600"/>
         <source>this address is a secondary user ID of the key</source>
         <translation>ten adres jest dodatkowym identyfikatorem użytkownika klucza</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="594"/>
+        <location filename="../EMailSecurityView.cpp" line="607"/>
         <source>this key cannot be used for encryption</source>
         <translation>tego klucza nie można użyć do szyfrowania</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="607"/>
+        <location filename="../EMailSecurityView.cpp" line="620"/>
         <source>What stands out</source>
         <translation>Co się wyróżnia</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="647"/>
+        <location filename="../EMailSecurityView.cpp" line="660"/>
         <source>This message is not signed or encrypted.</source>
         <translation>Ta wiadomość nie jest podpisana ani zaszyfrowana.</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="650"/>
+        <location filename="../EMailSecurityView.cpp" line="663"/>
         <source>This message carries a signature.</source>
         <translation>Ta wiadomość zawiera podpis.</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="653"/>
+        <location filename="../EMailSecurityView.cpp" line="666"/>
         <source>This message is encrypted.</source>
         <translation>Ta wiadomość jest zaszyfrowana.</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="657"/>
+        <location filename="../EMailSecurityView.cpp" line="670"/>
         <source>This message is encrypted and carries a signature.</source>
         <translation>Ta wiadomość jest zaszyfrowana i zawiera podpis.</translation>
     </message>
@@ -2517,7 +2554,7 @@ Ta wiadomość pochodzi skądinąd, więc jeśli te pliki nie zostały już zapi
         <translation>Kopia w wysłanych</translation>
     </message>
     <message>
-        <location filename="../EMailSendDialog.cpp" line="492"/>
+        <location filename="../EMailSendDialog.cpp" line="480"/>
         <source>%1 port %2 · %3</source>
         <translation>%1 port %2 · %3</translation>
     </message>
@@ -2553,174 +2590,174 @@ Ta wiadomość pochodzi skądinąd, więc jeśli te pliki nie zostały już zapi
         <translation>Anuluj</translation>
     </message>
     <message>
-        <location filename="../EMailSendDialog.cpp" line="464"/>
+        <location filename="../EMailSendDialog.cpp" line="452"/>
         <source>No outgoing account is configured.</source>
         <translation>Nie skonfigurowano konta poczty wychodzącej.</translation>
     </message>
     <message>
-        <location filename="../EMailSendDialog.cpp" line="482"/>
+        <location filename="../EMailSendDialog.cpp" line="470"/>
         <source>No password is stored for this account, so nothing can be sent through it. Set the password in Settings, under Mail Accounts, and turn on the option to remember it.</source>
         <translation>Nie zapisano hasła dla tego konta, więc nie można przez nie nic wysłać. Ustaw hasło w Ustawieniach, w sekcji Konta pocztowe, i włącz opcję zapamiętywania go.</translation>
     </message>
     <message>
-        <location filename="../EMailSendDialog.cpp" line="516"/>
-        <location filename="../EMailSendDialog.cpp" line="898"/>
+        <location filename="../EMailSendDialog.cpp" line="504"/>
+        <location filename="../EMailSendDialog.cpp" line="886"/>
         <source>Close</source>
         <translation>Zamknij</translation>
     </message>
     <message>
-        <location filename="../EMailSendDialog.cpp" line="517"/>
+        <location filename="../EMailSendDialog.cpp" line="505"/>
         <source>Sending. This window will say what happened.</source>
         <translation>Wysyłanie. To okno pokaże, co się stało.</translation>
     </message>
     <message>
-        <location filename="../EMailSendDialog.cpp" line="571"/>
+        <location filename="../EMailSendDialog.cpp" line="559"/>
         <source>This account is set up for sending only, so there is no mailbox to keep a copy in.</source>
         <translation>To konto jest skonfigurowane tylko do wysyłania, więc nie ma skrzynki, w której można przechowywać kopię.</translation>
     </message>
     <message>
-        <location filename="../EMailSendDialog.cpp" line="647"/>
+        <location filename="../EMailSendDialog.cpp" line="635"/>
         <source>a copy was put in %1, but it cannot be looked up afterwards: this message carries no Message-ID. A message sent exactly as it arrived is never given one, because adding it would change bytes a signature may cover.</source>
         <translation>kopia została umieszczona w %1, ale nie można jej później odszukać: ta wiadomość nie zawiera identyfikatora Message-ID. Wiadomość wysłana dokładnie tak, jak przyszła, nigdy go nie otrzymuje, ponieważ jego dodanie zmieniłoby bajty, które mogą być objęte podpisem.</translation>
     </message>
     <message>
-        <location filename="../EMailSendDialog.cpp" line="656"/>
+        <location filename="../EMailSendDialog.cpp" line="644"/>
         <source>no Sent folder could be identified for this account.</source>
         <translation>Nie można było zidentyfikować folderu Wysłane dla tego konta.</translation>
     </message>
     <message>
-        <location filename="../EMailSendDialog.cpp" line="662"/>
+        <location filename="../EMailSendDialog.cpp" line="650"/>
         <source>the copy could not be written to the mailbox.</source>
         <translation>nie można było zapisać kopii do skrzynki pocztowej.</translation>
     </message>
     <message>
-        <location filename="../EMailSendDialog.cpp" line="663"/>
+        <location filename="../EMailSendDialog.cpp" line="651"/>
         <source>the copy could not be written to the mailbox: %1</source>
         <translation>nie można było zapisać kopii do skrzynki pocztowej: %1</translation>
     </message>
     <message>
-        <location filename="../EMailSendDialog.cpp" line="696"/>
+        <location filename="../EMailSendDialog.cpp" line="684"/>
         <source>Stopping...</source>
         <translation>Zatrzymywanie...</translation>
     </message>
     <message>
-        <location filename="../EMailSendDialog.cpp" line="710"/>
+        <location filename="../EMailSendDialog.cpp" line="698"/>
         <source>Still sending</source>
         <translation>Nadal wysyłanie</translation>
     </message>
     <message>
-        <location filename="../EMailSendDialog.cpp" line="711"/>
+        <location filename="../EMailSendDialog.cpp" line="699"/>
         <source>This message is still being sent.</source>
         <translation>Ta wiadomość jest nadal wysyłana.</translation>
     </message>
     <message>
-        <location filename="../EMailSendDialog.cpp" line="713"/>
+        <location filename="../EMailSendDialog.cpp" line="701"/>
         <source>The server may already have accepted it. If you close this window now, you will not find out whether it was delivered, and sending it again could deliver it twice.</source>
         <translation>Serwer mógł już ją przyjąć. Jeśli teraz zamkniesz to okno, nie dowiesz się, czy została dostarczona, a ponowne wysłanie może spowodować jej podwójne dostarczenie.</translation>
     </message>
     <message>
-        <location filename="../EMailSendDialog.cpp" line="716"/>
+        <location filename="../EMailSendDialog.cpp" line="704"/>
         <source>Keep Waiting</source>
         <translation>Czekaj dalej</translation>
     </message>
     <message>
-        <location filename="../EMailSendDialog.cpp" line="717"/>
+        <location filename="../EMailSendDialog.cpp" line="705"/>
         <source>Close Anyway</source>
         <translation>Zamknij mimo to</translation>
     </message>
     <message>
-        <location filename="../EMailSendDialog.cpp" line="755"/>
+        <location filename="../EMailSendDialog.cpp" line="743"/>
         <source>Not sent yet</source>
         <translation>Jeszcze nie wysłano</translation>
     </message>
     <message>
-        <location filename="../EMailSendDialog.cpp" line="758"/>
+        <location filename="../EMailSendDialog.cpp" line="746"/>
         <source>Sending...</source>
         <translation>Wysyłanie...</translation>
     </message>
     <message>
-        <location filename="../EMailSendDialog.cpp" line="762"/>
+        <location filename="../EMailSendDialog.cpp" line="750"/>
         <source>Unknown. The connection was lost after the message had been sent, so the server may or may not have accepted it. Check the Sent folder or the recipient before sending again: resending may deliver it twice.</source>
         <translation>Nieznane. Połączenie zostało utracone po wysłaniu wiadomości, więc serwer mógł ją przyjąć lub nie. Sprawdź folder Wysłane lub odbiorcę przed ponownym wysłaniem: ponowne wysłanie może dostarczyć wiadomość dwukrotnie.</translation>
     </message>
     <message>
-        <location filename="../EMailSendDialog.cpp" line="768"/>
+        <location filename="../EMailSendDialog.cpp" line="756"/>
         <source>Yes, accepted by the outgoing mail server</source>
         <translation>Tak, zaakceptowana przez serwer poczty wychodzącej</translation>
     </message>
     <message>
-        <location filename="../EMailSendDialog.cpp" line="782"/>
+        <location filename="../EMailSendDialog.cpp" line="770"/>
         <source>Not saved</source>
         <translation>Nie zapisano</translation>
     </message>
     <message>
-        <location filename="../EMailSendDialog.cpp" line="787"/>
+        <location filename="../EMailSendDialog.cpp" line="775"/>
         <source>Saving a copy to Sent...</source>
         <translation>Zapisywanie kopii w folderze Wysłane...</translation>
     </message>
     <message>
-        <location filename="../EMailSendDialog.cpp" line="806"/>
+        <location filename="../EMailSendDialog.cpp" line="794"/>
         <source>No copy was kept.</source>
         <translation>Nie zachowano kopii.</translation>
     </message>
     <message>
-        <location filename="../EMailSendDialog.cpp" line="807"/>
+        <location filename="../EMailSendDialog.cpp" line="795"/>
         <source>The message was sent, but %1</source>
         <translation>Wiadomość została wysłana, ale %1</translation>
     </message>
     <message>
-        <location filename="../EMailSendDialog.cpp" line="580"/>
+        <location filename="../EMailSendDialog.cpp" line="568"/>
         <source>No password is stored for this account, so its mailbox could not be opened.</source>
         <translation>Dla tego konta nie zapisano hasła, więc nie można było otworzyć jego skrzynki pocztowej.</translation>
     </message>
     <message>
-        <location filename="../EMailSendDialog.cpp" line="683"/>
+        <location filename="../EMailSendDialog.cpp" line="671"/>
         <source>The mailbox could not be reached.</source>
         <translation>Nie można było uzyskać dostępu do skrzynki pocztowej.</translation>
     </message>
     <message>
-        <location filename="../EMailSendDialog.cpp" line="684"/>
+        <location filename="../EMailSendDialog.cpp" line="672"/>
         <source>The mailbox could not be reached: %1</source>
         <translation>Nie można było uzyskać dostępu do skrzynki pocztowej: %1</translation>
     </message>
     <message>
-        <location filename="../EMailSendDialog.cpp" line="783"/>
+        <location filename="../EMailSendDialog.cpp" line="771"/>
         <source>Waits until the message is sent</source>
         <translation>Czeka, aż wiadomość zostanie wysłana</translation>
     </message>
     <message>
-        <location filename="../EMailSendDialog.cpp" line="795"/>
+        <location filename="../EMailSendDialog.cpp" line="783"/>
         <source>Yes, your mail server had already filed it in %1</source>
         <translation>Tak, Twój serwer pocztowy już zapisał ją w %1</translation>
     </message>
     <message>
-        <location filename="../EMailSendDialog.cpp" line="797"/>
+        <location filename="../EMailSendDialog.cpp" line="785"/>
         <source>Yes, saved to %1</source>
         <translation>Tak, zapisano w %1</translation>
     </message>
     <message>
-        <location filename="../EMailSendDialog.cpp" line="812"/>
+        <location filename="../EMailSendDialog.cpp" line="800"/>
         <source>Stopped: no copy was kept. The message was still sent.</source>
         <translation>Zatrzymano: nie zachowano kopii. Wiadomość mimo to została wysłana.</translation>
     </message>
     <message>
-        <location filename="../EMailSendDialog.cpp" line="850"/>
+        <location filename="../EMailSendDialog.cpp" line="838"/>
         <source>It is not known whether this was sent.</source>
         <translation>Nie wiadomo, czy wiadomość została wysłana.</translation>
     </message>
     <message>
-        <location filename="../EMailSendDialog.cpp" line="852"/>
+        <location filename="../EMailSendDialog.cpp" line="840"/>
         <source>Handed to the outgoing mail server.</source>
         <translation>Przekazano serwerowi poczty wychodzącej.</translation>
     </message>
     <message>
-        <location filename="../EMailSendDialog.cpp" line="854"/>
+        <location filename="../EMailSendDialog.cpp" line="842"/>
         <source>Not sent.</source>
         <translation>Nie wysłano.</translation>
     </message>
     <message>
-        <location filename="../EMailSendDialog.cpp" line="875"/>
-        <location filename="../EMailSendDialog.cpp" line="884"/>
+        <location filename="../EMailSendDialog.cpp" line="863"/>
+        <location filename="../EMailSendDialog.cpp" line="872"/>
         <source>Close (%1)</source>
         <translation>Zamknij (%1)</translation>
     </message>
@@ -2754,7 +2791,7 @@ Ta wiadomość pochodzi skądinąd, więc jeśli te pliki nie zostały już zapi
     </message>
     <message>
         <location filename="../EMailStructureView.cpp" line="90"/>
-        <location filename="../EMailStructureView.cpp" line="263"/>
+        <location filename="../EMailStructureView.cpp" line="262"/>
         <source>No message is open.</source>
         <translation>Nie otwarto żadnej wiadomości.</translation>
     </message>
@@ -2784,13 +2821,13 @@ Ta wiadomość pochodzi skądinąd, więc jeśli te pliki nie zostały już zapi
         <translation>Kopiuj SHA-256</translation>
     </message>
     <message>
-        <location filename="../EMailStructureView.cpp" line="216"/>
-        <location filename="../EMailStructureView.cpp" line="224"/>
+        <location filename="../EMailStructureView.cpp" line="215"/>
+        <location filename="../EMailStructureView.cpp" line="223"/>
         <source>Save Part</source>
         <translation>Zapisz część</translation>
     </message>
     <message>
-        <location filename="../EMailStructureView.cpp" line="225"/>
+        <location filename="../EMailStructureView.cpp" line="224"/>
         <source>Could not write %1.</source>
         <translation>Nie można było zapisać %1.</translation>
     </message>
@@ -2799,52 +2836,52 @@ Ta wiadomość pochodzi skądinąd, więc jeśli te pliki nie zostały już zapi
         <translation type="vanished">Nie można zapisać %1.</translation>
     </message>
     <message>
-        <location filename="../EMailStructureView.cpp" line="252"/>
+        <location filename="../EMailStructureView.cpp" line="251"/>
         <source>SHA-256 of this part: %1</source>
         <translation>SHA-256 tej części: %1</translation>
     </message>
     <message>
-        <location filename="../EMailStructureView.cpp" line="274"/>
+        <location filename="../EMailStructureView.cpp" line="273"/>
         <source>signature %1</source>
         <translation>podpis %1</translation>
     </message>
     <message>
-        <location filename="../EMailStructureView.cpp" line="308"/>
+        <location filename="../EMailStructureView.cpp" line="307"/>
         <source>not covered</source>
         <translation>nieobjęte</translation>
     </message>
     <message>
-        <location filename="../EMailStructureView.cpp" line="315"/>
+        <location filename="../EMailStructureView.cpp" line="314"/>
         <source>OpenPGP control part</source>
         <translation>Część kontrolna OpenPGP</translation>
     </message>
     <message>
-        <location filename="../EMailStructureView.cpp" line="318"/>
+        <location filename="../EMailStructureView.cpp" line="317"/>
         <source>An OpenPGP key, which can be imported.</source>
         <translation>Klucz OpenPGP, który można zaimportować.</translation>
     </message>
     <message>
-        <location filename="../EMailStructureView.cpp" line="322"/>
+        <location filename="../EMailStructureView.cpp" line="321"/>
         <source>Content-ID: %1</source>
         <translation>Content-ID: %1</translation>
     </message>
     <message>
-        <location filename="../EMailStructureView.cpp" line="343"/>
+        <location filename="../EMailStructureView.cpp" line="342"/>
         <source>This message has no parts to show.</source>
         <translation>Ta wiadomość nie ma części do wyświetlenia.</translation>
     </message>
     <message>
-        <location filename="../EMailStructureView.cpp" line="347"/>
+        <location filename="../EMailStructureView.cpp" line="346"/>
         <source>This message carries no signed section.</source>
         <translation>Ta wiadomość nie zawiera podpisanej sekcji.</translation>
     </message>
     <message>
-        <location filename="../EMailStructureView.cpp" line="355"/>
+        <location filename="../EMailStructureView.cpp" line="354"/>
         <source>Signature %1 covers %2 (declared %3)</source>
         <translation>Podpis %1 obejmuje %2 (zadeklarowano %3)</translation>
     </message>
     <message>
-        <location filename="../EMailStructureView.cpp" line="359"/>
+        <location filename="../EMailStructureView.cpp" line="358"/>
         <source>no algorithm</source>
         <translation>brak algorytmu</translation>
     </message>
@@ -2852,27 +2889,27 @@ Ta wiadomość pochodzi skądinąd, więc jeśli te pliki nie zostały już zapi
 <context>
     <name>EMailTransport</name>
     <message>
-        <location filename="../EMailImapWorker.cpp" line="676"/>
+        <location filename="../EMailImapWorker.cpp" line="751"/>
         <source>That search text cannot be sent</source>
         <translation>Nie można wysłać tego tekstu wyszukiwania.</translation>
     </message>
     <message>
-        <location filename="../EMailImapWorker.cpp" line="678"/>
+        <location filename="../EMailImapWorker.cpp" line="753"/>
         <source>A search may only contain ordinary ASCII characters, with no line breaks. Try searching for a shorter part of the word.</source>
         <translation>Wyszukiwanie może zawierać tylko zwykłe znaki ASCII, bez znaków nowej linii. Spróbuj wyszukać krótszą część słowa.</translation>
     </message>
     <message>
-        <location filename="../EMailImapWorker.cpp" line="790"/>
+        <location filename="../EMailImapWorker.cpp" line="865"/>
         <source>That message is no longer in this folder</source>
         <translation>Ta wiadomość nie znajduje się już w tym folderze.</translation>
     </message>
     <message>
-        <location filename="../EMailImapWorker.cpp" line="792"/>
+        <location filename="../EMailImapWorker.cpp" line="867"/>
         <source>It was moved or deleted after this list was loaded. Refresh the folder to see what is there now.</source>
         <translation>Została przeniesiona lub usunięta po załadowaniu tej listy. Odśwież folder, aby zobaczyć, co się w nim teraz znajduje.</translation>
     </message>
     <message>
-        <location filename="../EMailImapWorker.cpp" line="808"/>
+        <location filename="../EMailImapWorker.cpp" line="883"/>
         <source>That message is too large to open</source>
         <translation>Ta wiadomość jest zbyt duża, aby ją otworzyć.</translation>
     </message>
@@ -3089,32 +3126,28 @@ Ta wiadomość pochodzi skądinąd, więc jeśli te pliki nie zostały już zapi
 <context>
     <name>GTrC</name>
     <message>
-        <location filename="../EMailModule.cpp" line="751"/>
         <source>Mail Editor</source>
-        <translation>Edytor poczty</translation>
+        <translation type="vanished">Edytor poczty</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="753"/>
         <source>Open a new text editor for email.</source>
-        <translation>Otwórz nowy edytor tekstu do wiadomości e-mail.</translation>
+        <translation type="vanished">Otwórz nowy edytor tekstu do wiadomości e-mail.</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="777"/>
         <source>Open IMAP Controller</source>
-        <translation>Otwórz kontroler IMAP</translation>
+        <translation type="vanished">Otwórz kontroler IMAP</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="781"/>
         <source>Open IMAP Controller Dialog</source>
-        <translation>Otwórz okno dialogowe kontrolera IMAP</translation>
+        <translation type="vanished">Otwórz okno dialogowe kontrolera IMAP</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="787"/>
+        <location filename="../EMailModule.cpp" line="1734"/>
         <source>No mail account</source>
         <translation>Brak konta pocztowego</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="788"/>
+        <location filename="../EMailModule.cpp" line="1735"/>
         <source>Configure a mail account with IMAP enabled in Settings first.</source>
         <translation>Najpierw skonfiguruj konto pocztowe z włączonym IMAP w Ustawieniach.</translation>
     </message>
@@ -3122,7 +3155,7 @@ Ta wiadomość pochodzi skądinąd, więc jeśli te pliki nie zostały już zapi
 <context>
     <name>QObject</name>
     <message>
-        <location filename="../EMailHelper.cpp" line="1836"/>
+        <location filename="../EMailHelper.cpp" line="1933"/>
         <source>Signed part no longer in canonical form</source>
         <translation>Podpisana część nie jest już w formie kanonicznej</translation>
     </message>
@@ -3131,17 +3164,17 @@ Ta wiadomość pochodzi skądinąd, więc jeśli te pliki nie zostały już zapi
         <translation type="vanished">Podpisana część zawiera zakończenia linii inne niż CRLF, co nie jest formą, dla której obliczany jest podpis. Coś przepisało tę wiadomość po jej podpisaniu, zwykle program, który zmienił zakończenia linii podczas zapisywania lub kopiowania, a nie atak. Podpis nie może zostać zweryfikowany względem tych bajtów, a zaimportowanie klucza nadawcy tego nie zmieni. Do sprawdzenia potrzebna jest oryginalna, niezmodyfikowana wiadomość.</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="1858"/>
+        <location filename="../EMailHelper.cpp" line="1955"/>
         <source>Duplicate %1 header</source>
         <translation>Zduplikowany nagłówek %1</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="1859"/>
+        <location filename="../EMailHelper.cpp" line="1956"/>
         <source>This message carries %1 copies of a header that may appear only once. Different mail programs pick different copies, so what you see here may not be what another reader sees.</source>
         <translation>Ta wiadomość zawiera %1 kopii nagłówka, który może wystąpić tylko raz. Różne programy pocztowe wybierają różne kopie, więc to, co widzisz tutaj, może nie być tym, co widzi inny czytelnik.</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="1872"/>
+        <location filename="../EMailHelper.cpp" line="1969"/>
         <source>Address may be disguised</source>
         <translation>Adres może być zafałszowany</translation>
     </message>
@@ -3150,7 +3183,7 @@ Ta wiadomość pochodzi skądinąd, więc jeśli te pliki nie zostały już zapi
         <translation type="vanished">Domena w &quot;%1&quot; używa znaków, które mogą wyglądać jak inny, znajomy adres.</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="1887"/>
+        <location filename="../EMailHelper.cpp" line="1984"/>
         <source>Replies go somewhere else</source>
         <translation>Odpowiedzi trafiają gdzie indziej</translation>
     </message>
@@ -3159,137 +3192,147 @@ Ta wiadomość pochodzi skądinąd, więc jeśli te pliki nie zostały już zapi
         <translation type="vanished">Ta wiadomość jest od &quot;%1&quot;, ale odpowiedzi byłyby wysyłane do &quot;%2&quot;, czyli innej domeny.</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="1837"/>
+        <location filename="../EMailHelper.cpp" line="1840"/>
+        <source>On %1, %2 wrote:</source>
+        <translation>Dnia %1, %2 napisał(a):</translation>
+    </message>
+    <message>
+        <location filename="../EMailHelper.cpp" line="1842"/>
+        <source>%1 wrote:</source>
+        <translation>%1 napisał(a):</translation>
+    </message>
+    <message>
+        <location filename="../EMailHelper.cpp" line="1934"/>
         <source>The signed part contains line endings that are not CRLF, which is not the form the signature was computed over. Something rewrote this message after it was signed, usually a program that changed line endings while saving or copying it, not an attack. The signature cannot verify against these bytes, and importing the sender&apos;s key will not change that. Checking it needs the original, unmodified message.</source>
         <translation>Podpisana część zawiera zakończenia linii inne niż CRLF, czyli nie w takiej formie, dla której obliczono podpis. Coś przepisało tę wiadomość po jej podpisaniu, zwykle program, który zmienił zakończenia linii podczas zapisywania lub kopiowania, a nie atak. Podpis nie może zostać zweryfikowany względem tych bajtów, a zaimportowanie klucza nadawcy tego nie zmieni. Do sprawdzenia potrzebna jest oryginalna, niezmodyfikowana wiadomość.</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="1873"/>
+        <location filename="../EMailHelper.cpp" line="1970"/>
         <source>The domain in &quot;%1&quot; uses characters that can be made to look like a different, familiar address.</source>
         <translation>Domena w &quot;%1&quot; używa znaków, które mogą wyglądać jak inny, znajomy adres.</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="1888"/>
+        <location filename="../EMailHelper.cpp" line="1985"/>
         <source>This message is from &quot;%1&quot;, but replies would be sent to &quot;%2&quot;, which is a different domain.</source>
         <translation>Ta wiadomość jest od &quot;%1&quot;, ale odpowiedzi byłyby wysyłane do &quot;%2&quot;, czyli innej domeny.</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="1902"/>
+        <location filename="../EMailHelper.cpp" line="1999"/>
         <source>Malformed signed section</source>
         <translation>Nieprawidłowa sekcja podpisana</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="1903"/>
+        <location filename="../EMailHelper.cpp" line="2000"/>
         <source>A signed section must contain exactly two parts; this one contains %1. It may not verify, and what it covers is ambiguous.</source>
         <translation>Podpisana sekcja musi zawierać dokładnie dwie części; ta zawiera %1. Może nie zostać zweryfikowana, a to, co obejmuje, jest niejednoznaczne.</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="1911"/>
+        <location filename="../EMailHelper.cpp" line="2008"/>
         <source>Malformed encrypted section</source>
         <translation>Nieprawidłowa sekcja zaszyfrowana</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="1912"/>
+        <location filename="../EMailHelper.cpp" line="2009"/>
         <source>An encrypted section must contain exactly two parts; this one contains %1.</source>
         <translation>Zaszyfrowana sekcja musi zawierać dokładnie dwie części; ta zawiera %1.</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="1928"/>
+        <location filename="../EMailHelper.cpp" line="2025"/>
         <source>Not everything is signed</source>
         <translation>Nie wszystko jest podpisane</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="1929"/>
+        <location filename="../EMailHelper.cpp" line="2026"/>
         <source>%1 part(s) of this message sit outside the signature. They arrived unauthenticated and could have been added or changed by anyone in the path.</source>
         <translation>Liczba części tej wiadomości poza podpisem: %1. Dotarły one bez uwierzytelnienia i mogły zostać dodane lub zmienione przez każdego po drodze.</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="1943"/>
+        <location filename="../EMailHelper.cpp" line="2040"/>
         <source>Signature covers the encrypted data only</source>
         <translation>Podpis obejmuje tylko zaszyfrowane dane.</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="1944"/>
+        <location filename="../EMailHelper.cpp" line="2041"/>
         <source>This signature was made over the encrypted block, not over the message inside it. It shows who sent the ciphertext along; it does not say who wrote what you are reading, and anyone could have signed a copy of this same block.</source>
         <translation>Podpis ten został złożony na zaszyfrowanym bloku, a nie na wiadomości w nim zawartej. Pokazuje, kto przesłał szyfrogram; nie mówi, kto napisał to, co czytasz, a każdy mógł podpisać kopię tego samego bloku.</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="1975"/>
+        <location filename="../EMailHelper.cpp" line="2072"/>
         <source>Public key attached</source>
         <translation>Dołączono klucz publiczny</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="1976"/>
+        <location filename="../EMailHelper.cpp" line="2073"/>
         <source>This message carries %1 OpenPGP public key(s). A key arriving in a message proves nothing about who sent it: anyone can attach any key, including one they made for the name on the From line.</source>
         <translation>Liczba kluczy publicznych OpenPGP w tei wiadomości: %1. Klucz dołączony do wiadomości nie dowodzi niczego o jej nadawcy: każdy może dołączyć dowolny klucz, nawet taki, który utworzył dla nazwiska z pola Od.</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="1985"/>
+        <location filename="../EMailHelper.cpp" line="2082"/>
         <source>Detached signature attached</source>
         <translation>Dołączono odrębny podpis</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="1986"/>
+        <location filename="../EMailHelper.cpp" line="2083"/>
         <source>This message carries %1 signature file(s) that are not part of its own signed structure. Opening the message does not check them; they sign something else.</source>
         <translation>Liczba plików z podpisami: %1. Otwarcie wiadomości nie sprawdza ich; podpisują one coś innego.</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="1996"/>
+        <location filename="../EMailHelper.cpp" line="2093"/>
         <source>Blind recipients are visible</source>
         <translation>Ukryci odbiorcy są widoczni</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="1997"/>
+        <location filename="../EMailHelper.cpp" line="2094"/>
         <source>This message carries a Bcc header naming %1 recipient(s). Anyone who received it can see who was blind-copied.</source>
         <translation>Liczba odbiorców wskazanych w nagłówku Bcc: %1. Każdy, kto otrzymał tę wiadomość, może zobaczyć, kto został umieszczony w ukrytej kopii.</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2013"/>
+        <location filename="../EMailHelper.cpp" line="2110"/>
         <source>Nothing is signed</source>
         <translation>Nic nie jest podpisane</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2014"/>
+        <location filename="../EMailHelper.cpp" line="2111"/>
         <source>This message carries no signature, so the recipient cannot tell that it came from you or that it arrived unchanged.</source>
         <translation>Ta wiadomość nie zawiera żadnego podpisu, więc odbiorca nie może stwierdzić, że pochodzi od Ciebie ani że dotarła bez zmiań.</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2030"/>
+        <location filename="../EMailHelper.cpp" line="2127"/>
         <source>Some parts are not signed</source>
         <translation>Niektóre części nie są podpisane.</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2031"/>
+        <location filename="../EMailHelper.cpp" line="2128"/>
         <source>%1 part(s) of this message would go out without the signature covering them.</source>
         <translation>Liczba części tej wiadomości, które zostaną wysłane bez objęcia podpisem: %1.</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2040"/>
+        <location filename="../EMailHelper.cpp" line="2137"/>
         <source>Blind recipients</source>
         <translation>Ukryci odbiorcy</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2041"/>
+        <location filename="../EMailHelper.cpp" line="2138"/>
         <source>%1 blind recipient(s) will be included in encryption but will not appear anywhere in the message.</source>
         <translation>Ukryci odbiorcy zostaną uwzględnieni w szyfrowaniu, ale nie pojawią się w żadnym miejscu wiadomości. Liczba: %1.</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2048"/>
+        <location filename="../EMailHelper.cpp" line="2145"/>
         <source>Bcc header present</source>
         <translation>Obecny nagłówek Bcc</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2049"/>
+        <location filename="../EMailHelper.cpp" line="2146"/>
         <source>This message carries a Bcc header. Sending it would tell every recipient who was blind-copied.</source>
         <translation>Ta wiadomość zawiera nagłówek Bcc. Jej wysłanie ujawni każdemu odbiorcy, kto był w kopii ukrytej.</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2057"/>
+        <location filename="../EMailHelper.cpp" line="2154"/>
         <source>Recipient may be disguised</source>
         <translation>Odbiorca może być podszyty</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2058"/>
+        <location filename="../EMailHelper.cpp" line="2155"/>
         <source>The domain in &quot;%1&quot; uses characters that can be made to look like a different address. Check it before sending.</source>
         <translation>Domena w &quot;%1&quot; używa znaków, które mogą wyglądać jak inny adres. Sprawdź ją przed wysłaniem.</translation>
     </message>
@@ -3298,12 +3341,12 @@ Ta wiadomość pochodzi skądinąd, więc jeśli te pliki nie zostały już zapi
         <translation type="vanished">Domena w &quot;%1&quot; używa znaków, które mogą wyglądać jak inny adres. Sprawdź ją przed wysłaniem.</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2065"/>
+        <location filename="../EMailHelper.cpp" line="2162"/>
         <source>No recipients</source>
         <translation>Brak odbiorców</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2066"/>
+        <location filename="../EMailHelper.cpp" line="2163"/>
         <source>This message is not addressed to anyone.</source>
         <translation>Ta wiadomość nie jest zaadresowana do nikogo.</translation>
     </message>
