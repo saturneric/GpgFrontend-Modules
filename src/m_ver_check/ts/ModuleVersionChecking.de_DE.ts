@@ -4,151 +4,125 @@
 <context>
     <name>GTrC</name>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="109"/>
-        <location filename="../VersionCheckingModule.cpp" line="171"/>
         <source>Check for Updates</source>
-        <translation>Nach Updates suchen</translation>
+        <translation type="vanished">Nach Updates suchen</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="172"/>
         <source>Check for updates from the Internet.</source>
-        <translation>Nach Updates im Internet suchen.</translation>
+        <translation type="vanished">Nach Updates im Internet suchen.</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="292"/>
+        <location filename="../VersionCheckingModule.cpp" line="133"/>
+        <source>Update Checking</source>
+        <translation>Update-Prüfung</translation>
+    </message>
+    <message>
+        <location filename="../VersionCheckingModule.cpp" line="137"/>
         <source>Checking for version updates when the application starts.</source>
         <translation>Prüft beim Start der Anwendung auf Versionsupdates.</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="304"/>
         <source>GitHub</source>
-        <translation>GitHub</translation>
+        <translation type="vanished">GitHub</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="307"/>
         <source>BKTUS.com</source>
-        <translation>BKTUS.com</translation>
+        <translation type="vanished">BKTUS.com</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="312"/>
         <source>Update Checking API:</source>
-        <translation>API für die Update-Prüfung:</translation>
+        <translation type="vanished">API für die Update-Prüfung:</translation>
     </message>
 </context>
 <context>
     <name>UpdateTab</name>
     <message>
-        <location filename="../UpdateTab.cpp" line="44"/>
         <source>Current Version Information</source>
-        <translation>Informationen zur aktuellen Version</translation>
+        <translation type="vanished">Informationen zur aktuellen Version</translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="47"/>
         <source>Current Version</source>
-        <translation>Aktuelle Version</translation>
+        <translation type="vanished">Aktuelle Version</translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="48"/>
         <source>: </source>
-        <translation>: </translation>
+        <translation type="vanished">: </translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="56"/>
         <source>Upgrade Information</source>
-        <translation>Upgrade-Informationen</translation>
+        <translation type="vanished">Upgrade-Informationen</translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="70"/>
         <source>Check for Updates</source>
-        <translation>Nach Updates suchen</translation>
+        <translation type="vanished">Nach Updates suchen</translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="74"/>
         <source>Release Notes</source>
-        <translation>Anmerkungen zum Release</translation>
+        <translation type="vanished">Anmerkungen zum Release</translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="116"/>
         <source>Unable to retrieve the latest version information. This may be due to a network issue or the server being unavailable.</source>
-        <translation>Die neuesten Versionsinformationen können nicht abgerufen werden. Dies kann auf ein Netzwerkproblem oder die Nichterreichbarkeit des Servers zurückzuführen sein.</translation>
+        <translation type="vanished">Die neuesten Versionsinformationen können nicht abgerufen werden. Dies kann auf ein Netzwerkproblem oder die Nichterreichbarkeit des Servers zurückzuführen sein.</translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="119"/>
         <source>Please check your internet connection or try again later.</source>
-        <translation>Bitte überprüfen Sie Ihre Internetverbindung oder versuchen Sie es später noch einmal.</translation>
+        <translation type="vanished">Bitte überprüfen Sie Ihre Internetverbindung oder versuchen Sie es später noch einmal.</translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="120"/>
         <source>Alternatively, you can visit the</source>
-        <translation>Alternativ können Sie auch </translation>
+        <translation type="vanished">Alternativ können Sie auch </translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="123"/>
         <source>official download page</source>
-        <translation>die offizielle Download-Seite besuchen, </translation>
+        <translation type="vanished">die offizielle Download-Seite besuchen, </translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="124"/>
         <source>to check for the latest version.</source>
-        <translation>um die neueste Version zu überprüfen.</translation>
+        <translation type="vanished">um die neueste Version zu überprüfen.</translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="196"/>
         <source>You are using the latest version. No action is required.</source>
-        <translation>Sie verwenden die neueste Version. Es sind keine weiteren Schritte erforderlich.</translation>
+        <translation type="vanished">Sie verwenden die neueste Version. Es sind keine weiteren Schritte erforderlich.</translation>
     </message>
     <message>
         <source>to check for the latest stable version.</source>
         <translation type="vanished">um nach der neuesten stabilen Version zu suchen.</translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="154"/>
         <source>Latest Version From %1</source>
-        <translation>Neueste Version von %1</translation>
+        <translation type="vanished">Neueste Version von %1</translation>
     </message>
     <message>
         <source>This version is either withdrawn due to critical issues or is an unreleased build. Please stop using it and download the latest stable version.</source>
         <translation type="vanished">Diese Version wurde entweder aufgrund kritischer Probleme zurückgezogen oder ist ein nicht freigegebenes Build. Bitte verwenden Sie sie nicht weiter und laden Sie die neueste stabile Version herunter.</translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="160"/>
         <source>Your current version is outdated.</source>
-        <translation>Ihre aktuelle Version ist veraltet.</translation>
+        <translation type="vanished">Ihre aktuelle Version ist veraltet.</translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="161"/>
-        <location filename="../UpdateTab.cpp" line="175"/>
-        <location filename="../UpdateTab.cpp" line="186"/>
         <source>Click</source>
-        <translation>Klicken Sie</translation>
+        <translation type="vanished">Klicken Sie</translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="164"/>
-        <location filename="../UpdateTab.cpp" line="177"/>
-        <location filename="../UpdateTab.cpp" line="189"/>
         <source>here</source>
-        <translation>hier</translation>
+        <translation type="vanished">hier</translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="164"/>
-        <location filename="../UpdateTab.cpp" line="177"/>
         <source>to download the latest version.</source>
-        <translation>um die neueste Version herunterzuladen.</translation>
+        <translation type="vanished">um die neueste Version herunterzuladen.</translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="172"/>
         <source>This version is either withdrawn due to critical issues or is an unreleased build. Please stop using it and download the latest version.</source>
-        <translation>Diese Version wurde entweder aufgrund kritischer Probleme zurückgezogen oder ist ein nicht freigegebenes Build. Bitte verwenden Sie sie nicht weiter und laden Sie die neueste Version herunter.</translation>
+        <translation type="vanished">Diese Version wurde entweder aufgrund kritischer Probleme zurückgezogen oder ist ein nicht freigegebenes Build. Bitte verwenden Sie sie nicht weiter und laden Sie die neueste Version herunter.</translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="184"/>
         <source>The commit hash for this build was not found in the official repository. This may indicate a modified or unofficial version.</source>
-        <translation>Der Commit-Hash für dieses Build wurde nicht im offiziellen Repository gefunden. Dies könnte auf eine modifizierte oder inoffizielle Version hinweisen.</translation>
+        <translation type="vanished">Der Commit-Hash für dieses Build wurde nicht im offiziellen Repository gefunden. Dies könnte auf eine modifizierte oder inoffizielle Version hinweisen.</translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="190"/>
         <source>to verify your installation or download the official build.</source>
-        <translation>um Ihre Installation zu überprüfen oder das offizielle Build herunterzuladen.</translation>
+        <translation type="vanished">um Ihre Installation zu überprüfen oder das offizielle Build herunterzuladen.</translation>
     </message>
     <message>
         <source>You are using the latest stable version. No action is required.</source>
@@ -157,6 +131,143 @@
     <message>
         <source>to download the latest stable version.</source>
         <translation type="vanished">um die neueste stabile Version herunterzuladen.</translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="42"/>
+        <source>just now</source>
+        <translation>gerade eben</translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../UpdatePresentation.cpp" line="46"/>
+        <source>%n minute(s) ago</source>
+        <translation>
+            <numerusform>vor %n Minute
+vor %n Minuten</numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../UpdatePresentation.cpp" line="51"/>
+        <source>%n hour(s) ago</source>
+        <translation>
+            <numerusform>vor %n Stunde
+vor %n Stunden</numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="66"/>
+        <source>Checking for updates…</source>
+        <translation>Suche nach Updates…</translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="67"/>
+        <location filename="../UpdatePresentation.cpp" line="80"/>
+        <location filename="../UpdateTab.cpp" line="166"/>
+        <source>Check now</source>
+        <translation>Jetzt prüfen</translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="69"/>
+        <location filename="../UpdatePresentation.cpp" line="135"/>
+        <source>Couldn&apos;t check for updates</source>
+        <translation>Suche nach Updates fehlgeschlagen.</translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="72"/>
+        <source>Please try again later.</source>
+        <translation>Bitte versuchen Sie es später erneut.</translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="73"/>
+        <location filename="../UpdatePresentation.cpp" line="149"/>
+        <source>Try again</source>
+        <translation>Erneut versuchen</translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="76"/>
+        <source>No update information yet</source>
+        <translation>Noch keine Update-Informationen vorhanden.</translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="77"/>
+        <source>Check now to see whether a newer GpgFrontend is available.</source>
+        <translation>Jetzt prüfen, ob eine neuere Version von GpgFrontend verfügbar ist.</translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="91"/>
+        <source>GpgFrontend %1 is available</source>
+        <translation>GpgFrontend %1 ist verfügbar.</translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="94"/>
+        <source>You are using %1.</source>
+        <translation>Sie verwenden %1.</translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="99"/>
+        <source>Download %1</source>
+        <translation>%1 herunterladen</translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="105"/>
+        <source>This version isn&apos;t listed on GitHub Releases</source>
+        <translation>Diese Version ist nicht in GitHub Releases aufgeführt.</translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="107"/>
+        <source>It may be a pre-release build or a withdrawn version. The latest official release is recommended.</source>
+        <translation>Es kann sich um einen Vorab-Build oder eine zurückgezogene Version handeln. Die neueste offizielle Version wird empfohlen.</translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="114"/>
+        <source>This build isn&apos;t from the official repository</source>
+        <translation>Dieses Build stammt nicht aus dem offiziellen Repository.</translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="116"/>
+        <source>Its source commit wasn&apos;t found upstream. That is expected for self-built or modified versions.</source>
+        <translation>Der Quell-Commit wurde upstream nicht gefunden. Das ist bei selbst erstellten oder modifizierten Versionen zu erwarten.</translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="124"/>
+        <source>You&apos;re up to date</source>
+        <translation>Sie sind auf dem neuesten Stand.</translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="126"/>
+        <source>%1 is the latest release.</source>
+        <translation>%1 ist die neueste Version.</translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="129"/>
+        <source>No newer release was found for %1.</source>
+        <translation>Für %1 wurde keine neuere Version gefunden.</translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="140"/>
+        <source>Last checked %1 · GitHub Releases</source>
+        <translation>Zuletzt geprüft: %1 · GitHub Releases</translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="145"/>
+        <source>Couldn&apos;t check for updates just now. Showing the last known result.</source>
+        <translation>Die Suche nach Updates war gerade nicht möglich. Das letzte bekannte Ergebnis wird angezeigt.</translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="151"/>
+        <source>Check again</source>
+        <translation>Erneut prüfen</translation>
+    </message>
+    <message>
+        <location filename="../UpdateTab.cpp" line="111"/>
+        <source>Release notes</source>
+        <translation>Versionshinweise</translation>
+    </message>
+    <message>
+        <location filename="../UpdateTab.cpp" line="164"/>
+        <source>Update checking is unavailable</source>
+        <translation>Die Prüfung auf Updates ist nicht verfügbar.</translation>
     </message>
 </context>
 </TS>

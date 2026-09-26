@@ -4,142 +4,151 @@
 <context>
     <name>GTrC</name>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="109"/>
-        <location filename="../VersionCheckingModule.cpp" line="171"/>
-        <source>Check for Updates</source>
+        <location filename="../VersionCheckingModule.cpp" line="133"/>
+        <source>Update Checking</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="172"/>
-        <source>Check for updates from the Internet.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../VersionCheckingModule.cpp" line="292"/>
+        <location filename="../VersionCheckingModule.cpp" line="137"/>
         <source>Checking for version updates when the application starts.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../VersionCheckingModule.cpp" line="304"/>
-        <source>GitHub</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../VersionCheckingModule.cpp" line="307"/>
-        <source>BKTUS.com</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../VersionCheckingModule.cpp" line="312"/>
-        <source>Update Checking API:</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
     <name>UpdateTab</name>
     <message>
-        <location filename="../UpdateTab.cpp" line="44"/>
-        <source>Current Version Information</source>
+        <location filename="../UpdatePresentation.cpp" line="42"/>
+        <source>just now</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../UpdatePresentation.cpp" line="46"/>
+        <source>%n minute(s) ago</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../UpdatePresentation.cpp" line="51"/>
+        <source>%n hour(s) ago</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="66"/>
+        <source>Checking for updates…</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="47"/>
-        <source>Current Version</source>
+        <location filename="../UpdatePresentation.cpp" line="67"/>
+        <location filename="../UpdatePresentation.cpp" line="80"/>
+        <location filename="../UpdateTab.cpp" line="166"/>
+        <source>Check now</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="48"/>
-        <source>: </source>
+        <location filename="../UpdatePresentation.cpp" line="69"/>
+        <location filename="../UpdatePresentation.cpp" line="135"/>
+        <source>Couldn&apos;t check for updates</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="56"/>
-        <source>Upgrade Information</source>
+        <location filename="../UpdatePresentation.cpp" line="72"/>
+        <source>Please try again later.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="70"/>
-        <source>Check for Updates</source>
+        <location filename="../UpdatePresentation.cpp" line="73"/>
+        <location filename="../UpdatePresentation.cpp" line="149"/>
+        <source>Try again</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="74"/>
-        <source>Release Notes</source>
+        <location filename="../UpdatePresentation.cpp" line="76"/>
+        <source>No update information yet</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="116"/>
-        <source>Unable to retrieve the latest version information. This may be due to a network issue or the server being unavailable.</source>
+        <location filename="../UpdatePresentation.cpp" line="77"/>
+        <source>Check now to see whether a newer GpgFrontend is available.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="119"/>
-        <source>Please check your internet connection or try again later.</source>
+        <location filename="../UpdatePresentation.cpp" line="91"/>
+        <source>GpgFrontend %1 is available</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="120"/>
-        <source>Alternatively, you can visit the</source>
+        <location filename="../UpdatePresentation.cpp" line="94"/>
+        <source>You are using %1.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="123"/>
-        <source>official download page</source>
+        <location filename="../UpdatePresentation.cpp" line="99"/>
+        <source>Download %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="124"/>
-        <source>to check for the latest version.</source>
+        <location filename="../UpdatePresentation.cpp" line="105"/>
+        <source>This version isn&apos;t listed on GitHub Releases</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="196"/>
-        <source>You are using the latest version. No action is required.</source>
+        <location filename="../UpdatePresentation.cpp" line="107"/>
+        <source>It may be a pre-release build or a withdrawn version. The latest official release is recommended.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="154"/>
-        <source>Latest Version From %1</source>
+        <location filename="../UpdatePresentation.cpp" line="114"/>
+        <source>This build isn&apos;t from the official repository</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="160"/>
-        <source>Your current version is outdated.</source>
+        <location filename="../UpdatePresentation.cpp" line="116"/>
+        <source>Its source commit wasn&apos;t found upstream. That is expected for self-built or modified versions.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="161"/>
-        <location filename="../UpdateTab.cpp" line="175"/>
-        <location filename="../UpdateTab.cpp" line="186"/>
-        <source>Click</source>
+        <location filename="../UpdatePresentation.cpp" line="124"/>
+        <source>You&apos;re up to date</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="126"/>
+        <source>%1 is the latest release.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="129"/>
+        <source>No newer release was found for %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="140"/>
+        <source>Last checked %1 · GitHub Releases</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="145"/>
+        <source>Couldn&apos;t check for updates just now. Showing the last known result.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="151"/>
+        <source>Check again</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../UpdateTab.cpp" line="111"/>
+        <source>Release notes</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../UpdateTab.cpp" line="164"/>
-        <location filename="../UpdateTab.cpp" line="177"/>
-        <location filename="../UpdateTab.cpp" line="189"/>
-        <source>here</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../UpdateTab.cpp" line="164"/>
-        <location filename="../UpdateTab.cpp" line="177"/>
-        <source>to download the latest version.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../UpdateTab.cpp" line="172"/>
-        <source>This version is either withdrawn due to critical issues or is an unreleased build. Please stop using it and download the latest version.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../UpdateTab.cpp" line="184"/>
-        <source>The commit hash for this build was not found in the official repository. This may indicate a modified or unofficial version.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../UpdateTab.cpp" line="190"/>
-        <source>to verify your installation or download the official build.</source>
+        <source>Update checking is unavailable</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
