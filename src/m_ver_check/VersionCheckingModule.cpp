@@ -214,7 +214,7 @@ auto OnActivate() -> GFResult {
                          "update_checking_api");
 
   const bool dialog = gf::ui::RegisterNativeWidget<UpdateWidget>(
-      "update", {GC_TR("Check for Updates"), "", "", "", "", 500, 600},
+      "update", {GC_TR("Check for Updates"), "", "", "", "", 0, 0},
       [](const QCborMap& /*args*/) { return new UpdateWidget(); });
   const bool settings = gf::ui::RegisterNativeWidget<UpdateSettingsWidget>(
       "settings",

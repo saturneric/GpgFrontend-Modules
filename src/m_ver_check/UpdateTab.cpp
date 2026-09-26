@@ -127,9 +127,14 @@ UpdateTab::UpdateTab(QWidget* parent)
   layout->addWidget(notes_, 1);
   layout->addStretch();
 
+  // Wide enough that a headline wraps at most once; the height follows the
+  // content (see fit_window()).
+  setMinimumWidth(fontMetrics().averageCharWidth() * 64);
+
   connect(notes_toggle_, &QToolButton::toggled, this, [this](bool open) {
     notes_toggle_->setArrowType(open ? Qt::DownArrow : Qt::RightArrow);
     notes_->setVisible(open);
+    fit_window();
   });
 
   connect(check_btn_, &QPushButton::clicked, this, [this] {
@@ -165,6 +170,16 @@ void UpdateTab::render() {
   apply(PresentUpdate(checker_->State(), QDateTime::currentDateTime()));
 }
 
+void UpdateTab::fit_window() {
+  // Deferred: the layout settles the new content first. The frame is the
+  // window; this page fills it, so fitting the window fits the page. It
+  // keeps its place on screen, and overrides a size remembered from a page
+  // that showed something else.
+  QTimer::singleShot(0, this, [this] {
+    if (isVisible()) window()->adjustSize();
+  });
+}
+
 void UpdateTab::apply(const UpdateView& view) {
   const auto icon_size = style()->pixelMetric(QStyle::PM_MessageBoxIconSize);
   icon_->setPixmap(ToneIcon(style(), view.tone).pixmap(icon_size, icon_size));
@@ -192,6 +207,8 @@ void UpdateTab::apply(const UpdateView& view) {
     notes_->clear();
     notes_->hide();
   }
+
+  fit_window();
 }
 
 void UpdateTab::showEvent(QShowEvent* event) {

@@ -52,6 +52,7 @@ class UpdateTab : public QWidget {
  private:
   void render();
   void apply(const UpdateView& view);
+  void fit_window();
 
   QPointer<UpdateChecker> checker_;
 
