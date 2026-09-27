@@ -1,4 +1,4 @@
-# GpgFrontend Modules
+#GpgFrontend Modules
 
 This directory is a sub-repository of the main GpgFrontend project and must
 live at `GpgFrontend/modules`. It cannot be built standalone: toolchains, SDK
@@ -117,21 +117,25 @@ error rather than a silent no-op.
 
 `commands` lists every command the module provides. Each id starts with the
 module id and a dot, is lower-case and dotted, and appears once. Like
-`events`, it is checked in both directions: the runtime will not activate a
-module whose bound commands and signed list disagree.
+`events`, it is checked in both directions:
+the runtime will not activate a module whose bound commands and
+    signed list disagree.
 
-`capabilities` decides what your module can reach, and it is enforced. At
-activation the host mints a capability table from this list; a group you did
-not declare is simply absent, and the matching SDK call returns its failure
-value and logs once instead of doing anything. Two kinds of name go in the
-list:
+`capabilities` decides what your module can reach,
+    and it is enforced.At activation the host mints a capability table
+            from this list;
+a group you did not declare is simply absent,
+    and the matching SDK call returns its failure value and logs once instead of
+            doing anything.Two kinds of name go in the list :
 
-| declared    | kind     | effect                                                           |
-| ----------- | -------- | ---------------------------------------------------------------- |
-| `gpg`       | granted  | sign, encrypt, decrypt, verify, keys, key lists, result analysis |
-| `pgp`       | granted  | packet-structure inspection, no keyring or engine                |
-| `ui`        | granted  | a UI script, commands, theme colours by role                     |
-| `ui.custom` | granted  | adds native widgets mounted by the script; requires `ui`         |
+        | declared | kind | effect | | -- -- -- -- -- -| -- -- -- --|
+        -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --|
+        | `gpg` | granted | sign,
+    encrypt, decrypt, verify, keys, key lists,
+    result analysis | | `pgp` | granted | packet - structure inspection,
+    no keyring or engine | | `ui` | granted | a UI script, commands,
+    theme colours by role | | `ui.custom` | granted |
+        adds native widgets mounted by the script; requires `ui`         |
 | `editor`    | granted  | reading the document the user currently has open                 |
 | `storage`   | granted  | application settings, the caches, the runtime register table     |
 | `process`   | granted  | running an external program                                      |
@@ -168,13 +172,16 @@ commands are offered and when they are enabled.
 ```cpp
 // MyModule.cpp
 #include <GFModule.h>
+
 #include <GFSDKHostCommands.hpp>  // the Host's own commands: AppMessage, ...
+
 #include "GFModuleIdentity.h"  // generated from module.json by gf_add_module()
+#include "GFModuleTr.h"        // GTrC: this module's translation context
 
 struct ShowAbout {
-  static constexpr gf::cmd::Meta kMeta{GF_MODULE_ID ".show_about",
-                                       GC_TR("About My Module"), "", "", 0,
-                                       gf::cmd::kNeedsGuiThread};
+  static constexpr gf::cmd::Meta kMeta{
+      GF_MODULE_ID ".show_about", GTrC::Noop("About My Module"), "", "",
+      0, gf::cmd::kNeedsGuiThread};
   using Args = gf::cmd::Unit;
   using Result = gf::cmd::Unit;
 };
@@ -183,8 +190,7 @@ auto DoShowAbout(const gf::cmd::CommandContext&, const gf::cmd::Unit&)
     -> gf::cmd::Outcome<gf::cmd::Unit> {
   Commands().Invoke<gf::cmd::host::AppMessage>(
       {gf::cmd::host::AppMessage::Severity::kInfo,
-       QCoreApplication::translate("GTrC", "About My Module"),
-       QCoreApplication::translate("GTrC", "Hello.")});
+       GTrC::tr("About My Module"), GTrC::tr("Hello.")});
   return gf::cmd::Outcome<gf::cmd::Unit>::Success({});
 }
 
@@ -198,10 +204,16 @@ const std::array<gf::cmd::Binding, 1> kCommands = {
 
 const GFModuleHooks kHooks = {
     sizeof(GFModuleHooks),
-    GF_MODULE_ID, GF_MODULE_VERSION, GF_MODULE_TRANSLATION_CONTEXT,
-    &OnActivate, nullptr, nullptr,
-    nullptr, 0,                          // events it handles
-    kCommands.data(), kCommands.size(),  // commands it provides
+    GF_MODULE_ID,
+    GF_MODULE_VERSION,
+    GF_MODULE_TRANSLATION_CONTEXT,
+    &OnActivate,
+    nullptr,
+    nullptr,
+    nullptr,
+    0,  // events it handles
+    kCommands.data(),
+    kCommands.size(),  // commands it provides
 };
 
 extern "C" GF_MODULE_EXPORT auto GFModuleGetApi(uint32_t abi)
@@ -210,13 +222,14 @@ extern "C" GF_MODULE_EXPORT auto GFModuleGetApi(uint32_t abi)
 }
 ```
 
-```lua
--- ui/main.lua: where the command is offered. No user-visible text here.
-local about = commands.get("com.example.my_module.show_about")
-ui.action { id = "about", anchor = ui.anchor("main.menu.help"), command = about }
+```lua-- ui / main.lua : where the command is offered.No user -
+    visible text here.local about =
+    commands.get("com.example.my_module.show_about") ui.action {
+  id = "about", anchor = ui.anchor("main.menu.help"), command = about
+}
 ```
 
-Every hook in `GFModuleHooks` is optional; pass `nullptr` for one you have
+    Every hook in `GFModuleHooks` is optional; pass `nullptr` for one you have
 nothing to say about. The runtime registers the commands before
 `on_activate` and loads the script after it. At deactivation the host
 withdraws everything the module registered -- commands, widgets, script,
@@ -241,8 +254,8 @@ gf_add_module(
   NAME   my_module
   QT     Core Widgets
   LUA_SCRIPTS ui/main.lua   # embedded, signed with the module, loaded by the host
-  # UI_DIR ui              # if you have a Qt Designer forms directory
-  # LINK   some_target      # extra libraries, if any
+#UI_DIR ui #if you have a Qt Designer forms directory
+#LINK some_target #extra libraries, if any
 )
 ```
 
@@ -260,7 +273,7 @@ identity header, wires up translations for every locale in
 for a real, small example. `RESOURCES` adds Qt resource files and
 `INCLUDE_DIRS` extra include directories.
 
-After adding or changing `tr()`/`GC_TR()` strings, run
+After adding or changing `GTrC::tr()`/`GTrC::Noop()` strings, run
 [`scripts/update_translations.sh`](../scripts/update_translations.sh) to sync
 every locale's `.ts` file — it creates any that are missing, so you never
 hand-author them.
@@ -296,7 +309,7 @@ in `src/sdk/api/` — not a link line.
 
 ```cpp
 auto OnSomething(const GFEvent& e) -> GFEventResult {
-  auto* ctx = e.Context();                       // from the event
+  auto* ctx = e.Context();  // from the event
   auto keys = gf::sdk::ExportKey(ctx, channel, key_id, true);
   LOG_I() << "exported" << keys.size() << "bytes";
   return GFEventResult::Ok();
@@ -323,17 +336,18 @@ LOG_W() << "open" << path << "failed:" << file.errorString();
 LOG_T() << "option line:" << line << "fields:" << fields.size();
 ```
 
-It takes no format string, so there is no placeholder to get wrong and no
-arity to mismatch, and it prints anything QDebug can — enums, `bool`,
-`QByteArray`, containers. It is spelled exactly like the host's own
-`LOG_W() << ...`, and — like every other module-side call — needs no explicit
-context: it reads `GFModuleSdkContext()` internally.
+    It takes no format string,
+    so there is no placeholder to get wrong and no arity to mismatch,
+    and it prints anything QDebug can — enums, `bool`,
+`QByteArray`, containers.It is spelled exactly like the host's own
+`LOG_W() << ...`,
+    and — like every other module - side call — needs no explicit context
+    : it reads `GFModuleSdkContext()` internally.
 
-The older forms remain:
+      The older forms remain :
 
-```cpp
-LOG_INFO("started");                          // one fixed string
-FLOG_INFO("started with %1 accounts", count); // Qt placeholders, NOT printf
+```cpp LOG_INFO("started");                   // one fixed string
+FLOG_INFO("started with %1 accounts", count);  // Qt placeholders, NOT printf
 ```
 
 `FLOG_*` uses `QString::arg`, so `%1`/`%2` — a printf `%d` prints itself, and
@@ -369,21 +383,22 @@ hands over _whole_ — `GFModuleEvent`, `GFModuleEventParam`,
 `GFCommandExecuteContext` and the like — whose `char*` members still have to
 be allocated with `GFMemStrDup` (`DUP(...)`), because ownership of the
 whole struct is what transfers. `UDUP` takes a `char*` the SDK handed you;
-it does not accept a `QByteArray` or `QString` -- those are already owned,
-and freeing their storage through the SDK corrupts the heap, so the call does
-not compile.
+it does not accept a `QByteArray` or `QString` --those are already owned,
+    and freeing their storage through the SDK corrupts the heap,
+    so the call does not compile.
 
-```cpp
-DUP("hello")      // char* owned by the callee — only for a transferred struct field
-SECDUP("secret")  // same, from the wiping allocator, for a secret
-UDUP(ptr)         // consume an owned char* return value, get a QString
-USECDUP(ptr)      // same as UDUP, but frees with the wiping allocator
+```cpp DUP("hello")  // char* owned by the callee — only for a transferred
+                      // struct field
+    SECDUP("secret")  // same, from the wiping allocator, for a secret
+    UDUP(ptr)         // consume an owned char* return value, get a QString
+    USECDUP(ptr)      // same as UDUP, but frees with the wiping allocator
 ```
 
-### Events
+    ## #Events
 
-Bind event ids to handlers in a static `GFEventBinding[]` table (see step 3
-above) — there is no separate subscribe call, and the set must match
+    Bind event ids to handlers in a static `GFEventBinding[]` table(
+        see step 3 above) — there is no separate subscribe call,
+    and the set must match
 `module.json`'s `events` array exactly. Every handler returns a
 `GFEventResult`; the runtime does the transport, so there is nothing to
 answer manually on the common path.
@@ -438,6 +453,18 @@ bool ready = gf::sdk::StateBool(ctx, GFModuleId(), "ready", /*fallback=*/false);
 gf::sdk::SetStateText(ctx, GFModuleId(), "last_error", message);
 QString v = gf::sdk::StateText(ctx, GFModuleId(), "last_error");
 ```
+
+The host publishes into `core` by itself: which engines are usable, every
+module's lifecycle state, every registered command, and usage counters for
+events, commands and OpenPGP operations. Those counters and flags are
+integers, which a module reads (never writes) with `gf::sdk::StateInt`:
+
+```cpp
+bool gnupg = gf::sdk::StateBool(ctx, "core", "engine.gnupg.supported");
+qint64 runs = gf::sdk::StateInt(ctx, "core", "stats.operations.op_encrypt.run");
+```
+
+The full key list is in the [SDK README](../src/sdk/README.md#storage).
 
 ### Cache
 
@@ -497,7 +524,7 @@ widget protocols) is in [`src/sdk/README.md`](../src/sdk/README.md#ui-integratio
 In short:
 
 - **Commands** (`ui`) are the semantic layer. A command has a title, a
-  description and a category, all `GC_TR` strings, and typed arguments.
+  description and a category, all `GTrC::Noop` strings, and typed arguments.
   Invoke one with `Commands().Invoke<C>(args)`, the host's included
   (`gf::cmd::host`, in `GFSDKHostCommands.hpp`).
 - **The UI script** (`ui`) places commands on anchors with `ui.action`, and
@@ -510,19 +537,21 @@ In short:
 ```cpp
 auto OnActivate() -> GFResult {
   gf::ui::RegisterNativeWidget<MySettingsPage>(
-      "settings", {GC_TR("My Module"), GC_TR("proxy,timeout")},
+      "settings", {GTrC::Noop("My Module"), GTrC::Noop("proxy,timeout")},
       [](const QCborMap&) { return new MySettingsPage(); });
   return GFResult::Ok();
 }
 ```
 
 ```lua
-ui.mount { id = "settings", anchor = ui.anchor.settings { section = "features" },
-           widget = native.widget("settings") }
+ui.mount {
+  id = "settings", anchor = ui.anchor.settings{section = "features"},
+  widget = native.widget("settings") }
 ```
 
-Register titles and keywords untranslated, with `GC_TR(...)`: the host
-translates them when it shows them, so they follow a language change.
+Register titles and keywords untranslated, with `GTrC::Noop(...)`: the host
+translates them when it shows them, in your module's context, so they follow a
+language change.
 Settings sections are `application`, `keys_engines`, `features` and `system`.
 
 #### Migrating from the object-based UI API
@@ -534,8 +563,9 @@ refuses (and logs the replacement once). One example per pattern:
 menu, `addAction`. After: a command, placed by the script.
 
 ```lua
-ui.action { id = "check", anchor = ui.anchor("main.menu.help"),
-            command = commands.get("com.example.my_module.check") }
+ui.action {
+  id = "check", anchor = ui.anchor("main.menu.help"),
+  command = commands.get("com.example.my_module.check") }
 ```
 
 **A key details button.** Before: handle `KEY_PAIR_OPERA_MENU_CREATED`. After:
@@ -543,12 +573,13 @@ the `key.details.actions` anchor; the host groups buttons by command category
 and passes the key.
 
 ```lua
-ui.action { id = "publish", anchor = ui.anchor("key.details.actions"),
-            command = publish,
-            update = function(ctx)
-              if not ctx.key then return { visible = false } end
-              return { args = { key = ctx.key } }
-            end }
+ui.action {
+  id = "publish", anchor = ui.anchor("key.details.actions"), command = publish,
+  update =
+      function(ctx) if not ctx.key then return {visible = false} end return {
+    args = { key = ctx.key }
+  }
+  end }
 ```
 
 **An action on selected keys.** The `key.list.context` anchor adds an entry
@@ -558,12 +589,14 @@ selected ones. `ctx.key` is set too when there is exactly one. The command decla
 `std::optional<QList<gf::cmd::KeyRef>> keys`.
 
 ```lua
-ui.action { id = "refresh_selected", anchor = ui.anchor("key.list.context"),
-            command = refresh,
-            update = function(ctx)
-              if #ctx.keys == 0 then return { visible = false } end
-              return { args = { keys = ctx.keys } }
-            end }
+ui.action {
+  id = "refresh_selected", anchor = ui.anchor("key.list.context"),
+  command = refresh,
+  update =
+      function(ctx) if #ctx.keys == 0 then return {visible = false} end return {
+    args = { keys = ctx.keys }
+  }
+  end }
 ```
 
 **A shortcut.** An action on a `main.menu.*` anchor may set `shortcut =
@@ -575,8 +608,9 @@ parent)`. After: a `DialogWidget`, a dialog mount, and the host command
 `org.gpgfrontend.view.open`, which accepts only your own mounts.
 
 ```lua
-local inspector = ui.mount { id = "inspector", anchor = ui.anchor.dialog {},
-                             widget = native.widget("inspector") }
+local inspector = ui.mount {
+  id = "inspector", anchor = ui.anchor.dialog{},
+  widget = native.widget("inspector") }
 ```
 
 **A settings page, or widgets injected into the Network tab.** Before:
@@ -604,7 +638,8 @@ In Lua, `state.get` / `state.set` read and write the same group.
 `register_file_extension` with its `FILE_EXT_*` events, and an
 `EDIT_TAB_TYPE_*_OP_SAVE_FILE` handler. After: a `DocumentWidget`
 registered with `RegisterNativeWidgetFactory`, mounted on
-`ui.anchor.editor { document_type = ..., extensions = { ... } }`. The host
+`ui.anchor.editor {
+  document_type = ..., extensions = {... } }`. The host
 opens those files, and saves through your `Save` and `PrepareSave`.
 
 **Showing the raw source.** Before: `AdoptSourceView(QWidget*)` took the
@@ -634,17 +669,25 @@ Things the sections above do not show, each documented in its header:
 
 ### Translations
 
-Wrap strings with `QCoreApplication::translate("GTrC", "...")` (or `GC_TR`
-for a string that must stay untranslated until later, such as a command
-title). `GTrC` is a single, fixed translation
-context declared by `GFModule.h`; it is unrelated to a module's own
-`translation_context` field in `module.json`, which only names the `.qm`
-file. There is nothing left to register: `gf_module_runtime` hands the host
-the module's translator during activation, before any event subscription and
+Include the generated `GFModuleTr.h` and wrap strings with `GTrC::tr("...")`,
+or with `GTrC::Noop("...")` for a string that must stay untranslated until
+later, such as a command title or a native widget's title. `GTrC` is declared
+by `gf_add_module()` in your module's own translation context, the
+`translation_context` from `module.json`, so every module's strings live in a
+context of their own and never collide with another module's. The host
+translates `GTrC::Noop` text in the context of the module that registered it.
+
+Always spell it `GTrC::tr` / `GTrC::Noop`. lupdate does not expand macros or
+see through helpers: a local `Tr()` wrapper, a `#define`, or
+`QCoreApplication::translate` with a context other than the literal
+`translation_context` is silently left out of the `.ts` files.
+
+There is nothing left to register: `gf_module_runtime` hands the host the
+module's translator during activation, before any event subscription and
 before `OnActivate()` runs, and the host installs it on the GUI thread. It is
 in place by the time anything the module mounts is shown -- but not
-necessarily while `OnActivate()` itself runs, so translate there with
-`GC_TR` and let the host translate later.
+necessarily while `OnActivate()` itself runs, so mark text there with
+`GTrC::Noop` and let the host translate later.
 
 `.ts` files go in `ts/<translation_context>.<locale>.ts` and are embedded as
 Qt resources under `:/i18n/`. The locale set is not chosen per module — it
