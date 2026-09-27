@@ -298,12 +298,12 @@ Trotzdem auf %1 veröffentlichen?</translation>
     <message>
         <location filename="../KeyServerSyncModule.cpp" line="349"/>
         <source>Key Servers</source>
-        <translation type="unfinished"></translation>
+        <translation>Schlüsselserver</translation>
     </message>
     <message>
         <location filename="../KeyServerSyncModule.cpp" line="350"/>
         <source>keyserver,key server,hkp,vks,publish,search</source>
-        <translation type="unfinished"></translation>
+        <translation>keyserver,key server,hkp,vks,publish,search,Schlüsselserver,veröffentlichen,suchen</translation>
     </message>
     <message>
         <location filename="../KeyServerSyncModule.cpp" line="397"/>
@@ -329,22 +329,22 @@ Fehler: %2</translation>
     <message>
         <location filename="../KeyServerSyncModule.cpp" line="520"/>
         <source>Upload the public key to the key server used for syncing</source>
-        <translation type="unfinished"></translation>
+        <translation>Den öffentlichen Schlüssel auf den für die Synchronisierung verwendeten Schlüsselserver hochladen</translation>
     </message>
     <message>
         <location filename="../KeyServerSyncModule.cpp" line="532"/>
         <source>Import the latest copy of the public key from the key server</source>
-        <translation type="unfinished"></translation>
+        <translation>Die neueste Kopie des öffentlichen Schlüssels vom Schlüsselserver importieren</translation>
     </message>
     <message>
         <location filename="../KeyServerSyncModule.cpp" line="544"/>
         <source>Check Publication Status</source>
-        <translation type="unfinished"></translation>
+        <translation>Veröffentlichungsstatus prüfen</translation>
     </message>
     <message>
         <location filename="../KeyServerSyncModule.cpp" line="545"/>
         <source>Ask the key server whether it has this public key</source>
-        <translation type="unfinished"></translation>
+        <translation>Den Schlüsselserver fragen, ob er diesen öffentlichen Schlüssel hat</translation>
     </message>
     <message>
         <location filename="../KeyServerSyncModule.cpp" line="614"/>

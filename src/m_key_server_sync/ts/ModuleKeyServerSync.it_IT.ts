@@ -298,12 +298,12 @@ Pubblicare su %1 comunque?</translation>
     <message>
         <location filename="../KeyServerSyncModule.cpp" line="349"/>
         <source>Key Servers</source>
-        <translation type="unfinished"></translation>
+        <translation>Server delle chiavi</translation>
     </message>
     <message>
         <location filename="../KeyServerSyncModule.cpp" line="350"/>
         <source>keyserver,key server,hkp,vks,publish,search</source>
-        <translation type="unfinished"></translation>
+        <translation>keyserver,key server,hkp,vks,publish,search,server delle chiavi,pubblica,cerca</translation>
     </message>
     <message>
         <location filename="../KeyServerSyncModule.cpp" line="397"/>
@@ -329,22 +329,22 @@ Errore: %2</translation>
     <message>
         <location filename="../KeyServerSyncModule.cpp" line="520"/>
         <source>Upload the public key to the key server used for syncing</source>
-        <translation type="unfinished"></translation>
+        <translation>Carica la chiave pubblica sul server delle chiavi usato per la sincronizzazione</translation>
     </message>
     <message>
         <location filename="../KeyServerSyncModule.cpp" line="532"/>
         <source>Import the latest copy of the public key from the key server</source>
-        <translation type="unfinished"></translation>
+        <translation>Importa la copia più recente della chiave pubblica dal server delle chiavi</translation>
     </message>
     <message>
         <location filename="../KeyServerSyncModule.cpp" line="544"/>
         <source>Check Publication Status</source>
-        <translation type="unfinished"></translation>
+        <translation>Verifica stato di pubblicazione</translation>
     </message>
     <message>
         <location filename="../KeyServerSyncModule.cpp" line="545"/>
         <source>Ask the key server whether it has this public key</source>
-        <translation type="unfinished"></translation>
+        <translation>Chiedi al server delle chiavi se ha questa chiave pubblica</translation>
     </message>
     <message>
         <location filename="../KeyServerSyncModule.cpp" line="614"/>

@@ -298,12 +298,12 @@ El servidor no confirmará su dirección de correo electrónico y la carga no se
     <message>
         <location filename="../KeyServerSyncModule.cpp" line="349"/>
         <source>Key Servers</source>
-        <translation type="unfinished"></translation>
+        <translation>Servidores de claves</translation>
     </message>
     <message>
         <location filename="../KeyServerSyncModule.cpp" line="350"/>
         <source>keyserver,key server,hkp,vks,publish,search</source>
-        <translation type="unfinished"></translation>
+        <translation>keyserver,key server,hkp,vks,publish,search,servidor de claves,publicar,buscar</translation>
     </message>
     <message>
         <location filename="../KeyServerSyncModule.cpp" line="397"/>
@@ -329,22 +329,22 @@ Error: %2</translation>
     <message>
         <location filename="../KeyServerSyncModule.cpp" line="520"/>
         <source>Upload the public key to the key server used for syncing</source>
-        <translation type="unfinished"></translation>
+        <translation>Subir la clave pública al servidor de claves usado para la sincronización</translation>
     </message>
     <message>
         <location filename="../KeyServerSyncModule.cpp" line="532"/>
         <source>Import the latest copy of the public key from the key server</source>
-        <translation type="unfinished"></translation>
+        <translation>Importar la copia más reciente de la clave pública desde el servidor de claves</translation>
     </message>
     <message>
         <location filename="../KeyServerSyncModule.cpp" line="544"/>
         <source>Check Publication Status</source>
-        <translation type="unfinished"></translation>
+        <translation>Comprobar estado de publicación</translation>
     </message>
     <message>
         <location filename="../KeyServerSyncModule.cpp" line="545"/>
         <source>Ask the key server whether it has this public key</source>
-        <translation type="unfinished"></translation>
+        <translation>Preguntar al servidor de claves si tiene esta clave pública</translation>
     </message>
     <message>
         <location filename="../KeyServerSyncModule.cpp" line="614"/>

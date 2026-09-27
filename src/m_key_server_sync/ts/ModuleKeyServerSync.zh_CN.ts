@@ -298,12 +298,12 @@ Publish to %1 anyway?</source>
     <message>
         <location filename="../KeyServerSyncModule.cpp" line="349"/>
         <source>Key Servers</source>
-        <translation type="unfinished"></translation>
+        <translation>密钥服务器</translation>
     </message>
     <message>
         <location filename="../KeyServerSyncModule.cpp" line="350"/>
         <source>keyserver,key server,hkp,vks,publish,search</source>
-        <translation type="unfinished"></translation>
+        <translation>keyserver,key server,hkp,vks,publish,search,密钥服务器,发布,搜索</translation>
     </message>
     <message>
         <location filename="../KeyServerSyncModule.cpp" line="397"/>
@@ -329,22 +329,22 @@ Error: %2</source>
     <message>
         <location filename="../KeyServerSyncModule.cpp" line="520"/>
         <source>Upload the public key to the key server used for syncing</source>
-        <translation type="unfinished"></translation>
+        <translation>将公钥上传到用于同步的密钥服务器</translation>
     </message>
     <message>
         <location filename="../KeyServerSyncModule.cpp" line="532"/>
         <source>Import the latest copy of the public key from the key server</source>
-        <translation type="unfinished"></translation>
+        <translation>从密钥服务器导入该公钥的最新副本</translation>
     </message>
     <message>
         <location filename="../KeyServerSyncModule.cpp" line="544"/>
         <source>Check Publication Status</source>
-        <translation type="unfinished"></translation>
+        <translation>检查发布状态</translation>
     </message>
     <message>
         <location filename="../KeyServerSyncModule.cpp" line="545"/>
         <source>Ask the key server whether it has this public key</source>
-        <translation type="unfinished"></translation>
+        <translation>询问密钥服务器是否存有此公钥</translation>
     </message>
     <message>
         <location filename="../KeyServerSyncModule.cpp" line="614"/>

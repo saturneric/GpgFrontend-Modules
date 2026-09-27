@@ -234,12 +234,12 @@ Opublikować na %1 mimo to?</translation>
     <message>
         <location filename="../KeyServerSyncModule.cpp" line="349"/>
         <source>Key Servers</source>
-        <translation type="unfinished"></translation>
+        <translation>Serwery kluczy</translation>
     </message>
     <message>
         <location filename="../KeyServerSyncModule.cpp" line="350"/>
         <source>keyserver,key server,hkp,vks,publish,search</source>
-        <translation type="unfinished"></translation>
+        <translation>keyserver,key server,hkp,vks,publish,search,serwer kluczy,publikuj,szukaj</translation>
     </message>
     <message>
         <location filename="../KeyServerSyncModule.cpp" line="365"/>
@@ -320,22 +320,22 @@ Błąd: %2</translation>
     <message>
         <location filename="../KeyServerSyncModule.cpp" line="520"/>
         <source>Upload the public key to the key server used for syncing</source>
-        <translation type="unfinished"></translation>
+        <translation>Wyślij klucz publiczny na serwer kluczy używany do synchronizacji</translation>
     </message>
     <message>
         <location filename="../KeyServerSyncModule.cpp" line="532"/>
         <source>Import the latest copy of the public key from the key server</source>
-        <translation type="unfinished"></translation>
+        <translation>Zaimportuj najnowszą kopię klucza publicznego z serwera kluczy</translation>
     </message>
     <message>
         <location filename="../KeyServerSyncModule.cpp" line="544"/>
         <source>Check Publication Status</source>
-        <translation type="unfinished"></translation>
+        <translation>Sprawdź stan publikacji</translation>
     </message>
     <message>
         <location filename="../KeyServerSyncModule.cpp" line="545"/>
         <source>Ask the key server whether it has this public key</source>
-        <translation type="unfinished"></translation>
+        <translation>Zapytaj serwer kluczy, czy ma ten klucz publiczny</translation>
     </message>
     <message>
         <location filename="../KeyServerSyncModule.cpp" line="614"/>
