@@ -776,7 +776,7 @@ Use Refresh to try again.</source>
 <context>
     <name>EMailModule</name>
     <message>
-        <location filename="../EMailModule.cpp" line="537"/>
+        <location filename="../EMailModule.cpp" line="538"/>
         <source># EML Data Error
 
 The provided EML data does not conform to RFC 3156 standards and cannot be processed.
@@ -807,7 +807,7 @@ EML 是一種用於表示電子郵件訊息的檔案格式，通常包含標頭�
 修正 EML 資料後，請再次嘗試操作。</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="562"/>
+        <location filename="../EMailModule.cpp" line="563"/>
         <source># Email Operation Error
 
 An error occurred during the email operation. The process could not be completed.
@@ -850,60 +850,60 @@ If the issue persists, consider seeking technical support or consulting the docu
 若問題持續發生，請尋求技術支援或查閱文件。</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="104"/>
-        <location filename="../EMailModule.cpp" line="803"/>
-        <location filename="../EMailModule.cpp" line="947"/>
-        <location filename="../EMailModule.cpp" line="1607"/>
+        <location filename="../EMailModule.cpp" line="105"/>
+        <location filename="../EMailModule.cpp" line="804"/>
+        <location filename="../EMailModule.cpp" line="948"/>
+        <location filename="../EMailModule.cpp" line="1608"/>
         <source>From</source>
         <translation>寄件者</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="103"/>
+        <location filename="../EMailModule.cpp" line="104"/>
         <source>E-Mail</source>
         <translation>電子郵件</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="105"/>
-        <location filename="../EMailModule.cpp" line="806"/>
-        <location filename="../EMailModule.cpp" line="950"/>
-        <location filename="../EMailModule.cpp" line="1610"/>
+        <location filename="../EMailModule.cpp" line="106"/>
+        <location filename="../EMailModule.cpp" line="807"/>
+        <location filename="../EMailModule.cpp" line="951"/>
+        <location filename="../EMailModule.cpp" line="1611"/>
         <source>To</source>
         <translation>收件者</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="106"/>
-        <location filename="../EMailModule.cpp" line="809"/>
-        <location filename="../EMailModule.cpp" line="953"/>
-        <location filename="../EMailModule.cpp" line="1613"/>
+        <location filename="../EMailModule.cpp" line="107"/>
+        <location filename="../EMailModule.cpp" line="810"/>
+        <location filename="../EMailModule.cpp" line="954"/>
+        <location filename="../EMailModule.cpp" line="1614"/>
         <source>Subject</source>
         <translation>主旨</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="107"/>
-        <location filename="../EMailModule.cpp" line="812"/>
-        <location filename="../EMailModule.cpp" line="956"/>
-        <location filename="../EMailModule.cpp" line="1616"/>
+        <location filename="../EMailModule.cpp" line="108"/>
+        <location filename="../EMailModule.cpp" line="813"/>
+        <location filename="../EMailModule.cpp" line="957"/>
+        <location filename="../EMailModule.cpp" line="1617"/>
         <source>CC</source>
         <translation>副本</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="108"/>
-        <location filename="../EMailModule.cpp" line="815"/>
-        <location filename="../EMailModule.cpp" line="959"/>
-        <location filename="../EMailModule.cpp" line="1619"/>
+        <location filename="../EMailModule.cpp" line="109"/>
+        <location filename="../EMailModule.cpp" line="816"/>
+        <location filename="../EMailModule.cpp" line="960"/>
+        <location filename="../EMailModule.cpp" line="1620"/>
         <source>BCC</source>
         <translation>密件副本</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="109"/>
-        <location filename="../EMailModule.cpp" line="818"/>
-        <location filename="../EMailModule.cpp" line="962"/>
-        <location filename="../EMailModule.cpp" line="1622"/>
+        <location filename="../EMailModule.cpp" line="110"/>
+        <location filename="../EMailModule.cpp" line="819"/>
+        <location filename="../EMailModule.cpp" line="963"/>
+        <location filename="../EMailModule.cpp" line="1623"/>
         <source>Date</source>
         <translation>日期</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="116"/>
+        <location filename="../EMailModule.cpp" line="117"/>
         <source>OpenPGP</source>
         <translation>OpenPGP</translation>
     </message>
@@ -916,41 +916,41 @@ If the issue persists, consider seeking technical support or consulting the docu
         <translation type="vanished">訊息完整性檢查演算法</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="120"/>
-        <location filename="../EMailModule.cpp" line="827"/>
-        <location filename="../EMailModule.cpp" line="1641"/>
+        <location filename="../EMailModule.cpp" line="121"/>
+        <location filename="../EMailModule.cpp" line="828"/>
+        <location filename="../EMailModule.cpp" line="1642"/>
         <source>Digest of Signed MIME Entity (SHA-256)</source>
         <translation>已簽署 MIME 實體摘要 (SHA-256)</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="123"/>
-        <location filename="../EMailModule.cpp" line="831"/>
-        <location filename="../EMailModule.cpp" line="1646"/>
+        <location filename="../EMailModule.cpp" line="124"/>
+        <location filename="../EMailModule.cpp" line="832"/>
+        <location filename="../EMailModule.cpp" line="1647"/>
         <source>Declared Signature Hash (micalg)</source>
         <translation>宣告的簽章雜湊值 (micalg)</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="159"/>
+        <location filename="../EMailModule.cpp" line="160"/>
         <source>Attachments</source>
         <translation>附件</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="228"/>
+        <location filename="../EMailModule.cpp" line="229"/>
         <source>Encryption Recipient</source>
         <translation>加密收件者</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="229"/>
+        <location filename="../EMailModule.cpp" line="230"/>
         <source>Recipient</source>
         <translation>收件者</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="230"/>
+        <location filename="../EMailModule.cpp" line="231"/>
         <source>Key ID</source>
         <translation>金鑰 ID</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="284"/>
+        <location filename="../EMailModule.cpp" line="285"/>
         <source>encrypted to</source>
         <translation>加密至</translation>
     </message>
@@ -959,7 +959,7 @@ If the issue persists, consider seeking technical support or consulting the docu
         <translation type="vanished">加密至（不在標頭中）</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="304"/>
+        <location filename="../EMailModule.cpp" line="305"/>
         <source>Hidden recipient</source>
         <translation>隱藏收件者</translation>
     </message>
@@ -968,118 +968,118 @@ If the issue persists, consider seeking technical support or consulting the docu
         <translation type="vanished">寄件者未提供此金鑰 ID</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="313"/>
+        <location filename="../EMailModule.cpp" line="314"/>
         <source>Recipient Check</source>
         <translation>收件者檢查</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="362"/>
+        <location filename="../EMailModule.cpp" line="363"/>
         <source>DETAILS</source>
         <translation>詳細資料</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="363"/>
+        <location filename="../EMailModule.cpp" line="364"/>
         <source>Decrypt</source>
         <translation>解密</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="365"/>
+        <location filename="../EMailModule.cpp" line="366"/>
         <source>RECIPIENT</source>
         <translation>收件者</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="367"/>
+        <location filename="../EMailModule.cpp" line="368"/>
         <source>Sign</source>
         <translation>簽署</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="370"/>
+        <location filename="../EMailModule.cpp" line="371"/>
         <source>Verify</source>
         <translation>驗證</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="372"/>
+        <location filename="../EMailModule.cpp" line="373"/>
         <source>SIGNER</source>
         <translation>簽署者</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="509"/>
+        <location filename="../EMailModule.cpp" line="510"/>
         <source>Check before exporting</source>
         <translation>匯出前檢查</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="510"/>
+        <location filename="../EMailModule.cpp" line="511"/>
         <source>Something about this message is worth checking before you save it.</source>
         <translation>此訊息在儲存前有值得檢查的內容。</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="694"/>
+        <location filename="../EMailModule.cpp" line="695"/>
         <source> The bytes the signature covers were rewritten after it was made: their line endings are no longer CRLF. This is usually caused by a program that changed them while saving or copying the message. Checking the signature requires the original bytes.</source>
         <translation>簽章所涵蓋的位元組在簽章建立後遭到改寫：其行結尾不再是 CRLF。這通常是由程式在儲存或複製訊息時變更行結尾所致。檢查簽章需要原始位元組。</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="705"/>
+        <location filename="../EMailModule.cpp" line="706"/>
         <source>The signature is valid, and the key that made it speaks for the address this message says it is from.</source>
         <translation>簽章有效，且產生簽章的金鑰為此訊息所聲稱的寄件地址背書。</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="711"/>
+        <location filename="../EMailModule.cpp" line="712"/>
         <source>The signature itself is valid, but the key that made it does not speak for the address this message says it is from. That is what a signature moved from another message looks like, so it is worth checking who the signer is before trusting the contents.</source>
         <translation>簽章本身有效，但產生簽章的金鑰並不為此訊息所聲稱的寄件地址背書。這看起來就像從另一則訊息搬移過來的簽章，因此在信任內容之前，值得先檢查簽署者是誰。</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="719"/>
+        <location filename="../EMailModule.cpp" line="720"/>
         <source>The key that made this signature is not in your keyring, so nothing here can say whether the signature is genuine. Import the sender&apos;s key and verify again.</source>
         <translation>產生此簽章的金鑰不在您的金鑰環中，因此這裡無法判斷簽章是否真實。請匯入寄件者的金鑰並重新驗證。</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="726"/>
+        <location filename="../EMailModule.cpp" line="727"/>
         <source>The signature was made with a key that has expired, or the signature itself has. It may still be genuine; what cannot be confirmed is that the key was valid at the time it was used.</source>
         <translation>此簽章是由已過期的金鑰所產生，或簽章本身已過期。它仍可能是真實的；無法確認的是金鑰在使用時是否有效。</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="733"/>
+        <location filename="../EMailModule.cpp" line="734"/>
         <source>The signature does not match the bytes it covers. Either the message was changed after it was signed, or the signature was not made for this message.</source>
         <translation>簽章與其所涵蓋的位元組不符。可能是訊息在簽署後遭到變更，或此簽章並非為這則訊息所產生。</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="741"/>
+        <location filename="../EMailModule.cpp" line="742"/>
         <source>The check could not be completed, so nothing is known about this signature either way. This is not a statement that the signature is bad.</source>
         <translation>檢查無法完成，因此對這個簽章的好壞一無所知。這並非表示簽章無效。</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="749"/>
+        <location filename="../EMailModule.cpp" line="750"/>
         <source>This message claims to carry an OpenPGP signature, but its structure does not hold up well enough to check one.</source>
         <translation>此訊息聲稱帶有 OpenPGP 簽章，但其結構不足以進行檢查。</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="755"/>
+        <location filename="../EMailModule.cpp" line="756"/>
         <source>The signatures in this message cover the encrypted data rather than the content you read. They confirm who encrypted the message, but say nothing about who wrote what is inside it.</source>
         <translation>此訊息中的簽章涵蓋的是加密資料，而非您所閱讀的內容。它們只能確認誰加密了訊息，但無法說明內部內容的作者是誰。</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="766"/>
+        <location filename="../EMailModule.cpp" line="767"/>
         <source>There was no signature in this message to check.</source>
         <translation>此訊息中沒有可供檢查的簽章。</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="839"/>
-        <location filename="../EMailModule.cpp" line="1655"/>
+        <location filename="../EMailModule.cpp" line="840"/>
+        <location filename="../EMailModule.cpp" line="1656"/>
         <source>**Note**: the signed part is not in canonical form, because its line endings are not CRLF. Something rewrote this message after it was signed, which is usually a program that changed line endings while saving or copying it. A signature cannot verify against these bytes, and importing the sender&apos;s key will not change that.</source>
         <translation>**注意**：簽署的部分並非規範形式，因為其行結尾不是 CRLF。此訊息在簽署後曾被重寫，通常是某個程式在儲存或複製時變更了行結尾。簽章無法針對這些位元組進行驗證，匯入寄件者的金鑰也不會改變這一點。</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="855"/>
+        <location filename="../EMailModule.cpp" line="856"/>
         <source>Verify E-Mail</source>
         <translation>驗證電子郵件</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="149"/>
+        <location filename="../EMailModule.cpp" line="150"/>
         <source>, an OpenPGP key</source>
         <translation>，一個 OpenPGP 金鑰</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="152"/>
+        <location filename="../EMailModule.cpp" line="153"/>
         <source>, not covered by the signature</source>
         <translation>，未受簽章涵蓋</translation>
     </message>
@@ -1088,50 +1088,50 @@ If the issue persists, consider seeking technical support or consulting the docu
         <translation type="vanished">在 %1 中，但未加密給它：無法讀取</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="906"/>
-        <location filename="../EMailModule.cpp" line="976"/>
+        <location filename="../EMailModule.cpp" line="907"/>
+        <location filename="../EMailModule.cpp" line="977"/>
         <source>Decrypt E-Mail</source>
         <translation>解密電子郵件</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1032"/>
-        <location filename="../EMailModule.cpp" line="1085"/>
-        <location filename="../EMailModule.cpp" line="1136"/>
-        <location filename="../EMailModule.cpp" line="1161"/>
+        <location filename="../EMailModule.cpp" line="1033"/>
+        <location filename="../EMailModule.cpp" line="1086"/>
+        <location filename="../EMailModule.cpp" line="1137"/>
+        <location filename="../EMailModule.cpp" line="1162"/>
         <source>Sign E-Mail</source>
         <translation>簽署電子郵件</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1206"/>
-        <location filename="../EMailModule.cpp" line="1263"/>
-        <location filename="../EMailModule.cpp" line="1306"/>
-        <location filename="../EMailModule.cpp" line="1331"/>
+        <location filename="../EMailModule.cpp" line="1207"/>
+        <location filename="../EMailModule.cpp" line="1264"/>
+        <location filename="../EMailModule.cpp" line="1307"/>
+        <location filename="../EMailModule.cpp" line="1332"/>
         <source>Encrypt E-Mail</source>
         <translation>加密電子郵件</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1475"/>
-        <location filename="../EMailModule.cpp" line="1504"/>
+        <location filename="../EMailModule.cpp" line="1476"/>
+        <location filename="../EMailModule.cpp" line="1505"/>
         <source>Encrypt and Sign E-Mail</source>
         <translation>加密並簽署電子郵件</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1541"/>
+        <location filename="../EMailModule.cpp" line="1542"/>
         <source>This message is not signed, so there is no signature to check. It was decrypted successfully.</source>
         <translation>此訊息未簽署，因此沒有簽章可檢查。已成功解密。</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1545"/>
+        <location filename="../EMailModule.cpp" line="1546"/>
         <source>The decrypted content is not a MIME message, so there is no signature to check. It was decrypted successfully.</source>
         <translation>解密內容不是 MIME 訊息，因此沒有簽章可檢查。已成功解密。</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1634"/>
+        <location filename="../EMailModule.cpp" line="1635"/>
         <source>This message was decrypted. It carries no signature, so nothing here says who sent it.</source>
         <translation>此訊息已解密。它未帶有簽章，因此這裡沒有任何資訊能指出寄件者是誰。</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1679"/>
+        <location filename="../EMailModule.cpp" line="1680"/>
         <source>Decrypt and Verify E-Mail</source>
         <translation>解密並驗證電子郵件</translation>
     </message>
@@ -1148,17 +1148,17 @@ If the issue persists, consider seeking technical support or consulting the docu
         <translation type="vanished">警告</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="290"/>
+        <location filename="../EMailModule.cpp" line="291"/>
         <source>in %1, but not encrypted to it: they cannot read this message</source>
         <translation>在 %1 中，但未加密給該收件者：對方無法讀取此訊息</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="298"/>
+        <location filename="../EMailModule.cpp" line="299"/>
         <source>encrypted to, but not listed in the headers</source>
         <translation>已加密給該收件者，但未列於標頭中</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="305"/>
+        <location filename="../EMailModule.cpp" line="306"/>
         <source>the sender withheld this key ID</source>
         <translation>寄件者隱藏了此金鑰 ID</translation>
     </message>
@@ -3120,30 +3120,59 @@ This message came from somewhere else, so unless these have been saved already t
     </message>
 </context>
 <context>
-    <name>GTrC</name>
+    <name>ModuleEMail</name>
     <message>
+        <location filename="../EMailModule.cpp" line="440"/>
+        <source>E-Mail</source>
+        <translation type="unfinished">電子郵件</translation>
+    </message>
+    <message>
+        <location filename="../EMailModule.cpp" line="441"/>
+        <source>E-Mail Message (*.eml);;All Files (*)</source>
+        <translation type="unfinished">電子郵件訊息 (*.eml);;所有檔案 (*)</translation>
+    </message>
+    <message>
+        <location filename="../EMailModule.cpp" line="446"/>
+        <source>Mail Accounts</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../EMailModule.cpp" line="447"/>
+        <source>mail,email,imap,smtp,account,send</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../EMailModule.cpp" line="450"/>
+        <source>IMAP Controller</source>
+        <translation type="unfinished">IMAP 控制器</translation>
+    </message>
+    <message>
+        <location filename="../EMailModule.cpp" line="1698"/>
         <source>Mail Editor</source>
-        <translation type="vanished">電子郵件編輯器</translation>
+        <translation>電子郵件編輯器</translation>
     </message>
     <message>
+        <location filename="../EMailModule.cpp" line="1699"/>
         <source>Open a new text editor for email.</source>
-        <translation type="vanished">開啟新的電子郵件文字編輯器。</translation>
+        <translation>開啟新的電子郵件文字編輯器。</translation>
     </message>
     <message>
+        <location filename="../EMailModule.cpp" line="1719"/>
         <source>Open IMAP Controller</source>
-        <translation type="vanished">開啟 IMAP 控制器</translation>
+        <translation>開啟 IMAP 控制器</translation>
     </message>
     <message>
+        <location filename="../EMailModule.cpp" line="1720"/>
         <source>Open IMAP Controller Dialog</source>
-        <translation type="vanished">開啟 IMAP 控制器對話方塊</translation>
+        <translation>開啟 IMAP 控制器對話方塊</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1734"/>
+        <location filename="../EMailModule.cpp" line="1736"/>
         <source>No mail account</source>
         <translation>沒有郵件帳戶</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1735"/>
+        <location filename="../EMailModule.cpp" line="1737"/>
         <source>Configure a mail account with IMAP enabled in Settings first.</source>
         <translation>請先在設定中設定已啟用 IMAP 的郵件帳戶。</translation>
     </message>
