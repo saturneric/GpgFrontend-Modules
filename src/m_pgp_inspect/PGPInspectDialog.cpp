@@ -39,6 +39,8 @@
 #include <QVBoxLayout>
 #include <array>
 
+#include "GFModuleTr.h"
+
 namespace {
 
 /// Which column holds what. Packet rows use the first only; a field row puts
@@ -96,7 +98,7 @@ auto PGPInspectBytes(const QByteArray& data) -> PGPInspectDocument {
 PGPInspectDialog::PGPInspectDialog(const PGPInspectDocument& document,
                                    qint64 size, QWidget* parent)
     : QDialog(parent), document_(document), size_(size) {
-  setWindowTitle(QCoreApplication::translate("GTrC", "OpenPGP Structure"));
+  setWindowTitle(GTrC::tr("OpenPGP Structure"));
   setAttribute(Qt::WA_DeleteOnClose);
   resize(820, 620);
   create_widgets();
@@ -106,15 +108,13 @@ PGPInspectDialog::PGPInspectDialog(const PGPInspectDocument& document,
 void PGPInspectDialog::create_widgets() {
   search_ = new QLineEdit(this);
   search_->setClearButtonEnabled(true);
-  search_->setPlaceholderText(
-      QCoreApplication::translate("GTrC", "Search packets, fields and values"));
+  search_->setPlaceholderText(GTrC::tr("Search packets, fields and values"));
   connect(search_, &QLineEdit::textChanged, this,
           &PGPInspectDialog::slot_filter_changed);
 
   tree_ = new QTreeWidget(this);
   tree_->setColumnCount(2);
-  tree_->setHeaderLabels({QCoreApplication::translate("GTrC", "Structure"),
-                          QCoreApplication::translate("GTrC", "Value")});
+  tree_->setHeaderLabels({GTrC::tr("Structure"), GTrC::tr("Value")});
   tree_->header()->setSectionResizeMode(kLabelColumn,
                                         QHeaderView::ResizeToContents);
   tree_->header()->setSectionResizeMode(kValueColumn, QHeaderView::Stretch);
@@ -136,8 +136,7 @@ void PGPInspectDialog::render_document() {
   if (!document_.valid) {
     summary_label_->setText(
         document_.parse_error.isEmpty()
-            ? QCoreApplication::translate(
-                  "GTrC", "The current tab holds no OpenPGP data.")
+            ? GTrC::tr("The current tab holds no OpenPGP data.")
             : document_.parse_error);
     return;
   }
@@ -151,29 +150,28 @@ void PGPInspectDialog::render_document() {
     // the armor headers and the CRC verdict too.
     QVector<PGPInspectField> facts;
     if (block.has_armor) {
-      facts.push_back({QCoreApplication::translate("GTrC", "Armor Type"),
-                       block.armor.block_type});
-      facts.push_back(
-          {QCoreApplication::translate("GTrC", "CRC24"), block.armor.crc24});
+      facts.push_back({GTrC::tr("Armor Type"), block.armor.block_type});
+      facts.push_back({GTrC::tr("CRC24"), block.armor.crc24});
       facts += block.armor.headers;
     }
     if (block.has_cleartext) {
-      facts.push_back({QCoreApplication::translate("GTrC", "Signed Text"),
-                       HumanSize(block.cleartext_text_size)});
+      facts.push_back(
+          {GTrC::tr("Signed Text"), HumanSize(block.cleartext_text_size)});
       facts += block.cleartext_headers;
     }
     if (!block.error.isEmpty()) {
-      facts.push_back(
-          {QCoreApplication::translate("GTrC", "Problem"), block.error});
+      facts.push_back({GTrC::tr("Problem"), block.error});
     }
     add_fields(item, facts);
 
     if (block.has_armor && block.armor.crc24 == QLatin1String("mismatch")) {
-      item->setForeground(
-          kLabelColumn, QBrush(QColor(GFUIThemeColorForRole(GFModuleSdkContext(), GF_UI_COLOR_DANGER))));
+      item->setForeground(kLabelColumn,
+                          QBrush(QColor(GFUIThemeColorForRole(
+                              GFModuleSdkContext(), GF_UI_COLOR_DANGER))));
     } else if (!block.error.isEmpty()) {
-      item->setForeground(
-          kLabelColumn, QBrush(QColor(GFUIThemeColorForRole(GFModuleSdkContext(), GF_UI_COLOR_WARNING))));
+      item->setForeground(kLabelColumn,
+                          QBrush(QColor(GFUIThemeColorForRole(
+                              GFModuleSdkContext(), GF_UI_COLOR_WARNING))));
     }
 
     add_packets(item, block.packets);
@@ -184,8 +182,7 @@ void PGPInspectDialog::render_document() {
   // The count goes through a local: a function call inside a translate()
   // %n argument makes lupdate silently skip EVERY string in the file.
   const int packet_count = document_.PacketCount();
-  auto summary = QCoreApplication::translate("GTrC", "%1, %2, %n packet(s)",
-                                             nullptr, packet_count)
+  auto summary = GTrC::tr("%1, %2, %n packet(s)", nullptr, packet_count)
                      .arg(document_.format, HumanSize(size_));
   if (!document_.errors.isEmpty()) {
     summary +=
@@ -202,14 +199,14 @@ void PGPInspectDialog::add_packets(QTreeWidgetItem* parent,
     item->setText(kLabelColumn, PGPInspectPacketSummary(packet, index++));
 
     if (packet.Malformed()) {
-      item->setForeground(
-          kLabelColumn, QBrush(QColor(GFUIThemeColorForRole(GFModuleSdkContext(), GF_UI_COLOR_WARNING))));
+      item->setForeground(kLabelColumn,
+                          QBrush(QColor(GFUIThemeColorForRole(
+                              GFModuleSdkContext(), GF_UI_COLOR_WARNING))));
     }
 
     auto fields = packet.fields;
     if (packet.Malformed()) {
-      fields.push_back(
-          {QCoreApplication::translate("GTrC", "Problem"), packet.error});
+      fields.push_back({GTrC::tr("Problem"), packet.error});
     }
     add_fields(item, fields);
 
@@ -223,9 +220,9 @@ void PGPInspectDialog::add_fields(QTreeWidgetItem* parent,
     auto* row = new QTreeWidgetItem(parent);
     row->setText(kLabelColumn, field.label);
     row->setText(kValueColumn, field.value);
-    row->setForeground(
-        kLabelColumn,
-        QBrush(QColor(GFUIThemeColorForRole(GFModuleSdkContext(), GF_UI_COLOR_MUTED_TEXT))));
+    row->setForeground(kLabelColumn,
+                       QBrush(QColor(GFUIThemeColorForRole(
+                           GFModuleSdkContext(), GF_UI_COLOR_MUTED_TEXT))));
   }
 }
 

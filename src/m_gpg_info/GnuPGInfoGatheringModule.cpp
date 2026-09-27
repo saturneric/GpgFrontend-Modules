@@ -47,6 +47,7 @@
 
 #include "GFModule.h"
 #include "GFModuleIdentity.h"
+#include "GFModuleTr.h"
 #include "GFSDKHostCommands.hpp"
 #include "GnupgTab.h"
 #include "GpgInfo.h"
@@ -88,8 +89,8 @@ class GnupgInfoWidget : public QWidget, public gf::ui::DialogWidget {
 /// script's; it only opens the module's own dialog.
 struct ShowGnupgInfo {
   static constexpr gf::cmd::Meta kMeta{GF_MODULE_ID ".show_gnupg_info",
-                                       GC_TR("GnuPG"),
-                                       GC_TR("Information about GnuPG"),
+                                       GTrC::Noop("GnuPG"),
+                                       GTrC::Noop("Information about GnuPG"),
                                        "",
                                        0,
                                        gf::cmd::kNeedsGuiThread};
@@ -110,7 +111,7 @@ auto DoShowGnupgInfo(const gf::cmd::CommandContext & /*ctx*/,
 auto OnActivate() -> GFResult {
   LOG_INFO("gnupg info gathering module registering");
   const bool ok = gf::ui::RegisterNativeWidget<GnupgInfoWidget>(
-      "info", {GC_TR("GnuPG"), "", "", "", ":/icons/key.png", 500, 600},
+      "info", {GTrC::Noop("GnuPG"), "", "", "", ":/icons/key.png", 500, 600},
       [](const QCborMap & /*args*/) { return new GnupgInfoWidget(); });
   return ok ? GFResult::Ok()
             : GFResult::Fail("the GnuPG information widget was not registered");

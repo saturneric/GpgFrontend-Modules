@@ -29,9 +29,9 @@
 #include "ImSettingsPage.h"
 
 #include <GFSDK.hpp>
-
 #include <QtWidgets>
 
+#include "GFModuleTr.h"
 #include "ImCodec.h"
 #include "ImToken.h"
 
@@ -60,10 +60,6 @@ auto MonospaceFont(const QWidget* widget) -> QFont {
   return font;
 }
 
-auto Tr(const char* text) -> QString {
-  return QCoreApplication::translate("GTrC", text);
-}
-
 /// Where the phrase lives: the module's own secret store.
 constexpr auto kPhraseKey = "book_phrase";
 
@@ -74,13 +70,15 @@ ImSettingsPage::ImSettingsPage(QWidget* parent) : QWidget(parent) {
   // The Message Book phrase whitens every instant-messaging token: its bytes
   // derive the shuffle + XOR that hide the message, so without the same phrase
   // a token is indistinguishable from random text.
-  auto* book_box = new QGroupBox(Tr("Message Book Phrase"), this);
+  auto* book_box = new QGroupBox(GTrC::tr("Message Book Phrase"), this);
   auto* book_layout = new QVBoxLayout(book_box);
 
   auto* intro = new QLabel(
-      Tr("A long secret you share with one friend. It makes your messages look "
-         "like random text, so nobody can tell they are PGP at all. You and "
-         "your friend must use exactly the same phrase."),
+      GTrC::tr(
+          "A long secret you share with one friend. It makes your messages "
+          "look "
+          "like random text, so nobody can tell they are PGP at all. You and "
+          "your friend must use exactly the same phrase."),
       book_box);
   intro->setWordWrap(true);
   book_layout->addWidget(intro);
@@ -91,7 +89,7 @@ ImSettingsPage::ImSettingsPage(QWidget* parent) : QWidget(parent) {
   phrase_edit_->setFont(MonospaceFont(this));
   phrase_edit_->setLineWrapMode(QPlainTextEdit::WidgetWidth);
   phrase_edit_->setPlaceholderText(
-      Tr("No phrase set. Messages use the built-in default book."));
+      GTrC::tr("No phrase set. Messages use the built-in default book."));
   phrase_edit_->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
   phrase_edit_->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
   phrase_edit_->setFixedHeight(phrase_edit_->fontMetrics().lineSpacing() * 5 +
@@ -107,10 +105,10 @@ ImSettingsPage::ImSettingsPage(QWidget* parent) : QWidget(parent) {
 
   // One click gives a phrase no one will ever guess; the user's only job is to
   // get it to their friend privately.
-  auto* generate_button = new QPushButton(Tr("Generate"), book_box);
-  generate_button->setToolTip(
-      Tr("Create a new random phrase. Share it with your friend so you both "
-         "use the same one."));
+  auto* generate_button = new QPushButton(GTrC::tr("Generate"), book_box);
+  generate_button->setToolTip(GTrC::tr(
+      "Create a new random phrase. Share it with your friend so you both "
+      "use the same one."));
   connect(generate_button, &QPushButton::clicked, this, [this]() {
     const auto phrase = ImToken::GeneratePhrase();
     if (phrase.isEmpty()) return;
@@ -119,27 +117,27 @@ ImSettingsPage::ImSettingsPage(QWidget* parent) : QWidget(parent) {
     set_revealed(true);
   });
 
-  reveal_button_ = new QPushButton(Tr("Show"), book_box);
-  reveal_button_->setToolTip(Tr("Show or hide the phrase."));
+  reveal_button_ = new QPushButton(GTrC::tr("Show"), book_box);
+  reveal_button_->setToolTip(GTrC::tr("Show or hide the phrase."));
   connect(reveal_button_, &QPushButton::clicked, this,
           [this]() { set_revealed(!revealed_); });
 
-  auto* copy_button = new QPushButton(Tr("Copy"), book_box);
-  copy_button->setToolTip(Tr("Copy the phrase to the clipboard."));
+  auto* copy_button = new QPushButton(GTrC::tr("Copy"), book_box);
+  copy_button->setToolTip(GTrC::tr("Copy the phrase to the clipboard."));
   connect(copy_button, &QPushButton::clicked, this,
           [this]() { QApplication::clipboard()->setText(phrase_); });
 
-  auto* paste_button = new QPushButton(Tr("Paste"), book_box);
+  auto* paste_button = new QPushButton(GTrC::tr("Paste"), book_box);
   paste_button->setToolTip(
-      Tr("Replace the phrase with the one on the clipboard."));
+      GTrC::tr("Replace the phrase with the one on the clipboard."));
   connect(paste_button, &QPushButton::clicked, this, [this]() {
     const auto text = CleanPhrase(QApplication::clipboard()->text());
     if (!text.isEmpty()) set_phrase(text);
   });
 
-  auto* clear_button = new QPushButton(Tr("Clear"), book_box);
+  auto* clear_button = new QPushButton(GTrC::tr("Clear"), book_box);
   clear_button->setToolTip(
-      Tr("Remove the phrase and fall back to the default book."));
+      GTrC::tr("Remove the phrase and fall back to the default book."));
   connect(clear_button, &QPushButton::clicked, this,
           [this]() { set_phrase({}); });
 
@@ -157,13 +155,14 @@ ImSettingsPage::ImSettingsPage(QWidget* parent) : QWidget(parent) {
   book_layout->addLayout(button_row);
 
   // ---- checking both sides agree -----------------------------------------
-  auto* check_box = new QGroupBox(Tr("Book Fingerprint"), this);
+  auto* check_box = new QGroupBox(GTrC::tr("Book Fingerprint"), this);
   auto* check_layout = new QVBoxLayout(check_box);
 
   auto* check_note = new QLabel(
-      Tr("A short code made from your phrase. Read it out with your friend to "
-         "be sure you both have the same one. Unlike the phrase, this code is "
-         "safe to say out loud."),
+      GTrC::tr(
+          "A short code made from your phrase. Read it out with your friend to "
+          "be sure you both have the same one. Unlike the phrase, this code is "
+          "safe to say out loud."),
       check_box);
   check_note->setWordWrap(true);
   check_layout->addWidget(check_note);
@@ -175,8 +174,9 @@ ImSettingsPage::ImSettingsPage(QWidget* parent) : QWidget(parent) {
   fingerprint_label_->setFont(fpr_font);
   fingerprint_label_->setTextInteractionFlags(Qt::TextSelectableByMouse);
 
-  auto* copy_fpr_button = new QPushButton(Tr("Copy"), check_box);
-  copy_fpr_button->setToolTip(Tr("Copy the fingerprint to the clipboard."));
+  auto* copy_fpr_button = new QPushButton(GTrC::tr("Copy"), check_box);
+  copy_fpr_button->setToolTip(
+      GTrC::tr("Copy the fingerprint to the clipboard."));
   connect(copy_fpr_button, &QPushButton::clicked, this,
           [this]() { QApplication::clipboard()->setText(fingerprint_); });
 
@@ -188,8 +188,9 @@ ImSettingsPage::ImSettingsPage(QWidget* parent) : QWidget(parent) {
   check_layout->addLayout(fpr_row);
 
   auto* storage_note = new QLabel(
-      Tr("The phrase is stored in the encrypted cache, never in the settings "
-         "file. Send it to your friend over a private channel."),
+      GTrC::tr(
+          "The phrase is stored in the encrypted cache, never in the settings "
+          "file. Send it to your friend over a private channel."),
       this);
   storage_note->setWordWrap(true);
 
@@ -224,7 +225,7 @@ auto ImSettingsPage::ApplySettings() -> bool {
 
 void ImSettingsPage::set_revealed(bool revealed) {
   revealed_ = revealed;
-  reveal_button_->setText(revealed ? Tr("Hide") : Tr("Show"));
+  reveal_button_->setText(revealed ? GTrC::tr("Hide") : GTrC::tr("Show"));
 
   const QScopedValueRollback<bool> guard(syncing_, true);
   // Masked, the box is a placeholder rather than an editor: editing dots
@@ -244,8 +245,9 @@ void ImSettingsPage::set_phrase(const QString& phrase) {
   }
 
   phrase_state_label_->setText(
-      phrase_.isEmpty() ? Tr("No phrase set. Using the built-in default.")
-                        : Tr("Phrase set. %1 characters.").arg(phrase_.size()));
+      phrase_.isEmpty()
+          ? GTrC::tr("No phrase set. Using the built-in default.")
+          : GTrC::tr("Phrase set. %1 characters.").arg(phrase_.size()));
 
   schedule_fingerprint_update();
 }
@@ -255,7 +257,7 @@ void ImSettingsPage::schedule_fingerprint_update() {
   // phrase and must not overwrite what we are about to compute.
   ++fingerprint_request_;
   set_fingerprint({});
-  fingerprint_label_->setText(Tr("Calculating…"));
+  fingerprint_label_->setText(GTrC::tr("Calculating…"));
   fingerprint_timer_->start();
 }
 
@@ -285,16 +287,15 @@ void ImSettingsPage::set_fingerprint(const QString& fingerprint) {
                                                     : fingerprint);
 }
 
-
 auto ImBookPhrase() -> QString {
-  return ImCodec::DecodePhraseBlob(
-      gf::sdk::CacheText(GFModuleSdkContext(), GF_STORE_SECURE_DURABLE,
-                         kPhraseKey)
-          .toUtf8());
+  return ImCodec::DecodePhraseBlob(gf::sdk::CacheText(GFModuleSdkContext(),
+                                                      GF_STORE_SECURE_DURABLE,
+                                                      kPhraseKey)
+                                       .toUtf8());
 }
 
 void ImSetBookPhrase(const QString& phrase) {
-  gf::sdk::SetCacheText(
-      GFModuleSdkContext(), GF_STORE_SECURE_DURABLE, kPhraseKey,
-      QString::fromUtf8(ImCodec::EncodePhraseBlob(phrase)));
+  gf::sdk::SetCacheText(GFModuleSdkContext(), GF_STORE_SECURE_DURABLE,
+                        kPhraseKey,
+                        QString::fromUtf8(ImCodec::EncodePhraseBlob(phrase)));
 }

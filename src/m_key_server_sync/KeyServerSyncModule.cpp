@@ -36,6 +36,7 @@
 
 #include "GFModule.h"
 #include "GFModuleIdentity.h"
+#include "GFModuleTr.h"
 #include "GFSDKHostCommands.hpp"
 #include "GFSDKUI.h"
 #include "KeyServerBatchLogic.h"
@@ -151,11 +152,8 @@ void FetchKey(const KeyServerList::Route& route, const QString& handle,
 auto ConfirmHkpPublish(const QString& url) -> bool {
   const auto host = QUrl(url).host();
   return QMessageBox::warning(
-             nullptr,
-             QCoreApplication::translate("GTrC",
-                                         "Publish Without Verification?"),
-             QCoreApplication::translate(
-                 "GTrC",
+             nullptr, GTrC::tr("Publish Without Verification?"),
+             GTrC::tr(
                  "%1 does not support verified publishing (VKS), so the key "
                  "would be uploaded over HKP instead.\n\n"
                  "The server will not confirm your email address, and the "
@@ -229,8 +227,7 @@ class KeyServerBatch : public QObject {
     const auto exported = gf::sdk::ExportKey(
         GFModuleSdkContext(), static_cast<int>(key.channel), key.key_id, true);
     if (exported.isEmpty()) {
-      failures_.append(QCoreApplication::translate(
-                           "GTrC", "%1: the public key could not be exported")
+      failures_.append(GTrC::tr("%1: the public key could not be exported")
                            .arg(key.fingerprint));
       return Schedule();
     }
@@ -278,13 +275,11 @@ class KeyServerBatch : public QObject {
                             static_cast<int>(keys_.front().channel),
                             KeyServerBatchLogic::JoinForImport(blocks_));
       }
-      Tell(severity,
-           QCoreApplication::translate("GTrC", "Key Refresh Finished"),
+      Tell(severity, GTrC::tr("Key Refresh Finished"),
            KeyServerBatchLogic::RefreshSummary(static_cast<int>(blocks_.size()),
                                                total, failures_));
     } else {
-      Tell(severity,
-           QCoreApplication::translate("GTrC", "Key Publishing Finished"),
+      Tell(severity, GTrC::tr("Key Publishing Finished"),
            KeyServerBatchLogic::PublishSummary(
                done_, total, QUrl(route_.url).host(), failures_));
     }
@@ -305,11 +300,9 @@ QPointer<KeyServerBatch> g_batch;
 
 void StartBatch(KeyServerBatch::Kind kind, QList<BatchKey> keys) {
   if (!g_batch.isNull()) {
-    Tell(Severity::kInfo, QCoreApplication::translate("GTrC", "Key Server"),
-         QCoreApplication::translate(
-             "GTrC",
-             "A key server operation is already running. Try again "
-             "when it has finished."));
+    Tell(Severity::kInfo, GTrC::tr("Key Server"),
+         GTrC::tr("A key server operation is already running. Try again "
+                  "when it has finished."));
     return;
   }
   auto* batch = new KeyServerBatch(kind, std::move(keys));
@@ -338,7 +331,7 @@ auto OnActivate() -> GFResult {
   // installed yet, so anything translated here would be stuck at the source
   // text for the rest of the session. The Host translates it when shown.
   const bool search = gf::ui::RegisterNativeWidget<SearchKeyDialog>(
-      "search", {GC_TR("Key Server"), "", "", "", "", 0, 0},
+      "search", {GTrC::Noop("Key Server"), "", "", "", "", 0, 0},
       [](const QCborMap& /*args*/) {
         auto* dialog = new SearchKeyDialog();
         QString preset;
@@ -353,8 +346,9 @@ auto OnActivate() -> GFResult {
       });
   const bool settings = gf::ui::RegisterNativeWidget<KeyServerSettingsPage>(
       "settings",
-      {GC_TR("Key Servers"),
-       GC_TR("keyserver,key server,hkp,vks,publish,search"), "", "", "", 0, 0},
+      {GTrC::Noop("Key Servers"),
+       GTrC::Noop("keyserver,key server,hkp,vks,publish,search"), "", "", "", 0,
+       0},
       [](const QCborMap& /*args*/) { return new KeyServerSettingsPage(); });
 
   return search && settings
@@ -368,12 +362,9 @@ auto UploadKeyToServer(int channel, const QString& key_id) -> int {
   const auto exported =
       gf::sdk::ExportKey(GFModuleSdkContext(), channel, key_id, true);
   if (exported.isEmpty()) {
-    Tell(Severity::kError,
-         QCoreApplication::translate("GTrC", "Key Upload Failed"),
-         QCoreApplication::translate(
-             "GTrC",
-             "Failed to export the public key before uploading.\n"
-             "Key: %1")
+    Tell(Severity::kError, GTrC::tr("Key Upload Failed"),
+         GTrC::tr("Failed to export the public key before uploading.\n"
+                  "Key: %1")
              .arg(key_id));
     return -1;
   }
@@ -393,26 +384,19 @@ auto UploadKeyToServer(int channel, const QString& key_id) -> int {
         [server, key_id](QNetworkReply::NetworkError error,
                          const QString& error_string) {
           if (error != QNetworkReply::NoError) {
-            Tell(Severity::kError,
-                 QCoreApplication::translate("GTrC", "Key Upload Failed"),
-                 QCoreApplication::translate(
-                     "GTrC",
-                     "Failed to upload public key to the server.\n"
-                     "Fingerprint: %1\n"
-                     "Error: %2")
+            Tell(Severity::kError, GTrC::tr("Key Upload Failed"),
+                 GTrC::tr("Failed to upload public key to the server.\n"
+                          "Fingerprint: %1\n"
+                          "Error: %2")
                      .arg(key_id, error_string));
             return;
           }
 
           // No verification mail follows an HKP upload, so do not promise one.
-          Tell(Severity::kInfo,
-               QCoreApplication::translate("GTrC",
-                                           "Public Key Upload Successful"),
-               QCoreApplication::translate(
-                   "GTrC",
-                   "The public key was uploaded to the key server %2 over "
-                   "HKP.\n"
-                   "Fingerprint: %1")
+          Tell(Severity::kInfo, GTrC::tr("Public Key Upload Successful"),
+               GTrC::tr("The public key was uploaded to the key server %2 over "
+                        "HKP.\n"
+                        "Fingerprint: %1")
                    .arg(key_id, QUrl(server).host()));
         });
     QObject::connect(pks, &PKSInterface::SignalKeyServerKeyUploadResult, pks,
@@ -428,8 +412,8 @@ auto UploadKeyToServer(int channel, const QString& key_id) -> int {
       [server](const QString& fpr, const QJsonObject& status,
                const QString& token) {
         // Handle successful response
-        QString status_message = QCoreApplication::translate(
-            "GTrC", "The following email addresses have status:\n");
+        QString status_message =
+            GTrC::tr("The following email addresses have status:\n");
         QStringList email_list;
         if (!status.isEmpty()) {
           for (auto it = status.constBegin(); it != status.constEnd(); ++it) {
@@ -438,8 +422,7 @@ auto UploadKeyToServer(int channel, const QString& key_id) -> int {
             email_list.append(it.key());
           }
         } else {
-          status_message += QCoreApplication::translate(
-              "GTrC", "Could not parse status information.");
+          status_message += GTrC::tr("Could not parse status information.");
         }
 
         // Name the server that was actually used: it is configurable now, so a
@@ -447,30 +430,23 @@ auto UploadKeyToServer(int channel, const QString& key_id) -> int {
         const auto host = QUrl(server).host();
 
         // Notify user of successful upload and status details
-        Tell(
-            Severity::kInfo,
-            QCoreApplication::translate("GTrC", "Public Key Upload Successful"),
-            QCoreApplication::translate(
-                "GTrC",
-                "The public key was successfully uploaded to the "
-                "key server %4.\n"
-                "Fingerprint: %1\n\n"
-                "%2\n"
-                "Please check your email (%3) for further "
-                "verification from %4.")
-                .arg(fpr, status_message, email_list.join(", "), host));
+        Tell(Severity::kInfo, GTrC::tr("Public Key Upload Successful"),
+             GTrC::tr("The public key was successfully uploaded to the "
+                      "key server %4.\n"
+                      "Fingerprint: %1\n\n"
+                      "%2\n"
+                      "Please check your email (%3) for further "
+                      "verification from %4.")
+                 .arg(fpr, status_message, email_list.join(", "), host));
       });
 
   QObject::connect(
       vks, &VKSInterface::SignalErrorOccurred, QThread::currentThread(),
       [key_id](const QString& error, const QString& data) {
-        Tell(Severity::kError,
-             QCoreApplication::translate("GTrC", "Key Upload Failed"),
-             QCoreApplication::translate(
-                 "GTrC",
-                 "Failed to upload public key to the server.\n"
-                 "Fingerprint: %1\n"
-                 "Error: %2")
+        Tell(Severity::kError, GTrC::tr("Key Upload Failed"),
+             GTrC::tr("Failed to upload public key to the server.\n"
+                      "Fingerprint: %1\n"
+                      "Error: %2")
                  .arg(key_id, error));
       });
 
@@ -497,13 +473,10 @@ auto UpdateKeyFromKeyServer(int channel, const QString& fpr) -> int {
         Q_UNUSED(data);
         // Name the server: it is the user's choice now, and a failure they
         // cannot attribute to a host is one they cannot fix.
-        Tell(Severity::kError,
-             QCoreApplication::translate("GTrC", "Key Update Failed"),
-             QCoreApplication::translate(
-                 "GTrC",
-                 "Failed to retrieve public key from %3.\n"
-                 "Key ID: %1\n"
-                 "Error: %2")
+        Tell(Severity::kError, GTrC::tr("Key Update Failed"),
+             GTrC::tr("Failed to retrieve public key from %3.\n"
+                      "Key ID: %1\n"
+                      "Error: %2")
                  .arg(fpr, error, host));
       });
   return 0;
@@ -543,9 +516,9 @@ auto KeysOf(const KeyArgs& a) -> QList<BatchKey> {
 struct PublishKey {
   static constexpr gf::cmd::Meta kMeta{
       GF_MODULE_ID ".publish_key",
-      GC_TR("Publish Public Key to Key Server"),
-      GC_TR("Upload the public key to the key server used for syncing"),
-      GC_TR("Key Server Operations"),
+      GTrC::Noop("Publish Public Key to Key Server"),
+      GTrC::Noop("Upload the public key to the key server used for syncing"),
+      GTrC::Noop("Key Server Operations"),
       0,
       gf::cmd::kNeedsGuiThread};
   using Args = KeyArgs;
@@ -555,9 +528,10 @@ struct PublishKey {
 struct RefreshKey {
   static constexpr gf::cmd::Meta kMeta{
       GF_MODULE_ID ".refresh_key",
-      GC_TR("Refresh Public Key From Key Server"),
-      GC_TR("Import the latest copy of the public key from the key server"),
-      GC_TR("Key Server Operations"),
+      GTrC::Noop("Refresh Public Key From Key Server"),
+      GTrC::Noop(
+          "Import the latest copy of the public key from the key server"),
+      GTrC::Noop("Key Server Operations"),
       0,
       gf::cmd::kNeedsGuiThread};
   using Args = KeyArgs;
@@ -567,9 +541,9 @@ struct RefreshKey {
 struct CheckPublication {
   static constexpr gf::cmd::Meta kMeta{
       GF_MODULE_ID ".check_publication",
-      GC_TR("Check Publication Status"),
-      GC_TR("Ask the key server whether it has this public key"),
-      GC_TR("Key Server Operations"),
+      GTrC::Noop("Check Publication Status"),
+      GTrC::Noop("Ask the key server whether it has this public key"),
+      GTrC::Noop("Key Server Operations"),
       0,
       gf::cmd::kNeedsGuiThread};
   using Args = KeyArgs;
@@ -579,8 +553,8 @@ struct CheckPublication {
 struct SearchKey {
   static constexpr gf::cmd::Meta kMeta{
       GF_MODULE_ID ".search_key",
-      GC_TR("Key Server"),
-      GC_TR("Import public keys from a trusted key server."),
+      GTrC::Noop("Key Server"),
+      GTrC::Noop("Import public keys from a trusted key server."),
       "",
       0,
       gf::cmd::kNeedsGuiThread};
@@ -637,26 +611,21 @@ auto DoCheckPublication(const gf::cmd::CommandContext& /*ctx*/,
   const auto fpr = keys.front().fingerprint;
   const auto route = KeyServerList::SyncRoute();
   const auto host = QUrl(route.url).host();
-  const auto title = QCoreApplication::translate("GTrC", "Publication Status");
+  const auto title = GTrC::tr("Publication Status");
   FetchKey(
       route, fpr, true,
       [title, host](const QString&) {
         Tell(Severity::kInfo, title,
-             QCoreApplication::translate(
-                 "GTrC", "The public key has been published on %1.")
-                 .arg(host));
+             GTrC::tr("The public key has been published on %1.").arg(host));
       },
       [title, host](const QString& error, const QString&) {
         if (KeyServerBatchLogic::IsNotFound(error)) {
           Tell(Severity::kInfo, title,
-               QCoreApplication::translate(
-                   "GTrC", "The public key is not published on %1.")
-                   .arg(host));
+               GTrC::tr("The public key is not published on %1.").arg(host));
           return;
         }
         Tell(Severity::kWarning, title,
-             QCoreApplication::translate(
-                 "GTrC", "Could not ask %1 about this key.\n\n%2")
+             GTrC::tr("Could not ask %1 about this key.\n\n%2")
                  .arg(host, error));
       });
   return gf::cmd::Outcome<gf::cmd::Unit>::Success({});

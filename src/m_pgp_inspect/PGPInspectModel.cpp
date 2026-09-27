@@ -34,6 +34,8 @@
 #include <QJsonObject>
 #include <QJsonParseError>
 
+#include "GFModuleTr.h"
+
 namespace {
 
 auto ParseFields(const QJsonValue& value) -> QVector<PGPInspectField> {
@@ -126,8 +128,7 @@ auto ParsePGPInspectDocument(const QByteArray& json) -> PGPInspectDocument {
     return document;
   }
   if (!parsed.isObject()) {
-    document.parse_error =
-        QCoreApplication::translate("GTrC", "The inspector returned no data.");
+    document.parse_error = GTrC::tr("The inspector returned no data.");
     return document;
   }
 
@@ -154,18 +155,16 @@ auto PGPInspectPacketSummary(const PGPInspectPacket& packet, int index)
   // "#1  Signature (tag 2)  v4  @0x0000  189 B". The offset is hexadecimal
   // because that is what every other packet dumper prints, and what a reader
   // comparing two tools needs in order to line them up.
-  auto summary = QCoreApplication::translate("GTrC", "#%1  %2 (tag %3)")
+  auto summary = GTrC::tr("#%1  %2 (tag %3)")
                      .arg(index)
-                     .arg(packet.tag_name.isEmpty()
-                              ? QCoreApplication::translate("GTrC", "Unknown")
-                              : packet.tag_name)
+                     .arg(packet.tag_name.isEmpty() ? GTrC::tr("Unknown")
+                                                    : packet.tag_name)
                      .arg(packet.tag);
 
   if (packet.version >= 0) summary += QString("  v%1").arg(packet.version);
 
   summary += QString("  @0x%1").arg(packet.offset, 4, 16, QChar('0'));
-  summary += QCoreApplication::translate("GTrC", "  %1 B")
-                 .arg(packet.header_length + packet.body_length);
+  summary += GTrC::tr("  %1 B").arg(packet.header_length + packet.body_length);
 
   if (packet.length_type != QLatin1String("fixed") &&
       !packet.length_type.isEmpty()) {
@@ -177,15 +176,12 @@ auto PGPInspectPacketSummary(const PGPInspectPacket& packet, int index)
 auto PGPInspectBlockSummary(const PGPInspectBlock& block, int index)
     -> QString {
   if (block.kind == QLatin1String("cleartext")) {
-    return QCoreApplication::translate("GTrC",
-                                       "Block %1: cleartext-signed message")
-        .arg(index);
+    return GTrC::tr("Block %1: cleartext-signed message").arg(index);
   }
   if (block.has_armor) {
-    return QCoreApplication::translate("GTrC", "Block %1: armored, %2")
+    return GTrC::tr("Block %1: armored, %2")
         .arg(index)
         .arg(block.armor.block_type);
   }
-  return QCoreApplication::translate("GTrC", "Block %1: binary packet stream")
-      .arg(index);
+  return GTrC::tr("Block %1: binary packet stream").arg(index);
 }

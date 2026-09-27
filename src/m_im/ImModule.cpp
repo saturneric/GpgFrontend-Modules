@@ -27,12 +27,13 @@
  */
 
 #include <GFModule.h>
+
 #include <GFSDK.hpp>
 #include <GFSDKHostCommands.hpp>
-
 #include <QtWidgets>
 
 #include "GFModuleIdentity.h"
+#include "GFModuleTr.h"
 #include "ImCodec.h"
 #include "ImSettingsPage.h"
 
@@ -62,10 +63,6 @@ using Severity = host::AppMessage::Severity;
 /// read in the group the Host used to keep it in.
 constexpr auto kWarnDefaultBookKey = "warn_default_book";
 
-auto Tr(const char* text) -> QString {
-  return QCoreApplication::translate("GTrC", text);
-}
-
 auto ToResult(const ImCodec::Answer& a) -> host::CodecResult {
   host::CodecResult r;
   r.outcome = static_cast<host::CodecOutcome>(a.outcome);
@@ -84,17 +81,24 @@ auto BytesOf(const gf::cmd::Blob& blob) -> QByteArray {
 
 struct Decode {
   static constexpr gf::cmd::Meta kMeta{
-      GF_MODULE_ID ".decode", GC_TR("Instant Message Token"),
-      GC_TR("Recognise and unwrap instant messaging tokens before decrypting"),
-      "", 0, gf::cmd::kInputDecoder};
+      GF_MODULE_ID ".decode",
+      GTrC::Noop("Instant Message Token"),
+      GTrC::Noop(
+          "Recognise and unwrap instant messaging tokens before decrypting"),
+      "",
+      0,
+      gf::cmd::kInputDecoder};
   using Args = host::CodecArgs;
   using Result = host::CodecResult;
 };
 
 struct Encode {
   static constexpr gf::cmd::Meta kMeta{
-      GF_MODULE_ID ".encode", GC_TR("Instant Message Token"),
-      GC_TR("Wrap an encrypted message as an instant messaging token"), "", 0,
+      GF_MODULE_ID ".encode",
+      GTrC::Noop("Instant Message Token"),
+      GTrC::Noop("Wrap an encrypted message as an instant messaging token"),
+      "",
+      0,
       gf::cmd::kOutputEncoder};
   using Args = host::CodecArgs;
   using Result = host::CodecResult;
@@ -127,9 +131,9 @@ auto ConfirmDefaultBook() -> bool {
 
   QMessageBox box;
   box.setIcon(QMessageBox::Information);
-  box.setWindowTitle(Tr("No Message Book Phrase Set"));
-  box.setText(Tr("You have not set a Message Book phrase."));
-  box.setInformativeText(Tr(
+  box.setWindowTitle(GTrC::tr("No Message Book Phrase Set"));
+  box.setText(GTrC::tr("You have not set a Message Book phrase."));
+  box.setInformativeText(GTrC::tr(
       "Instant messages are hidden using a shared \"Message Book\". "
       "Without a phrase, GpgFrontend falls back to the built-in default "
       "book and that book ships in every copy of the program. It hides "
@@ -141,11 +145,11 @@ auto ConfirmDefaultBook() -> bool {
       "are writing to. You must both use exactly the same one."));
 
   auto* settings_button =
-      box.addButton(Tr("Open Settings..."), QMessageBox::ActionRole);
+      box.addButton(GTrC::tr("Open Settings..."), QMessageBox::ActionRole);
   auto* continue_button =
-      box.addButton(Tr("Continue with Default"), QMessageBox::AcceptRole);
-  auto* never_button =
-      box.addButton(Tr("Continue, Don't Ask Again"), QMessageBox::AcceptRole);
+      box.addButton(GTrC::tr("Continue with Default"), QMessageBox::AcceptRole);
+  auto* never_button = box.addButton(GTrC::tr("Continue, Don't Ask Again"),
+                                     QMessageBox::AcceptRole);
   box.addButton(QMessageBox::Cancel);
   box.setDefaultButton(settings_button);
   box.exec();
@@ -173,9 +177,12 @@ struct TargetArgs {
 
 struct EncryptIm {
   static constexpr gf::cmd::Meta kMeta{
-      GF_MODULE_ID ".encrypt", GC_TR("IM Encrypt"),
-      GC_TR("Encrypt the message as a single-line token for chat apps"), "",
-      GF_HOST_CAP_EDITOR, gf::cmd::kNeedsGuiThread};
+      GF_MODULE_ID ".encrypt",
+      GTrC::Noop("IM Encrypt"),
+      GTrC::Noop("Encrypt the message as a single-line token for chat apps"),
+      "",
+      GF_HOST_CAP_EDITOR,
+      gf::cmd::kNeedsGuiThread};
   using Args = TargetArgs;
   using Result = gf::cmd::Unit;
   static auto State(const gf::cmd::CommandContext&) -> uint32_t;
@@ -183,10 +190,13 @@ struct EncryptIm {
 
 struct EncryptSignIm {
   static constexpr gf::cmd::Meta kMeta{
-      GF_MODULE_ID ".encrypt_sign", GC_TR("IM Encrypt && Sign"),
-      GC_TR("Encrypt and sign the message as a single-line token for chat "
-            "apps"),
-      "", GF_HOST_CAP_EDITOR, gf::cmd::kNeedsGuiThread};
+      GF_MODULE_ID ".encrypt_sign",
+      GTrC::Noop("IM Encrypt && Sign"),
+      GTrC::Noop("Encrypt and sign the message as a single-line token for chat "
+                 "apps"),
+      "",
+      GF_HOST_CAP_EDITOR,
+      gf::cmd::kNeedsGuiThread};
   using Args = TargetArgs;
   using Result = gf::cmd::Unit;
   static auto State(const gf::cmd::CommandContext&) -> uint32_t;
@@ -236,9 +246,9 @@ auto OnActivate() -> GFResult {
   // Registered untranslated: the Host translates presentation when shown.
   const bool settings = gf::ui::RegisterNativeWidget<ImSettingsPage>(
       "settings",
-      {GC_TR("Instant Messaging"),
-       GC_TR("instant messaging,message book,phrase,fingerprint,token"), "",
-       "", "", 0, 0},
+      {GTrC::Noop("Instant Messaging"),
+       GTrC::Noop("instant messaging,message book,phrase,fingerprint,token"),
+       "", "", "", 0, 0},
       [](const QCborMap& /*args*/) { return new ImSettingsPage(); });
   return settings ? GFResult::Ok()
                   : GFResult::Fail("the settings page was not registered");
@@ -268,6 +278,6 @@ const GFModuleHooks kHooks = {
 }  // namespace
 
 extern "C" GF_MODULE_EXPORT auto GFModuleGetApi(uint32_t abi)
-    -> const GFModuleApi * {
+    -> const GFModuleApi* {
   return GFModuleRuntimeGetApi(abi, &kHooks);
 }

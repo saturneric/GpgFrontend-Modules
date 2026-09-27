@@ -33,6 +33,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 
+#include "GFModuleTr.h"
 #include "ImToken.h"
 
 namespace ImCodec {
@@ -40,10 +41,6 @@ namespace ImCodec {
 namespace {
 
 constexpr char kPhraseBlobVersion = '\x01';
-
-auto Tr(const char* text) -> QString {
-  return QCoreApplication::translate("GTrC", text);
-}
 
 /**
  * @brief The "Instant Messaging" card: how the token is framed and, above
@@ -58,34 +55,36 @@ auto BookCard(const QString& phrase, qsizetype payload, qsizetype token_len)
     fields.append(QJsonArray{k, v});
   };
 
-  add(Tr("Encoding"), QStringLiteral("Base58 (Bitcoin/IPFS)"));
-  add(Tr("Container Format"), QString("v%1").arg(ImToken::FormatVersion()));
-  add(Tr("Message Book"), configured ? Tr("Shared phrase (Argon2id)")
-                                     : Tr("Default, no shared phrase set"));
+  add(GTrC::tr("Encoding"), QStringLiteral("Base58 (Bitcoin/IPFS)"));
+  add(GTrC::tr("Container Format"),
+      QString("v%1").arg(ImToken::FormatVersion()));
+  add(GTrC::tr("Message Book"),
+      configured ? GTrC::tr("Shared phrase (Argon2id)")
+                 : GTrC::tr("Default, no shared phrase set"));
   // Lets both sides confirm they are on the same book. Only meaningful with a
   // phrase: everyone shares the default book, so its digest says nothing.
   if (configured) {
-    add(Tr("Book Fingerprint"), ImToken::BookFingerprintOf(phrase));
+    add(GTrC::tr("Book Fingerprint"), ImToken::BookFingerprintOf(phrase));
   } else {
-    add(Tr("Set a Phrase"), Tr("Settings > Instant Messaging"));
+    add(GTrC::tr("Set a Phrase"), GTrC::tr("Settings > Instant Messaging"));
   }
   if (payload > 0) {
-    add(Tr("OpenPGP Payload"), Tr("%1 bytes").arg(payload));
+    add(GTrC::tr("OpenPGP Payload"), GTrC::tr("%1 bytes").arg(payload));
   }
   if (token_len > 0) {
-    add(Tr("Token Length"), Tr("%1 characters").arg(token_len));
+    add(GTrC::tr("Token Length"), GTrC::tr("%1 characters").arg(token_len));
   }
   if (payload > 0 && token_len > 0) {
     // Random padding plus Base58 expansion. The padding part is deliberately
     // random, so this ratio does not pin down the true payload length.
     const auto ratio =
         static_cast<double>(token_len) / static_cast<double>(payload);
-    add(Tr("Wire Overhead"),
+    add(GTrC::tr("Wire Overhead"),
         QString("+%1%").arg((ratio * 100.0) - 100.0, 0, 'f', 0));
   }
 
   return QJsonObject{
-      {QStringLiteral("title"), Tr("Instant Messaging")},
+      {QStringLiteral("title"), GTrC::tr("Instant Messaging")},
       {QStringLiteral("status"),
        configured ? QStringLiteral("ok") : QStringLiteral("warn")},
       {QStringLiteral("fields"), fields}};
@@ -94,7 +93,8 @@ auto BookCard(const QString& phrase, qsizetype payload, qsizetype token_len)
 auto CardsJson(const QJsonObject& card) -> QString {
   const QJsonObject payload{
       {QStringLiteral("description"),
-       Tr("An Instant Messaging section followed by the OpenPGP result.")},
+       GTrC::tr(
+           "An Instant Messaging section followed by the OpenPGP result.")},
       {QStringLiteral("cards"), QJsonArray{card}}};
   return QString::fromUtf8(
       QJsonDocument(payload).toJson(QJsonDocument::Compact));
@@ -123,10 +123,11 @@ auto EncodeOutput(const QByteArray& pgp, const QString& phrase) -> Answer {
   // Checked here so the user is told what went wrong and what to do about it.
   const auto limit = ImToken::MaxPayloadBytes();
   if (pgp.size() > limit) {
-    a.error = Tr("This message is too long to send as an instant message.\n\n"
-                 "The encrypted message is %1 bytes, and the "
-                 "instant-messaging format carries at most %2. Shorten the "
-                 "text, or send it as a normal OpenPGP message instead.")
+    a.error = GTrC::tr(
+                  "This message is too long to send as an instant message.\n\n"
+                  "The encrypted message is %1 bytes, and the "
+                  "instant-messaging format carries at most %2. Shorten the "
+                  "text, or send it as a normal OpenPGP message instead.")
                   .arg(pgp.size())
                   .arg(limit);
     return a;
@@ -134,8 +135,9 @@ auto EncodeOutput(const QByteArray& pgp, const QString& phrase) -> Answer {
 
   const auto token = ImToken::Encode(pgp, phrase);
   if (token.isEmpty()) {
-    a.error = Tr("Failed to prepare the instant message: the encrypted "
-                 "message could not be converted into a token.");
+    a.error = GTrC::tr(
+        "Failed to prepare the instant message: the encrypted "
+        "message could not be converted into a token.");
     return a;
   }
 

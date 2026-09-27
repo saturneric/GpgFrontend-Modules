@@ -42,6 +42,7 @@
 
 #include "GFModule.h"
 #include "GFModuleIdentity.h"
+#include "GFModuleTr.h"
 #include "UpdateChecker.h"
 #include "UpdateTab.h"
 #include "Utils.h"
@@ -129,16 +130,13 @@ class UpdateWidget : public QWidget, public gf::ui::DialogWidget {
 class UpdateSettingsWidget : public QWidget, public gf::ui::SettingsWidget {
  public:
   UpdateSettingsWidget() {
-    auto* box = new QGroupBox(
-        QCoreApplication::translate("GTrC", "Update Checking"), this);
+    auto* box = new QGroupBox(GTrC::tr("Update Checking"), this);
     auto* column = new QVBoxLayout(box);
 
-    check_ =
-        new QCheckBox(QCoreApplication::translate(
-                          "GTrC",
-                          "Checking for version updates when the application "
-                          "starts."),
-                      box);
+    check_ = new QCheckBox(
+        GTrC::tr("Checking for version updates when the application "
+                 "starts."),
+        box);
     column->addWidget(check_);
 
     auto* layout = new QVBoxLayout(this);
@@ -165,8 +163,8 @@ class UpdateSettingsWidget : public QWidget, public gf::ui::SettingsWidget {
 struct CheckForUpdates {
   static constexpr gf::cmd::Meta kMeta{
       GF_MODULE_ID ".check_for_updates",
-      GC_TR("Check for Updates"),
-      GC_TR("See whether a newer GpgFrontend is available"),
+      GTrC::Noop("Check for Updates"),
+      GTrC::Noop("See whether a newer GpgFrontend is available"),
       "",
       0,
       gf::cmd::kNeedsGuiThread};
@@ -214,12 +212,12 @@ auto OnActivate() -> GFResult {
                          "update_checking_api");
 
   const bool dialog = gf::ui::RegisterNativeWidget<UpdateWidget>(
-      "update", {GC_TR("Check for Updates"), "", "", "", "", 0, 0},
+      "update", {GTrC::Noop("Check for Updates"), "", "", "", "", 0, 0},
       [](const QCborMap& /*args*/) { return new UpdateWidget(); });
   const bool settings = gf::ui::RegisterNativeWidget<UpdateSettingsWidget>(
       "settings",
-      {GC_TR("Updates"), GC_TR("update,version,check,github"), "", "", "", 0,
-       0},
+      {GTrC::Noop("Updates"), GTrC::Noop("update,version,check,github"), "", "",
+       "", 0, 0},
       [](const QCborMap& /*args*/) { return new UpdateSettingsWidget(); });
   return dialog && settings
              ? GFResult::Ok()

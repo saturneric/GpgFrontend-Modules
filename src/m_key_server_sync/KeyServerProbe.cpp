@@ -36,6 +36,7 @@
 #include <optional>
 
 #include "GFModule.h"
+#include "GFModuleTr.h"
 
 namespace {
 
@@ -242,10 +243,8 @@ void KeyServerProber::settle(bool is_hkp, ProbeVerdict verdict) {
     const auto unreachable = hkp_verdict_ == ProbeVerdict::kUnreachable &&
                              vks_verdict_ == ProbeVerdict::kUnreachable;
     result_.detail =
-        unreachable ? QCoreApplication::translate(
-                          "GTrC", "The server could not be reached.")
-                    : QCoreApplication::translate(
-                          "GTrC",
+        unreachable ? GTrC::tr("The server could not be reached.")
+                    : GTrC::tr(
                           "The server responded, but not as a key server: it "
                           "supports neither the HKP nor the VKS interface.");
   }

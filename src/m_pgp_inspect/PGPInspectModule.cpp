@@ -27,9 +27,11 @@
  */
 
 #include <GFModule.h>
+
 #include <GFSDKHostCommands.hpp>
 
 #include "GFModuleIdentity.h"
+#include "GFModuleTr.h"
 #include "PGPInspectDialog.h"
 
 namespace {
@@ -57,8 +59,10 @@ auto InspectCurrentTab() -> PGPInspectDocument {
 struct OpenInspector {
   static constexpr gf::cmd::Meta kMeta{
       GF_MODULE_ID ".open_inspector",
-      GC_TR("Open OpenPGP Structure Inspector"),
-      GC_TR("Show the packet structure of the current tab"), "", 0,
+      GTrC::Noop("Open OpenPGP Structure Inspector"),
+      GTrC::Noop("Show the packet structure of the current tab"),
+      "",
+      0,
       gf::cmd::kNeedsGuiThread};
   using Args = gf::cmd::Unit;
   using Result = gf::cmd::Unit;
@@ -86,7 +90,8 @@ auto OnActivate() -> GFResult {
   // it is offered is ui/main.lua's business.
   const bool ok = gf::ui::RegisterNativeWidget<PGPInspectDialog>(
       "inspector",
-      {GC_TR("OpenPGP Structure"), "", "", "", ":/icons/help.png", 820, 620},
+      {GTrC::Noop("OpenPGP Structure"), "", "", "", ":/icons/help.png", 820,
+       620},
       [](const QCborMap& /*args*/) {
         const auto bytes = PGPInspectCurrentTabBytes();
         return new PGPInspectDialog(PGPInspectBytes(bytes), bytes.size());
@@ -117,6 +122,6 @@ const GFModuleHooks kHooks = {
 };
 
 extern "C" GF_MODULE_EXPORT auto GFModuleGetApi(uint32_t abi)
-    -> const GFModuleApi * {
+    -> const GFModuleApi* {
   return GFModuleRuntimeGetApi(abi, &kHooks);
 }

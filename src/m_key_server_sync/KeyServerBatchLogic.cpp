@@ -31,6 +31,8 @@
 #include <QCoreApplication>
 #include <QSet>
 
+#include "GFModuleTr.h"
+
 namespace KeyServerBatchLogic {
 
 namespace {
@@ -39,7 +41,7 @@ namespace {
 auto WithFailures(QString headline, const QStringList& failures) -> QString {
   if (failures.isEmpty()) return headline;
   headline += QStringLiteral("\n\n");
-  headline += QCoreApplication::translate("GTrC", "Failed:");
+  headline += GTrC::tr("Failed:");
   for (const auto& f : failures) headline += QStringLiteral("\n") + f;
   return headline;
 }
@@ -74,8 +76,7 @@ auto JoinForImport(const QList<QByteArray>& blocks) -> QByteArray {
 }
 
 auto NotFoundText() -> QString {
-  return QCoreApplication::translate("GTrC",
-                                     "The key server does not have this key.");
+  return GTrC::tr("The key server does not have this key.");
 }
 
 auto IsNotFound(const QString& error) -> bool {
@@ -84,25 +85,21 @@ auto IsNotFound(const QString& error) -> bool {
 
 auto RefreshSummary(int fetched, int total, const QStringList& failures)
     -> QString {
-  return WithFailures(
-      QCoreApplication::translate("GTrC",
-                                  "%1 of %2 keys were fetched from the key "
-                                  "server.")
-          .arg(fetched)
-          .arg(total),
-      failures);
+  return WithFailures(GTrC::tr("%1 of %2 keys were fetched from the key "
+                               "server.")
+                          .arg(fetched)
+                          .arg(total),
+                      failures);
 }
 
 auto PublishSummary(int published, int total, const QString& host,
                     const QStringList& failures) -> QString {
-  return WithFailures(
-      QCoreApplication::translate("GTrC",
-                                  "%1 of %2 keys were published to the key "
-                                  "server %3.")
-          .arg(published)
-          .arg(total)
-          .arg(host),
-      failures);
+  return WithFailures(GTrC::tr("%1 of %2 keys were published to the key "
+                               "server %3.")
+                          .arg(published)
+                          .arg(total)
+                          .arg(host),
+                      failures);
 }
 
 }  // namespace KeyServerBatchLogic
