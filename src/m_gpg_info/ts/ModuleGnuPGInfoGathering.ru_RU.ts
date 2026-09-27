@@ -2,17 +2,6 @@
 <!DOCTYPE TS>
 <TS version="2.1" language="ru_RU">
 <context>
-    <name>GTrC</name>
-    <message>
-        <source>GnuPG</source>
-        <translation type="vanished">GnuPG</translation>
-    </message>
-    <message>
-        <source>Information about GnuPG</source>
-        <translation type="vanished">Информация о GnuPG</translation>
-    </message>
-</context>
-<context>
     <name>GnuPGInfo</name>
     <message>
         <location filename="../GnuPGInfo.ui" line="14"/>
@@ -117,6 +106,20 @@
         <location filename="../GnupgTab.cpp" line="96"/>
         <source>Value</source>
         <translation>Значение</translation>
+    </message>
+</context>
+<context>
+    <name>ModuleGnuPGInfoGathering</name>
+    <message>
+        <location filename="../GnuPGInfoGatheringModule.cpp" line="92"/>
+        <location filename="../GnuPGInfoGatheringModule.cpp" line="114"/>
+        <source>GnuPG</source>
+        <translation>GnuPG</translation>
+    </message>
+    <message>
+        <location filename="../GnuPGInfoGatheringModule.cpp" line="93"/>
+        <source>Information about GnuPG</source>
+        <translation>Информация о GnuPG</translation>
     </message>
 </context>
 </TS>

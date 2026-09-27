@@ -108,4 +108,18 @@
         <translation type="unfinished"></translation>
     </message>
 </context>
+<context>
+    <name>ModuleGnuPGInfoGathering</name>
+    <message>
+        <location filename="../GnuPGInfoGatheringModule.cpp" line="92"/>
+        <location filename="../GnuPGInfoGatheringModule.cpp" line="114"/>
+        <source>GnuPG</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../GnuPGInfoGatheringModule.cpp" line="93"/>
+        <source>Information about GnuPG</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
 </TS>
