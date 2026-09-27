@@ -2,10 +2,12 @@
 <!DOCTYPE TS>
 <TS version="2.1" language="it_IT">
 <context>
-    <name>GTrC</name>
+    <name>ModuleVersionChecking</name>
     <message>
+        <location filename="../VersionCheckingModule.cpp" line="166"/>
+        <location filename="../VersionCheckingModule.cpp" line="215"/>
         <source>Check for Updates</source>
-        <translation type="vanished">Verifica aggiornamenti</translation>
+        <translation>Verifica aggiornamenti</translation>
     </message>
     <message>
         <source>Check for updates from the Internet.</source>
@@ -20,6 +22,21 @@
         <location filename="../VersionCheckingModule.cpp" line="137"/>
         <source>Checking for version updates when the application starts.</source>
         <translation>Verifica aggiornamenti di versione all&apos;avvio dell&apos;applicazione.</translation>
+    </message>
+    <message>
+        <location filename="../VersionCheckingModule.cpp" line="167"/>
+        <source>See whether a newer GpgFrontend is available</source>
+        <translation>Verifica se è disponibile una versione più recente di GpgFrontend</translation>
+    </message>
+    <message>
+        <location filename="../VersionCheckingModule.cpp" line="219"/>
+        <source>Updates</source>
+        <translation>Aggiornamenti</translation>
+    </message>
+    <message>
+        <location filename="../VersionCheckingModule.cpp" line="219"/>
+        <source>update,version,check,github</source>
+        <translation>update,version,check,github,aggiornamento,versione,verifica</translation>
     </message>
     <message>
         <source>GitHub</source>
