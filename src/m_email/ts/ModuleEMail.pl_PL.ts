@@ -3128,27 +3128,27 @@ Ta wiadomość pochodzi skądinąd, więc jeśli te pliki nie zostały już zapi
     <message>
         <location filename="../EMailModule.cpp" line="440"/>
         <source>E-Mail</source>
-        <translation type="unfinished">E-mail</translation>
+        <translation>E-mail</translation>
     </message>
     <message>
         <location filename="../EMailModule.cpp" line="441"/>
         <source>E-Mail Message (*.eml);;All Files (*)</source>
-        <translation type="unfinished">Wiadomość e-mail (*.eml);;Wszystkie pliki (*)</translation>
+        <translation>Wiadomość e-mail (*.eml);;Wszystkie pliki (*)</translation>
     </message>
     <message>
         <location filename="../EMailModule.cpp" line="446"/>
         <source>Mail Accounts</source>
-        <translation type="unfinished"></translation>
+        <translation>Konta pocztowe</translation>
     </message>
     <message>
         <location filename="../EMailModule.cpp" line="447"/>
         <source>mail,email,imap,smtp,account,send</source>
-        <translation type="unfinished"></translation>
+        <translation>mail,email,imap,smtp,account,send,poczta,konto,wyślij</translation>
     </message>
     <message>
         <location filename="../EMailModule.cpp" line="450"/>
         <source>IMAP Controller</source>
-        <translation type="unfinished">Kontroler IMAP</translation>
+        <translation>Kontroler IMAP</translation>
     </message>
     <message>
         <location filename="../EMailModule.cpp" line="1698"/>

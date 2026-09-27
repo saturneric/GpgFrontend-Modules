@@ -3126,27 +3126,27 @@ Este mensaje viene de otro lugar; a menos que ya se hayan guardado, esta es la �
     <message>
         <location filename="../EMailModule.cpp" line="440"/>
         <source>E-Mail</source>
-        <translation type="unfinished">Correo electrónico</translation>
+        <translation>Correo electrónico</translation>
     </message>
     <message>
         <location filename="../EMailModule.cpp" line="441"/>
         <source>E-Mail Message (*.eml);;All Files (*)</source>
-        <translation type="unfinished">Mensaje de correo electrónico (*.eml);;Todos los archivos (*)</translation>
+        <translation>Mensaje de correo electrónico (*.eml);;Todos los archivos (*)</translation>
     </message>
     <message>
         <location filename="../EMailModule.cpp" line="446"/>
         <source>Mail Accounts</source>
-        <translation type="unfinished"></translation>
+        <translation>Cuentas de correo</translation>
     </message>
     <message>
         <location filename="../EMailModule.cpp" line="447"/>
         <source>mail,email,imap,smtp,account,send</source>
-        <translation type="unfinished"></translation>
+        <translation>mail,email,imap,smtp,account,send,correo,cuenta,enviar</translation>
     </message>
     <message>
         <location filename="../EMailModule.cpp" line="450"/>
         <source>IMAP Controller</source>
-        <translation type="unfinished">Controlador IMAP</translation>
+        <translation>Controlador IMAP</translation>
     </message>
     <message>
         <location filename="../EMailModule.cpp" line="1698"/>

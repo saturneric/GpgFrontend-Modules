@@ -3124,27 +3124,27 @@ This message came from somewhere else, so unless these have been saved already t
     <message>
         <location filename="../EMailModule.cpp" line="440"/>
         <source>E-Mail</source>
-        <translation type="unfinished">電子郵件</translation>
+        <translation>電子郵件</translation>
     </message>
     <message>
         <location filename="../EMailModule.cpp" line="441"/>
         <source>E-Mail Message (*.eml);;All Files (*)</source>
-        <translation type="unfinished">電子郵件訊息 (*.eml);;所有檔案 (*)</translation>
+        <translation>電子郵件訊息 (*.eml);;所有檔案 (*)</translation>
     </message>
     <message>
         <location filename="../EMailModule.cpp" line="446"/>
         <source>Mail Accounts</source>
-        <translation type="unfinished"></translation>
+        <translation>郵件帳戶</translation>
     </message>
     <message>
         <location filename="../EMailModule.cpp" line="447"/>
         <source>mail,email,imap,smtp,account,send</source>
-        <translation type="unfinished"></translation>
+        <translation>mail,email,imap,smtp,account,send,郵件,電子郵件,帳戶,傳送</translation>
     </message>
     <message>
         <location filename="../EMailModule.cpp" line="450"/>
         <source>IMAP Controller</source>
-        <translation type="unfinished">IMAP 控制器</translation>
+        <translation>IMAP 控制器</translation>
     </message>
     <message>
         <location filename="../EMailModule.cpp" line="1698"/>
