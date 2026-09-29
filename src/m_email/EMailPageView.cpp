@@ -60,6 +60,7 @@
 #include <QMenu>
 #include <QMessageBox>
 #include <QMimeData>
+#include <QPainter>
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QSaveFile>
@@ -110,6 +111,35 @@ constexpr int kPersistDelayMs = 500;
 /// The attachment list never gets less than this, however short the window:
 /// below it the list is smaller than its own header plus a row.
 constexpr int kMinAttachmentHeight = 120;
+
+/// A chevron in the palette's button text colour: the same Expand / Collapse
+/// mark as the host's collapsed Status Panel, so the two compact rows read as
+/// one pattern. Drawn rather than taken from the style, whose arrows are
+/// coloured and differ between platforms.
+auto EMailChevronIcon(const QPalette& palette, bool up) -> QIcon {
+  constexpr int kSize = 16;
+  const qreal dpr = qApp != nullptr ? qApp->devicePixelRatio() : 1.0;
+  QPixmap pixmap(QSize(kSize, kSize) * dpr);
+  pixmap.setDevicePixelRatio(dpr);
+  pixmap.fill(Qt::transparent);
+
+  QPainter painter(&pixmap);
+  painter.setRenderHint(QPainter::Antialiasing);
+  QPen pen(palette.color(QPalette::ButtonText), 1.6);
+  pen.setCapStyle(Qt::RoundCap);
+  pen.setJoinStyle(Qt::RoundJoin);
+  painter.setPen(pen);
+
+  const qreal mid = kSize / 2.0;
+  const qreal half = 4.0;
+  const qreal rise = up ? -2.0 : 2.0;
+  const std::array<QPointF, 3> points = {QPointF(mid - half, mid - rise),
+                                         QPointF(mid, mid + rise),
+                                         QPointF(mid + half, mid - rise)};
+  painter.drawPolyline(points.data(), static_cast<int>(points.size()));
+  painter.end();
+  return QIcon(pixmap);
+}
 
 /// Names the completer so it can be found again on the line edit it belongs
 /// to. Needed because a multi-value completer is not reachable through
@@ -475,7 +505,6 @@ void EMailPageView::apply_colors() {
   }
 
   if (envelope_rule_ != nullptr) EMailPaintRule(envelope_rule_);
-  if (action_separator_ != nullptr) EMailPaintRule(action_separator_);
 
   if (locked_banner_ != nullptr) {
     EMailTintBanner(locked_banner_, MutedColor(this), kLockedTint);
@@ -489,6 +518,7 @@ void EMailPageView::apply_colors() {
   if (attachment_heading_ != nullptr) {
     EMailSetLabelColor(attachment_heading_, MutedColor(this));
   }
+  if (attachment_toggle_ != nullptr) apply_attachment_bar();
   if (unsigned_notice_ != nullptr) {
     EMailSetLabelColor(unsigned_notice_, ThemeColor(this, GF_UI_COLOR_WARNING));
   }
@@ -685,110 +715,160 @@ auto EMailPageView::build_message_surface() -> QWidget* {
   body_row->addWidget(view_switcher_);
   body_row->addSpacing(4);
 
-  // Message-level actions. Each produces a NEW document in a new tab; none of
-  // them writes to this one.
+  // Every command is a QAction owned by the view and registered on it, so its
+  // shortcut works wherever the command is currently shown -- on the row, or
+  // in a menu. Buttons and menus show the same actions; nothing is a copy.
   //
-  // Icons come from the desktop theme where there is one, because these three
+  // Icons come from the desktop theme where there is one, because these
   // actions have long-settled, instantly recognisable icons that no bundled
   // substitute would improve on. The bundled files are the fallback for the
   // platforms that have no icon theme at all.
-  const auto make_action =
-      [this, body_row](const QString& theme_icon, const QString& fallback_icon,
-                       const QString& text, const QString& tip,
-                       const QKeySequence& shortcut) {
-        auto* button = new QToolButton(this);
-        button->setIcon(QIcon::fromTheme(theme_icon, QIcon(fallback_icon)));
-        button->setText(text);
-        button->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
-        button->setAutoRaise(true);
-        button->setVisible(false);
+  const auto make_command = [this](const QString& theme_icon,
+                                   const QString& fallback_icon,
+                                   const QString& text, const QString& tip,
+                                   const QKeySequence& shortcut) {
+    auto* action = new QAction(
+        QIcon::fromTheme(theme_icon, QIcon(fallback_icon)), text, this);
+    // The key and the sentence advertising it are set together, so they
+    // cannot drift apart. A shortcut nothing mentions is a shortcut only the
+    // person who wrote it knows about.
+    action->setShortcut(shortcut);
+    action->setShortcutContext(Qt::WidgetWithChildrenShortcut);
+    action->setToolTip(
+        shortcut.isEmpty()
+            ? tip
+            : tr("%1 (%2)").arg(tip,
+                                shortcut.toString(QKeySequence::NativeText)));
+    addAction(action);
+    return action;
+  };
+  const auto make_button = [this, body_row](QAction* action) {
+    auto* button = new QToolButton(this);
+    button->setDefaultAction(action);
+    button->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+    button->setAutoRaise(true);
+    button->setVisible(false);
+    body_row->addWidget(button);
+    return button;
+  };
 
-        // The key and the sentence advertising it are set together, so they
-        // cannot drift apart. A shortcut nothing mentions is a shortcut only
-        // the person who wrote it knows about.
-        button->setShortcut(shortcut);
-        button->setToolTip(
-            shortcut.isEmpty()
-                ? tip
-                : tr("%1 (%2)").arg(
-                      tip, shortcut.toString(QKeySequence::NativeText)));
-
-        body_row->addWidget(button);
-        return button;
-      };
-
-  reply_button_ = make_action(
+  // Message-level actions. Each produces a NEW document in a new tab; none of
+  // them writes to this one.
+  reply_act_ = make_command(
       QStringLiteral("mail-reply-sender"), ":/icons/reply.png", tr("Reply"),
       tr("Write a reply to the sender."), QKeySequence(Qt::CTRL | Qt::Key_R));
-  reply_all_button_ = make_action(
+  reply_all_act_ = make_command(
       QStringLiteral("mail-reply-all"), ":/icons/reply-all.png",
       tr("Reply All"),
       tr("Write a reply to the sender and everyone else who was addressed. "
          "Blind recipients are not included."),
       QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_R));
-  forward_button_ = make_action(
+  forward_act_ = make_command(
       QStringLiteral("mail-forward"), ":/icons/redo.png", tr("Forward"),
       tr("Pass this message on, with its attachments."),
       QKeySequence(Qt::CTRL | Qt::Key_L));
-
-  connect(reply_button_, &QToolButton::clicked, this, [this]() {
-    slot_derive_message(static_cast<int>(EMailReplyMode::kREPLY));
-  });
-  connect(reply_all_button_, &QToolButton::clicked, this, [this]() {
-    slot_derive_message(static_cast<int>(EMailReplyMode::kREPLY_ALL));
-  });
-  connect(forward_button_, &QToolButton::clicked, this, [this]() {
-    slot_derive_message(static_cast<int>(EMailReplyMode::kFORWARD));
-  });
-
-  send_button_ = make_action(QStringLiteral("mail-send"),
-                             ":/icons/export-email.png", tr("Send..."),
-                             tr("Send this message through a configured "
-                                "mail account."),
-                             QKeySequence(Qt::CTRL | Qt::Key_Return));
-  connect(send_button_, &QToolButton::clicked, this,
-          &EMailPageView::slot_send_message);
-
-  // Locking the document is a different kind of act from deriving a new
-  // message out of it, so it is set apart rather than lined up with them.
-  auto* action_separator = EMailRule(this, Qt::Vertical);
-  action_separator->setVisible(false);
-  body_row->addSpacing(4);
-  body_row->addWidget(action_separator);
-  body_row->addSpacing(4);
-  action_separator_ = action_separator;
-
-  forensic_toggle_ = make_action(
+  send_act_ = make_command(QStringLiteral("mail-send"),
+                           ":/icons/export-email.png", tr("Send..."),
+                           tr("Send this message through a configured "
+                              "mail account."),
+                           QKeySequence(Qt::CTRL | Qt::Key_Return));
+  // The attachment menu's Attach is this same action, so the row and the
+  // menu cannot disagree about it.
+  attachment_attach_act_ = make_command(
+      QStringLiteral("mail-attachment"), ":/icons/attachment.png",
+      tr("Attach File..."),
+      tr("Add one or more files to this message. Files can also be dropped "
+         "onto the message."),
+      QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_A));
+  details_act_ = make_command(
+      QStringLiteral("dialog-information"), ":/icons/detail.png",
+      // The ellipsis is doing its usual job: this opens a window rather than
+      // changing anything here.
+      tr("Details..."),
+      tr("Show what is known about this message: its signatures, its "
+         "structure and its headers."),
+      QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_D));
+  forensic_act_ = make_command(
       QStringLiteral("object-locked"), ":/icons/read-only.png", tr("Read-only"),
       tr("Lock this message so it cannot be edited or rewritten. Reply and "
          "Forward still work and produce new messages."),
       QKeySequence());
-  forensic_toggle_->setCheckable(true);
-  connect(forensic_toggle_, &QToolButton::toggled, this,
+  forensic_act_->setCheckable(true);
+
+  connect(reply_act_, &QAction::triggered, this, [this]() {
+    slot_derive_message(static_cast<int>(EMailReplyMode::kREPLY));
+  });
+  connect(reply_all_act_, &QAction::triggered, this, [this]() {
+    slot_derive_message(static_cast<int>(EMailReplyMode::kREPLY_ALL));
+  });
+  connect(forward_act_, &QAction::triggered, this, [this]() {
+    slot_derive_message(static_cast<int>(EMailReplyMode::kFORWARD));
+  });
+  connect(send_act_, &QAction::triggered, this,
+          &EMailPageView::slot_send_message);
+  connect(details_act_, &QAction::triggered, this,
+          [this]() { open_details(); });
+  connect(forensic_act_, &QAction::toggled, this,
           [this](bool on) { SetForensicMode(on); });
+
+  // On the row: what this kind of document is for. A received message is
+  // answered, a draft is sent; see EMailActionBar().
+  reply_button_ = make_button(reply_act_);
+  reply_all_button_ = make_button(reply_all_act_);
+  forward_button_ = make_button(forward_act_);
+  send_button_ = make_button(send_act_);
+  add_button_ = make_button(attachment_attach_act_);
+
+  // The attachment operations, in one place, and only while there are
+  // attachments to operate on. Built here, filled in with the section below.
+  attachment_menu_ = new QMenu(this);
+  attachments_button_ = new QToolButton(this);
+  attachments_button_->setIcon(QIcon::fromTheme(
+      QStringLiteral("mail-attachment"), QIcon(":/icons/attachment.png")));
+  attachments_button_->setText(tr("Attachments"));
+  attachments_button_->setToolTip(tr("Open, save and manage attachments"));
+  attachments_button_->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+  attachments_button_->setAutoRaise(true);
+  attachments_button_->setPopupMode(QToolButton::InstantPopup);
+  attachments_button_->setMenu(attachment_menu_);
+  attachments_button_->setVisible(false);
+  body_row->addWidget(attachments_button_);
 
   body_row->addStretch();
 
-  // Opens the pane beside the message. Next to the security button because
-  // the two are the same subject: what this message is, and the detail behind
-  // that answer.
-  details_button_ = new QToolButton(this);
-  details_button_->setIcon(QIcon::fromTheme(
-      QStringLiteral("dialog-information"), QIcon(":/icons/detail.png")));
-  // The ellipsis is doing its usual job: this opens a window rather than
-  // changing anything here.
-  details_button_->setText(tr("Details..."));
-  details_button_->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
-  details_button_->setAutoRaise(true);
-  details_button_->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_D));
-  details_button_->setToolTip(tr("%1 (%2)").arg(
-      tr("Show what is known about this message: its signatures, its "
-         "structure and its headers."),
-      details_button_->shortcut().toString(QKeySequence::NativeText)));
-  details_button_->setMinimumWidth(details_button_->sizeHint().width());
-  connect(details_button_, &QToolButton::clicked, this,
-          [this]() { open_details(); });
-  body_row->addWidget(details_button_);
+  // Everything reachable that is not done with every message.
+  more_menu_ = new QMenu(this);
+  more_menu_->setToolTipsVisible(true);
+  more_answer_separator_ = more_menu_->addSeparator();
+  more_menu_->addAction(details_act_);
+  more_lock_separator_ = more_menu_->addSeparator();
+  more_menu_->addAction(forensic_act_);
+
+  more_button_ = new QToolButton(this);
+  more_button_->setText(tr("More"));
+  more_button_->setToolTip(tr("More actions for this message"));
+  more_button_->setIcon(QIcon::fromTheme(QStringLiteral("view-more"),
+                                         QIcon(":/icons/detail.png")));
+  more_button_->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+  more_button_->setAutoRaise(true);
+  more_button_->setPopupMode(QToolButton::InstantPopup);
+  more_button_->setMenu(more_menu_);
+  body_row->addWidget(more_button_);
+  body_row->addSpacing(4);
+
+  // A state, not a control: the lock itself is toggled from More.
+  read_only_label_ = new QLabel(this);
+  read_only_label_->setObjectName(QStringLiteral("emailReadOnlyStatus"));
+  read_only_label_->setText(tr("Read-only"));
+  read_only_label_->setToolTip(
+      tr("This message is open for inspection only. Turn it off in More."));
+  {
+    auto font = read_only_label_->font();
+    font.setPointSizeF(font.pointSizeF() * 0.92);
+    read_only_label_->setFont(font);
+  }
+  read_only_label_->setVisible(false);
+  body_row->addWidget(read_only_label_);
   body_row->addSpacing(4);
 
   // What the message IS, and which action applies, on the same row as the
@@ -820,6 +900,10 @@ auto EMailPageView::build_message_surface() -> QWidget* {
   layout->addLayout(body_row);
 
   body_edit_ = new QPlainTextEdit(this);
+  // It wraps at the viewport's width: a scrollbar appearing because the
+  // window's Status Panel expanded would reflow the message sideways, so the
+  // gutter is kept whether or not there is anything to scroll.
+  body_edit_->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
   body_edit_->setPlaceholderText(tr("Write your message here."));
 
   body_view_ = new EMailBodyView(this);
@@ -856,35 +940,54 @@ auto EMailPageView::build_message_surface() -> QWidget* {
   // Colour belongs to apply_colors(), like every other colour in this view.
   banner_row->addWidget(locked_notice_, 1);
 
-  layout->addWidget(locked_banner_);
-
   locked_panel_ = build_locked_panel();
 
   body_stack_ = new QStackedWidget(this);
   body_stack_->addWidget(body_edit_);
   body_stack_->addWidget(body_view_);
   body_stack_->addWidget(locked_panel_);
-  layout->addWidget(body_stack_, 1);
 
   // Everything about attachments, wrapped for the same reason as the envelope:
   // the raw source mode hides it whole.
   attachment_box_ = new QWidget(page);
   auto* attachment_column = new QVBoxLayout(attachment_box_);
-  attachment_column->setContentsMargins(0, 0, 0, 0);
-  attachment_column->setSpacing(6);
-  layout->addWidget(attachment_box_);
+  attachment_column->setContentsMargins(0, 2, 0, 0);
+  attachment_column->setSpacing(4);
 
-  attachment_heading_ = new QLabel(this);
-  {
-    auto font = attachment_heading_->font();
+  // One row, the shape of the collapsed Status Panel: what it is, a summary,
+  // then only the actions that fit the mode, a menu for the rest, and Expand.
+  // The full table only exists on request, so a message with one part costs
+  // one line of height rather than a header, a row and a button strip.
+  auto* bar = new QHBoxLayout();
+  bar->setContentsMargins(0, 0, 0, 0);
+  bar->setSpacing(4);
+
+  const auto small_font = [this]() {
+    auto font = this->font();
     font.setPointSizeF(font.pointSizeF() * 0.92);
-    attachment_heading_->setFont(font);
+    return font;
+  };
+
+  attachment_icon_ = new QLabel(this);
+  attachment_icon_->setPixmap(
+      QIcon::fromTheme(QStringLiteral("mail-attachment"),
+                       QIcon(":/icons/attachment.png"))
+          .pixmap(16, 16));
+
+  attachment_title_ = new QLabel(tr("Attachments"), this);
+  {
+    auto font = small_font();
+    font.setWeight(QFont::DemiBold);
+    attachment_title_->setFont(font);
   }
-  attachment_heading_->setVisible(false);
-  // Not welded to the body above it: this is a new group, not a caption on the
-  // editor.
-  attachment_column->addSpacing(2);
-  attachment_column->addWidget(attachment_heading_);
+
+  // The summary: the one part's name and size, or how many there are. Allowed
+  // to shrink, so a long file name gives way before the actions do.
+  attachment_heading_ = new QLabel(this);
+  attachment_heading_->setFont(small_font());
+  attachment_heading_->setSizePolicy(QSizePolicy::Ignored,
+                                     QSizePolicy::Preferred);
+  attachment_heading_->setTextFormat(Qt::PlainText);
 
   attachment_list_ = new QTreeWidget(this);
   attachment_list_->setRootIsDecorated(false);
@@ -898,84 +1001,93 @@ auto EMailPageView::build_message_surface() -> QWidget* {
                                                    QHeaderView::Stretch);
   EMailPolishTree(attachment_list_);
   attachment_list_->setVisible(false);
-  attachment_column->addWidget(attachment_list_);
 
   unsigned_notice_ = new QLabel(this);
   unsigned_notice_->setWordWrap(true);
   unsigned_notice_->setVisible(false);
-  {
-    auto font = unsigned_notice_->font();
-    font.setPointSizeF(font.pointSizeF() * 0.92);
-    unsigned_notice_->setFont(font);
-  }
-  attachment_column->addWidget(unsigned_notice_);
+  unsigned_notice_->setFont(small_font());
 
-  // The same shape as the actions above: flat, icon beside text. These used
-  // to be raised push buttons, which gave the attachment list a heavier
-  // footer than the message itself.
-  auto* buttons = new QHBoxLayout();
-  buttons->setContentsMargins(0, 0, 0, 0);
-  buttons->setSpacing(2);
-
-  const auto make_attachment_action =
-      [this](const QString& theme_icon, const QString& fallback_icon,
-             const QString& text, const QString& tip,
-             const QKeySequence& shortcut = {}) {
-        auto* button = new QToolButton(this);
-        button->setIcon(QIcon::fromTheme(theme_icon, QIcon(fallback_icon)));
-        button->setText(text);
-        button->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
-        button->setAutoRaise(true);
-
-        button->setShortcut(shortcut);
-        button->setToolTip(
-            shortcut.isEmpty()
-                ? tip
-                : tr("%1 (%2)").arg(
-                      tip, shortcut.toString(QKeySequence::NativeText)));
-        return button;
-      };
-
-  add_button_ = make_attachment_action(
-      QStringLiteral("mail-attachment"), ":/icons/attachment.png",
-      tr("Attach File..."),
-      tr("Add one or more files to this message. Files can also be dropped "
-         "onto the message."),
-      QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_A));
+  // The operations live in the action row's Attachments menu (built above),
+  // so this bar is information only and never repeats them. Open acts on one
+  // part, Save on the parts the user can see chosen, Save All on every one.
+  attachment_open_act_ = attachment_menu_->addAction(tr("Open"));
+  attachment_save_act_ = attachment_menu_->addAction(
+      QIcon::fromTheme(QStringLiteral("document-save"),
+                       QIcon(":/icons/filesave.png")),
+      tr("Save..."));
+  attachment_save_act_->setToolTip(
+      tr("Write the selected attachments to a folder."));
+  attachment_save_all_act_ = attachment_menu_->addAction(
+      QIcon::fromTheme(QStringLiteral("document-save-all"),
+                       QIcon(":/icons/save-all.png")),
+      tr("Save All..."));
+  attachment_save_all_act_->setToolTip(tr("Write every attachment to a folder."));
+  attachment_edit_separator_ = attachment_menu_->addSeparator();
+  attachment_menu_->addAction(attachment_attach_act_);
   // Removing takes a part out of the message being composed; it deletes
   // nothing on disk, and the wording and icon both stay away from suggesting
   // it does.
-  remove_button_ = make_attachment_action(
-      QStringLiteral("list-remove"), ":/icons/remove.png", tr("Remove"),
+  attachment_remove_act_ = attachment_menu_->addAction(
+      QIcon::fromTheme(QStringLiteral("list-remove"),
+                       QIcon(":/icons/remove.png")),
+      tr("Remove"));
+  attachment_remove_act_->setToolTip(
       tr("Take the selected attachments out of this message."));
-  save_button_ = make_attachment_action(
-      QStringLiteral("document-save"), ":/icons/filesave.png", tr("Save..."),
-      tr("Write the selected attachments to a folder."));
-  save_all_button_ = make_attachment_action(
-      QStringLiteral("document-save-all"), ":/icons/save-all.png",
-      tr("Save All..."), tr("Write every attachment to a folder."));
+  attachment_menu_->setToolTipsVisible(true);
 
-  buttons->addWidget(add_button_);
-  buttons->addWidget(remove_button_);
-  buttons->addStretch();
-  buttons->addWidget(save_button_);
-  buttons->addWidget(save_all_button_);
-  attachment_column->addLayout(buttons);
+  attachment_toggle_ = new QToolButton(this);
+  attachment_toggle_->setAutoRaise(true);
+  attachment_toggle_->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+  connect(attachment_toggle_, &QToolButton::clicked, this, [this]() {
+    attachments_expanded_ = !attachments_expanded_;
+    apply_attachment_bar();
+  });
 
-  connect(add_button_, &QToolButton::clicked, this,
-          &EMailPageView::slot_add_attachment);
-  connect(remove_button_, &QToolButton::clicked, this,
-          &EMailPageView::slot_remove_attachment);
-  connect(save_button_, &QToolButton::clicked, this,
+  bar->addWidget(attachment_icon_);
+  bar->addWidget(attachment_title_);
+  bar->addSpacing(4);
+  bar->addWidget(attachment_heading_, 1);
+  bar->addWidget(attachment_toggle_);
+  attachment_column->addLayout(bar);
+  attachment_column->addWidget(attachment_list_);
+  attachment_column->addWidget(unsigned_notice_);
+
+  connect(attachment_open_act_, &QAction::triggered, this, [this]() {
+    const auto rows = attachment_target_rows();
+    if (rows.size() == 1) {
+      open_attachment(attachment_list_->topLevelItem(rows.first()));
+    }
+  });
+  connect(attachment_save_act_, &QAction::triggered, this,
           &EMailPageView::slot_save_attachment);
-  connect(save_all_button_, &QToolButton::clicked, this,
+  connect(attachment_save_all_act_, &QAction::triggered, this,
           &EMailPageView::slot_save_all_attachments);
+  connect(attachment_attach_act_, &QAction::triggered, this,
+          &EMailPageView::slot_add_attachment);
+  connect(attachment_remove_act_, &QAction::triggered, this,
+          &EMailPageView::slot_remove_attachment);
+
+  // Body, attachments, then the notice: see kEMailSurfaceOrder.
+  for (const auto part : kEMailSurfaceOrder) {
+    switch (part) {
+      case EMailSurfacePart::kBODY:
+        layout->addWidget(body_stack_, 1);
+        break;
+      case EMailSurfacePart::kATTACHMENTS:
+        layout->addWidget(attachment_box_);
+        break;
+      case EMailSurfacePart::kNOTICE:
+        layout->addWidget(locked_banner_);
+        break;
+    }
+  }
+
   connect(attachment_list_, &QTreeWidget::itemSelectionChanged, this,
           &EMailPageView::slot_selection_changed);
 
-  // Everything the four buttons below do, on the row the user is pointing at.
-  // The buttons stay: this is the second way to reach them, for the people who
-  // look for it on the thing itself.
+  // Everything the row's actions do, on the row the user is pointing at: the
+  // second way to reach them, for the people who look for it on the thing
+  // itself.
   attachment_list_->setContextMenuPolicy(Qt::CustomContextMenu);
   connect(attachment_list_, &QTreeWidget::customContextMenuRequested, this,
           &EMailPageView::slot_attachment_menu);
@@ -1092,7 +1204,7 @@ void EMailPageView::set_source_mode(bool on) {
   // looking at, so they go away and the document gets the whole area.
   envelope_box_->setVisible(!on);
   envelope_rule_->setVisible(!on);
-  attachment_box_->setVisible(!on);
+  apply_attachment_bar();
 
   if (on) {
     body_stack_->setCurrentWidget(raw_tab_);
@@ -1116,7 +1228,8 @@ void EMailPageView::refresh_action_density() {
   const auto style =
       compact ? Qt::ToolButtonIconOnly : Qt::ToolButtonTextBesideIcon;
   for (auto* button : {reply_button_, reply_all_button_, forward_button_,
-                       send_button_, forensic_toggle_}) {
+                       send_button_, add_button_, attachments_button_,
+                       more_button_}) {
     if (button != nullptr) button->setToolButtonStyle(style);
   }
 }
@@ -1182,8 +1295,8 @@ void EMailPageView::apply_content_lock() {
   body_edit_->setReadOnly(locked);
 
   // Attaching and removing change the message; saving a part out does not.
-  add_button_->setEnabled(!locked);
-  remove_button_->setEnabled(!locked);
+  // The attachment row decides from the same lock.
+  if (attachment_box_ != nullptr) apply_attachment_bar();
 
   // The raw editor writes straight into the document, so leaving it writable
   // would be a hole right through the lock. Forensic mode locks it outright;
@@ -1320,6 +1433,8 @@ void EMailPageView::SetForensicMode(bool on) {
   if (on) dirty_ = false;
 
   apply_content_lock();
+  // The lock's status label, and whether More still offers it.
+  apply_action_bar();
 }
 
 void EMailPageView::mark_dirty() {
@@ -2121,51 +2236,18 @@ void EMailPageView::refresh_body_view() {
   // Structure, Security or Headers tab is enough -- and gating on that made
   // these three switch themselves on partway through writing a message, with
   // nothing to reply to.
-  const bool is_message = document_is_received_;
-
-  // Every action stays where it is and is turned off instead of taken away. A
-  // control that disappears sends the user looking for a feature they think
-  // they have lost; one that is merely grey, with a tooltip, tells them what
-  // to do next. The reasons here -- no account, no recipient, nothing parsed
-  // yet -- are all things they can act on once told.
-  send_button_->setVisible(true);
-  refresh_send_state();
-
-  const auto not_a_message =
-      tr("This is a draft you are still writing, not a message that was "
-         "received, so there is nothing here to act on yet.");
-
-  reply_button_->setVisible(true);
-  reply_all_button_->setVisible(true);
-  forward_button_->setVisible(true);
-  forensic_toggle_->setVisible(true);
-  if (action_separator_ != nullptr) action_separator_->setVisible(true);
-
-  for (auto* button : {reply_button_, reply_all_button_, forward_button_}) {
-    set_action_available(button, is_message, not_a_message);
-  }
-
-  // Read-only is offered only where it CHANGES something. A signed or
-  // encrypted message is already locked by content_lock(), so on those -- the
-  // common case in this program -- the toggle appeared to do nothing at all,
-  // which is how a real protection came to look like a dead control.
+  // Which actions are on the row, and which are in More, follows what the
+  // document is: a received message is answered, a draft is sent. Neither
+  // shows the other's actions greyed out; see EMailActionBar().
   //
-  // What it uniquely does, and only on a plain received message: it locks the
-  // Raw Source tab outright, and it stops SaveToSource() rebuilding the
-  // message. That second one is the point. A rebuild rewrites header order and
-  // encodings, and for a message whose HEADERS are the evidence -- a forged
-  // Received chain, say -- one stray keystroke and a save would destroy the
-  // very thing the message was opened to examine.
-  if (!is_message) {
-    set_action_available(forensic_toggle_, false, not_a_message);
-  } else if (security_state_ != EMailSecurityState::kPLAIN && !forensic_) {
-    set_action_available(
-        forensic_toggle_, false,
-        tr("This message cannot be edited anyway: it is signed or encrypted, "
-           "so it is already protected from being rewritten."));
-  } else {
-    set_action_available(forensic_toggle_, true, {});
-  }
+  // Read-only is offered only where it CHANGES something. What it uniquely
+  // does, and only on a plain received message: it locks the Raw Source tab
+  // outright, and it stops SaveToSource() rebuilding the message -- which
+  // for a message whose HEADERS are the evidence (a forged Received chain,
+  // say) is the point. On a signed or encrypted message content_lock()
+  // already protects it, so there the lock is simply not offered.
+  refresh_send_state();
+  apply_action_bar();
 
   // Ciphertext is not text the user can read or edit, so it is not offered as
   // either. Deliberately after the block above: Reply and Forward derive a new
@@ -2235,18 +2317,18 @@ auto EMailPageView::eventFilter(QObject* watched, QEvent* event) -> bool {
  * where it is and its tooltip says what is missing, which is the only thing a
  * disabled control can still do.
  */
-void EMailPageView::set_action_available(QToolButton* button, bool available,
+void EMailPageView::set_action_available(QAction* action, bool available,
                                          const QString& why) {
-  if (button == nullptr) return;
+  if (action == nullptr) return;
 
   // Captured on first use rather than at construction, so this cannot fall out
-  // of step with whatever wording make_action() gave the button.
-  if (!action_tooltips_.contains(button)) {
-    action_tooltips_.insert(button, button->toolTip());
+  // of step with whatever wording make_command() gave the action.
+  if (!action_tooltips_.contains(action)) {
+    action_tooltips_.insert(action, action->toolTip());
   }
 
-  button->setEnabled(available);
-  button->setToolTip(available ? action_tooltips_.value(button) : why);
+  action->setEnabled(available);
+  action->setToolTip(available ? action_tooltips_.value(action) : why);
 }
 
 void EMailPageView::refresh_send_state() {
@@ -2300,7 +2382,7 @@ void EMailPageView::refresh_send_state() {
     }
   }
 
-  set_action_available(send_button_, blocker.isEmpty(), blocker);
+  set_action_available(send_act_, blocker.isEmpty(), blocker);
 }
 
 /**
@@ -2406,66 +2488,15 @@ void EMailPageView::paint_security_button() {
 }
 
 void EMailPageView::refresh_security_button() {
-  QString text;
-  QString icon;
-
   const bool encrypted =
       security_state_ == EMailSecurityState::kENCRYPTED ||
       security_state_ == EMailSecurityState::kSIGNED_ENCRYPTED;
 
-  switch (security_badge()) {
-    case EMailBadgeState::kENCRYPTED_ONLY:
-      text = tr("Encrypted");
-      icon = ":/icons/lock.png";
-      break;
-    case EMailBadgeState::kSIGNED_UNVERIFIED:
-      // What is actually known at this point: the message CARRIES a
-      // signature. Whether it is any good is a separate question that has
-      // not been asked yet, and the wording must not answer it.
-      text = encrypted ? tr("Encrypted, signature not checked")
-                       : tr("Signature not checked");
-      icon = ":/icons/signature.png";
-      break;
-    case EMailBadgeState::kSIGNED_GOOD:
-      text = encrypted ? tr("Encrypted, signature verified")
-                       : tr("Signature verified");
-      icon = ":/icons/signature.png";
-      break;
-    case EMailBadgeState::kSIGNED_MISMATCH:
-      text = tr("Signed by a different address");
-      icon = ":/icons/warning.png";
-      break;
-    case EMailBadgeState::kSIGNED_EXPIRED:
-      text = tr("Signature or key expired");
-      icon = ":/icons/warning.png";
-      break;
-    case EMailBadgeState::kSIGNED_UNKNOWN_KEY:
-      text = tr("Signed by an unknown key");
-      icon = ":/icons/warning.png";
-      break;
-    case EMailBadgeState::kSIGNED_BAD:
-      text = tr("Bad signature");
-      icon = ":/icons/warning.png";
-      break;
-    case EMailBadgeState::kSIGNED_ERROR:
-      // Not the same claim as a bad signature, and not the same as one nobody
-      // has looked at. The check was made and could not produce an answer,
-      // which is the one outcome trying again might change.
-      text = tr("Signature could not be checked");
-      icon = ":/icons/warning.png";
-      break;
-    case EMailBadgeState::kMALFORMED:
-      text = tr("Malformed OpenPGP structure");
-      icon = ":/icons/warning.png";
-      break;
-    case EMailBadgeState::kNOT_PROTECTED:
-      // Stated plainly and quietly. An unprotected message is the ordinary
-      // case, not a fault, and painting it as a warning would train the user
-      // to ignore the one that matters.
-      text = tr("Not signed or encrypted");
-      icon = ":/icons/email.png";
-      break;
-  }
+  // The wording is the one rule in EMailSecurityStatus(), so what the row says
+  // about a message is checked, not merely written down here.
+  const auto status = EMailSecurityStatus(security_badge(), encrypted);
+  const auto& text = status.text;
+  const auto& icon = status.icon;
 
   // Always shown, including on a tab the user is still composing. This is not
   // only a statement about what the message IS -- it is also where Sign and
@@ -2840,17 +2871,7 @@ void EMailPageView::refresh_attachments() {
   }
 
   const bool has_any = !message_.attachments.isEmpty();
-
-  // An empty table is a large blank box that reads as a fault and takes the
-  // room the body wants, so the list only exists once there is something in
-  // it. "Attach File..." stays available either way.
-  attachment_list_->setVisible(has_any);
-  attachment_heading_->setVisible(has_any);
-  if (has_any) {
-    const auto count = static_cast<int>(message_.attachments.size());
-    attachment_heading_->setText(count == 1 ? tr("1 attachment")
-                                            : tr("%1 attachments").arg(count));
-  }
+  attachment_heading_->setText(attachment_summary());
 
   // "Signed" is only an answer on a message that was received and verified.
   // While composing, nothing has been signed yet and a column of "no" would
@@ -2881,11 +2902,124 @@ void EMailPageView::refresh_attachments() {
   slot_selection_changed();
 }
 
+auto EMailPageView::attachment_summary() const -> QString {
+  const auto count = static_cast<int>(message_.attachments.size());
+  if (count == 0) return {};
+  if (count == 1) {
+    // Complete on its own: name, size and type, so one part never needs the
+    // table to be told apart.
+    const auto& att = message_.attachments.first();
+    return tr("%1 · %2 · %3")
+        .arg(SanitizeAttachmentFileName(att.filename, att.mime_type),
+             HumanSize(att.data.size()), att.mime_type);
+  }
+  qint64 total = 0;
+  for (const auto& att : message_.attachments) total += att.data.size();
+  return tr("%1 files · %2").arg(count).arg(HumanSize(total));
+}
+
+auto EMailPageView::attachment_list_open() const -> bool {
+  return attachments_expanded_ && !message_.attachments.isEmpty();
+}
+
+auto EMailPageView::attachment_target_rows() const -> QList<int> {
+  QList<int> selected;
+  for (auto* item : attachment_list_->selectedItems()) {
+    selected.append(attachment_list_->indexOfTopLevelItem(item));
+  }
+  // The section's own decision, not the widget's visibility: a list inside a
+  // hidden raw-source page is still the list the user left open.
+  return EMailAttachmentTargets(static_cast<int>(message_.attachments.size()),
+                                selected, attachment_list_open());
+}
+
+void EMailPageView::apply_attachment_bar() {
+  if (attachment_box_ == nullptr) return;
+  const auto locked = content_lock() != EMailLockReason::kNONE;
+  const auto s = EMailAttachmentBar(
+      {static_cast<int>(message_.attachments.size()),
+       static_cast<int>(attachment_list_->selectedItems().size()), !locked,
+       attachments_expanded_});
+
+  // The raw source mode takes the whole section away, whatever it would say.
+  attachment_box_->setVisible(s.section_visible && !source_mode_);
+  attachment_list_->setVisible(s.list_visible);
+
+  // The menu is the one place the operations are. What cannot apply in this
+  // mode is left out; what applies but has nothing chosen is greyed.
+  attachment_open_act_->setVisible(s.show_open);
+  attachment_save_act_->setVisible(s.show_save);
+  attachment_save_all_act_->setVisible(s.show_save_all);
+  attachment_edit_separator_->setVisible(s.show_attach || s.show_remove);
+  attachment_attach_act_->setVisible(s.show_attach);
+  attachment_remove_act_->setVisible(s.show_remove);
+  attachment_open_act_->setEnabled(s.can_open);
+  attachment_save_act_->setEnabled(s.can_save);
+  attachment_save_all_act_->setEnabled(s.can_save_all);
+  attachment_attach_act_->setEnabled(s.can_attach);
+  attachment_remove_act_->setEnabled(s.can_remove);
+
+  attachment_toggle_->setVisible(s.toggle_visible);
+  attachment_toggle_->setText(s.list_visible ? tr("Collapse") : tr("Expand"));
+  attachment_toggle_->setToolTip(s.list_visible ? tr("Show only the summary")
+                                                : tr("Show every attachment"));
+  attachment_toggle_->setIcon(EMailChevronIcon(palette(), !s.list_visible));
+
+  // The row's Attachments menu and Attach button follow the same counts.
+  apply_action_bar();
+}
+
+void EMailPageView::apply_action_bar() {
+  if (reply_button_ == nullptr) return;
+
+  // A plain received message is the only one the lock changes anything on:
+  // a signed or encrypted one is already protected by content_lock(). And a
+  // message nobody has sent yet has no Message-ID -- one is only minted when
+  // it goes out -- which is what tells a reply being written from the message
+  // it answers.
+  const bool is_message = document_is_received_;
+  const bool draft = !is_message || message_.message_id.trimmed().isEmpty();
+  const auto s = EMailActionBar(
+      {is_message, draft, content_lock() == EMailLockReason::kNONE,
+       is_message && security_state_ == EMailSecurityState::kPLAIN, forensic_,
+       static_cast<int>(message_.attachments.size())});
+
+  for (auto* button : {reply_button_, reply_all_button_, forward_button_}) {
+    button->setVisible(s.reply_visible);
+  }
+  send_button_->setVisible(s.send_visible);
+  add_button_->setVisible(s.attach_visible);
+  attachments_button_->setVisible(s.attachments_menu_visible);
+
+  details_act_->setVisible(s.more_details);
+  // Each command is in one of two places, on the row or in More, and its
+  // shortcut works in both. Moved by taking the entry out of the menu rather
+  // than by hiding the action: a hidden action's shortcut stops working too.
+  for (auto* action : {reply_act_, reply_all_act_, forward_act_, send_act_}) {
+    more_menu_->removeAction(action);
+  }
+  if (s.more_reply) {
+    for (auto* action : {reply_act_, reply_all_act_, forward_act_}) {
+      more_menu_->insertAction(more_answer_separator_, action);
+    }
+  }
+  more_answer_separator_->setVisible(s.more_reply);
+  if (s.more_send) more_menu_->insertAction(more_lock_separator_, send_act_);
+  more_lock_separator_->setVisible(s.more_read_only);
+  // The lock has no shortcut, so this one may simply be hidden.
+  forensic_act_->setVisible(s.more_read_only);
+  if (forensic_act_->isChecked() != forensic_) {
+    const QSignalBlocker blocker(forensic_act_);
+    forensic_act_->setChecked(forensic_);
+  }
+
+  read_only_label_->setVisible(s.read_only_label);
+}
+
 void EMailPageView::report_attachment_status(const QString& note) {
   // Said where the attachments are, rather than in a dialog the user has to
   // dismiss: this is the outcome of something they just asked for and were
   // watching, not news that has to interrupt them.
-  attachment_heading_->setVisible(true);
   attachment_heading_->setText(note);
 
   // Back to describing the list afterwards. The heading is the list's label
@@ -3065,25 +3199,10 @@ void EMailPageView::WipeContent() {
 }
 
 void EMailPageView::slot_selection_changed() {
-  const auto selected = attachment_list_->selectedItems().size();
-  const auto total = attachment_list_->topLevelItemCount();
-
-  // Selection alone is not enough to remove a part: a signed or encrypted
-  // message does not change, and this runs AFTER apply_content_lock() on every
-  // refresh, so without the lock here it handed the button straight back.
-  // Saving a part out does not change the message, so those two only follow
-  // the selection.
-  const auto locked = content_lock() != EMailLockReason::kNONE;
-  remove_button_->setEnabled(selected > 0 && !locked);
-  save_button_->setEnabled(selected > 0);
-  save_all_button_->setEnabled(total > 0);
-
-  // Hidden rather than permanently greyed out: on a message with no
-  // attachments these two can never apply, and a row of dead buttons is just
-  // clutter.
-  save_button_->setVisible(total > 0);
-  save_all_button_->setVisible(total > 0);
-  remove_button_->setVisible(total > 0);
+  // What is shown, and what each action would act on, is one decision; see
+  // EMailAttachmentBar(). It also carries the lock, which runs before this on
+  // every refresh and must not be undone by a selection.
+  apply_attachment_bar();
 }
 
 void EMailPageView::slot_add_attachment() {
@@ -3361,14 +3480,9 @@ void EMailPageView::slot_remove_attachment() {
   // adding one. The button is already disabled; this is the backstop.
   if (content_lock() != EMailLockReason::kNONE) return;
 
-  const auto selected = attachment_list_->selectedItems();
-  if (selected.isEmpty()) return;
-
-  // Collect indices first: removing while iterating would shift the rest.
-  QList<int> rows;
-  for (auto* item : selected) {
-    rows.append(attachment_list_->indexOfTopLevelItem(item));
-  }
+  // Indices first: removing while iterating would shift the rest.
+  auto rows = attachment_target_rows();
+  if (rows.isEmpty()) return;
   std::sort(rows.begin(), rows.end(), std::greater<>());
 
   // On a message that arrived from somewhere else, these bytes may be the only
@@ -3435,12 +3549,11 @@ auto EMailPageView::write_attachment(const EMailAttachment& att,
 }
 
 void EMailPageView::slot_save_attachment() {
-  const auto selected = attachment_list_->selectedItems();
-  if (selected.isEmpty()) return;
+  const auto rows = attachment_target_rows();
+  if (rows.isEmpty()) return;
 
   QList<EMailAttachment> chosen;
-  for (auto* item : selected) {
-    const auto row = attachment_list_->indexOfTopLevelItem(item);
+  for (const auto row : rows) {
     if (row >= 0 && row < message_.attachments.size()) {
       chosen.append(message_.attachments[row]);
     }

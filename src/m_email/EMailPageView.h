@@ -355,6 +355,16 @@ class EMailPageView : public QWidget, public gf::ui::DocumentWidget {
  private:
   /// Rebuilds the attachment table from `message_`.
   void refresh_attachments();
+  /// Shows and enables the attachment row from EMailAttachmentBar().
+  void apply_attachment_bar();
+  /// Shows the message's actions on the row or in More, by EMailActionBar().
+  void apply_action_bar();
+  /// The row's summary text for the attachments in `message_`.
+  [[nodiscard]] auto attachment_summary() const -> QString;
+  /// Whether the full list is open, as the section decides it.
+  [[nodiscard]] auto attachment_list_open() const -> bool;
+  /// The rows Save, Open and Remove act on; see EMailAttachmentTargets().
+  [[nodiscard]] auto attachment_target_rows() const -> QList<int>;
   /// Writes the header and body widgets from `message_`.
   void refresh_fields();
   /// Reads the header and body widgets back into `message_`.
@@ -502,11 +512,11 @@ class EMailPageView : public QWidget, public gf::ui::DocumentWidget {
   /// shows the toggle only when the message actually offers both.
   void refresh_body_view();
   /// Enables Send when the message could actually go out, and says why not
-  /// when it could not. Never hides the button.
+  /// when it could not.
   void refresh_send_state();
   /// Enables or disables one action, and when disabled puts @p why in its
   /// tooltip in place of what it normally says. Never changes visibility.
-  void set_action_available(QToolButton* button, bool available,
+  void set_action_available(QAction* action, bool available,
                             const QString& why);
   /// Offers the keyring's addresses as hints on the address fields.
   void install_address_hints();
@@ -589,27 +599,51 @@ class EMailPageView : public QWidget, public gf::ui::DocumentWidget {
   /// reading. Never fetches anything from the network.
   EMailBodyView* body_view_{};
   QStackedWidget* body_stack_{};
+  /// The message's commands. Each owns its shortcut and is registered on the
+  /// view, so the shortcut works wherever the command is shown.
+  QAction* reply_act_{};
+  QAction* reply_all_act_{};
+  QAction* forward_act_{};
+  QAction* send_act_{};
+  QAction* details_act_{};
+  /// The Read-only lock; its state is shown by read_only_label_.
+  QAction* forensic_act_{};
+  /// The row's buttons for those commands (see EMailActionBar()).
   QToolButton* reply_button_{};
   QToolButton* reply_all_button_{};
   QToolButton* forward_button_{};
   QToolButton* send_button_{};
+  QToolButton* add_button_{};
+  QToolButton* attachments_button_{};
+  QToolButton* more_button_{};
+  QMenu* more_menu_{};
+  QAction* more_answer_separator_{};
+  QAction* more_lock_separator_{};
+  QLabel* read_only_label_{};
   /// What each action says when it is available, captured the first time it
   /// is disabled so the explanation can be swapped in and back out.
-  QHash<QToolButton*, QString> action_tooltips_;
-  QToolButton* forensic_toggle_{};
+  QHash<QAction*, QString> action_tooltips_;
   QTreeWidget* attachment_list_{};
-  QToolButton* add_button_{};
-  QToolButton* remove_button_{};
-  QToolButton* save_button_{};
-  QToolButton* save_all_button_{};
-  /// Divider between the actions that derive a new message and the toggle
-  /// that locks this one. Hidden with them when there is no message.
-  QFrame* action_separator_{};
   /// The hairline between the envelope and the body.
   QFrame* envelope_rule_{};
   /// The "From:", "To:" and so on. Kept so apply_colors() can find them again.
   QList<QLabel*> captions_;
+  /// The attachment row's summary: the one part, or how many there are.
   QLabel* attachment_heading_{};
+  QLabel* attachment_icon_{};
+  QLabel* attachment_title_{};
+  /// The action row's Attachments menu and what is in it.
+  QMenu* attachment_menu_{};
+  QAction* attachment_edit_separator_{};
+  QAction* attachment_open_act_{};
+  QAction* attachment_save_act_{};
+  QAction* attachment_save_all_act_{};
+  QAction* attachment_attach_act_{};
+  QAction* attachment_remove_act_{};
+  /// Expand / Collapse for the full attachment list.
+  QToolButton* attachment_toggle_{};
+  /// The user's choice for this tab; the list starts collapsed.
+  bool attachments_expanded_ = false;
   QLabel* unsigned_notice_{};
   QToolButton* security_button_{};
   QMenu* security_menu_{};
@@ -642,8 +676,6 @@ class EMailPageView : public QWidget, public gf::ui::DocumentWidget {
   /// lose the tab or the size.
   QDialog* details_dialog_{};
   QTabWidget* details_tabs_{};
-  /// Opens that window.
-  QToolButton* details_button_{};
   /// Message / Raw Source. Hidden until an editor is actually adopted: a host
   /// that kept its own switcher leaves this view with only one mode.
   QWidget* view_switcher_{};

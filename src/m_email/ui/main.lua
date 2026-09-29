@@ -10,7 +10,13 @@ local open_imap = commands.get("com.bktus.gpgfrontend.module.email.open_imap_con
 
 ui.mount {
   id = "editor",
-  anchor = ui.anchor.editor { document_type = "email", extensions = { "eml" } },
+  anchor = ui.anchor.editor {
+    document_type = "email",
+    extensions = { "eml" },
+    -- The message has its own headers and attachments to show; the Status
+    -- Panel starts as a bar here and opens on a new result.
+    compact_status = true,
+  },
   widget = native.factory("editor"),
 }
 
