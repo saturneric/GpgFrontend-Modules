@@ -641,6 +641,9 @@ registered with `RegisterNativeWidgetFactory`, mounted on
 `ui.anchor.editor {
   document_type = ..., extensions = {... } }`. The host
 opens those files, and saves through your `Save` and `PrepareSave`.
+A view with chrome of its own (headers, attachments) can add
+`compact_status = true` to that anchor: while one of its tabs is current,
+the Status Panel starts as a thin bar and opens again on a new result.
 
 **Showing the raw source.** Before: `AdoptSourceView(QWidget*)` took the
 host's editor. After: the page's own switcher shows the source; ask for it
