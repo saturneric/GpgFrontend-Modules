@@ -75,6 +75,10 @@ using Context = struct {
 
 namespace {
 
+/// Spelled unqualified: lupdate misreads `gf::cmd::Meta kMeta{` in a class
+/// body and warns about an unknown namespace.
+using CommandMeta = gf::cmd::Meta;
+
 /// What GnuPG is installed and how it is configured, in a dialog frame the
 /// Host owns.
 class GnupgInfoWidget : public QWidget, public gf::ui::DialogWidget {
@@ -88,12 +92,12 @@ class GnupgInfoWidget : public QWidget, public gf::ui::DialogWidget {
 /// Help > GnuPG. Its title and whereabouts are the command's and the
 /// script's; it only opens the module's own dialog.
 struct ShowGnupgInfo {
-  static constexpr gf::cmd::Meta kMeta{GF_MODULE_ID ".show_gnupg_info",
-                                       GTrC::Noop("GnuPG"),
-                                       GTrC::Noop("Information about GnuPG"),
-                                       "",
-                                       0,
-                                       gf::cmd::kNeedsGuiThread};
+  static constexpr CommandMeta kMeta{GF_MODULE_ID ".show_gnupg_info",
+                                     GTrC::Noop("GnuPG"),
+                                     GTrC::Noop("Information about GnuPG"),
+                                     "",
+                                     0,
+                                     gf::cmd::kNeedsGuiThread};
   using Args = gf::cmd::Unit;
   using Result = gf::cmd::Unit;
 };
