@@ -52,7 +52,10 @@ find_package(OpenSSL REQUIRED)
 # holds the headers of Homebrew's unversioned openssl formula (4.x), not the
 # keg-only openssl@3 that OPENSSL_ROOT_DIR selects. Search the found headers
 # first, for vmime, this module and its tests alike, so they match the library
-# being linked.
+# being linked. The imported targets must stop being SYSTEM for that: CMake
+# would otherwise fold this entry into their -isystem flag, and every -I
+# directory is searched before any -isystem one, whatever the order.
+set_property(TARGET OpenSSL::SSL OpenSSL::Crypto PROPERTY SYSTEM OFF)
 include_directories(BEFORE ${OPENSSL_INCLUDE_DIR})
 
 add_subdirectory(vmime "vmime" EXCLUDE_FROM_ALL)
