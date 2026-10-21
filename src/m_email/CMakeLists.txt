@@ -48,6 +48,13 @@ set(VMIME_HAVE_MESSAGING_PROTO_SENDMAIL OFF CACHE BOOL
     "No Sendmail protocol" FORCE)
 find_package(OpenSSL REQUIRED)
 
+# The top-level CMakeLists puts /opt/homebrew/include on every target, and that
+# holds the headers of Homebrew's unversioned openssl formula (4.x), not the
+# keg-only openssl@3 that OPENSSL_ROOT_DIR selects. Search the found headers
+# first, for vmime, this module and its tests alike, so they match the library
+# being linked.
+include_directories(BEFORE ${OPENSSL_INCLUDE_DIR})
+
 add_subdirectory(vmime "vmime" EXCLUDE_FROM_ALL)
 
 # vmime wraps every TARGET_LINK_LIBRARIES for its TLS backend in
