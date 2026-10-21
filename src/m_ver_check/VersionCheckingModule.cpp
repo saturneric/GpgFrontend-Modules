@@ -49,6 +49,10 @@
 
 namespace {
 
+/// Spelled unqualified: lupdate misreads `gf::cmd::Meta kMeta{` in a class
+/// body and warns about an unknown namespace.
+using CommandMeta = gf::cmd::Meta;
+
 /// Whether to check at startup. The Host's own setting: the setup wizard
 /// asks it, and this module's settings page shows the same switch rather
 /// than a second one that could disagree.
@@ -161,7 +165,7 @@ class UpdateSettingsWidget : public QWidget, public gf::ui::SettingsWidget {
 
 /// Help > Check for Updates.
 struct CheckForUpdates {
-  static constexpr gf::cmd::Meta kMeta{
+  static constexpr CommandMeta kMeta{
       GF_MODULE_ID ".check_for_updates",
       GTrC::Noop("Check for Updates"),
       GTrC::Noop("See whether a newer GpgFrontend is available"),
