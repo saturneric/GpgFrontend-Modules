@@ -4,8 +4,8 @@
 <context>
     <name>ModuleVersionChecking</name>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="166"/>
-        <location filename="../VersionCheckingModule.cpp" line="215"/>
+        <location filename="../VersionCheckingModule.cpp" line="170"/>
+        <location filename="../VersionCheckingModule.cpp" line="219"/>
         <source>Check for Updates</source>
         <translation>Buscar actualizaciones</translation>
     </message>
@@ -14,27 +14,27 @@
         <translation type="vanished">Buscar actualizaciones en Internet.</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="133"/>
+        <location filename="../VersionCheckingModule.cpp" line="137"/>
         <source>Update Checking</source>
         <translation>Comprobación de actualizaciones</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="137"/>
+        <location filename="../VersionCheckingModule.cpp" line="141"/>
         <source>Checking for version updates when the application starts.</source>
         <translation>Buscando actualizaciones de versión al iniciar la aplicación.</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="167"/>
+        <location filename="../VersionCheckingModule.cpp" line="171"/>
         <source>See whether a newer GpgFrontend is available</source>
         <translation>Comprobar si hay una versión más reciente de GpgFrontend</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="219"/>
+        <location filename="../VersionCheckingModule.cpp" line="223"/>
         <source>Updates</source>
         <translation>Actualizaciones</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="219"/>
+        <location filename="../VersionCheckingModule.cpp" line="223"/>
         <source>update,version,check,github</source>
         <translation>update,version,check,github,actualización,versión,comprobar</translation>
     </message>

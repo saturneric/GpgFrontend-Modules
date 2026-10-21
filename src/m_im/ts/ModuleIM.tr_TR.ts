@@ -71,7 +71,7 @@
     </message>
     <message>
         <location filename="../ImCodec.cpp" line="87"/>
-        <location filename="../ImModule.cpp" line="249"/>
+        <location filename="../ImModule.cpp" line="253"/>
         <source>Instant Messaging</source>
         <translation>Anlık Mesajlaşma</translation>
     </message>
@@ -95,33 +95,33 @@ The encrypted message is %1 bytes, and the instant-messaging format carries at m
         <translation>Anlık mesaj hazırlanamadı: şifrelenmiş mesaj bir belirtece dönüştürülemedi.</translation>
     </message>
     <message>
-        <location filename="../ImModule.cpp" line="85"/>
-        <location filename="../ImModule.cpp" line="98"/>
+        <location filename="../ImModule.cpp" line="89"/>
+        <location filename="../ImModule.cpp" line="102"/>
         <source>Instant Message Token</source>
         <translation>Anlık Mesaj Belirteci</translation>
     </message>
     <message>
-        <location filename="../ImModule.cpp" line="86"/>
+        <location filename="../ImModule.cpp" line="90"/>
         <source>Recognise and unwrap instant messaging tokens before decrypting</source>
         <translation>Şifre çözmeden önce anlık mesajlaşma belirteçlerini tanıyın ve açın</translation>
     </message>
     <message>
-        <location filename="../ImModule.cpp" line="99"/>
+        <location filename="../ImModule.cpp" line="103"/>
         <source>Wrap an encrypted message as an instant messaging token</source>
         <translation>Şifrelenmiş bir mesajı anlık mesajlaşma belirteci olarak sarın</translation>
     </message>
     <message>
-        <location filename="../ImModule.cpp" line="134"/>
+        <location filename="../ImModule.cpp" line="138"/>
         <source>No Message Book Phrase Set</source>
         <translation>Mesaj Kitabı İfadesi Belirlenmedi</translation>
     </message>
     <message>
-        <location filename="../ImModule.cpp" line="135"/>
+        <location filename="../ImModule.cpp" line="139"/>
         <source>You have not set a Message Book phrase.</source>
         <translation>Bir Mesaj Kitabı ifadesi belirlemediniz.</translation>
     </message>
     <message>
-        <location filename="../ImModule.cpp" line="136"/>
+        <location filename="../ImModule.cpp" line="140"/>
         <source>Instant messages are hidden using a shared &quot;Message Book&quot;. Without a phrase, GpgFrontend falls back to the built-in default book and that book ships in every copy of the program. It hides the format from a simple scanner, but anyone who knows GpgFrontend can still recognise your message for what it is.
 
 Your message is OpenPGP-encrypted either way; what is at stake here is only whether it is recognisable as an encrypted message at all.
@@ -134,42 +134,42 @@ Mesajınız her iki durumda da OpenPGP ile şifrelenir. Burada söz konusu olan 
 Bunu sağlamak için bir ifade belirleyin ve yazdığınız kişiyle özel olarak paylaşın. İkiniz de birebir aynı ifadeyi kullanmalısınız.</translation>
     </message>
     <message>
-        <location filename="../ImModule.cpp" line="148"/>
+        <location filename="../ImModule.cpp" line="152"/>
         <source>Open Settings...</source>
         <translation>Ayarları Aç...</translation>
     </message>
     <message>
-        <location filename="../ImModule.cpp" line="150"/>
+        <location filename="../ImModule.cpp" line="154"/>
         <source>Continue with Default</source>
         <translation>Varsayılanla Devam Et</translation>
     </message>
     <message>
-        <location filename="../ImModule.cpp" line="151"/>
+        <location filename="../ImModule.cpp" line="155"/>
         <source>Continue, Don&apos;t Ask Again</source>
         <translation>Devam Et, Bir Daha Sorma</translation>
     </message>
     <message>
-        <location filename="../ImModule.cpp" line="181"/>
+        <location filename="../ImModule.cpp" line="185"/>
         <source>IM Encrypt</source>
         <translation>IM Şifrele</translation>
     </message>
     <message>
-        <location filename="../ImModule.cpp" line="182"/>
+        <location filename="../ImModule.cpp" line="186"/>
         <source>Encrypt the message as a single-line token for chat apps</source>
         <translation>Mesajı sohbet uygulamaları için tek satırlık bir belirteç olarak şifreleyin</translation>
     </message>
     <message>
-        <location filename="../ImModule.cpp" line="194"/>
+        <location filename="../ImModule.cpp" line="198"/>
         <source>IM Encrypt &amp;&amp; Sign</source>
         <translation>IM Şifrele &amp;&amp; İmzala</translation>
     </message>
     <message>
-        <location filename="../ImModule.cpp" line="195"/>
+        <location filename="../ImModule.cpp" line="199"/>
         <source>Encrypt and sign the message as a single-line token for chat apps</source>
         <translation>Mesajı sohbet uygulamaları için tek satırlık bir belirteç olarak şifreleyin ve imzalayın</translation>
     </message>
     <message>
-        <location filename="../ImModule.cpp" line="250"/>
+        <location filename="../ImModule.cpp" line="254"/>
         <source>instant messaging,message book,phrase,fingerprint,token</source>
         <translation>anlık mesajlaşma,mesaj kitabı,ifade,parmak izi,belirteç,instant messaging,message book,phrase,fingerprint,token</translation>
     </message>

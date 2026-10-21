@@ -5,7 +5,7 @@
     <name>ModulePGPInspect</name>
     <message>
         <location filename="../PGPInspectDialog.cpp" line="101"/>
-        <location filename="../PGPInspectModule.cpp" line="93"/>
+        <location filename="../PGPInspectModule.cpp" line="97"/>
         <source>OpenPGP Structure</source>
         <translation>OpenPGP Yapısı</translation>
     </message>
@@ -93,12 +93,12 @@
         <translation>Blok %1: ikili paket akışı</translation>
     </message>
     <message>
-        <location filename="../PGPInspectModule.cpp" line="62"/>
+        <location filename="../PGPInspectModule.cpp" line="66"/>
         <source>Open OpenPGP Structure Inspector</source>
         <translation>OpenPGP Yapı İnceleyicisini Aç</translation>
     </message>
     <message>
-        <location filename="../PGPInspectModule.cpp" line="63"/>
+        <location filename="../PGPInspectModule.cpp" line="67"/>
         <source>Show the packet structure of the current tab</source>
         <translation>Geçerli sekmenin paket yapısını gösterin</translation>
     </message>

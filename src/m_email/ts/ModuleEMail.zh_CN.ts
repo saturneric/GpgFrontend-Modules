@@ -3223,32 +3223,32 @@ This message came from somewhere else, so unless these have been saved already t
         <translation>IMAP 控制器</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1707"/>
+        <location filename="../EMailModule.cpp" line="1711"/>
         <source>Mail Editor</source>
         <translation>邮件编辑器</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1708"/>
+        <location filename="../EMailModule.cpp" line="1712"/>
         <source>Open a new text editor for email.</source>
         <translation>打开新的电子邮件文本编辑器。</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1728"/>
+        <location filename="../EMailModule.cpp" line="1731"/>
         <source>Open IMAP Controller</source>
         <translation>打开 IMAP 控制器</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1729"/>
+        <location filename="../EMailModule.cpp" line="1732"/>
         <source>Open IMAP Controller Dialog</source>
         <translation>打开 IMAP 控制器对话框</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1745"/>
+        <location filename="../EMailModule.cpp" line="1748"/>
         <source>No mail account</source>
         <translation>没有邮件账户</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1746"/>
+        <location filename="../EMailModule.cpp" line="1749"/>
         <source>Configure a mail account with IMAP enabled in Settings first.</source>
         <translation>请先在设置中配置启用 IMAP 的邮件账户。</translation>
     </message>

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
-<TS version="2.1">
+<TS version="2.1" language="en_US">
 <context>
     <name>ModuleIM</name>
     <message>
@@ -71,7 +71,7 @@
     </message>
     <message>
         <location filename="../ImCodec.cpp" line="87"/>
-        <location filename="../ImModule.cpp" line="249"/>
+        <location filename="../ImModule.cpp" line="253"/>
         <source>Instant Messaging</source>
         <translation type="unfinished"></translation>
     </message>
@@ -93,33 +93,33 @@ The encrypted message is %1 bytes, and the instant-messaging format carries at m
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../ImModule.cpp" line="85"/>
-        <location filename="../ImModule.cpp" line="98"/>
+        <location filename="../ImModule.cpp" line="89"/>
+        <location filename="../ImModule.cpp" line="102"/>
         <source>Instant Message Token</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../ImModule.cpp" line="86"/>
+        <location filename="../ImModule.cpp" line="90"/>
         <source>Recognise and unwrap instant messaging tokens before decrypting</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../ImModule.cpp" line="99"/>
+        <location filename="../ImModule.cpp" line="103"/>
         <source>Wrap an encrypted message as an instant messaging token</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../ImModule.cpp" line="134"/>
+        <location filename="../ImModule.cpp" line="138"/>
         <source>No Message Book Phrase Set</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../ImModule.cpp" line="135"/>
+        <location filename="../ImModule.cpp" line="139"/>
         <source>You have not set a Message Book phrase.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../ImModule.cpp" line="136"/>
+        <location filename="../ImModule.cpp" line="140"/>
         <source>Instant messages are hidden using a shared &quot;Message Book&quot;. Without a phrase, GpgFrontend falls back to the built-in default book and that book ships in every copy of the program. It hides the format from a simple scanner, but anyone who knows GpgFrontend can still recognise your message for what it is.
 
 Your message is OpenPGP-encrypted either way; what is at stake here is only whether it is recognisable as an encrypted message at all.
@@ -128,42 +128,42 @@ To get that, set a phrase and share it privately with the person you are writing
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../ImModule.cpp" line="148"/>
+        <location filename="../ImModule.cpp" line="152"/>
         <source>Open Settings...</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../ImModule.cpp" line="150"/>
+        <location filename="../ImModule.cpp" line="154"/>
         <source>Continue with Default</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../ImModule.cpp" line="151"/>
+        <location filename="../ImModule.cpp" line="155"/>
         <source>Continue, Don&apos;t Ask Again</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../ImModule.cpp" line="181"/>
+        <location filename="../ImModule.cpp" line="185"/>
         <source>IM Encrypt</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../ImModule.cpp" line="182"/>
+        <location filename="../ImModule.cpp" line="186"/>
         <source>Encrypt the message as a single-line token for chat apps</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../ImModule.cpp" line="194"/>
+        <location filename="../ImModule.cpp" line="198"/>
         <source>IM Encrypt &amp;&amp; Sign</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../ImModule.cpp" line="195"/>
+        <location filename="../ImModule.cpp" line="199"/>
         <source>Encrypt and sign the message as a single-line token for chat apps</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../ImModule.cpp" line="250"/>
+        <location filename="../ImModule.cpp" line="254"/>
         <source>instant messaging,message book,phrase,fingerprint,token</source>
         <translation type="unfinished"></translation>
     </message>

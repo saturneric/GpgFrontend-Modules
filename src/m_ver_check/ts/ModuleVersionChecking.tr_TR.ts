@@ -4,33 +4,33 @@
 <context>
     <name>ModuleVersionChecking</name>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="133"/>
+        <location filename="../VersionCheckingModule.cpp" line="137"/>
         <source>Update Checking</source>
         <translation>Güncelleme Kontrolü</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="137"/>
+        <location filename="../VersionCheckingModule.cpp" line="141"/>
         <source>Checking for version updates when the application starts.</source>
         <translation>Uygulama başlatıldığında sürüm güncellemeleri kontrol edilir.</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="166"/>
-        <location filename="../VersionCheckingModule.cpp" line="215"/>
+        <location filename="../VersionCheckingModule.cpp" line="170"/>
+        <location filename="../VersionCheckingModule.cpp" line="219"/>
         <source>Check for Updates</source>
         <translation>Güncellemeleri Kontrol Et</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="167"/>
+        <location filename="../VersionCheckingModule.cpp" line="171"/>
         <source>See whether a newer GpgFrontend is available</source>
         <translation>Daha yeni bir GpgFrontend sürümü olup olmadığını görün</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="219"/>
+        <location filename="../VersionCheckingModule.cpp" line="223"/>
         <source>Updates</source>
         <translation>Güncellemeler</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="219"/>
+        <location filename="../VersionCheckingModule.cpp" line="223"/>
         <source>update,version,check,github</source>
         <translation>güncelleme,sürüm,kontrol,github,update,version,check</translation>
     </message>

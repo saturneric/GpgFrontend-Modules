@@ -4,8 +4,8 @@
 <context>
     <name>ModuleVersionChecking</name>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="166"/>
-        <location filename="../VersionCheckingModule.cpp" line="215"/>
+        <location filename="../VersionCheckingModule.cpp" line="170"/>
+        <location filename="../VersionCheckingModule.cpp" line="219"/>
         <source>Check for Updates</source>
         <translation>检查更新</translation>
     </message>
@@ -14,27 +14,27 @@
         <translation type="vanished">从互联网检查更新</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="133"/>
+        <location filename="../VersionCheckingModule.cpp" line="137"/>
         <source>Update Checking</source>
         <translation>更新检查</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="137"/>
+        <location filename="../VersionCheckingModule.cpp" line="141"/>
         <source>Checking for version updates when the application starts.</source>
         <translation>当应用程序启动的时候检查更新。</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="167"/>
+        <location filename="../VersionCheckingModule.cpp" line="171"/>
         <source>See whether a newer GpgFrontend is available</source>
         <translation>查看是否有更新版本的 GpgFrontend</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="219"/>
+        <location filename="../VersionCheckingModule.cpp" line="223"/>
         <source>Updates</source>
         <translation>更新</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="219"/>
+        <location filename="../VersionCheckingModule.cpp" line="223"/>
         <source>update,version,check,github</source>
         <translation>update,version,check,github,更新,版本,检查</translation>
     </message>

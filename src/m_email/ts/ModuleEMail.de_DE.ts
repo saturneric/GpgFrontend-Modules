@@ -3225,32 +3225,32 @@ Diese Nachricht stammt von anderswo. Sofern diese nicht bereits gespeichert wurd
         <translation>IMAP-Controller</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1707"/>
+        <location filename="../EMailModule.cpp" line="1711"/>
         <source>Mail Editor</source>
         <translation>E-Mail-Editor</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1708"/>
+        <location filename="../EMailModule.cpp" line="1712"/>
         <source>Open a new text editor for email.</source>
         <translation>Neuen Texteditor für E-Mail öffnen.</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1728"/>
+        <location filename="../EMailModule.cpp" line="1731"/>
         <source>Open IMAP Controller</source>
         <translation>IMAP-Controller öffnen</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1729"/>
+        <location filename="../EMailModule.cpp" line="1732"/>
         <source>Open IMAP Controller Dialog</source>
         <translation>IMAP-Controller-Dialog öffnen</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1745"/>
+        <location filename="../EMailModule.cpp" line="1748"/>
         <source>No mail account</source>
         <translation>Kein E-Mail-Konto</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1746"/>
+        <location filename="../EMailModule.cpp" line="1749"/>
         <source>Configure a mail account with IMAP enabled in Settings first.</source>
         <translation>Konfigurieren Sie zuerst ein E-Mail-Konto mit aktiviertem IMAP in den Einstellungen.</translation>
     </message>

@@ -4,8 +4,8 @@
 <context>
     <name>ModuleVersionChecking</name>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="166"/>
-        <location filename="../VersionCheckingModule.cpp" line="215"/>
+        <location filename="../VersionCheckingModule.cpp" line="170"/>
+        <location filename="../VersionCheckingModule.cpp" line="219"/>
         <source>Check for Updates</source>
         <translation>Verifica aggiornamenti</translation>
     </message>
@@ -14,27 +14,27 @@
         <translation type="vanished">Verifica la presenza di aggiornamenti tramite Internet.</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="133"/>
+        <location filename="../VersionCheckingModule.cpp" line="137"/>
         <source>Update Checking</source>
         <translation>Verifica aggiornamenti</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="137"/>
+        <location filename="../VersionCheckingModule.cpp" line="141"/>
         <source>Checking for version updates when the application starts.</source>
         <translation>Verifica aggiornamenti di versione all&apos;avvio dell&apos;applicazione.</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="167"/>
+        <location filename="../VersionCheckingModule.cpp" line="171"/>
         <source>See whether a newer GpgFrontend is available</source>
         <translation>Verifica se è disponibile una versione più recente di GpgFrontend</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="219"/>
+        <location filename="../VersionCheckingModule.cpp" line="223"/>
         <source>Updates</source>
         <translation>Aggiornamenti</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="219"/>
+        <location filename="../VersionCheckingModule.cpp" line="223"/>
         <source>update,version,check,github</source>
         <translation>update,version,check,github,aggiornamento,versione,verifica</translation>
     </message>

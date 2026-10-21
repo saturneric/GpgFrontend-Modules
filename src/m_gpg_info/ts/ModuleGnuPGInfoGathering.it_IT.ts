@@ -115,13 +115,13 @@
 <context>
     <name>ModuleGnuPGInfoGathering</name>
     <message>
-        <location filename="../GnuPGInfoGatheringModule.cpp" line="92"/>
-        <location filename="../GnuPGInfoGatheringModule.cpp" line="114"/>
+        <location filename="../GnuPGInfoGatheringModule.cpp" line="96"/>
+        <location filename="../GnuPGInfoGatheringModule.cpp" line="118"/>
         <source>GnuPG</source>
         <translation>GnuPG</translation>
     </message>
     <message>
-        <location filename="../GnuPGInfoGatheringModule.cpp" line="93"/>
+        <location filename="../GnuPGInfoGatheringModule.cpp" line="97"/>
         <source>Information about GnuPG</source>
         <translation>Informazioni su GnuPG</translation>
     </message>

@@ -3020,32 +3020,32 @@ Bu ileti başka bir yerden geldi; bunlar daha önce kaydedilmediyse eldeki tek k
         <translation>IMAP kontrolörü</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1707"/>
+        <location filename="../EMailModule.cpp" line="1711"/>
         <source>Mail Editor</source>
         <translation>E-posta düzenleyicisi</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1708"/>
+        <location filename="../EMailModule.cpp" line="1712"/>
         <source>Open a new text editor for email.</source>
         <translation>E-posta için yeni bir metin düzenleyicisi aç.</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1728"/>
+        <location filename="../EMailModule.cpp" line="1731"/>
         <source>Open IMAP Controller</source>
         <translation>IMAP kontrolörünü aç</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1729"/>
+        <location filename="../EMailModule.cpp" line="1732"/>
         <source>Open IMAP Controller Dialog</source>
         <translation>IMAP kontrolörü iletişim kutusunu aç</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1745"/>
+        <location filename="../EMailModule.cpp" line="1748"/>
         <source>No mail account</source>
         <translation>E-posta hesabı yok</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1746"/>
+        <location filename="../EMailModule.cpp" line="1749"/>
         <source>Configure a mail account with IMAP enabled in Settings first.</source>
         <translation>Önce Ayarlar&apos;da IMAP etkin bir e-posta hesabı yapılandırın.</translation>
     </message>

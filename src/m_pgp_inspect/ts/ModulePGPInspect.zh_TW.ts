@@ -5,7 +5,7 @@
     <name>ModulePGPInspect</name>
     <message>
         <location filename="../PGPInspectDialog.cpp" line="101"/>
-        <location filename="../PGPInspectModule.cpp" line="93"/>
+        <location filename="../PGPInspectModule.cpp" line="97"/>
         <source>OpenPGP Structure</source>
         <translation>OpenPGP 結構</translation>
     </message>
@@ -93,12 +93,12 @@
         <translation>區塊 %1：二進位封包串流</translation>
     </message>
     <message>
-        <location filename="../PGPInspectModule.cpp" line="62"/>
+        <location filename="../PGPInspectModule.cpp" line="66"/>
         <source>Open OpenPGP Structure Inspector</source>
         <translation>開啟 OpenPGP 結構檢查器</translation>
     </message>
     <message>
-        <location filename="../PGPInspectModule.cpp" line="63"/>
+        <location filename="../PGPInspectModule.cpp" line="67"/>
         <source>Show the packet structure of the current tab</source>
         <translation>顯示目前分頁的封包結構</translation>
     </message>

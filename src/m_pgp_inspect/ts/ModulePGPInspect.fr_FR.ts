@@ -5,7 +5,7 @@
     <name>ModulePGPInspect</name>
     <message>
         <location filename="../PGPInspectDialog.cpp" line="101"/>
-        <location filename="../PGPInspectModule.cpp" line="93"/>
+        <location filename="../PGPInspectModule.cpp" line="97"/>
         <source>OpenPGP Structure</source>
         <translation>Structure OpenPGP</translation>
     </message>
@@ -95,12 +95,12 @@
         <translation>Bloc %1 : flux binaire de paquets</translation>
     </message>
     <message>
-        <location filename="../PGPInspectModule.cpp" line="62"/>
+        <location filename="../PGPInspectModule.cpp" line="66"/>
         <source>Open OpenPGP Structure Inspector</source>
         <translation>Ouvrir l’inspecteur de structure OpenPGP</translation>
     </message>
     <message>
-        <location filename="../PGPInspectModule.cpp" line="63"/>
+        <location filename="../PGPInspectModule.cpp" line="67"/>
         <source>Show the packet structure of the current tab</source>
         <translation>Afficher la structure des paquets de l’onglet actuel</translation>
     </message>
