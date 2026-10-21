@@ -1700,9 +1700,13 @@ auto OnEditTabTypeEmailOpDecryptVerify(const GFEvent& event) -> GFEventResult {
 
 namespace {
 
+/// Spelled unqualified: lupdate misreads `gf::cmd::Meta kMeta{` in a class
+/// body and warns about an unknown namespace.
+using CommandMeta = gf::cmd::Meta;
+
 /// File > Workspace > Mail Editor: an empty message, in a tab of its own.
 struct NewMessage {
-  static constexpr gf::cmd::Meta kMeta{
+  static constexpr CommandMeta kMeta{
       GF_MODULE_ID ".new_message",
       GTrC::Noop("Mail Editor"),
       GTrC::Noop("Open a new text editor for email."),
@@ -1723,13 +1727,12 @@ auto DoNewMessage(const gf::cmd::CommandContext& /*ctx*/,
 
 /// Advanced > Open IMAP Controller.
 struct OpenImapController {
-  static constexpr gf::cmd::Meta kMeta{
-      GF_MODULE_ID ".open_imap_controller",
-      GTrC::Noop("Open IMAP Controller"),
-      GTrC::Noop("Open IMAP Controller Dialog"),
-      "",
-      0,
-      gf::cmd::kNeedsGuiThread};
+  static constexpr CommandMeta kMeta{GF_MODULE_ID ".open_imap_controller",
+                                     GTrC::Noop("Open IMAP Controller"),
+                                     GTrC::Noop("Open IMAP Controller Dialog"),
+                                     "",
+                                     0,
+                                     gf::cmd::kNeedsGuiThread};
   using Args = gf::cmd::Unit;
   using Result = gf::cmd::Unit;
 };
