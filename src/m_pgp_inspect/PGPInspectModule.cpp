@@ -36,6 +36,10 @@
 
 namespace {
 
+/// Spelled unqualified: lupdate misreads `gf::cmd::Meta kMeta{` in a class
+/// body and warns about an unknown namespace.
+using CommandMeta = gf::cmd::Meta;
+
 /// The ceiling on what is read out of a tab. Past this, the menu entry stays
 /// greyed out rather than making every menu opening pay for a packet walk.
 constexpr qint64 kMaxInspectSize = 16LL * 1024 * 1024;
@@ -57,7 +61,7 @@ auto InspectCurrentTab() -> PGPInspectDocument {
  * entry enabled over plain text promises a window with nothing in it.
  */
 struct OpenInspector {
-  static constexpr gf::cmd::Meta kMeta{
+  static constexpr CommandMeta kMeta{
       GF_MODULE_ID ".open_inspector",
       GTrC::Noop("Open OpenPGP Structure Inspector"),
       GTrC::Noop("Show the packet structure of the current tab"),
