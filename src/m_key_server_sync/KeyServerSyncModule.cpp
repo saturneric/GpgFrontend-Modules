@@ -50,6 +50,10 @@ namespace {
 
 using Severity = gf::cmd::host::AppMessage::Severity;
 
+/// Spelled unqualified: lupdate misreads `gf::cmd::Meta kMeta{` in a class
+/// body and warns about an unknown namespace.
+using CommandMeta = gf::cmd::Meta;
+
 /// A result for the user, shown by the Host from its own window: the module
 /// has no business holding one of the Host's windows to parent a box to.
 void Tell(Severity severity, const QString& title, const QString& text) {
@@ -514,7 +518,7 @@ auto KeysOf(const KeyArgs& a) -> QList<BatchKey> {
 }
 
 struct PublishKey {
-  static constexpr gf::cmd::Meta kMeta{
+  static constexpr CommandMeta kMeta{
       GF_MODULE_ID ".publish_key",
       GTrC::Noop("Publish Public Key to Key Server"),
       GTrC::Noop("Upload the public key to the key server used for syncing"),
@@ -526,7 +530,7 @@ struct PublishKey {
 };
 
 struct RefreshKey {
-  static constexpr gf::cmd::Meta kMeta{
+  static constexpr CommandMeta kMeta{
       GF_MODULE_ID ".refresh_key",
       GTrC::Noop("Refresh Public Key From Key Server"),
       GTrC::Noop(
@@ -539,7 +543,7 @@ struct RefreshKey {
 };
 
 struct CheckPublication {
-  static constexpr gf::cmd::Meta kMeta{
+  static constexpr CommandMeta kMeta{
       GF_MODULE_ID ".check_publication",
       GTrC::Noop("Check Publication Status"),
       GTrC::Noop("Ask the key server whether it has this public key"),
@@ -551,7 +555,7 @@ struct CheckPublication {
 };
 
 struct SearchKey {
-  static constexpr gf::cmd::Meta kMeta{
+  static constexpr CommandMeta kMeta{
       GF_MODULE_ID ".search_key",
       GTrC::Noop("Key Server"),
       GTrC::Noop("Import public keys from a trusted key server."),
