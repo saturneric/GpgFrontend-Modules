@@ -1230,6 +1230,8 @@ auto BadgeForValidity(int validity) -> EMailBadgeState {
     case 3:  // invalid
     case 5:  // signing key revoked
       return EMailBadgeState::kSIGNED_BAD;
+    case 10:  // valid, but the key is not authorized to sign
+      return EMailBadgeState::kSIGNED_UNAUTHORIZED_KEY;
     default:
       // -1 is the default in EMailSignatureResult, chosen so that an absent
       // or unparseable field does not read as fully valid. Anything else is
@@ -1373,6 +1375,7 @@ auto ToneForBadge(EMailBadgeState state) -> EMailBadgeTone {
       return EMailBadgeTone::kGOOD;
 
     case EMailBadgeState::kSIGNED_BAD:
+    case EMailBadgeState::kSIGNED_UNAUTHORIZED_KEY:
     case EMailBadgeState::kMALFORMED:
       return EMailBadgeTone::kDANGER;
 

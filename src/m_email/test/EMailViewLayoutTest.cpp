@@ -275,11 +275,16 @@ TEST(EMailViewLayoutTest, TheSecurityStatusSaysOnlyWhatIsKnown) {
             QStringLiteral("Signature verified"));
   EXPECT_EQ(EMailSecurityStatus(EMailBadgeState::kSIGNED_BAD, false).text,
             QStringLiteral("Bad signature"));
+  EXPECT_EQ(
+      EMailSecurityStatus(EMailBadgeState::kSIGNED_UNAUTHORIZED_KEY, false)
+          .text,
+      QStringLiteral("Signing key not authorized"));
   EXPECT_EQ(EMailSecurityStatus(EMailBadgeState::kNOT_PROTECTED, false).text,
             QStringLiteral("Not signed or encrypted"));
   // A verdict against the signature never wears the signature's icon.
   for (const auto badge :
        {EMailBadgeState::kSIGNED_BAD, EMailBadgeState::kSIGNED_ERROR,
+        EMailBadgeState::kSIGNED_UNAUTHORIZED_KEY,
         EMailBadgeState::kSIGNED_MISMATCH, EMailBadgeState::kMALFORMED}) {
     EXPECT_EQ(EMailSecurityStatus(badge, false).icon,
               QStringLiteral(":/icons/warning.png"));

@@ -150,6 +150,10 @@ auto EMailSecurityStatus(EMailBadgeState badge, bool encrypted)
     case EMailBadgeState::kSIGNED_BAD:
       return {QCoreApplication::translate("EMailPageView", "Bad signature"),
               warning};
+    case EMailBadgeState::kSIGNED_UNAUTHORIZED_KEY:
+      return {QCoreApplication::translate("EMailPageView",
+                                          "Signing key not authorized"),
+              warning};
     case EMailBadgeState::kSIGNED_ERROR:
       // Not the same claim as a bad signature, and not the same as one nobody
       // has looked at. The check was made and could not produce an answer,

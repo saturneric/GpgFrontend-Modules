@@ -79,6 +79,7 @@ const NameTable<EMailBadgeState> kBadgeNames{{
     {EMailBadgeState::kSIGNED_UNKNOWN_KEY, "signed_unknown_key"},
     {EMailBadgeState::kSIGNED_MISMATCH, "signed_mismatch"},
     {EMailBadgeState::kSIGNED_ERROR, "signed_error"},
+    {EMailBadgeState::kSIGNED_UNAUTHORIZED_KEY, "signed_unauthorized_key"},
     {EMailBadgeState::kSIGNED_BAD, "signed_bad"},
 }};
 

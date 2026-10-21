@@ -126,7 +126,7 @@
     <message>
         <location filename="../EMailAccountSettingsPage.cpp" line="314"/>
         <source>An account is needed only to fetch and send messages. Everything else in GpgFrontend works without one.</source>
-        <translation>Hesap yalnızca iletileri almak ve göndermek için gerekir. GpgFrontend'de bunun dışındaki her şey hesap olmadan çalışır.</translation>
+        <translation>Hesap yalnızca iletileri almak ve göndermek için gerekir. GpgFrontend&apos;de bunun dışındaki her şey hesap olmadan çalışır.</translation>
     </message>
     <message>
         <location filename="../EMailAccountSettingsPage.cpp" line="319"/>
@@ -159,7 +159,7 @@
         <source>These accounts were set up by a newer version of GpgFrontend, so this version did not read them and has not changed them.
 
 Your accounts are still there. Use the newer version to edit them.</source>
-        <translation>Bu hesaplar GpgFrontend'in daha yeni bir sürümünde kurulduğu için bu sürüm onları okumadı ve değiştirmedi.
+        <translation>Bu hesaplar GpgFrontend&apos;in daha yeni bir sürümünde kurulduğu için bu sürüm onları okumadı ve değiştirmedi.
 
 Hesaplarınız duruyor. Onları düzenlemek için daha yeni sürümü kullanın.</translation>
     </message>
@@ -195,7 +195,7 @@ Hiçbir şey kaybolmadı. Bu durum sürerse kayıtlı listenin elle kaldırılma
 Its stored password is forgotten as well. This cannot be undone once you press OK in this dialog.</source>
         <translation>%1 kaldırılsın mı?
 
-Kayıtlı parolası da unutulur. Bu iletişim kutusunda Tamam'a bastığınızda bu geri alınamaz.</translation>
+Kayıtlı parolası da unutulur. Bu iletişim kutusunda Tamam&apos;a bastığınızda bu geri alınamaz.</translation>
     </message>
     <message>
         <location filename="../EMailAccountSettingsPage.cpp" line="680"/>
@@ -205,7 +205,7 @@ Kayıtlı parolası da unutulur. Bu iletişim kutusunda Tamam'a bastığınızda
     <message>
         <location filename="../EMailAccountSettingsPage.cpp" line="682"/>
         <source>&quot;%1&quot; does not look like an e-mail address.</source>
-        <translation>"%1" bir e-posta adresine benzemiyor.</translation>
+        <translation>&quot;%1&quot; bir e-posta adresine benzemiyor.</translation>
     </message>
     <message>
         <location filename="../EMailAccountSettingsPage.cpp" line="687"/>
@@ -235,7 +235,7 @@ Kayıtlı parolası da unutulur. Bu iletişim kutusunda Tamam'a bastığınızda
     <message>
         <location filename="../EMailAccountSettingsPage.cpp" line="877"/>
         <source>Trusting one certificate: %1 &amp;nbsp; &lt;a href=&quot;forget&quot;&gt;Stop trusting it&lt;/a&gt;</source>
-        <translation>Şu sertifikaya güveniliyor: %1 &amp;nbsp; &lt;a href="forget"&gt;Güvenmeyi bırak&lt;/a&gt;</translation>
+        <translation>Şu sertifikaya güveniliyor: %1 &amp;nbsp; &lt;a href=&quot;forget&quot;&gt;Güvenmeyi bırak&lt;/a&gt;</translation>
     </message>
     <message>
         <location filename="../EMailAccountSettingsPage.cpp" line="977"/>
@@ -285,7 +285,7 @@ Kayıtlı parolası da unutulur. Bu iletişim kutusunda Tamam'a bastığınızda
     <message>
         <location filename="../EMailAccountSettingsPage.cpp" line="1016"/>
         <source>This is a fault in GpgFrontend rather than in the server.</source>
-        <translation>Bu kusur sunucuda değil, GpgFrontend'dedir.</translation>
+        <translation>Bu kusur sunucuda değil, GpgFrontend&apos;dedir.</translation>
     </message>
     <message>
         <location filename="../EMailAccountSettingsPage.cpp" line="1025"/>
@@ -411,7 +411,7 @@ Bu hesap için tam bu sertifikaya güvenilsin mi? Bunun daha sonraki bir yenisi 
     <message>
         <location filename="../EMailImapController.cpp" line="205"/>
         <source>No mail account with IMAP enabled is configured yet.</source>
-        <translation>Henüz IMAP'i açık bir e-posta hesabı yapılandırılmamış.</translation>
+        <translation>Henüz IMAP&apos;i açık bir e-posta hesabı yapılandırılmamış.</translation>
     </message>
     <message>
         <location filename="../EMailImapController.cpp" line="212"/>
@@ -446,7 +446,7 @@ Bu hesap için tam bu sertifikaya güvenilsin mi? Bunun daha sonraki bir yenisi 
 Use Refresh to try again.</source>
         <translation>Bu hesap açılamadı: %1.
 
-Yeniden denemek için Yenile'yi kullanın.</translation>
+Yeniden denemek için Yenile&apos;yi kullanın.</translation>
     </message>
     <message>
         <location filename="../EMailImapController.cpp" line="280"/>
@@ -504,7 +504,7 @@ Yeniden denemek için Yenile'yi kullanın.</translation>
     <message>
         <location filename="../EMailImapController.cpp" line="612"/>
         <source>Copy the whole Message-ID</source>
-        <translation>Message-ID'nin tamamını kopyalayın.</translation>
+        <translation>Message-ID&apos;nin tamamını kopyalayın.</translation>
     </message>
     <message>
         <location filename="../EMailImapController.cpp" line="615"/>
@@ -524,7 +524,7 @@ Yeniden denemek için Yenile'yi kullanın.</translation>
     <message>
         <location filename="../EMailImapController.cpp" line="734"/>
         <source>No password is stored for this account. Set one in Settings, under Mail Accounts, then use Refresh.</source>
-        <translation>Bu hesap için kayıtlı parola yok. Ayarlar altında E-posta hesaplarından bir parola belirleyin, ardından Yenile'yi kullanın.</translation>
+        <translation>Bu hesap için kayıtlı parola yok. Ayarlar altında E-posta hesaplarından bir parola belirleyin, ardından Yenile&apos;yi kullanın.</translation>
     </message>
     <message>
         <location filename="../EMailImapController.cpp" line="752"/>
@@ -544,7 +544,7 @@ Yeniden denemek için Yenile'yi kullanın.</translation>
     <message>
         <location filename="../EMailImapController.cpp" line="989"/>
         <source>Copy Message-ID</source>
-        <translation>Message-ID'yi kopyala</translation>
+        <translation>Message-ID&apos;yi kopyala</translation>
     </message>
     <message>
         <location filename="../EMailImapController.cpp" line="1072"/>
@@ -703,49 +703,49 @@ Yeniden denemek için Yenile'yi kullanın.</translation>
     </message>
     <message>
         <location filename="../EMailModule.cpp" line="105"/>
-        <location filename="../EMailModule.cpp" line="804"/>
-        <location filename="../EMailModule.cpp" line="948"/>
-        <location filename="../EMailModule.cpp" line="1608"/>
+        <location filename="../EMailModule.cpp" line="813"/>
+        <location filename="../EMailModule.cpp" line="957"/>
+        <location filename="../EMailModule.cpp" line="1617"/>
         <source>From</source>
         <translation>Kimden</translation>
     </message>
     <message>
         <location filename="../EMailModule.cpp" line="106"/>
-        <location filename="../EMailModule.cpp" line="807"/>
-        <location filename="../EMailModule.cpp" line="951"/>
-        <location filename="../EMailModule.cpp" line="1611"/>
+        <location filename="../EMailModule.cpp" line="816"/>
+        <location filename="../EMailModule.cpp" line="960"/>
+        <location filename="../EMailModule.cpp" line="1620"/>
         <source>To</source>
         <translation>Kime</translation>
     </message>
     <message>
         <location filename="../EMailModule.cpp" line="107"/>
-        <location filename="../EMailModule.cpp" line="810"/>
-        <location filename="../EMailModule.cpp" line="954"/>
-        <location filename="../EMailModule.cpp" line="1614"/>
+        <location filename="../EMailModule.cpp" line="819"/>
+        <location filename="../EMailModule.cpp" line="963"/>
+        <location filename="../EMailModule.cpp" line="1623"/>
         <source>Subject</source>
         <translation>Konu</translation>
     </message>
     <message>
         <location filename="../EMailModule.cpp" line="108"/>
-        <location filename="../EMailModule.cpp" line="813"/>
-        <location filename="../EMailModule.cpp" line="957"/>
-        <location filename="../EMailModule.cpp" line="1617"/>
+        <location filename="../EMailModule.cpp" line="822"/>
+        <location filename="../EMailModule.cpp" line="966"/>
+        <location filename="../EMailModule.cpp" line="1626"/>
         <source>CC</source>
         <translation>CC</translation>
     </message>
     <message>
         <location filename="../EMailModule.cpp" line="109"/>
-        <location filename="../EMailModule.cpp" line="816"/>
-        <location filename="../EMailModule.cpp" line="960"/>
-        <location filename="../EMailModule.cpp" line="1620"/>
+        <location filename="../EMailModule.cpp" line="825"/>
+        <location filename="../EMailModule.cpp" line="969"/>
+        <location filename="../EMailModule.cpp" line="1629"/>
         <source>BCC</source>
         <translation>BCC</translation>
     </message>
     <message>
         <location filename="../EMailModule.cpp" line="110"/>
-        <location filename="../EMailModule.cpp" line="819"/>
-        <location filename="../EMailModule.cpp" line="963"/>
-        <location filename="../EMailModule.cpp" line="1623"/>
+        <location filename="../EMailModule.cpp" line="828"/>
+        <location filename="../EMailModule.cpp" line="972"/>
+        <location filename="../EMailModule.cpp" line="1632"/>
         <source>Date</source>
         <translation>Tarih</translation>
     </message>
@@ -756,15 +756,15 @@ Yeniden denemek için Yenile'yi kullanın.</translation>
     </message>
     <message>
         <location filename="../EMailModule.cpp" line="121"/>
-        <location filename="../EMailModule.cpp" line="828"/>
-        <location filename="../EMailModule.cpp" line="1642"/>
+        <location filename="../EMailModule.cpp" line="837"/>
+        <location filename="../EMailModule.cpp" line="1651"/>
         <source>Digest of Signed MIME Entity (SHA-256)</source>
         <translation>İmzalı MIME varlığının özeti (SHA-256)</translation>
     </message>
     <message>
         <location filename="../EMailModule.cpp" line="124"/>
-        <location filename="../EMailModule.cpp" line="832"/>
-        <location filename="../EMailModule.cpp" line="1647"/>
+        <location filename="../EMailModule.cpp" line="841"/>
+        <location filename="../EMailModule.cpp" line="1656"/>
         <source>Declared Signature Hash (micalg)</source>
         <translation>Bildirilen imza karması (micalg)</translation>
     </message>
@@ -894,7 +894,7 @@ Sağlanan EML verisi RFC 3156 standartlarına uymuyor ve işlenemiyor.
 EML, e-posta iletilerini temsil eden bir dosya biçimidir; genellikle başlıklar, gövde metni, ekler ve üst veri içerir. Doğrulama için eksiksiz ve düzgün yapılandırılmış EML verisi gerekir.
 
 ### Önerilen çözümler
-1. EML verisinin eksiksiz olduğunu ve RFC 3156'da belirtilen yapıyla eşleştiğini doğrulayın.
+1. EML verisinin eksiksiz olduğunu ve RFC 3156&apos;da belirtilen yapıyla eşleştiğini doğrulayın.
 2. EML yapısının resmi belgelerine bakın: %2
 
 EML verisini düzelttikten sonra işlemi yeniden deneyin.</translation>
@@ -943,111 +943,116 @@ E-posta işlemi sırasında bir hata oluştu. İşlem tamamlanamadı.
 Sorun sürerse teknik desteğe başvurmayı veya belgelere bakmayı değerlendirin.</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="695"/>
+        <location filename="../EMailModule.cpp" line="696"/>
         <source> The bytes the signature covers were rewritten after it was made: their line endings are no longer CRLF. This is usually caused by a program that changed them while saving or copying the message. Checking the signature requires the original bytes.</source>
         <translation> İmzanın kapsadığı baytlar, imza oluşturulduktan sonra yeniden yazılmış: satır sonları artık CRLF değil. Buna genellikle iletiyi kaydederken veya kopyalarken bunları değiştiren bir program neden olur. İmzayı kontrol etmek özgün baytları gerektirir.</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="706"/>
+        <location filename="../EMailModule.cpp" line="707"/>
         <source>The signature is valid, and the key that made it speaks for the address this message says it is from.</source>
         <translation>İmza geçerlidir ve onu oluşturan anahtar, bu iletinin gönderen olarak gösterdiği adresi temsil eder.</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="712"/>
+        <location filename="../EMailModule.cpp" line="713"/>
         <source>The signature itself is valid, but the key that made it does not speak for the address this message says it is from. That is what a signature moved from another message looks like, so it is worth checking who the signer is before trusting the contents.</source>
         <translation>İmzanın kendisi geçerlidir, ancak onu oluşturan anahtar bu iletinin gönderen olarak gösterdiği adresi temsil etmez. Başka bir iletiden taşınmış bir imza böyle görünür; içeriğe güvenmeden önce imzalayanın kim olduğunu kontrol etmek gerekir.</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="720"/>
+        <location filename="../EMailModule.cpp" line="721"/>
         <source>The key that made this signature is not in your keyring, so nothing here can say whether the signature is genuine. Import the sender&apos;s key and verify again.</source>
         <translation>Bu imzayı oluşturan anahtar anahtarlığınızda yok, bu yüzden imzanın gerçek olup olmadığı burada söylenemez. Gönderenin anahtarını içe aktarıp yeniden doğrulayın.</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="727"/>
+        <location filename="../EMailModule.cpp" line="728"/>
         <source>The signature was made with a key that has expired, or the signature itself has. It may still be genuine; what cannot be confirmed is that the key was valid at the time it was used.</source>
         <translation>İmza, süresi dolmuş bir anahtarla oluşturulmuştur ya da imzanın kendisinin süresi dolmuştur. Yine de gerçek olabilir; doğrulanamayan, anahtarın kullanıldığı sırada geçerli olduğudur.</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="734"/>
+        <location filename="../EMailModule.cpp" line="735"/>
         <source>The signature does not match the bytes it covers. Either the message was changed after it was signed, or the signature was not made for this message.</source>
         <translation>İmza, kapsadığı baytlarla eşleşmiyor. Ya ileti imzalandıktan sonra değiştirilmiştir ya da imza bu ileti için oluşturulmamıştır.</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="742"/>
+        <location filename="../EMailModule.cpp" line="743"/>
+        <source>The signature matches the bytes it covers, but it was made with a key the sender&apos;s certificate does not authorize to sign. It cannot be relied on as the sender&apos;s signature.</source>
+        <translation>İmza kapsadığı baytlarla eşleşiyor, ancak göndericinin sertifikasının imzalama yetkisi vermediği bir anahtarla atılmış. Göndericinin imzası olarak güvenilemez.</translation>
+    </message>
+    <message>
+        <location filename="../EMailModule.cpp" line="751"/>
         <source>The check could not be completed, so nothing is known about this signature either way. This is not a statement that the signature is bad.</source>
         <translation>Kontrol tamamlanamadı, bu yüzden bu imzanın iyi ya da kötü olduğu bilinmiyor. Bu, imzanın kötü olduğu anlamına gelmez.</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="750"/>
+        <location filename="../EMailModule.cpp" line="759"/>
         <source>This message claims to carry an OpenPGP signature, but its structure does not hold up well enough to check one.</source>
         <translation>Bu ileti bir OpenPGP imzası taşıdığını öne sürüyor, ancak yapısı bir imzayı kontrol etmeye yetecek kadar sağlam değil.</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="756"/>
+        <location filename="../EMailModule.cpp" line="765"/>
         <source>The signatures in this message cover the encrypted data rather than the content you read. They confirm who encrypted the message, but say nothing about who wrote what is inside it.</source>
         <translation>Bu iletideki imzalar, okuduğunuz içeriği değil şifreli veriyi kapsar. İletiyi kimin şifrelediğini doğrularlar, içindekini kimin yazdığı hakkında bir şey söylemezler.</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="767"/>
+        <location filename="../EMailModule.cpp" line="776"/>
         <source>There was no signature in this message to check.</source>
         <translation>Bu iletide kontrol edilecek imza yoktu.</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="840"/>
-        <location filename="../EMailModule.cpp" line="1656"/>
+        <location filename="../EMailModule.cpp" line="849"/>
+        <location filename="../EMailModule.cpp" line="1665"/>
         <source>**Note**: the signed part is not in canonical form, because its line endings are not CRLF. Something rewrote this message after it was signed, which is usually a program that changed line endings while saving or copying it. A signature cannot verify against these bytes, and importing the sender&apos;s key will not change that.</source>
         <translation>**Not**: imzalı bölüm kanonik biçimde değil, çünkü satır sonları CRLF değil. İleti imzalandıktan sonra bir şey onu yeniden yazmış; bu genellikle kaydederken veya kopyalarken satır sonlarını değiştiren bir programdır. Bir imza bu baytlara karşı doğrulanamaz ve gönderenin anahtarını içe aktarmak bunu değiştirmez.</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="856"/>
+        <location filename="../EMailModule.cpp" line="865"/>
         <source>Verify E-Mail</source>
         <translation>E-postayı doğrula</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="907"/>
-        <location filename="../EMailModule.cpp" line="977"/>
+        <location filename="../EMailModule.cpp" line="916"/>
+        <location filename="../EMailModule.cpp" line="986"/>
         <source>Decrypt E-Mail</source>
         <translation>E-postanın şifresini çöz</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1033"/>
-        <location filename="../EMailModule.cpp" line="1086"/>
-        <location filename="../EMailModule.cpp" line="1137"/>
-        <location filename="../EMailModule.cpp" line="1162"/>
+        <location filename="../EMailModule.cpp" line="1042"/>
+        <location filename="../EMailModule.cpp" line="1095"/>
+        <location filename="../EMailModule.cpp" line="1146"/>
+        <location filename="../EMailModule.cpp" line="1171"/>
         <source>Sign E-Mail</source>
         <translation>E-postayı imzala</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1207"/>
-        <location filename="../EMailModule.cpp" line="1264"/>
-        <location filename="../EMailModule.cpp" line="1307"/>
-        <location filename="../EMailModule.cpp" line="1332"/>
+        <location filename="../EMailModule.cpp" line="1216"/>
+        <location filename="../EMailModule.cpp" line="1273"/>
+        <location filename="../EMailModule.cpp" line="1316"/>
+        <location filename="../EMailModule.cpp" line="1341"/>
         <source>Encrypt E-Mail</source>
         <translation>E-postayı şifrele</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1476"/>
-        <location filename="../EMailModule.cpp" line="1505"/>
+        <location filename="../EMailModule.cpp" line="1485"/>
+        <location filename="../EMailModule.cpp" line="1514"/>
         <source>Encrypt and Sign E-Mail</source>
         <translation>E-postayı şifrele ve imzala</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1542"/>
+        <location filename="../EMailModule.cpp" line="1551"/>
         <source>This message is not signed, so there is no signature to check. It was decrypted successfully.</source>
         <translation>Bu ileti imzalı değil, bu yüzden kontrol edilecek imza yok. Şifresi başarıyla çözüldü.</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1546"/>
+        <location filename="../EMailModule.cpp" line="1555"/>
         <source>The decrypted content is not a MIME message, so there is no signature to check. It was decrypted successfully.</source>
         <translation>Şifresi çözülen içerik bir MIME iletisi değil, bu yüzden kontrol edilecek imza yok. Şifresi başarıyla çözüldü.</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1635"/>
+        <location filename="../EMailModule.cpp" line="1644"/>
         <source>This message was decrypted. It carries no signature, so nothing here says who sent it.</source>
         <translation>Bu iletinin şifresi çözüldü. İmza taşımıyor, bu yüzden onu kimin gönderdiği burada belirtilmiyor.</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1680"/>
+        <location filename="../EMailModule.cpp" line="1689"/>
         <source>Decrypt and Verify E-Mail</source>
         <translation>E-postanın şifresini çöz ve doğrula</translation>
     </message>
@@ -1077,7 +1082,7 @@ Sorun sürerse teknik desteğe başvurmayı veya belgelere bakmayı değerlendir
     <message>
         <location filename="../EMailPageView.cpp" line="582"/>
         <source>Separate several addresses with &quot;;&quot;</source>
-        <translation>Birden fazla adresi ";" ile ayırın</translation>
+        <translation>Birden fazla adresi &quot;;&quot; ile ayırın</translation>
     </message>
     <message>
         <location filename="../EMailPageView.cpp" line="588"/>
@@ -1245,7 +1250,7 @@ Gizli alıcılar iletiye hiç yazılmaz: bir Bcc başlığı her alıcıya gizli
     <message>
         <location filename="../EMailPageView.cpp" line="864"/>
         <source>This message is open for inspection only. Turn it off in More.</source>
-        <translation>Bu ileti yalnızca kontrol için açık. Bunu Diğer'den kapatın.</translation>
+        <translation>Bu ileti yalnızca kontrol için açık. Bunu Diğer&apos;den kapatın.</translation>
     </message>
     <message>
         <location filename="../EMailPageView.cpp" line="907"/>
@@ -1669,7 +1674,7 @@ Remove the signature and make it an ordinary message?</source>
     <message>
         <location filename="../EMailPageView.cpp" line="2700"/>
         <source>This message does not follow RFC 3156 closely enough to take its signature off safely. Edit the raw source instead.</source>
-        <translation>Bu ileti, imzasını güvenle kaldıracak kadar RFC 3156'ya uymuyor. Bunun yerine ham kaynağı düzenleyin.</translation>
+        <translation>Bu ileti, imzasını güvenle kaldıracak kadar RFC 3156&apos;ya uymuyor. Bunun yerine ham kaynağı düzenleyin.</translation>
     </message>
     <message>
         <location filename="../EMailPageView.cpp" line="2708"/>
@@ -1957,17 +1962,22 @@ Bu ileti başka bir yerden geldi; bunlar daha önce kaydedilmediyse eldeki tek k
         <translation>Geçersiz imza</translation>
     </message>
     <message>
-        <location filename="../EMailViewLayout.cpp" line="157"/>
+        <location filename="../EMailViewLayout.cpp" line="154"/>
+        <source>Signing key not authorized</source>
+        <translation>İmzalama anahtarı yetkili değil</translation>
+    </message>
+    <message>
+        <location filename="../EMailViewLayout.cpp" line="161"/>
         <source>Signature could not be checked</source>
         <translation>İmza kontrol edilemedi</translation>
     </message>
     <message>
-        <location filename="../EMailViewLayout.cpp" line="161"/>
+        <location filename="../EMailViewLayout.cpp" line="165"/>
         <source>Malformed OpenPGP structure</source>
         <translation>Biçimi bozuk OpenPGP yapısı</translation>
     </message>
     <message>
-        <location filename="../EMailViewLayout.cpp" line="171"/>
+        <location filename="../EMailViewLayout.cpp" line="175"/>
         <source>Not signed or encrypted</source>
         <translation>Ne imzalı ne şifreli</translation>
     </message>
@@ -2001,7 +2011,7 @@ Bu ileti başka bir yerden geldi; bunlar daha önce kaydedilmediyse eldeki tek k
     </message>
     <message>
         <location filename="../EMailSecurityView.cpp" line="86"/>
-        <location filename="../EMailSecurityView.cpp" line="113"/>
+        <location filename="../EMailSecurityView.cpp" line="116"/>
         <source>unknown</source>
         <translation>bilinmiyor</translation>
     </message>
@@ -2046,288 +2056,298 @@ Bu ileti başka bir yerden geldi; bunlar daha önce kaydedilmediyse eldeki tek k
         <translation>imzalama anahtarının süresi dolmuş</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="127"/>
+        <location filename="../EMailSecurityView.cpp" line="113"/>
+        <source>signing key not authorized to sign</source>
+        <translation>imzalama anahtarının imza yetkisi yok</translation>
+    </message>
+    <message>
+        <location filename="../EMailSecurityView.cpp" line="130"/>
         <source>bad signature: signing key revoked</source>
         <translation>geçersiz imza: imzalama anahtarı iptal edilmiş</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="129"/>
+        <location filename="../EMailSecurityView.cpp" line="132"/>
         <source>BAD signature: it does not match these bytes</source>
         <translation>GEÇERSİZ imza: bu baytlarla eşleşmiyor</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="133"/>
+        <location filename="../EMailSecurityView.cpp" line="136"/>
+        <source>not accepted: the signing key is not authorized to sign by its certificate</source>
+        <translation>kabul edilmedi: sertifika, imzalama anahtarına imza yetkisi vermiyor</translation>
+    </message>
+    <message>
+        <location filename="../EMailSecurityView.cpp" line="141"/>
         <source>valid, but signed by another address</source>
         <translation>geçerli, ancak başka bir adresle imzalanmış</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="181"/>
+        <location filename="../EMailSecurityView.cpp" line="189"/>
         <source>Item</source>
         <translation>Öğe</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="181"/>
+        <location filename="../EMailSecurityView.cpp" line="189"/>
         <source>Detail</source>
         <translation>Ayrıntı</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="196"/>
-        <location filename="../EMailSecurityView.cpp" line="224"/>
+        <location filename="../EMailSecurityView.cpp" line="204"/>
+        <location filename="../EMailSecurityView.cpp" line="232"/>
         <source>No message is open.</source>
         <translation>Açık bir ileti yok.</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="251"/>
-        <location filename="../EMailSecurityView.cpp" line="254"/>
-        <location filename="../EMailSecurityView.cpp" line="428"/>
-        <location filename="../EMailSecurityView.cpp" line="506"/>
-        <location filename="../EMailSecurityView.cpp" line="576"/>
+        <location filename="../EMailSecurityView.cpp" line="259"/>
+        <location filename="../EMailSecurityView.cpp" line="262"/>
+        <location filename="../EMailSecurityView.cpp" line="436"/>
+        <location filename="../EMailSecurityView.cpp" line="514"/>
+        <location filename="../EMailSecurityView.cpp" line="584"/>
         <source>Fingerprint</source>
         <translation>Parmak izi</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="264"/>
+        <location filename="../EMailSecurityView.cpp" line="272"/>
         <source>Copy Value</source>
         <translation>Değeri kopyala</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="269"/>
+        <location filename="../EMailSecurityView.cpp" line="277"/>
         <source>Copy Fingerprint</source>
         <translation>Parmak izini kopyala</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="276"/>
+        <location filename="../EMailSecurityView.cpp" line="284"/>
         <source>Copy Address</source>
         <translation>Adresi kopyala</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="282"/>
+        <location filename="../EMailSecurityView.cpp" line="290"/>
         <source>Import the Key in This Message</source>
         <translation>Bu iletideki anahtarı içe aktar</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="298"/>
+        <location filename="../EMailSecurityView.cpp" line="306"/>
         <source>Verify Signatures</source>
         <translation>İmzaları doğrula</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="299"/>
+        <location filename="../EMailSecurityView.cpp" line="307"/>
         <source>Verify Again</source>
         <translation>Yeniden doğrula</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="354"/>
+        <location filename="../EMailSecurityView.cpp" line="362"/>
         <source>Signatures</source>
         <translation>İmzalar</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="358"/>
+        <location filename="../EMailSecurityView.cpp" line="366"/>
         <source>Signature %1</source>
         <translation>İmza %1</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="361"/>
+        <location filename="../EMailSecurityView.cpp" line="369"/>
         <source>covers %1</source>
         <translation>%1 kapsar</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="362"/>
+        <location filename="../EMailSecurityView.cpp" line="370"/>
         <source>covers %1, nested %2 deep</source>
         <translation>%1 kapsar, %2 düzey derinlikte</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="375"/>
+        <location filename="../EMailSecurityView.cpp" line="383"/>
         <source>Result</source>
         <translation>Sonuç</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="386"/>
+        <location filename="../EMailSecurityView.cpp" line="394"/>
         <source>this section is signed, but nothing has verified it yet</source>
         <translation>bu bölüm imzalı, ancak henüz hiçbir şey onu doğrulamadı</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="387"/>
+        <location filename="../EMailSecurityView.cpp" line="395"/>
         <source>this section is signed, but verifying it produced no result: the signing key may not be in your keyring</source>
         <translation>bu bölüm imzalı, ancak doğrulaması sonuç vermedi: imzalama anahtarı anahtarlığınızda olmayabilir</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="395"/>
+        <location filename="../EMailSecurityView.cpp" line="403"/>
         <source>Unknown signer</source>
         <translation>Bilinmeyen imzalayan</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="410"/>
+        <location filename="../EMailSecurityView.cpp" line="418"/>
         <source>Different address</source>
         <translation>Farklı adres</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="413"/>
+        <location filename="../EMailSecurityView.cpp" line="421"/>
         <source>the signature is valid, but the key belongs to %1 while this message says it is from %2. A valid signature says who signed the bytes, not who sent the message.</source>
         <translation>imza geçerli, ancak anahtar %1 adresine ait; bu ileti ise kendisinin %2 adresinden olduğunu söylüyor. Geçerli bir imza, baytları kimin imzaladığını söyler, iletiyi kimin gönderdiğini değil.</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="429"/>
+        <location filename="../EMailSecurityView.cpp" line="437"/>
         <source>Public key algorithm</source>
         <translation>Açık anahtar algoritması</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="430"/>
+        <location filename="../EMailSecurityView.cpp" line="438"/>
         <source>Signed at</source>
         <translation>İmzalanma zamanı</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="436"/>
+        <location filename="../EMailSecurityView.cpp" line="444"/>
         <source>Declared hash (micalg)</source>
         <translation>Bildirilen karma (micalg)</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="437"/>
+        <location filename="../EMailSecurityView.cpp" line="445"/>
         <source>Signature hash</source>
         <translation>İmza karması</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="441"/>
+        <location filename="../EMailSecurityView.cpp" line="449"/>
         <source>Hash mismatch</source>
         <translation>Karma uyuşmazlığı</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="443"/>
+        <location filename="../EMailSecurityView.cpp" line="451"/>
         <source>the message declares %1, but the signature used %2</source>
         <translation>ileti %1 bildiriyor, ancak imza %2 kullandı</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="450"/>
+        <location filename="../EMailSecurityView.cpp" line="458"/>
         <source>Warning</source>
         <translation>Uyarı</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="462"/>
+        <location filename="../EMailSecurityView.cpp" line="470"/>
         <source>Recipients</source>
         <translation>Alıcılar</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="469"/>
+        <location filename="../EMailSecurityView.cpp" line="477"/>
         <source>addressed and encrypted to</source>
         <translation>adreslenmiş ve şifrelenmiş</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="479"/>
+        <location filename="../EMailSecurityView.cpp" line="487"/>
         <source>in %1, but not encrypted to it: they cannot read this message</source>
         <translation>%1 başlığında, ancak ona şifrelenmemiş: bu iletiyi okuyamazlar</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="488"/>
+        <location filename="../EMailSecurityView.cpp" line="496"/>
         <source>Key %1</source>
         <translation>Anahtar %1</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="491"/>
+        <location filename="../EMailSecurityView.cpp" line="499"/>
         <source>encrypted to, but not in the visible headers</source>
         <translation>ona şifrelenmiş, ancak görünür başlıklarda yok</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="496"/>
+        <location filename="../EMailSecurityView.cpp" line="504"/>
         <source>Hidden recipient</source>
         <translation>Gizli alıcı</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="499"/>
+        <location filename="../EMailSecurityView.cpp" line="507"/>
         <source>the sender chose not to record who this recipient is</source>
         <translation>gönderen, bu alıcının kim olduğunu kaydetmemeyi seçti</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="513"/>
-        <location filename="../EMailSecurityView.cpp" line="606"/>
+        <location filename="../EMailSecurityView.cpp" line="521"/>
+        <location filename="../EMailSecurityView.cpp" line="614"/>
         <source>Note</source>
         <translation>Not</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="515"/>
+        <location filename="../EMailSecurityView.cpp" line="523"/>
         <source>the engine reported the primary key rather than the encryption subkey actually used</source>
         <translation>motor, gerçekte kullanılan şifreleme alt anahtarı yerine birincil anahtarı bildirdi</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="526"/>
+        <location filename="../EMailSecurityView.cpp" line="534"/>
         <source>Keys for these addresses</source>
         <translation>Bu adresler için anahtarlar</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="545"/>
+        <location filename="../EMailSecurityView.cpp" line="553"/>
         <source>no key found</source>
         <translation>anahtar bulunamadı</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="555"/>
+        <location filename="../EMailSecurityView.cpp" line="563"/>
         <source>1 key</source>
         <translation>1 anahtar</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="555"/>
+        <location filename="../EMailSecurityView.cpp" line="563"/>
         <source>%1 keys</source>
         <translation>%1 anahtar</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="570"/>
+        <location filename="../EMailSecurityView.cpp" line="578"/>
         <source>key is %1</source>
         <translation>anahtar %1</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="587"/>
+        <location filename="../EMailSecurityView.cpp" line="595"/>
         <source>Identity</source>
         <translation>Kimlik</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="591"/>
+        <location filename="../EMailSecurityView.cpp" line="599"/>
         <source>this address is on a REVOKED user ID of the key</source>
         <translation>bu adres, anahtarın İPTAL EDİLMİŞ bir kullanıcı kimliğinde yer alıyor</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="595"/>
+        <location filename="../EMailSecurityView.cpp" line="603"/>
         <source>this address is the key&apos;s primary user ID</source>
         <translation>bu adres anahtarın birincil kullanıcı kimliğidir</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="600"/>
+        <location filename="../EMailSecurityView.cpp" line="608"/>
         <source>this address is a secondary user ID of the key</source>
         <translation>bu adres anahtarın ikincil bir kullanıcı kimliğidir</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="607"/>
+        <location filename="../EMailSecurityView.cpp" line="615"/>
         <source>this key cannot be used for encryption</source>
         <translation>bu anahtar şifreleme için kullanılamaz</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="620"/>
+        <location filename="../EMailSecurityView.cpp" line="628"/>
         <source>What stands out</source>
         <translation>Dikkat çekenler</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="660"/>
+        <location filename="../EMailSecurityView.cpp" line="668"/>
         <source>This message is not signed or encrypted.</source>
         <translation>Bu ileti ne imzalı ne şifreli.</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="663"/>
+        <location filename="../EMailSecurityView.cpp" line="671"/>
         <source>This message carries a signature.</source>
         <translation>Bu ileti bir imza taşıyor.</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="666"/>
+        <location filename="../EMailSecurityView.cpp" line="674"/>
         <source>This message is encrypted.</source>
         <translation>Bu ileti şifreli.</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="670"/>
+        <location filename="../EMailSecurityView.cpp" line="678"/>
         <source>This message is encrypted and carries a signature.</source>
         <translation>Bu ileti şifreli ve bir imza taşıyor.</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="675"/>
+        <location filename="../EMailSecurityView.cpp" line="683"/>
         <source>This message claims to use OpenPGP, but its structure does not follow RFC 3156.</source>
-        <translation>Bu ileti OpenPGP kullandığını öne sürüyor, ancak yapısı RFC 3156'ya uymuyor.</translation>
+        <translation>Bu ileti OpenPGP kullandığını öne sürüyor, ancak yapısı RFC 3156&apos;ya uymuyor.</translation>
     </message>
     <message>
-        <location filename="../EMailSecurityView.cpp" line="717"/>
+        <location filename="../EMailSecurityView.cpp" line="725"/>
         <source>There is nothing further to report about this message.</source>
         <translation>Bu ileti hakkında bildirilecek başka bir şey yok.</translation>
     </message>
@@ -2445,7 +2465,7 @@ Bu ileti başka bir yerden geldi; bunlar daha önce kaydedilmediyse eldeki tek k
     <message>
         <location filename="../EMailSendDialog.cpp" line="470"/>
         <source>No password is stored for this account, so nothing can be sent through it. Set the password in Settings, under Mail Accounts, and turn on the option to remember it.</source>
-        <translation>Bu hesap için saklanmış bir parola yok, bu yüzden bu hesap üzerinden hiçbir şey gönderilemez. Parolayı Ayarlar'da, E-posta Hesapları altında belirleyin ve parolayı hatırlama seçeneğini açın.</translation>
+        <translation>Bu hesap için saklanmış bir parola yok, bu yüzden bu hesap üzerinden hiçbir şey gönderilemez. Parolayı Ayarlar&apos;da, E-posta Hesapları altında belirleyin ve parolayı hatırlama seçeneğini açın.</translation>
     </message>
     <message>
         <location filename="../EMailSendDialog.cpp" line="480"/>
@@ -2661,7 +2681,7 @@ Bu ileti başka bir yerden geldi; bunlar daha önce kaydedilmediyse eldeki tek k
     <message>
         <location filename="../EMailStructureView.cpp" line="179"/>
         <source>Copy Content-Type</source>
-        <translation>Content-Type'i kopyala</translation>
+        <translation>Content-Type&apos;i kopyala</translation>
     </message>
     <message>
         <location filename="../EMailStructureView.cpp" line="180"/>
@@ -3000,215 +3020,215 @@ Bu ileti başka bir yerden geldi; bunlar daha önce kaydedilmediyse eldeki tek k
         <translation>IMAP kontrolörü</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1698"/>
+        <location filename="../EMailModule.cpp" line="1707"/>
         <source>Mail Editor</source>
         <translation>E-posta düzenleyicisi</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1699"/>
+        <location filename="../EMailModule.cpp" line="1708"/>
         <source>Open a new text editor for email.</source>
         <translation>E-posta için yeni bir metin düzenleyicisi aç.</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1719"/>
+        <location filename="../EMailModule.cpp" line="1728"/>
         <source>Open IMAP Controller</source>
         <translation>IMAP kontrolörünü aç</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1720"/>
+        <location filename="../EMailModule.cpp" line="1729"/>
         <source>Open IMAP Controller Dialog</source>
         <translation>IMAP kontrolörü iletişim kutusunu aç</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1736"/>
+        <location filename="../EMailModule.cpp" line="1745"/>
         <source>No mail account</source>
         <translation>E-posta hesabı yok</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1737"/>
+        <location filename="../EMailModule.cpp" line="1746"/>
         <source>Configure a mail account with IMAP enabled in Settings first.</source>
-        <translation>Önce Ayarlar'da IMAP etkin bir e-posta hesabı yapılandırın.</translation>
+        <translation>Önce Ayarlar&apos;da IMAP etkin bir e-posta hesabı yapılandırın.</translation>
     </message>
 </context>
 <context>
     <name>QObject</name>
     <message>
-        <location filename="../EMailHelper.cpp" line="1840"/>
+        <location filename="../EMailHelper.cpp" line="1843"/>
         <source>On %1, %2 wrote:</source>
         <translation>%1 tarihinde %2 yazdı:</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="1842"/>
+        <location filename="../EMailHelper.cpp" line="1845"/>
         <source>%1 wrote:</source>
         <translation>%1 yazdı:</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="1933"/>
+        <location filename="../EMailHelper.cpp" line="1936"/>
         <source>Signed part no longer in canonical form</source>
         <translation>İmzalı parça artık kanonik biçimde değil</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="1934"/>
+        <location filename="../EMailHelper.cpp" line="1937"/>
         <source>The signed part contains line endings that are not CRLF, which is not the form the signature was computed over. Something rewrote this message after it was signed, usually a program that changed line endings while saving or copying it, not an attack. The signature cannot verify against these bytes, and importing the sender&apos;s key will not change that. Checking it needs the original, unmodified message.</source>
         <translation>İmzalı parça, imzanın hesaplandığı biçim olmayan CRLF dışı satır sonları içeriyor. İleti imzalandıktan sonra bir şey onu yeniden yazmış; bu genellikle bir saldırı değil, kaydederken veya kopyalarken satır sonlarını değiştiren bir programdır. İmza bu baytlara göre doğrulanamaz ve gönderenin anahtarını içe aktarmak bunu değiştirmez. Kontrol etmek için özgün, değiştirilmemiş ileti gerekir.</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="1955"/>
+        <location filename="../EMailHelper.cpp" line="1958"/>
         <source>Duplicate %1 header</source>
         <translation>Yinelenen %1 başlığı</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="1956"/>
+        <location filename="../EMailHelper.cpp" line="1959"/>
         <source>This message carries %1 copies of a header that may appear only once. Different mail programs pick different copies, so what you see here may not be what another reader sees.</source>
         <translation>Bu ileti, yalnızca bir kez görünebilen bir başlığın %1 kopyasını taşıyor. Farklı posta programları farklı kopyalar seçer, bu yüzden burada gördüğünüz, başka bir okurun gördüğüyle aynı olmayabilir.</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="1969"/>
+        <location filename="../EMailHelper.cpp" line="1972"/>
         <source>Address may be disguised</source>
         <translation>Adres gizlenmiş olabilir</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="1970"/>
+        <location filename="../EMailHelper.cpp" line="1973"/>
         <source>The domain in &quot;%1&quot; uses characters that can be made to look like a different, familiar address.</source>
-        <translation>"%1" içindeki alan adı, başka, tanıdık bir adres gibi gösterilebilecek karakterler kullanıyor.</translation>
+        <translation>&quot;%1&quot; içindeki alan adı, başka, tanıdık bir adres gibi gösterilebilecek karakterler kullanıyor.</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="1984"/>
+        <location filename="../EMailHelper.cpp" line="1987"/>
         <source>Replies go somewhere else</source>
         <translation>Yanıtlar başka bir yere gidiyor</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="1985"/>
+        <location filename="../EMailHelper.cpp" line="1988"/>
         <source>This message is from &quot;%1&quot;, but replies would be sent to &quot;%2&quot;, which is a different domain.</source>
-        <translation>Bu ileti "%1" adresinden, ancak yanıtlar farklı bir alan adı olan "%2" adresine gönderilir.</translation>
+        <translation>Bu ileti &quot;%1&quot; adresinden, ancak yanıtlar farklı bir alan adı olan &quot;%2&quot; adresine gönderilir.</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="1999"/>
+        <location filename="../EMailHelper.cpp" line="2002"/>
         <source>Malformed signed section</source>
         <translation>Biçimi bozuk imzalı bölüm</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2000"/>
+        <location filename="../EMailHelper.cpp" line="2003"/>
         <source>A signed section must contain exactly two parts; this one contains %1. It may not verify, and what it covers is ambiguous.</source>
         <translation>İmzalı bir bölüm tam olarak iki parça içermelidir; bunda %1 parça var. Doğrulanamayabilir ve neyi kapsadığı belirsizdir.</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2008"/>
+        <location filename="../EMailHelper.cpp" line="2011"/>
         <source>Malformed encrypted section</source>
         <translation>Biçimi bozuk şifreli bölüm</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2009"/>
+        <location filename="../EMailHelper.cpp" line="2012"/>
         <source>An encrypted section must contain exactly two parts; this one contains %1.</source>
         <translation>Şifreli bir bölüm tam olarak iki parça içermelidir; bunda %1 parça var.</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2025"/>
+        <location filename="../EMailHelper.cpp" line="2028"/>
         <source>Not everything is signed</source>
         <translation>Her şey imzalı değil</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2026"/>
+        <location filename="../EMailHelper.cpp" line="2029"/>
         <source>%1 part(s) of this message sit outside the signature. They arrived unauthenticated and could have been added or changed by anyone in the path.</source>
         <translation>%1 parça bu iletide imzanın dışında duruyor. Kimlik doğrulaması olmadan ulaştı ve iletim yolundaki herkes tarafından eklenmiş veya değiştirilmiş olabilir.</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2040"/>
+        <location filename="../EMailHelper.cpp" line="2043"/>
         <source>Signature covers the encrypted data only</source>
         <translation>İmza yalnızca şifreli veriyi kapsıyor</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2041"/>
+        <location filename="../EMailHelper.cpp" line="2044"/>
         <source>This signature was made over the encrypted block, not over the message inside it. It shows who sent the ciphertext along; it does not say who wrote what you are reading, and anyone could have signed a copy of this same block.</source>
         <translation>Bu imza, içindeki iletinin üzerinde değil, şifreli bloğun üzerinde oluşturuldu. Şifreli metni kimin ilettiğini gösterir; okuduğunuz şeyi kimin yazdığını söylemez ve herkes bu aynı bloğun bir kopyasını imzalamış olabilir.</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2072"/>
+        <location filename="../EMailHelper.cpp" line="2075"/>
         <source>Public key attached</source>
         <translation>Açık anahtar ekli</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2073"/>
+        <location filename="../EMailHelper.cpp" line="2076"/>
         <source>This message carries %1 OpenPGP public key(s). A key arriving in a message proves nothing about who sent it: anyone can attach any key, including one they made for the name on the From line.</source>
         <translation>Bu ileti %1 OpenPGP açık anahtarı taşıyor. İletide gelen bir anahtar, onu kimin gönderdiği hakkında hiçbir şey kanıtlamaz: herkes herhangi bir anahtarı ekleyebilir, Kimden satırındaki ad için kendisinin ürettiği bir anahtar dahil.</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2082"/>
+        <location filename="../EMailHelper.cpp" line="2085"/>
         <source>Detached signature attached</source>
         <translation>Ayrık imza ekli</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2083"/>
+        <location filename="../EMailHelper.cpp" line="2086"/>
         <source>This message carries %1 signature file(s) that are not part of its own signed structure. Opening the message does not check them; they sign something else.</source>
         <translation>Bu ileti, kendi imzalı yapısının parçası olmayan %1 imza dosyası taşıyor. İletiyi açmak bunları kontrol etmez; başka bir şeyi imzalarlar.</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2093"/>
+        <location filename="../EMailHelper.cpp" line="2096"/>
         <source>Blind recipients are visible</source>
         <translation>Gizli kopya alıcıları görünür</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2094"/>
+        <location filename="../EMailHelper.cpp" line="2097"/>
         <source>This message carries a Bcc header naming %1 recipient(s). Anyone who received it can see who was blind-copied.</source>
         <translation>Bu ileti, %1 alıcı belirten bir Bcc başlığı taşıyor. Onu alan herkes kime gizli kopya gönderildiğini görebilir.</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2110"/>
+        <location filename="../EMailHelper.cpp" line="2113"/>
         <source>Nothing is signed</source>
         <translation>Hiçbir şey imzalı değil</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2111"/>
+        <location filename="../EMailHelper.cpp" line="2114"/>
         <source>This message carries no signature, so the recipient cannot tell that it came from you or that it arrived unchanged.</source>
         <translation>Bu ileti imza taşımıyor, bu yüzden alıcı onun sizden geldiğini veya değişmeden ulaştığını anlayamaz.</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2127"/>
+        <location filename="../EMailHelper.cpp" line="2130"/>
         <source>Some parts are not signed</source>
         <translation>Bazı parçalar imzalı değil</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2128"/>
+        <location filename="../EMailHelper.cpp" line="2131"/>
         <source>%1 part(s) of this message would go out without the signature covering them.</source>
         <translation>Bu iletinin %1 parçası, imzanın kapsamı dışında gönderilecek.</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2137"/>
+        <location filename="../EMailHelper.cpp" line="2140"/>
         <source>Blind recipients</source>
         <translation>Gizli kopya alıcıları</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2138"/>
+        <location filename="../EMailHelper.cpp" line="2141"/>
         <source>%1 blind recipient(s) will be included in encryption but will not appear anywhere in the message.</source>
         <translation>%1 gizli kopya alıcısı şifrelemeye dahil edilecek, ancak iletinin hiçbir yerinde görünmeyecek.</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2145"/>
+        <location filename="../EMailHelper.cpp" line="2148"/>
         <source>Bcc header present</source>
         <translation>Bcc başlığı var</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2146"/>
+        <location filename="../EMailHelper.cpp" line="2149"/>
         <source>This message carries a Bcc header. Sending it would tell every recipient who was blind-copied.</source>
         <translation>Bu ileti bir Bcc başlığı taşıyor. Göndermek, her alıcıya kime gizli kopya gönderildiğini söyler.</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2154"/>
+        <location filename="../EMailHelper.cpp" line="2157"/>
         <source>Recipient may be disguised</source>
         <translation>Alıcı gizlenmiş olabilir</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2155"/>
+        <location filename="../EMailHelper.cpp" line="2158"/>
         <source>The domain in &quot;%1&quot; uses characters that can be made to look like a different address. Check it before sending.</source>
-        <translation>"%1" içindeki alan adı, başka bir adres gibi gösterilebilecek karakterler kullanıyor. Göndermeden önce kontrol edin.</translation>
+        <translation>&quot;%1&quot; içindeki alan adı, başka bir adres gibi gösterilebilecek karakterler kullanıyor. Göndermeden önce kontrol edin.</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2162"/>
+        <location filename="../EMailHelper.cpp" line="2165"/>
         <source>No recipients</source>
         <translation>Alıcı yok</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2163"/>
+        <location filename="../EMailHelper.cpp" line="2166"/>
         <source>This message is not addressed to anyone.</source>
         <translation>Bu ileti kimseye adreslenmemiş.</translation>
     </message>

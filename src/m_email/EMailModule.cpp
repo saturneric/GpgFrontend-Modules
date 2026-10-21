@@ -654,6 +654,7 @@ auto ReportStatusFor(EMailBadgeState overall) -> int {
       return 1;
 
     case EMailBadgeState::kSIGNED_BAD:
+    case EMailBadgeState::kSIGNED_UNAUTHORIZED_KEY:
     case EMailBadgeState::kSIGNED_ERROR:
     case EMailBadgeState::kMALFORMED:
       return -1;
@@ -736,6 +737,14 @@ auto ReportDescriptionFor(const EMailVerificationResult& result) -> QString {
                  "The signature does not match the bytes it covers. Either the "
                  "message was changed after it was signed, or the signature "
                  "was not made for this message.") +
+             rewritten;
+
+    case EMailBadgeState::kSIGNED_UNAUTHORIZED_KEY:
+      return QApplication::translate(
+                 "EMailModule",
+                 "The signature matches the bytes it covers, but it was made "
+                 "with a key the sender's certificate does not authorize to "
+                 "sign. It cannot be relied on as the sender's signature.") +
              rewritten;
 
     case EMailBadgeState::kSIGNED_ERROR:

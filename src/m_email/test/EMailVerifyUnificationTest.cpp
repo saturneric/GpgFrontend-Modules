@@ -362,6 +362,26 @@ TEST(VerifyPayloadTest, AResultSurvivesTheTripToThePage) {
   EXPECT_TRUE(VerificationMatchesSource(decoded, raw));
 }
 
+TEST(VerifyPayloadTest, AnUnauthorizedKeyVerdictSurvivesTheTrip) {
+  // The host reports validity 10 for a valid signature by a key its
+  // certificate does not authorize. That verdict must reach the page as
+  // itself, not as "bad".
+  const auto raw = SignedMessage("Content-Type: text/plain\r\n\r\nhello");
+
+  Reset();
+  Get().verify_info_json.append(SignatureJson(10));
+
+  EMailVerificationResult verified;
+  QString error;
+  ASSERT_EQ(VerifyEMLMessage(0, raw, verified, error), kSUCCESS);
+  EXPECT_EQ(verified.overall, EMailBadgeState::kSIGNED_UNAUTHORIZED_KEY);
+
+  EMailVerificationResult decoded;
+  ASSERT_TRUE(
+      DecodeVerificationPayload(EncodeVerificationPayload(verified), decoded));
+  EXPECT_EQ(decoded.overall, EMailBadgeState::kSIGNED_UNAUTHORIZED_KEY);
+}
+
 TEST(VerifyPayloadTest, APayloadFromAnotherSchemaIsRefused) {
   // Refused rather than half-read. The states are written as names precisely
   // because their numbering changes when one is inserted in severity order,

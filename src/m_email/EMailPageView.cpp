@@ -2839,7 +2839,7 @@ void EMailPageView::refresh_attachments() {
         // part is worth, and it is not a green tick.
         item->setText(kColSigned, tr("signature not good"));
         EMailSetCellTone(item, kColSigned,
-                         badge == EMailBadgeState::kSIGNED_BAD
+                         ToneForBadge(badge) == EMailBadgeTone::kDANGER
                              ? EMailTone::kDANGER
                              : EMailTone::kWARN,
                          this);

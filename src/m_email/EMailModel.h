@@ -167,6 +167,10 @@ enum class EMailBadgeState : uint8_t {
   /// This is the BADGE's word for it; whether a check ran at all is carried
   /// separately in EMailVerifyExec and is never inferred from this order.
   kSIGNED_ERROR,
+  /// Mathematically valid, but made by a key its certificate does not
+  /// authorize to sign. A definite verdict, so it outranks kSIGNED_ERROR; not
+  /// evidence that the bytes were changed, so it stays below kSIGNED_BAD.
+  kSIGNED_UNAUTHORIZED_KEY,
   kSIGNED_BAD,  ///< bad, invalid or made by a revoked key
 };
 

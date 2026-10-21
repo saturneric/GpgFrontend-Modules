@@ -109,6 +109,9 @@ auto DescribeValidity(int validity) -> QString {
     case 7:
       return QApplication::translate("EMailSecurityView",
                                      "signing key expired");
+    case 10:
+      return QApplication::translate("EMailSecurityView",
+                                     "signing key not authorized to sign");
     default:
       return QApplication::translate("EMailSecurityView", "unknown");
   }
@@ -129,6 +132,11 @@ auto DescribeSignature(EMailBadgeState badge, int validity) -> QString {
                  : QApplication::translate("EMailSecurityView",
                                            "BAD signature: it does not match "
                                            "these bytes");
+    case EMailBadgeState::kSIGNED_UNAUTHORIZED_KEY:
+      return QApplication::translate(
+          "EMailSecurityView",
+          "not accepted: the signing key is not authorized to sign by its "
+          "certificate");
     case EMailBadgeState::kSIGNED_MISMATCH:
       return QApplication::translate("EMailSecurityView",
                                      "valid, but signed by another address");

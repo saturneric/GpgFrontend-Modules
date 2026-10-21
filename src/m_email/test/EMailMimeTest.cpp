@@ -1472,6 +1472,24 @@ TEST(EMailMimeTest, AnInvalidOrRevokedSignatureIsAlsoBad) {
   }
 }
 
+TEST(EMailMimeTest, AnUnauthorizedSigningKeyIsNotCalledAForgery) {
+  // validity 10 (kKEY_NOT_AUTHORIZED): the signature is mathematically valid,
+  // but the certificate does not let that key sign. Not a good signature, and
+  // not a message that was changed after signing either.
+  const auto badge =
+      DeriveSecurityBadge(EMailSecurityState::kSIGNED,
+                          EMailVerifyState::kVERIFIED, {Sig(10)}, kFrom);
+
+  EXPECT_EQ(badge, EMailBadgeState::kSIGNED_UNAUTHORIZED_KEY);
+  EXPECT_EQ(ToneForBadge(badge), EMailBadgeTone::kDANGER);
+
+  // A forgery beside it still decides.
+  EXPECT_EQ(DeriveSecurityBadge(EMailSecurityState::kSIGNED,
+                                EMailVerifyState::kVERIFIED, {Sig(10), Sig(3)},
+                                kFrom),
+            EMailBadgeState::kSIGNED_BAD);
+}
+
 TEST(EMailMimeTest, AMissingKeyIsItsOwnAnswerAndNotAForgery) {
   const auto badge =
       DeriveSecurityBadge(EMailSecurityState::kSIGNED,
