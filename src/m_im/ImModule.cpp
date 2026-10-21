@@ -59,6 +59,10 @@ namespace {
 namespace host = gf::cmd::host;
 using Severity = host::AppMessage::Severity;
 
+/// Spelled unqualified: lupdate misreads `gf::cmd::Meta kMeta{` in a class
+/// body and warns about an unknown namespace.
+using CommandMeta = gf::cmd::Meta;
+
 /// Whether to warn before encrypting with the default book. Its own setting,
 /// read in the group the Host used to keep it in.
 constexpr auto kWarnDefaultBookKey = "warn_default_book";
@@ -80,7 +84,7 @@ auto BytesOf(const gf::cmd::Blob& blob) -> QByteArray {
 }
 
 struct Decode {
-  static constexpr gf::cmd::Meta kMeta{
+  static constexpr CommandMeta kMeta{
       GF_MODULE_ID ".decode",
       GTrC::Noop("Instant Message Token"),
       GTrC::Noop(
@@ -93,7 +97,7 @@ struct Decode {
 };
 
 struct Encode {
-  static constexpr gf::cmd::Meta kMeta{
+  static constexpr CommandMeta kMeta{
       GF_MODULE_ID ".encode",
       GTrC::Noop("Instant Message Token"),
       GTrC::Noop("Wrap an encrypted message as an instant messaging token"),
@@ -176,7 +180,7 @@ struct TargetArgs {
 };
 
 struct EncryptIm {
-  static constexpr gf::cmd::Meta kMeta{
+  static constexpr CommandMeta kMeta{
       GF_MODULE_ID ".encrypt",
       GTrC::Noop("IM Encrypt"),
       GTrC::Noop("Encrypt the message as a single-line token for chat apps"),
@@ -189,7 +193,7 @@ struct EncryptIm {
 };
 
 struct EncryptSignIm {
-  static constexpr gf::cmd::Meta kMeta{
+  static constexpr CommandMeta kMeta{
       GF_MODULE_ID ".encrypt_sign",
       GTrC::Noop("IM Encrypt && Sign"),
       GTrC::Noop("Encrypt and sign the message as a single-line token for chat "
