@@ -1760,7 +1760,7 @@ auto DoOpenImapController(const gf::cmd::CommandContext& /*ctx*/,
 // The module's whole framework surface.
 // The crypto operations stay events: the Host hands the module an e-mail
 // document's bytes and takes the result back, which is data, not UI.
-constexpr std::array<GFEventBinding, 7> kEvents = {{
+constexpr std::array<GFEventBinding, 8> kEvents = {{
     {"EDIT_TAB_TYPE_EMAIL_OP_DECRYPT", &OnEditTabTypeEmailOpDecrypt},
     {"EDIT_TAB_TYPE_EMAIL_OP_DECRYPT_VERIFY",
      &OnEditTabTypeEmailOpDecryptVerify},
@@ -1769,6 +1769,9 @@ constexpr std::array<GFEventBinding, 7> kEvents = {{
     {"EDIT_TAB_TYPE_EMAIL_OP_SIGN", &OnEditTabTypeEmailOpSign},
     {"EDIT_TAB_TYPE_EMAIL_OP_VERIFY", &OnEditTabTypeEmailOpVerify},
     {"KEY_DATABASE_REFRESH_DONE", &OnKeyDatabaseRefreshDone},
+    // A new set of key databases is a new keyring as far as an open message
+    // is concerned: its verdict is worked out again against the one in use.
+    {"KEY_DATABASES_RELOADED", &OnKeyDatabaseRefreshDone},
 }};
 
 const std::array<gf::cmd::Binding, 2> kCommands = {

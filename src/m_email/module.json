@@ -19,7 +19,8 @@
     "EDIT_TAB_TYPE_EMAIL_OP_ENCRYPT_SIGN",
     "EDIT_TAB_TYPE_EMAIL_OP_SIGN",
     "EDIT_TAB_TYPE_EMAIL_OP_VERIFY",
-    "KEY_DATABASE_REFRESH_DONE"
+    "KEY_DATABASE_REFRESH_DONE",
+    "KEY_DATABASES_RELOADED"
   ],
   "commands": [
     "com.bktus.gpgfrontend.module.email.new_message",
