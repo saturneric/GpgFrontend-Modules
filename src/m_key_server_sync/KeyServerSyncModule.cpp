@@ -174,6 +174,11 @@ using KeyServerBatchLogic::BatchKey;
 /// Set when the module deactivates; every batch step checks it first.
 std::atomic<bool> g_stopped{false};
 
+/// How many times the key databases were reloaded. A batch remembers the count
+/// it started at: its keys carry the channels of the databases in use then,
+/// which a reload retires, so it stops rather than act on whatever they name.
+std::atomic<int> g_key_database_reloads{0};
+
 /**
  * @brief Refreshes or publishes several keys, one request at a time.
  *
@@ -191,7 +196,8 @@ class KeyServerBatch : public QObject {
   KeyServerBatch(Kind kind, QList<BatchKey> keys)
       : kind_(kind),
         keys_(std::move(keys)),
-        route_(KeyServerList::SyncRoute()) {}
+        route_(KeyServerList::SyncRoute()),
+        reloads_at_start_(g_key_database_reloads.load()) {}
 
   /// @return false when the user declined, and the batch is already gone
   auto Start() -> bool {
@@ -207,6 +213,7 @@ class KeyServerBatch : public QObject {
  private:
   void Next() {
     if (g_stopped.load()) return;
+    if (g_key_database_reloads.load() != reloads_at_start_) return Interrupt();
     if (index_ >= keys_.size()) return Finish();
     const auto key = keys_[index_++];
     if (kind_ == Kind::kRefresh) {
@@ -269,16 +276,31 @@ class KeyServerBatch : public QObject {
     QTimer::singleShot(kSpacingMs, this, [this]() { Next(); });
   }
 
+  void Interrupt() {
+    const auto handled = static_cast<int>(index_);
+    Tell(Severity::kWarning,
+         kind_ == Kind::kRefresh ? GTrC::tr("Key Refresh Stopped")
+                                 : GTrC::tr("Key Publishing Stopped"),
+         KeyServerBatchLogic::InterruptedSummary(
+             handled, static_cast<int>(keys_.size())));
+    deleteLater();
+  }
+
   void Finish() {
     const auto total = static_cast<int>(keys_.size());
+    if (kind_ == Kind::kRefresh && !blocks_.isEmpty() &&
+        gf::sdk::ImportKeys(GFModuleSdkContext(),
+                            static_cast<int>(keys_.front().channel),
+                            KeyServerBatchLogic::JoinForImport(blocks_)) < 0) {
+      // Refused: its database is gone. What was fetched is not in any
+      // keyring, so it is not reported as refreshed.
+      failures_.append(GTrC::tr("the fetched keys could not be imported: the "
+                                "key database is no longer available"));
+      blocks_.clear();
+    }
     const auto severity =
         failures_.isEmpty() ? Severity::kInfo : Severity::kWarning;
     if (kind_ == Kind::kRefresh) {
-      if (!blocks_.isEmpty()) {
-        gf::sdk::ImportKeys(GFModuleSdkContext(),
-                            static_cast<int>(keys_.front().channel),
-                            KeyServerBatchLogic::JoinForImport(blocks_));
-      }
       Tell(severity, GTrC::tr("Key Refresh Finished"),
            KeyServerBatchLogic::RefreshSummary(static_cast<int>(blocks_.size()),
                                                total, failures_));
@@ -297,6 +319,7 @@ class KeyServerBatch : public QObject {
   int done_ = 0;
   QList<QByteArray> blocks_;
   QStringList failures_;
+  int reloads_at_start_;
 };
 
 /// The one batch that may run; a second request waits for it to finish.
@@ -470,8 +493,17 @@ auto UpdateKeyFromKeyServer(int channel, const QString& fpr) -> int {
 
   FetchKey(
       route, fpr, true,
-      [channel](const QString& key_data) {
-        gf::sdk::ImportKeys(GFModuleSdkContext(), channel, key_data.toUtf8());
+      [channel, fpr](const QString& key_data) {
+        if (gf::sdk::ImportKeys(GFModuleSdkContext(), channel,
+                                key_data.toUtf8()) < 0) {
+          // Refused: the key database was reloaded while the key was being
+          // fetched, and the one it was asked for is gone.
+          Tell(Severity::kError, GTrC::tr("Key Update Failed"),
+               GTrC::tr("The public key was fetched but could not be imported, "
+                        "because its key database is no longer available.\n"
+                        "Key ID: %1")
+                   .arg(fpr));
+        }
       },
       [fpr, host](const QString& error, const QString& data) {
         Q_UNUSED(data);
@@ -762,6 +794,11 @@ auto OnRequestSearchPublicKeyByFingerprint(const GFEvent& event)
   return GFEventResult::Ok();
 }
 
+auto OnKeyDatabasesReloaded(const GFEvent&) -> GFEventResult {
+  ++g_key_database_reloads;
+  return GFEventResult::Ok();
+}
+
 auto OnUnload() -> void {
   // Said "paper key module" until now, copied from a module that no longer
   // exists -- so the one line naming who was shutting down named the wrong one.
@@ -769,7 +806,9 @@ auto OnUnload() -> void {
 }
 
 // The module's whole framework surface.
-constexpr std::array<GFEventBinding, 4> kEvents = {{
+constexpr std::array<GFEventBinding, 5> kEvents = {{
+    // Batches already running stop, rather than act on retired channels.
+    {"KEY_DATABASES_RELOADED", &OnKeyDatabasesReloaded},
     {"REQUEST_GET_PUBLIC_KEY_BY_FINGERPRINT",
      &OnRequestGetPublicKeyByFingerprint},
     {"REQUEST_GET_PUBLIC_KEY_BY_KEY_ID", &OnRequestGetPublicKeyByKeyId},

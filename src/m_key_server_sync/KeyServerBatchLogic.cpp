@@ -102,4 +102,12 @@ auto PublishSummary(int published, int total, const QString& host,
                       failures);
 }
 
+auto InterruptedSummary(int handled, int total) -> QString {
+  return GTrC::tr("The key databases were changed while this was running, so "
+                  "it was stopped after %1 of %2 keys. Nothing fetched was "
+                  "imported. Please start it again.")
+      .arg(handled)
+      .arg(total);
+}
+
 }  // namespace KeyServerBatchLogic

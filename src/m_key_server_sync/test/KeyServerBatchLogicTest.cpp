@@ -98,6 +98,12 @@ TEST(KeyServerBatchLogicTest, SummariesCountAndListFailures) {
   EXPECT_TRUE(published.contains("keys.openpgp.org"));
 }
 
+TEST(KeyServerBatchLogicTest, AnInterruptedBatchSaysHowFarItGot) {
+  const auto text = KeyServerBatchLogic::InterruptedSummary(2, 5);
+  EXPECT_TRUE(text.contains("2 of 5"));
+  EXPECT_TRUE(text.contains("Nothing fetched was imported"));
+}
+
 // "The server does not have this key" is an answer, told apart from a real
 // failure by the caller, and never shown in the transport's own wording.
 TEST(KeyServerBatchLogicTest, NotFoundIsItsOwnPlainAnswer) {

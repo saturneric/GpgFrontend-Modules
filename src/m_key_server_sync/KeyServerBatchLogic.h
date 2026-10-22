@@ -83,4 +83,9 @@ auto RefreshSummary(int fetched, int total, const QStringList& failures)
 auto PublishSummary(int published, int total, const QString& host,
                     const QStringList& failures) -> QString;
 
+/// What a batch says when the key databases were reloaded under it: it was
+/// stopped after @p handled of @p total keys, and nothing it fetched was
+/// imported, since the database it was started on is no longer the one in use.
+auto InterruptedSummary(int handled, int total) -> QString;
+
 }  // namespace KeyServerBatchLogic
