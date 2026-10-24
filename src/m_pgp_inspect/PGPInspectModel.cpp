@@ -38,8 +38,8 @@
 
 namespace {
 
-auto ParseFields(const QJsonValue& value) -> QVector<PGPInspectField> {
-  QVector<PGPInspectField> fields;
+auto ParseFields(const QJsonValue& value) -> QList<PGPInspectField> {
+  QList<PGPInspectField> fields;
   for (const auto& entry : value.toArray()) {
     const auto object = entry.toObject();
     // A row with neither half says nothing; dropping it keeps the detail
@@ -102,7 +102,7 @@ auto ParseBlock(const QJsonObject& object) -> PGPInspectBlock {
   return block;
 }
 
-auto CountPackets(const QVector<PGPInspectPacket>& packets) -> int {
+auto CountPackets(const QList<PGPInspectPacket>& packets) -> int {
   int count = 0;
   for (const auto& packet : packets) {
     count += 1 + CountPackets(packet.children);

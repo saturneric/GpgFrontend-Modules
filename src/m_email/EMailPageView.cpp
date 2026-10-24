@@ -1242,20 +1242,8 @@ void EMailPageView::resizeEvent(QResizeEvent* event) {
 void EMailPageView::set_cc_bcc_visible(bool visible) {
   if (header_form_ == nullptr) return;
 
-#if QT_VERSION >= QT_VERSION_CHECK(6, 4, 0)
   header_form_->setRowVisible(cc_edit_, visible);
   header_form_->setRowVisible(bcc_edit_, visible);
-#else
-  // Older Qt has no setRowVisible; hiding both cells collapses the row.
-  const auto set_row_visible = [this, visible](QWidget* field) {
-    if (auto* label = header_form_->labelForField(field)) {
-      label->setVisible(visible);
-    }
-    field->setVisible(visible);
-  };
-  set_row_visible(cc_edit_);
-  set_row_visible(bcc_edit_);
-#endif
 
   if (cc_bcc_toggle_ != nullptr && cc_bcc_toggle_->isChecked() != visible) {
     QSignalBlocker blocker(cc_bcc_toggle_);

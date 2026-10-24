@@ -33,8 +33,8 @@
 #include <QCryptographicHash>
 #include <QDebug>
 #include <QHash>
+#include <QList>
 #include <QMutex>
-#include <QVector>
 #include <algorithm>
 #include <array>
 #include <atomic>
@@ -125,7 +125,7 @@ auto Base58Encode(const QByteArray& in) -> QString {
   const auto body = in.size() - zeroes;
 
   // log(256)/log(58) rounded up, then five characters to the limb.
-  QVector<quint32> limbs;
+  QList<quint32> limbs;
   limbs.reserve((body * 138 / 100 / 5) + 1);
 
   const auto absorb = [&limbs](quint64 chunk, quint64 base) {
@@ -209,7 +209,7 @@ auto Base58Decode(const QString& in, bool& ok) -> QByteArray {
   const auto body = in.size() - zeroes;
 
   // log(58)/log(256) rounded up, then four bytes to the limb.
-  QVector<quint32> limbs;
+  QList<quint32> limbs;
   limbs.reserve((body * 733 / 1000 / 4) + 1);
 
   const auto absorb = [&limbs](quint64 chunk, quint64 base) {
@@ -561,8 +561,8 @@ auto Keystream(const std::array<unsigned char, 32>& master,
 }
 
 // Keyed Fisher-Yates permutation P of [0, m) driven by 4 bytes per step.
-auto BuildPermutation(const QByteArray& material, int m) -> QVector<int> {
-  QVector<int> p(m);
+auto BuildPermutation(const QByteArray& material, int m) -> QList<int> {
+  QList<int> p(m);
   for (int i = 0; i < m; ++i) p[i] = i;
   int off = 0;
   for (int i = m - 1; i > 0; --i) {
@@ -674,7 +674,7 @@ auto Encode(const QByteArray& pgp, const QString& phrase) -> QString {
     t[i] = static_cast<char>(inner[i] ^ xor_ks[i]);
   }
 
-  const QVector<int> p = BuildPermutation(perm_material, m);
+  const QList<int> p = BuildPermutation(perm_material, m);
   QByteArray cipher(m, Qt::Uninitialized);
   for (int i = 0; i < m; ++i) cipher[i] = t[p[i]];
 
@@ -710,7 +710,7 @@ auto Decode(const QString& text, const QString& phrase) -> DecodeResult {
   const QByteArray perm_material = stream.mid(kPrefixLen, 4 * m);
   const QByteArray xor_ks = stream.mid(kPrefixLen + 4 * m, m);
 
-  const QVector<int> p = BuildPermutation(perm_material, m);
+  const QList<int> p = BuildPermutation(perm_material, m);
   QByteArray t(m, Qt::Uninitialized);
   for (int i = 0; i < m; ++i) t[p[i]] = cipher[i];
 

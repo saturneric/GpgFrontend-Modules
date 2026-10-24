@@ -72,9 +72,9 @@ class PGPInspectDialog : public QDialog, public gf::ui::DialogWidget {
   void create_widgets();
   void render_document();
   void add_packets(QTreeWidgetItem* parent,
-                   const QVector<PGPInspectPacket>& packets);
+                   const QList<PGPInspectPacket>& packets);
   void add_fields(QTreeWidgetItem* parent,
-                  const QVector<PGPInspectField>& fields);
+                  const QList<PGPInspectField>& fields);
 
   PGPInspectDocument document_;
   qint64 size_ = 0;

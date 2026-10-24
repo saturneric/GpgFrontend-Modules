@@ -29,9 +29,9 @@
 #pragma once
 
 #include <QByteArray>
+#include <QList>
 #include <QString>
 #include <QStringList>
-#include <QVector>
 
 /**
  * @file PGPInspectModel.h
@@ -64,8 +64,8 @@ struct PGPInspectPacket {
   QString length_type;
   /// The body's own version octet; -1 for the types that carry none.
   int version = -1;
-  QVector<PGPInspectField> fields;
-  QVector<PGPInspectPacket> children;
+  QList<PGPInspectField> fields;
+  QList<PGPInspectPacket> children;
   /// Why this packet could not be decoded, empty when it could.
   QString error;
 
@@ -75,7 +75,7 @@ struct PGPInspectPacket {
 /// The armor envelope of a block.
 struct PGPInspectArmor {
   QString block_type;
-  QVector<PGPInspectField> headers;
+  QList<PGPInspectField> headers;
   /// "ok", "mismatch" or "absent".
   QString crc24;
 };
@@ -89,8 +89,8 @@ struct PGPInspectBlock {
   PGPInspectArmor armor;
   bool has_cleartext = false;
   qint64 cleartext_text_size = 0;
-  QVector<PGPInspectField> cleartext_headers;
-  QVector<PGPInspectPacket> packets;
+  QList<PGPInspectField> cleartext_headers;
+  QList<PGPInspectPacket> packets;
   QString error;
 };
 
@@ -100,7 +100,7 @@ struct PGPInspectDocument {
   bool valid = false;
   QString format;
   qint64 size = 0;
-  QVector<PGPInspectBlock> blocks;
+  QList<PGPInspectBlock> blocks;
   QStringList errors;
   QString parse_error;
 

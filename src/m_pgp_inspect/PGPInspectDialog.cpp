@@ -148,7 +148,7 @@ void PGPInspectDialog::render_document() {
 
     // The block's own facts are rows like any other, so the search box reaches
     // the armor headers and the CRC verdict too.
-    QVector<PGPInspectField> facts;
+    QList<PGPInspectField> facts;
     if (block.has_armor) {
       facts.push_back({GTrC::tr("Armor Type"), block.armor.block_type});
       facts.push_back({GTrC::tr("CRC24"), block.armor.crc24});
@@ -192,7 +192,7 @@ void PGPInspectDialog::render_document() {
 }
 
 void PGPInspectDialog::add_packets(QTreeWidgetItem* parent,
-                                   const QVector<PGPInspectPacket>& packets) {
+                                   const QList<PGPInspectPacket>& packets) {
   int index = 1;
   for (const auto& packet : packets) {
     auto* item = new QTreeWidgetItem(parent);
@@ -215,7 +215,7 @@ void PGPInspectDialog::add_packets(QTreeWidgetItem* parent,
 }
 
 void PGPInspectDialog::add_fields(QTreeWidgetItem* parent,
-                                  const QVector<PGPInspectField>& fields) {
+                                  const QList<PGPInspectField>& fields) {
   for (const auto& field : fields) {
     auto* row = new QTreeWidgetItem(parent);
     row->setText(kLabelColumn, field.label);
