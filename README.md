@@ -58,8 +58,7 @@ Both are added to the include path automatically by `gf_add_module()`.
 
 - Enable modules by setting `-DGPGFRONTEND_BUILD_MODULES=ON` in the
   superproject CMake configuration.
-- The default toolchain targets **Qt 6**. If `GPGFRONTEND_QT5_BUILD` is
-  enabled, the modules target is skipped entirely.
+- Modules require **Qt 6.5** or later, the same minimum as the host.
 - `CMAKE_AUTOMOC`, `CMAKE_AUTORCC`, and `CMAKE_AUTOUIC` are enabled
   automatically for all modules.
 - Translations, packaging, and signing are all handled by `gf_add_module()` —

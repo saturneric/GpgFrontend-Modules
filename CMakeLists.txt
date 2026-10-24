@@ -37,9 +37,6 @@ project(GpgFrontendModules
 # includes
 include(GenerateExportHeader)
 
-# function or mode options
-option(GPGFRONTEND_QT5_BUILD "Switch to Qt5 building mode" OFF)
-
 # Using Standard C++-17 (Consider compatibility)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -49,8 +46,6 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 # CMake
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-
-option(GPGFRONTEND_MODULES_QT5_BUILD "Swith to Qt5 building mode" OFF)
 
 # Opt-in unit tests for modules. Declared here rather than inside a single
 # module so every module can hang a test target off the one switch, and so it
@@ -106,16 +101,8 @@ message(STATUS "GpgFrontend Module Namespace Root: ${GPGFRONTEND_MODULE_NAMESPAC
 message(STATUS "GpgFrontend Module Test Output Path: ${GPGFRONTEND_MODULE_TEST_OUTPUT_DIR}")
 
 # Introduce Qt
-# Support Qt version: 6.x
-if(GPGFRONTEND_QT5_BUILD)
-  # Introduce Qt
-  # Support Qt version: 5.15.x
-  find_package(Qt5 5.15 COMPONENTS Core Widgets Network LinguistTools Concurrent Xml REQUIRED)
-else()
-  # Introduce Qt
-  # Support Qt version: 6.x
-  find_package(Qt6 6 COMPONENTS Core Widgets Network LinguistTools Concurrent Xml REQUIRED)
-endif()
+# Minimum supported Qt version: 6.5 (LTS), same as the host
+find_package(Qt6 6.5 COMPONENTS Core Widgets Network LinguistTools Concurrent Xml REQUIRED)
 
 # Qt configuration
 set(CMAKE_AUTOMOC ON)
