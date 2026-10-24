@@ -4,73 +4,73 @@
 <context>
     <name>ModuleIM</name>
     <message>
-        <location filename="../ImCodec.cpp" line="58"/>
+        <location filename="../ImCodec.cpp" line="60"/>
         <source>Encoding</source>
         <translation>編碼</translation>
     </message>
     <message>
-        <location filename="../ImCodec.cpp" line="59"/>
+        <location filename="../ImCodec.cpp" line="61"/>
         <source>Container Format</source>
         <translation>容器格式</translation>
     </message>
     <message>
-        <location filename="../ImCodec.cpp" line="61"/>
+        <location filename="../ImCodec.cpp" line="63"/>
         <source>Message Book</source>
         <translation>訊息簿</translation>
     </message>
     <message>
-        <location filename="../ImCodec.cpp" line="62"/>
+        <location filename="../ImCodec.cpp" line="64"/>
         <source>Shared phrase (Argon2id)</source>
         <translation>共享片語 (Argon2id)</translation>
     </message>
     <message>
-        <location filename="../ImCodec.cpp" line="63"/>
+        <location filename="../ImCodec.cpp" line="65"/>
         <source>Default, no shared phrase set</source>
         <translation>預設，未設定共用短語</translation>
     </message>
     <message>
-        <location filename="../ImCodec.cpp" line="67"/>
+        <location filename="../ImCodec.cpp" line="69"/>
         <location filename="../ImSettingsPage.cpp" line="158"/>
         <source>Book Fingerprint</source>
         <translation>書本指紋</translation>
     </message>
     <message>
-        <location filename="../ImCodec.cpp" line="69"/>
+        <location filename="../ImCodec.cpp" line="71"/>
         <source>Set a Phrase</source>
         <translation>設定短語</translation>
     </message>
     <message>
-        <location filename="../ImCodec.cpp" line="69"/>
+        <location filename="../ImCodec.cpp" line="71"/>
         <source>Settings &gt; Instant Messaging</source>
         <translation>設定 &gt; 即時通訊</translation>
     </message>
     <message>
-        <location filename="../ImCodec.cpp" line="72"/>
+        <location filename="../ImCodec.cpp" line="74"/>
         <source>OpenPGP Payload</source>
         <translation>OpenPGP 負載</translation>
     </message>
     <message>
-        <location filename="../ImCodec.cpp" line="72"/>
+        <location filename="../ImCodec.cpp" line="74"/>
         <source>%1 bytes</source>
         <translation>%1 位元組</translation>
     </message>
     <message>
-        <location filename="../ImCodec.cpp" line="75"/>
+        <location filename="../ImCodec.cpp" line="77"/>
         <source>Token Length</source>
         <translation>令牌長度</translation>
     </message>
     <message>
-        <location filename="../ImCodec.cpp" line="75"/>
+        <location filename="../ImCodec.cpp" line="77"/>
         <source>%1 characters</source>
         <translation>%1 個字元</translation>
     </message>
     <message>
-        <location filename="../ImCodec.cpp" line="82"/>
+        <location filename="../ImCodec.cpp" line="84"/>
         <source>Wire Overhead</source>
         <translation>線路開銷</translation>
     </message>
     <message>
-        <location filename="../ImCodec.cpp" line="87"/>
+        <location filename="../ImCodec.cpp" line="88"/>
         <location filename="../ImModule.cpp" line="253"/>
         <source>Instant Messaging</source>
         <translation>即時通訊</translation>

@@ -776,7 +776,7 @@ Usa Aggiorna per riprovare.</translation>
 <context>
     <name>EMailModule</name>
     <message>
-        <location filename="../EMailModule.cpp" line="538"/>
+        <location filename="../EMailModule.cpp" line="540"/>
         <source># EML Data Error
 
 The provided EML data does not conform to RFC 3156 standards and cannot be processed.
@@ -807,7 +807,7 @@ EML è un formato file per la rappresentazione di messaggi email, che include ti
 Dopo aver corretto i dati EML, riprovare l&apos;operazione.</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="563"/>
+        <location filename="../EMailModule.cpp" line="565"/>
         <source># Email Operation Error
 
 An error occurred during the email operation. The process could not be completed.
@@ -850,60 +850,60 @@ Si è verificato un errore durante l&apos;operazione email. Il processo non è s
 Se il problema persiste, si consiglia di contattare il supporto tecnico o consultare la documentazione.</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="105"/>
-        <location filename="../EMailModule.cpp" line="813"/>
-        <location filename="../EMailModule.cpp" line="957"/>
-        <location filename="../EMailModule.cpp" line="1617"/>
+        <location filename="../EMailModule.cpp" line="107"/>
+        <location filename="../EMailModule.cpp" line="815"/>
+        <location filename="../EMailModule.cpp" line="959"/>
+        <location filename="../EMailModule.cpp" line="1619"/>
         <source>From</source>
         <translation>Da</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="104"/>
+        <location filename="../EMailModule.cpp" line="106"/>
         <source>E-Mail</source>
         <translation>Email</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="106"/>
-        <location filename="../EMailModule.cpp" line="816"/>
-        <location filename="../EMailModule.cpp" line="960"/>
-        <location filename="../EMailModule.cpp" line="1620"/>
+        <location filename="../EMailModule.cpp" line="108"/>
+        <location filename="../EMailModule.cpp" line="818"/>
+        <location filename="../EMailModule.cpp" line="962"/>
+        <location filename="../EMailModule.cpp" line="1622"/>
         <source>To</source>
         <translation>A</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="107"/>
-        <location filename="../EMailModule.cpp" line="819"/>
-        <location filename="../EMailModule.cpp" line="963"/>
-        <location filename="../EMailModule.cpp" line="1623"/>
+        <location filename="../EMailModule.cpp" line="109"/>
+        <location filename="../EMailModule.cpp" line="821"/>
+        <location filename="../EMailModule.cpp" line="965"/>
+        <location filename="../EMailModule.cpp" line="1625"/>
         <source>Subject</source>
         <translation>Oggetto</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="108"/>
-        <location filename="../EMailModule.cpp" line="822"/>
-        <location filename="../EMailModule.cpp" line="966"/>
-        <location filename="../EMailModule.cpp" line="1626"/>
+        <location filename="../EMailModule.cpp" line="110"/>
+        <location filename="../EMailModule.cpp" line="824"/>
+        <location filename="../EMailModule.cpp" line="968"/>
+        <location filename="../EMailModule.cpp" line="1628"/>
         <source>CC</source>
         <translation>CC</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="109"/>
-        <location filename="../EMailModule.cpp" line="825"/>
-        <location filename="../EMailModule.cpp" line="969"/>
-        <location filename="../EMailModule.cpp" line="1629"/>
+        <location filename="../EMailModule.cpp" line="111"/>
+        <location filename="../EMailModule.cpp" line="827"/>
+        <location filename="../EMailModule.cpp" line="971"/>
+        <location filename="../EMailModule.cpp" line="1631"/>
         <source>BCC</source>
         <translation>BCC</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="110"/>
-        <location filename="../EMailModule.cpp" line="828"/>
-        <location filename="../EMailModule.cpp" line="972"/>
-        <location filename="../EMailModule.cpp" line="1632"/>
+        <location filename="../EMailModule.cpp" line="112"/>
+        <location filename="../EMailModule.cpp" line="830"/>
+        <location filename="../EMailModule.cpp" line="974"/>
+        <location filename="../EMailModule.cpp" line="1634"/>
         <source>Date</source>
         <translation>Data</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="117"/>
+        <location filename="../EMailModule.cpp" line="119"/>
         <source>OpenPGP</source>
         <translation>OpenPGP</translation>
     </message>
@@ -916,41 +916,41 @@ Se il problema persiste, si consiglia di contattare il supporto tecnico o consul
         <translation type="vanished">Algoritmo di controllo integrità messaggio</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="121"/>
-        <location filename="../EMailModule.cpp" line="837"/>
-        <location filename="../EMailModule.cpp" line="1651"/>
+        <location filename="../EMailModule.cpp" line="123"/>
+        <location filename="../EMailModule.cpp" line="839"/>
+        <location filename="../EMailModule.cpp" line="1653"/>
         <source>Digest of Signed MIME Entity (SHA-256)</source>
         <translation>Digest dell&apos;entità MIME firmata (SHA-256)</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="124"/>
-        <location filename="../EMailModule.cpp" line="841"/>
-        <location filename="../EMailModule.cpp" line="1656"/>
+        <location filename="../EMailModule.cpp" line="126"/>
+        <location filename="../EMailModule.cpp" line="843"/>
+        <location filename="../EMailModule.cpp" line="1658"/>
         <source>Declared Signature Hash (micalg)</source>
         <translation>Hash dichiarato della firma (micalg)</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="160"/>
+        <location filename="../EMailModule.cpp" line="162"/>
         <source>Attachments</source>
         <translation>Allegati</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="229"/>
+        <location filename="../EMailModule.cpp" line="231"/>
         <source>Encryption Recipient</source>
         <translation>Destinatario cifratura</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="230"/>
+        <location filename="../EMailModule.cpp" line="232"/>
         <source>Recipient</source>
         <translation>Destinatario</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="231"/>
+        <location filename="../EMailModule.cpp" line="233"/>
         <source>Key ID</source>
         <translation>ID chiave</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="285"/>
+        <location filename="../EMailModule.cpp" line="287"/>
         <source>encrypted to</source>
         <translation>cifrato per</translation>
     </message>
@@ -959,7 +959,7 @@ Se il problema persiste, si consiglia di contattare il supporto tecnico o consul
         <translation type="vanished">cifrato per, non nelle intestazioni</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="305"/>
+        <location filename="../EMailModule.cpp" line="307"/>
         <source>Hidden recipient</source>
         <translation>Destinatario nascosto</translation>
     </message>
@@ -968,123 +968,123 @@ Se il problema persiste, si consiglia di contattare il supporto tecnico o consul
         <translation type="vanished">il mittente non ha rivelato questo ID chiave</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="314"/>
+        <location filename="../EMailModule.cpp" line="316"/>
         <source>Recipient Check</source>
         <translation>Controllo destinatario</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="363"/>
+        <location filename="../EMailModule.cpp" line="365"/>
         <source>DETAILS</source>
         <translation>Dettagli</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="364"/>
+        <location filename="../EMailModule.cpp" line="366"/>
         <source>Decrypt</source>
         <translation>Decifra</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="366"/>
+        <location filename="../EMailModule.cpp" line="368"/>
         <source>RECIPIENT</source>
         <translation>Destinatario</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="368"/>
+        <location filename="../EMailModule.cpp" line="370"/>
         <source>Sign</source>
         <translation>Firma</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="371"/>
+        <location filename="../EMailModule.cpp" line="373"/>
         <source>Verify</source>
         <translation>Verifica</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="373"/>
+        <location filename="../EMailModule.cpp" line="375"/>
         <source>SIGNER</source>
         <translation>FIRMATARIO</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="510"/>
+        <location filename="../EMailModule.cpp" line="512"/>
         <source>Check before exporting</source>
         <translation>Controlla prima di esportare</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="511"/>
+        <location filename="../EMailModule.cpp" line="513"/>
         <source>Something about this message is worth checking before you save it.</source>
         <translation>C&apos;è qualcosa in questo messaggio che vale la pena controllare prima di salvarlo.</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="696"/>
+        <location filename="../EMailModule.cpp" line="698"/>
         <source> The bytes the signature covers were rewritten after it was made: their line endings are no longer CRLF. This is usually caused by a program that changed them while saving or copying the message. Checking the signature requires the original bytes.</source>
         <translation>I byte coperti dalla firma sono stati riscritti dopo la sua creazione: le loro terminazioni di riga non sono più CRLF. Di solito ciò è causato da un programma che le ha modificate durante il salvataggio o la copia del messaggio. Per verificare la firma sono necessari i byte originali.</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="707"/>
+        <location filename="../EMailModule.cpp" line="709"/>
         <source>The signature is valid, and the key that made it speaks for the address this message says it is from.</source>
         <translation>La firma è valida e la chiave che l&apos;ha creata parla per l&apos;indirizzo da cui il messaggio dichiara di provenire.</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="713"/>
+        <location filename="../EMailModule.cpp" line="715"/>
         <source>The signature itself is valid, but the key that made it does not speak for the address this message says it is from. That is what a signature moved from another message looks like, so it is worth checking who the signer is before trusting the contents.</source>
         <translation>La firma in sé è valida, ma la chiave che l&apos;ha creata non parla per l&apos;indirizzo da cui il messaggio dichiara di provenire. È l&apos;aspetto di una firma spostata da un altro messaggio, quindi vale la pena controllare chi sia il firmatario prima di fidarsi del contenuto.</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="721"/>
+        <location filename="../EMailModule.cpp" line="723"/>
         <source>The key that made this signature is not in your keyring, so nothing here can say whether the signature is genuine. Import the sender&apos;s key and verify again.</source>
         <translation>La chiave che ha apposto questa firma non è nel tuo portachiavi, quindi nulla qui può dire se la firma sia autentica. Importa la chiave del mittente e verifica di nuovo.</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="728"/>
+        <location filename="../EMailModule.cpp" line="730"/>
         <source>The signature was made with a key that has expired, or the signature itself has. It may still be genuine; what cannot be confirmed is that the key was valid at the time it was used.</source>
         <translation>La firma è stata creata con una chiave scaduta, oppure è la firma stessa a essere scaduta. Potrebbe essere comunque autentica; ciò che non si può confermare è che la chiave fosse valida al momento in cui è stata usata.</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="735"/>
+        <location filename="../EMailModule.cpp" line="737"/>
         <source>The signature does not match the bytes it covers. Either the message was changed after it was signed, or the signature was not made for this message.</source>
         <translation>La firma non corrisponde ai byte che copre. O il messaggio è stato modificato dopo essere stato firmato, oppure la firma non è stata creata per questo messaggio.</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="743"/>
+        <location filename="../EMailModule.cpp" line="745"/>
         <source>The signature matches the bytes it covers, but it was made with a key the sender&apos;s certificate does not authorize to sign. It cannot be relied on as the sender&apos;s signature.</source>
         <translation>La firma corrisponde ai byte che copre, ma è stata creata con una chiave che il certificato del mittente non autorizza a firmare. Non può essere considerata la firma del mittente.</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="751"/>
+        <location filename="../EMailModule.cpp" line="753"/>
         <source>The check could not be completed, so nothing is known about this signature either way. This is not a statement that the signature is bad.</source>
         <translation>Il controllo non ha potuto essere completato, quindi non si sa nulla di questa firma in alcun senso. Non è una dichiarazione che la firma sia errata.</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="759"/>
+        <location filename="../EMailModule.cpp" line="761"/>
         <source>This message claims to carry an OpenPGP signature, but its structure does not hold up well enough to check one.</source>
         <translation>Questo messaggio dichiara di contenere una firma OpenPGP, ma la sua struttura non è abbastanza solida da permetterne la verifica.</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="765"/>
+        <location filename="../EMailModule.cpp" line="767"/>
         <source>The signatures in this message cover the encrypted data rather than the content you read. They confirm who encrypted the message, but say nothing about who wrote what is inside it.</source>
         <translation>Le firme in questo messaggio coprono i dati cifrati, non il contenuto che leggi. Confermano chi ha cifrato il messaggio, ma non dicono nulla su chi abbia scritto ciò che contiene.</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="776"/>
+        <location filename="../EMailModule.cpp" line="778"/>
         <source>There was no signature in this message to check.</source>
         <translation>Non c&apos;era alcuna firma in questo messaggio da verificare.</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="849"/>
-        <location filename="../EMailModule.cpp" line="1665"/>
+        <location filename="../EMailModule.cpp" line="851"/>
+        <location filename="../EMailModule.cpp" line="1667"/>
         <source>**Note**: the signed part is not in canonical form, because its line endings are not CRLF. Something rewrote this message after it was signed, which is usually a program that changed line endings while saving or copying it. A signature cannot verify against these bytes, and importing the sender&apos;s key will not change that.</source>
         <translation>**Nota**: la parte firmata non è in forma canonica, perché i suoi terminatori di riga non sono CRLF. Qualcosa ha riscritto questo messaggio dopo la firma, di solito un programma che ha modificato i terminatori di riga durante il salvataggio o la copia. Una firma non può essere verificata su questi byte e importare la chiave del mittente non cambierà le cose.</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="865"/>
+        <location filename="../EMailModule.cpp" line="867"/>
         <source>Verify E-Mail</source>
         <translation>Verifica Email</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="150"/>
+        <location filename="../EMailModule.cpp" line="152"/>
         <source>, an OpenPGP key</source>
         <translation>, una chiave OpenPGP</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="153"/>
+        <location filename="../EMailModule.cpp" line="155"/>
         <source>, not covered by the signature</source>
         <translation>, non coperta dalla firma</translation>
     </message>
@@ -1093,50 +1093,50 @@ Se il problema persiste, si consiglia di contattare il supporto tecnico o consul
         <translation type="vanished">in %1, ma non cifrato per essa: impossibile leggere</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="916"/>
-        <location filename="../EMailModule.cpp" line="986"/>
+        <location filename="../EMailModule.cpp" line="918"/>
+        <location filename="../EMailModule.cpp" line="988"/>
         <source>Decrypt E-Mail</source>
         <translation>Decifra Email</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1042"/>
-        <location filename="../EMailModule.cpp" line="1095"/>
-        <location filename="../EMailModule.cpp" line="1146"/>
-        <location filename="../EMailModule.cpp" line="1171"/>
+        <location filename="../EMailModule.cpp" line="1044"/>
+        <location filename="../EMailModule.cpp" line="1097"/>
+        <location filename="../EMailModule.cpp" line="1148"/>
+        <location filename="../EMailModule.cpp" line="1173"/>
         <source>Sign E-Mail</source>
         <translation>Firma Email</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1216"/>
-        <location filename="../EMailModule.cpp" line="1273"/>
-        <location filename="../EMailModule.cpp" line="1316"/>
-        <location filename="../EMailModule.cpp" line="1341"/>
+        <location filename="../EMailModule.cpp" line="1218"/>
+        <location filename="../EMailModule.cpp" line="1275"/>
+        <location filename="../EMailModule.cpp" line="1318"/>
+        <location filename="../EMailModule.cpp" line="1343"/>
         <source>Encrypt E-Mail</source>
         <translation>Cifra Email</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1485"/>
-        <location filename="../EMailModule.cpp" line="1514"/>
+        <location filename="../EMailModule.cpp" line="1487"/>
+        <location filename="../EMailModule.cpp" line="1516"/>
         <source>Encrypt and Sign E-Mail</source>
         <translation>Cifra e firma Email</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1551"/>
+        <location filename="../EMailModule.cpp" line="1553"/>
         <source>This message is not signed, so there is no signature to check. It was decrypted successfully.</source>
         <translation>Questo messaggio non è firmato, quindi non c&apos;è alcuna firma da verificare. È stato decifrato correttamente.</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1555"/>
+        <location filename="../EMailModule.cpp" line="1557"/>
         <source>The decrypted content is not a MIME message, so there is no signature to check. It was decrypted successfully.</source>
         <translation>Il contenuto decifrato non è un messaggio MIME, quindi non c&apos;è alcuna firma da verificare. È stato decifrato correttamente.</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1644"/>
+        <location filename="../EMailModule.cpp" line="1646"/>
         <source>This message was decrypted. It carries no signature, so nothing here says who sent it.</source>
         <translation>Questo messaggio è stato decifrato. Non reca alcuna firma, quindi nulla qui indica chi lo ha inviato.</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1689"/>
+        <location filename="../EMailModule.cpp" line="1691"/>
         <source>Decrypt and Verify E-Mail</source>
         <translation>Decifra e verifica Email</translation>
     </message>
@@ -1153,17 +1153,17 @@ Se il problema persiste, si consiglia di contattare il supporto tecnico o consul
         <translation type="vanished">Avviso</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="291"/>
+        <location filename="../EMailModule.cpp" line="293"/>
         <source>in %1, but not encrypted to it: they cannot read this message</source>
         <translation>in %1, ma non cifrato per essa: non possono leggere questo messaggio</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="299"/>
+        <location filename="../EMailModule.cpp" line="301"/>
         <source>encrypted to, but not listed in the headers</source>
         <translation>cifrato per, ma non elencato nelle intestazioni</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="306"/>
+        <location filename="../EMailModule.cpp" line="308"/>
         <source>the sender withheld this key ID</source>
         <translation>il mittente ha omesso questo ID chiave</translation>
     </message>
@@ -1205,48 +1205,48 @@ Se il problema persiste, si consiglia di contattare il supporto tecnico o consul
         <translation type="vanished">separare più indirizzi con &quot;;&quot;</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="607"/>
+        <location filename="../EMailPageView.cpp" line="609"/>
         <source>From:</source>
         <translation>Da:</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="620"/>
+        <location filename="../EMailPageView.cpp" line="622"/>
         <source>Cc/Bcc</source>
         <translation>Cc/Ccn</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="629"/>
+        <location filename="../EMailPageView.cpp" line="631"/>
         <source>To:</source>
         <translation>A:</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="630"/>
+        <location filename="../EMailPageView.cpp" line="632"/>
         <source>Cc:</source>
         <translation>Cc:</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="631"/>
+        <location filename="../EMailPageView.cpp" line="633"/>
         <source>Bcc:</source>
         <translation>Ccn:</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="642"/>
+        <location filename="../EMailPageView.cpp" line="644"/>
         <source>Subject:</source>
         <translation>Oggetto:</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="771"/>
+        <location filename="../EMailPageView.cpp" line="772"/>
         <source>Send...</source>
         <translation>Invia...</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="772"/>
+        <location filename="../EMailPageView.cpp" line="773"/>
         <source>Send this message through a configured mail account.</source>
         <translation>Invia questo messaggio tramite un account di posta configurato.</translation>
     </message>
     <message>
         <location filename="../EMailPageView.cpp" line="907"/>
-        <location filename="../EMailPageView.cpp" line="1416"/>
+        <location filename="../EMailPageView.cpp" line="1400"/>
         <source>Write your message here.</source>
         <translation>Scrivi qui il tuo messaggio.</translation>
     </message>
@@ -1256,43 +1256,43 @@ Se il problema persiste, si consiglia di contattare il supporto tecnico o consul
         <translation>Aggiungi uno o più file a questo messaggio. I file possono anche essere trascinati sul messaggio.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1035"/>
+        <location filename="../EMailPageView.cpp" line="1031"/>
         <source>Take the selected attachments out of this message.</source>
         <translation>Rimuovi gli allegati selezionati da questo messaggio.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1019"/>
+        <location filename="../EMailPageView.cpp" line="1017"/>
         <source>Write the selected attachments to a folder.</source>
         <translation>Salva gli allegati selezionati in una cartella.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1024"/>
+        <location filename="../EMailPageView.cpp" line="1021"/>
         <source>Write every attachment to a folder.</source>
         <translation>Salva tutti gli allegati in una cartella.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1327"/>
+        <location filename="../EMailPageView.cpp" line="1311"/>
         <source>This message is encrypted. Decrypt it before editing it.</source>
         <translation>Questo messaggio è cifrato. Decifralo prima di modificarlo.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1331"/>
+        <location filename="../EMailPageView.cpp" line="1315"/>
         <source>This message is encrypted and signed. Decrypt it, then remove the signature, before editing it.</source>
         <translation>Questo messaggio è cifrato e firmato. Decifralo, quindi rimuovi la firma, prima di modificarlo.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="699"/>
+        <location filename="../EMailPageView.cpp" line="701"/>
         <source>Raw Source</source>
         <translation>Sorgente grezza</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="582"/>
+        <location filename="../EMailPageView.cpp" line="584"/>
         <source>Separate several addresses with &quot;;&quot;</source>
         <translation>Separa più indirizzi con &quot;;&quot;</translation>
     </message>
     <message>
         <location filename="../EMailPageView.cpp" line="828"/>
-        <location filename="../EMailPageView.cpp" line="977"/>
+        <location filename="../EMailPageView.cpp" line="976"/>
         <source>Attachments</source>
         <translation>Allegati</translation>
     </message>
@@ -1301,137 +1301,137 @@ Se il problema persiste, si consiglia di contattare il supporto tecnico o consul
         <translation type="vanished">Altre azioni sugli allegati</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1590"/>
+        <location filename="../EMailPageView.cpp" line="1574"/>
         <source>Protected Message</source>
         <translation>Messaggio protetto</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1591"/>
-        <location filename="../EMailPageView.cpp" line="3713"/>
+        <location filename="../EMailPageView.cpp" line="1575"/>
+        <location filename="../EMailPageView.cpp" line="3697"/>
         <source>These bytes are covered by a signature, or are ciphertext. Remove the signature, or decrypt the message, before editing its source.</source>
         <translation>Questi byte sono coperti da una firma, oppure sono testo cifrato. Rimuovi la firma o decifra il messaggio prima di modificarne la sorgente.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1613"/>
+        <location filename="../EMailPageView.cpp" line="1597"/>
         <source>Stop Editing</source>
         <translation>Interrompi modifica</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1614"/>
+        <location filename="../EMailPageView.cpp" line="1598"/>
         <source>Edit Raw Source</source>
         <translation>Modifica sorgente grezza</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1620"/>
+        <location filename="../EMailPageView.cpp" line="1604"/>
         <source>You are editing the raw message source. What you type here is the document.</source>
         <translation>Stai modificando la sorgente grezza del messaggio. Quello che digiti qui è il documento.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1627"/>
-        <location filename="../EMailPageView.cpp" line="3710"/>
+        <location filename="../EMailPageView.cpp" line="1611"/>
+        <location filename="../EMailPageView.cpp" line="3694"/>
         <source>This message is locked for inspection. Its source cannot be edited.</source>
         <translation>Questo messaggio è bloccato per ispezione. La sua sorgente non può essere modificata.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1636"/>
+        <location filename="../EMailPageView.cpp" line="1620"/>
         <source>Read-only. Unlock to edit the message source directly.</source>
         <translation>Sola lettura. Sblocca per modificare direttamente la sorgente del messaggio.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1876"/>
+        <location filename="../EMailPageView.cpp" line="1860"/>
         <source>untitled.eml</source>
         <translation>senza_titolo.eml</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1908"/>
-        <location filename="../EMailPageView.cpp" line="1957"/>
+        <location filename="../EMailPageView.cpp" line="1892"/>
+        <location filename="../EMailPageView.cpp" line="1941"/>
         <source>This message is encrypted</source>
         <translation>Questo messaggio è cifrato</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1936"/>
-        <location filename="../EMailPageView.cpp" line="2633"/>
-        <location filename="../EMailPageView.cpp" line="2644"/>
+        <location filename="../EMailPageView.cpp" line="1920"/>
+        <location filename="../EMailPageView.cpp" line="2617"/>
+        <location filename="../EMailPageView.cpp" line="2628"/>
         <source>Decrypt</source>
         <translation>Decifra</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1956"/>
+        <location filename="../EMailPageView.cpp" line="1940"/>
         <source>This message is encrypted and signed</source>
         <translation>Questo messaggio è cifrato e firmato</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1980"/>
+        <location filename="../EMailPageView.cpp" line="1964"/>
         <source>The recipients are not named in the headers.</source>
         <translation>I destinatari non sono indicati nelle intestazioni.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1981"/>
+        <location filename="../EMailPageView.cpp" line="1965"/>
         <source>Addressed to %1</source>
         <translation>Destinatario: %1</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2048"/>
+        <location filename="../EMailPageView.cpp" line="2032"/>
         <source>You hold the private key for %1, so this message can be opened here.</source>
         <translation>Possiedi la chiave privata per %1, quindi questo messaggio può essere aperto qui.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2051"/>
+        <location filename="../EMailPageView.cpp" line="2035"/>
         <source>You hold private keys for %1, so this message can be opened here.</source>
         <translation>Possiedi le chiavi private per %1, quindi questo messaggio può essere aperto qui.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2060"/>
+        <location filename="../EMailPageView.cpp" line="2044"/>
         <source>This message is encrypted to keys you do not hold the private half of, so it cannot be opened on this computer.</source>
         <translation>Questo messaggio è cifrato per chiavi di cui non possiedi le corrispondenti chiavi private, quindi non può essere aperto su questo computer.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2068"/>
+        <location filename="../EMailPageView.cpp" line="2052"/>
         <source>Some recipients of this message were deliberately not named, so there is no way to tell whether you can open it until you try.</source>
         <translation>Alcuni destinatari di questo messaggio non sono stati indicati deliberatamente, quindi non c&apos;è modo di sapere se puoi aprirlo finché non provi.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2071"/>
+        <location filename="../EMailPageView.cpp" line="2055"/>
         <source>The recipients of this message cannot be read, so there is no way to tell whether you can open it until you try.</source>
         <translation>I destinatari di questo messaggio non possono essere letti, quindi non c&apos;è modo di sapere se puoi aprirlo finché non provi.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2109"/>
+        <location filename="../EMailPageView.cpp" line="2093"/>
         <source>The recipients are not named, so there is no way to tell whether you can open this until you try.</source>
         <translation>I destinatari non sono indicati, quindi non è possibile sapere se puoi aprirlo finché non provi.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2143"/>
+        <location filename="../EMailPageView.cpp" line="2127"/>
         <source>attach a public key</source>
         <translation>Allega una chiave pubblica</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2164"/>
+        <location filename="../EMailPageView.cpp" line="2148"/>
         <source>add text to this message</source>
         <translation>Aggiungi testo a questo messaggio</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2181"/>
+        <location filename="../EMailPageView.cpp" line="2165"/>
         <source>Message Locked</source>
         <translation>Messaggio bloccato</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2182"/>
+        <location filename="../EMailPageView.cpp" line="2166"/>
         <source>This message is open for inspection only, so it is not possible to %1.</source>
         <translation>Questo messaggio è aperto solo per ispezione, quindi non è possibile %1.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2191"/>
+        <location filename="../EMailPageView.cpp" line="2175"/>
         <source>Message Is Encrypted</source>
         <translation>Il messaggio è cifrato</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2192"/>
+        <location filename="../EMailPageView.cpp" line="2176"/>
         <source>Decrypt this message before trying to %1.</source>
         <translation>Decifra questo messaggio prima di provare a %1.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2200"/>
+        <location filename="../EMailPageView.cpp" line="2184"/>
         <source>Message Is Signed</source>
         <translation>Il messaggio è firmato</translation>
     </message>
@@ -1444,175 +1444,175 @@ Se il problema persiste, si consiglia di contattare il supporto tecnico o consul
         <translation type="vanished">Questo messaggio non può comunque essere modificato: è firmato o cifrato, quindi è già protetto dalla riscrittura.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2360"/>
+        <location filename="../EMailPageView.cpp" line="2344"/>
         <source>No mail account is set up yet. Add one in Settings, under Mail Accounts, and this message can be sent.</source>
         <translation>Nessun account di posta è ancora configurato. Aggiungine uno in Impostazioni, sotto Account di posta, e questo messaggio potrà essere inviato.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2363"/>
+        <location filename="../EMailPageView.cpp" line="2347"/>
         <source>Fill in who this message is from.</source>
         <translation>Indica il mittente di questo messaggio.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2365"/>
+        <location filename="../EMailPageView.cpp" line="2349"/>
         <source>The From address does not look like an e-mail address.</source>
         <translation>L&apos;indirizzo del mittente non sembra un indirizzo e-mail.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2367"/>
+        <location filename="../EMailPageView.cpp" line="2351"/>
         <source>Add at least one recipient.</source>
         <translation>Aggiungi almeno un destinatario.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2369"/>
+        <location filename="../EMailPageView.cpp" line="2353"/>
         <source>Give this message a subject.</source>
         <translation>Assegna un oggetto a questo messaggio.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2378"/>
+        <location filename="../EMailPageView.cpp" line="2362"/>
         <source>This does not look like an e-mail address: %1</source>
         <translation>Questo non sembra un indirizzo e-mail: %1</translation>
     </message>
     <message>
-        <location filename="../EMailViewLayout.cpp" line="120"/>
+        <location filename="../EMailViewLayout.cpp" line="122"/>
         <source>Encrypted</source>
         <translation>Cifrato</translation>
     </message>
     <message>
-        <location filename="../EMailViewLayout.cpp" line="154"/>
+        <location filename="../EMailViewLayout.cpp" line="156"/>
         <source>Signing key not authorized</source>
         <translation>Chiave di firma non autorizzata</translation>
     </message>
     <message>
-        <location filename="../EMailViewLayout.cpp" line="161"/>
+        <location filename="../EMailViewLayout.cpp" line="163"/>
         <source>Signature could not be checked</source>
         <translation>Impossibile verificare la firma</translation>
     </message>
     <message>
-        <location filename="../EMailViewLayout.cpp" line="165"/>
+        <location filename="../EMailViewLayout.cpp" line="167"/>
         <source>Malformed OpenPGP structure</source>
         <translation>Struttura OpenPGP malformata</translation>
     </message>
     <message>
-        <location filename="../EMailViewLayout.cpp" line="175"/>
+        <location filename="../EMailViewLayout.cpp" line="177"/>
         <source>Not signed or encrypted</source>
         <translation>Né firmato né cifrato</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2598"/>
+        <location filename="../EMailPageView.cpp" line="2582"/>
         <source>This message is locked for inspection.</source>
         <translation>Questo messaggio è bloccato per ispezione.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2613"/>
+        <location filename="../EMailPageView.cpp" line="2597"/>
         <source>Sign...</source>
         <translation>Firma...</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2614"/>
+        <location filename="../EMailPageView.cpp" line="2598"/>
         <source>Encrypt...</source>
         <translation>Cifra...</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2615"/>
+        <location filename="../EMailPageView.cpp" line="2599"/>
         <source>Encrypt and Sign...</source>
         <translation>Cifra e firma...</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2619"/>
+        <location filename="../EMailPageView.cpp" line="2603"/>
         <source>Verify Signature</source>
         <translation>Verifica firma</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2620"/>
+        <location filename="../EMailPageView.cpp" line="2604"/>
         <source>Signature Details...</source>
         <translation>Dettagli firma...</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2624"/>
+        <location filename="../EMailPageView.cpp" line="2608"/>
         <source>Sign Again With Another Key...</source>
         <translation>Rifirma con un&apos;altra chiave...</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2625"/>
-        <location filename="../EMailPageView.cpp" line="2650"/>
+        <location filename="../EMailPageView.cpp" line="2609"/>
+        <location filename="../EMailPageView.cpp" line="2634"/>
         <source>Remove Signature...</source>
         <translation>Rimuovi firma...</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2634"/>
-        <location filename="../EMailPageView.cpp" line="2643"/>
+        <location filename="../EMailPageView.cpp" line="2618"/>
+        <location filename="../EMailPageView.cpp" line="2627"/>
         <source>Decrypt and Verify</source>
         <translation>Decifra e verifica</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2636"/>
+        <location filename="../EMailPageView.cpp" line="2620"/>
         <source>Encryption Details...</source>
         <translation>Dettagli di cifratura...</translation>
     </message>
     <message>
         <location filename="../EMailPageView.cpp" line="787"/>
-        <location filename="../EMailPageView.cpp" line="2646"/>
+        <location filename="../EMailPageView.cpp" line="2630"/>
         <source>Details...</source>
         <translation>Dettagli...</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2660"/>
+        <location filename="../EMailPageView.cpp" line="2644"/>
         <source>Decrypt this message first.</source>
         <translation>Decifra prima questo messaggio.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2669"/>
+        <location filename="../EMailPageView.cpp" line="2653"/>
         <source>What Is Wrong With This Message?</source>
         <translation>Cosa c&apos;è che non va in questo messaggio?</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2673"/>
+        <location filename="../EMailPageView.cpp" line="2657"/>
         <source>Try to Verify Anyway</source>
         <translation>Prova comunque a verificare</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2674"/>
+        <location filename="../EMailPageView.cpp" line="2658"/>
         <source>Try to Decrypt Anyway</source>
         <translation>Prova comunque a decifrare</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2689"/>
+        <location filename="../EMailPageView.cpp" line="2673"/>
         <source>Signature Not Reachable</source>
         <translation>Firma non raggiungibile</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2690"/>
+        <location filename="../EMailPageView.cpp" line="2674"/>
         <source>The signature is inside the encrypted part of this message. Decrypt it first.</source>
         <translation>La firma si trova nella parte cifrata di questo messaggio. Decifra prima il messaggio.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2694"/>
+        <location filename="../EMailPageView.cpp" line="2678"/>
         <source>Nothing to Remove</source>
         <translation>Nulla da rimuovere</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2695"/>
+        <location filename="../EMailPageView.cpp" line="2679"/>
         <source>This message carries no signature.</source>
         <translation>Questo messaggio non contiene alcuna firma.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2699"/>
+        <location filename="../EMailPageView.cpp" line="2683"/>
         <source>Cannot Remove the Signature</source>
         <translation>Impossibile rimuovere la firma</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2700"/>
+        <location filename="../EMailPageView.cpp" line="2684"/>
         <source>This message does not follow RFC 3156 closely enough to take its signature off safely. Edit the raw source instead.</source>
         <translation>Questo messaggio non segue abbastanza fedelmente la RFC 3156 per poterne rimuovere la firma in sicurezza. Modifica invece il sorgente grezzo.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2708"/>
+        <location filename="../EMailPageView.cpp" line="2692"/>
         <source>Remove Signature</source>
         <translation>Rimuovi firma</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2709"/>
+        <location filename="../EMailPageView.cpp" line="2693"/>
         <source>Remove the signature from this message?
 
 The signature is discarded and the message becomes an ordinary, unsigned one. The message itself is kept exactly as it is. This cannot be undone.</source>
@@ -1621,12 +1621,12 @@ The signature is discarded and the message becomes an ordinary, unsigned one. Th
 La firma viene eliminata e il messaggio diventa un normale messaggio non firmato. Il messaggio stesso viene mantenuto esattamente com&apos;è. Questa operazione non può essere annullata.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2826"/>
+        <location filename="../EMailPageView.cpp" line="2810"/>
         <source>signed</source>
         <translation>firmato</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2852"/>
+        <location filename="../EMailPageView.cpp" line="2836"/>
         <source>unsigned</source>
         <translation>non firmato</translation>
     </message>
@@ -1635,42 +1635,42 @@ La firma viene eliminata e il messaggio diventa un normale messaggio non firmato
         <translation type="vanished">Impossibile inviare</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3093"/>
+        <location filename="../EMailPageView.cpp" line="3077"/>
         <source>This message needs a sender and at least one recipient before it can be sent.</source>
         <translation>Questo messaggio richiede un mittente e almeno un destinatario prima di poter essere inviato.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="998"/>
+        <location filename="../EMailPageView.cpp" line="997"/>
         <source>Type</source>
         <translation>Tipo</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="697"/>
+        <location filename="../EMailPageView.cpp" line="699"/>
         <source>Message</source>
         <translation>Messaggio</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="454"/>
+        <location filename="../EMailPageView.cpp" line="456"/>
         <source>Structure</source>
         <translation>Struttura</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="453"/>
+        <location filename="../EMailPageView.cpp" line="455"/>
         <source>Security</source>
         <translation>Sicurezza</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="434"/>
+        <location filename="../EMailPageView.cpp" line="436"/>
         <source>Message Details</source>
         <translation>Dettagli del messaggio</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="455"/>
+        <location filename="../EMailPageView.cpp" line="457"/>
         <source>Headers</source>
         <translation>Intestazioni</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="588"/>
+        <location filename="../EMailPageView.cpp" line="590"/>
         <source>%1.
 
 Blind recipients are never written into the message: a Bcc header would tell every recipient who was blind-copied. They are used to choose encryption recipients and are not saved with the file.</source>
@@ -1679,53 +1679,53 @@ Blind recipients are never written into the message: a Bcc header would tell eve
 I destinatari in copia nascosta non vengono mai scritti nel messaggio: un&apos;intestazione Ccn rivelerebbe a ogni destinatario chi era in copia nascosta. Vengono usati per scegliere i destinatari della cifratura e non vengono salvati con il file.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="625"/>
+        <location filename="../EMailPageView.cpp" line="627"/>
         <source>Show carbon copy and blind carbon copy (%1)</source>
         <translation>Mostra copia conoscenza e copia conoscenza nascosta (%1)</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="688"/>
-        <location filename="../EMailPageView.cpp" line="740"/>
+        <location filename="../EMailPageView.cpp" line="690"/>
+        <location filename="../EMailPageView.cpp" line="742"/>
         <source>%1 (%2)</source>
         <translation>%1 (%2)</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="697"/>
+        <location filename="../EMailPageView.cpp" line="699"/>
         <source>Show the message</source>
         <translation>Mostra il messaggio</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="699"/>
+        <location filename="../EMailPageView.cpp" line="701"/>
         <source>Show the raw document</source>
         <translation>Mostra il documento grezzo</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="758"/>
+        <location filename="../EMailPageView.cpp" line="760"/>
         <source>Reply</source>
         <translation>Rispondi</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="759"/>
+        <location filename="../EMailPageView.cpp" line="760"/>
         <source>Write a reply to the sender.</source>
         <translation>Scrivi una risposta al mittente.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="762"/>
+        <location filename="../EMailPageView.cpp" line="763"/>
         <source>Reply All</source>
         <translation>Rispondi a tutti</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="763"/>
+        <location filename="../EMailPageView.cpp" line="764"/>
         <source>Write a reply to the sender and everyone else who was addressed. Blind recipients are not included.</source>
         <translation>Scrivi una risposta al mittente e a tutti gli altri destinatari del messaggio. I destinatari in copia nascosta non sono inclusi.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="767"/>
+        <location filename="../EMailPageView.cpp" line="768"/>
         <source>Forward</source>
         <translation>Inoltra</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="768"/>
+        <location filename="../EMailPageView.cpp" line="769"/>
         <source>Pass this message on, with its attachments.</source>
         <translation>Inoltra questo messaggio, con i relativi allegati.</translation>
     </message>
@@ -1746,17 +1746,17 @@ I destinatari in copia nascosta non vengono mai scritti nel messaggio: un&apos;i
         <translation>Mostra ciò che è noto su questo messaggio: le sue firme, la sua struttura e le sue intestazioni.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="998"/>
+        <location filename="../EMailPageView.cpp" line="997"/>
         <source>Size</source>
         <translation>Dimensione</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="998"/>
+        <location filename="../EMailPageView.cpp" line="997"/>
         <source>Signed</source>
         <translation>Firmato</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="998"/>
+        <location filename="../EMailPageView.cpp" line="997"/>
         <source>Name</source>
         <translation>Nome</translation>
     </message>
@@ -1766,64 +1766,64 @@ I destinatari in copia nascosta non vengono mai scritti nel messaggio: un&apos;i
         <translation>Allega file...</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1033"/>
-        <location filename="../EMailPageView.cpp" line="3363"/>
+        <location filename="../EMailPageView.cpp" line="1029"/>
+        <location filename="../EMailPageView.cpp" line="3347"/>
         <source>Remove</source>
         <translation>Rimuovi</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1017"/>
-        <location filename="../EMailPageView.cpp" line="3350"/>
+        <location filename="../EMailPageView.cpp" line="1015"/>
+        <location filename="../EMailPageView.cpp" line="3334"/>
         <source>Save...</source>
         <translation>Salva...</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1023"/>
+        <location filename="../EMailPageView.cpp" line="1020"/>
         <source>Save All...</source>
         <translation>Salva tutti...</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1318"/>
+        <location filename="../EMailPageView.cpp" line="1302"/>
         <source>This message is open for inspection only. It cannot be edited or rewritten; Reply and Forward still work, and produce new messages.</source>
         <translation>Questo messaggio è aperto solo per ispezione. Non può essere modificato o riscritto; Rispondi e Inoltra funzionano ancora e producono nuovi messaggi.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1338"/>
+        <location filename="../EMailPageView.cpp" line="1322"/>
         <source>This message is signed. Remove the signature before editing it. An edit under a signature reads as a forgery.</source>
         <translation>Questo messaggio è firmato. Rimuovi la firma prima di modificarlo. Una modifica sotto una firma viene considerata una falsificazione.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1355"/>
+        <location filename="../EMailPageView.cpp" line="1339"/>
         <source>This message was written in HTML. It is shown as its source rather than rendered: nothing here loads images or follows links.</source>
         <translation>Questo messaggio è stato scritto in HTML. Viene mostrato come sorgente, non renderizzato: nulla qui carica immagini né segue collegamenti.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1632"/>
+        <location filename="../EMailPageView.cpp" line="1616"/>
         <source>Read-only. These bytes are protected. Remove the signature, or decrypt the message, to edit them.</source>
         <translation>Sola lettura. Questi byte sono protetti. Rimuovi la firma o decifra il messaggio per modificarli.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1736"/>
+        <location filename="../EMailPageView.cpp" line="1720"/>
         <source>This message could not be assembled for inspection, so there is nothing to show here. The message itself is unchanged.</source>
         <translation>Non è stato possibile assemblare questo messaggio per l&apos;ispezione, quindi non c&apos;è nulla da mostrare qui. Il messaggio stesso è invariato.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1829"/>
+        <location filename="../EMailPageView.cpp" line="1813"/>
         <source>Cannot Reply</source>
         <translation>Impossibile rispondere</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1831"/>
+        <location filename="../EMailPageView.cpp" line="1815"/>
         <source>Cannot Reply to All</source>
         <translation>Impossibile rispondere a tutti</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1835"/>
+        <location filename="../EMailPageView.cpp" line="1819"/>
         <source>Cannot Forward</source>
         <translation>Impossibile inoltrare</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1841"/>
+        <location filename="../EMailPageView.cpp" line="1825"/>
         <source>
 
 This message itself has not been changed.</source>
@@ -1834,12 +1834,12 @@ This message itself has not been changed.</source>
         <translation type="vanished">Non è possibile aprire un nuovo messaggio da qui, perché questa vista non si trova in una finestra che contiene schede.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1864"/>
+        <location filename="../EMailPageView.cpp" line="1848"/>
         <source>The new message could not be assembled. This usually means a part of the original could not be re-encoded, most often an attachment.</source>
         <translation>Il nuovo messaggio non ha potuto essere assemblato. Di solito significa che una parte dell&apos;originale non ha potuto essere ricodificata, il più delle volte un allegato.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1891"/>
+        <location filename="../EMailPageView.cpp" line="1875"/>
         <source>A tab for the new message could not be opened.</source>
         <translation>Non è stato possibile aprire una scheda per il nuovo messaggio.</translation>
     </message>
@@ -1852,22 +1852,22 @@ This message itself has not been changed.</source>
         <translation type="vanished">I destinatari non sono indicati, quindi se puoi aprire questo messaggio non si può sapere finché non provi.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2126"/>
+        <location filename="../EMailPageView.cpp" line="2110"/>
         <source>You do not hold a private key for any of these addresses. Unless the message was also encrypted to a key that is not named here, it cannot be opened on this computer.</source>
         <translation>Non possiedi una chiave privata per nessuno di questi indirizzi. A meno che il messaggio non sia stato cifrato anche con una chiave non indicata qui, non può essere aperto su questo computer.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2135"/>
+        <location filename="../EMailPageView.cpp" line="2119"/>
         <source>You hold the private key for %1.</source>
         <translation>Possiedi la chiave privata per %1.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2136"/>
+        <location filename="../EMailPageView.cpp" line="2120"/>
         <source>You hold private keys for %1.</source>
         <translation>Possiedi chiavi private per %1.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2201"/>
+        <location filename="../EMailPageView.cpp" line="2185"/>
         <source>This message is signed, so it cannot be changed: an edit under a signature reads as a forgery.
 
 Remove the signature and make it an ordinary message?</source>
@@ -1876,62 +1876,62 @@ Remove the signature and make it an ordinary message?</source>
 Rimuovere la firma e trasformarlo in un messaggio ordinario?</translation>
     </message>
     <message>
-        <location filename="../EMailViewLayout.cpp" line="127"/>
+        <location filename="../EMailViewLayout.cpp" line="129"/>
         <source>Encrypted, signature not checked</source>
         <translation>Cifrato, firma non verificata</translation>
     </message>
     <message>
-        <location filename="../EMailViewLayout.cpp" line="129"/>
+        <location filename="../EMailViewLayout.cpp" line="131"/>
         <source>Signature not checked</source>
         <translation>Firma non verificata</translation>
     </message>
     <message>
-        <location filename="../EMailViewLayout.cpp" line="133"/>
+        <location filename="../EMailViewLayout.cpp" line="135"/>
         <source>Encrypted, signature verified</source>
         <translation>Cifrato, firma verificata</translation>
     </message>
     <message>
-        <location filename="../EMailViewLayout.cpp" line="135"/>
+        <location filename="../EMailViewLayout.cpp" line="137"/>
         <source>Signature verified</source>
         <translation>Firma verificata</translation>
     </message>
     <message>
-        <location filename="../EMailViewLayout.cpp" line="139"/>
+        <location filename="../EMailViewLayout.cpp" line="141"/>
         <source>Signed by a different address</source>
         <translation>Firmato da un indirizzo diverso</translation>
     </message>
     <message>
-        <location filename="../EMailViewLayout.cpp" line="143"/>
+        <location filename="../EMailViewLayout.cpp" line="145"/>
         <source>Signature or key expired</source>
         <translation>Firma o chiave scaduta</translation>
     </message>
     <message>
-        <location filename="../EMailViewLayout.cpp" line="147"/>
+        <location filename="../EMailViewLayout.cpp" line="149"/>
         <source>Signed by an unknown key</source>
         <translation>Firmato da una chiave sconosciuta</translation>
     </message>
     <message>
-        <location filename="../EMailViewLayout.cpp" line="151"/>
+        <location filename="../EMailViewLayout.cpp" line="153"/>
         <source>Bad signature</source>
         <translation>Firma errata</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2829"/>
+        <location filename="../EMailPageView.cpp" line="2813"/>
         <source>signed, not checked</source>
         <translation>firmato, non verificato</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2834"/>
+        <location filename="../EMailPageView.cpp" line="2818"/>
         <source>signed, could not be checked</source>
         <translation>firmato, impossibile verificare</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2840"/>
+        <location filename="../EMailPageView.cpp" line="2824"/>
         <source>signature not good</source>
         <translation>firma non valida</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2868"/>
+        <location filename="../EMailPageView.cpp" line="2852"/>
         <source>Some parts are outside the signed section of this message. They are not covered by the signature and could have been added by anyone.</source>
         <translation>Alcune parti sono al di fuori della sezione firmata di questo messaggio. Non sono coperte dalla firma e potrebbero essere state aggiunte da chiunque.</translation>
     </message>
@@ -1944,43 +1944,43 @@ Rimuovere la firma e trasformarlo in un messaggio ordinario?</translation>
         <translation type="vanished">%1 allegati</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3041"/>
+        <location filename="../EMailPageView.cpp" line="3025"/>
         <source>E-Mail Message (*.eml);;All Files (*)</source>
         <translation>Messaggio e-mail (*.eml);;Tutti i file (*)</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3092"/>
+        <location filename="../EMailPageView.cpp" line="3076"/>
         <source>Cannot Send</source>
         <translation>Impossibile inviare</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3213"/>
-        <location filename="../EMailPageView.cpp" line="3280"/>
+        <location filename="../EMailPageView.cpp" line="3197"/>
+        <location filename="../EMailPageView.cpp" line="3264"/>
         <source>Attach Files</source>
         <translation>Allega file</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3243"/>
+        <location filename="../EMailPageView.cpp" line="3227"/>
         <source>%1 is a folder</source>
         <translation>%1 è una cartella</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3244"/>
+        <location filename="../EMailPageView.cpp" line="3228"/>
         <source>%1 is not an ordinary file</source>
         <translation>%1 non è un file ordinario</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3249"/>
+        <location filename="../EMailPageView.cpp" line="3233"/>
         <source>%1 is too large (%2); the most that can be attached is %3</source>
         <translation>%1 è troppo grande (%2); la dimensione massima allegabile è %3</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3255"/>
+        <location filename="../EMailPageView.cpp" line="3239"/>
         <source>%1: %2</source>
         <translation>%1: %2</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3282"/>
+        <location filename="../EMailPageView.cpp" line="3266"/>
         <source>Nothing was attached:
 
 %1</source>
@@ -1989,7 +1989,7 @@ Rimuovere la firma e trasformarlo in un messaggio ordinario?</translation>
 %1</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3283"/>
+        <location filename="../EMailPageView.cpp" line="3267"/>
         <source>These were not attached:
 
 %1</source>
@@ -1998,8 +1998,8 @@ Rimuovere la firma e trasformarlo in un messaggio ordinario?</translation>
 %1</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1013"/>
-        <location filename="../EMailPageView.cpp" line="3349"/>
+        <location filename="../EMailPageView.cpp" line="1012"/>
+        <location filename="../EMailPageView.cpp" line="3333"/>
         <source>Open</source>
         <translation>Apri</translation>
     </message>
@@ -2024,55 +2024,55 @@ Rimuovere la firma e trasformarlo in un messaggio ordinario?</translation>
         <translation>Questo messaggio è aperto solo per ispezione. Disattivalo in Altro.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2912"/>
+        <location filename="../EMailPageView.cpp" line="2896"/>
         <source>%1 · %2 · %3</source>
         <translation>%1 · %2 · %3</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2918"/>
+        <location filename="../EMailPageView.cpp" line="2902"/>
         <source>%1 files · %2</source>
         <translation>%1 file · %2</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2963"/>
+        <location filename="../EMailPageView.cpp" line="2947"/>
         <source>Collapse</source>
         <translation>Comprimi</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2963"/>
+        <location filename="../EMailPageView.cpp" line="2947"/>
         <source>Expand</source>
         <translation>Espandi</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2964"/>
+        <location filename="../EMailPageView.cpp" line="2948"/>
         <source>Show only the summary</source>
         <translation>Mostra solo il riepilogo</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2965"/>
+        <location filename="../EMailPageView.cpp" line="2949"/>
         <source>Show every attachment</source>
         <translation>Mostra tutti gli allegati</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3358"/>
+        <location filename="../EMailPageView.cpp" line="3342"/>
         <source>Import Key</source>
         <translation>Importa chiave</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3362"/>
+        <location filename="../EMailPageView.cpp" line="3346"/>
         <source>Copy Name</source>
         <translation>Copia nome</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3435"/>
-        <location filename="../EMailPageView.cpp" line="3450"/>
-        <location filename="../EMailPageView.cpp" line="3465"/>
-        <location filename="../EMailPageView.cpp" line="3473"/>
+        <location filename="../EMailPageView.cpp" line="3419"/>
+        <location filename="../EMailPageView.cpp" line="3434"/>
+        <location filename="../EMailPageView.cpp" line="3449"/>
+        <location filename="../EMailPageView.cpp" line="3457"/>
         <source>Open Attachment</source>
         <translation>Apri allegato</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3436"/>
+        <location filename="../EMailPageView.cpp" line="3420"/>
         <source>%1 is not a kind of file this program will open for you, because opening it would mean running it or handing it to something that might.
 
 Save it instead, and open it yourself if you are sure of where it came from.</source>
@@ -2081,27 +2081,27 @@ Save it instead, and open it yourself if you are sure of where it came from.</so
 Salvalo invece e aprilo tu stesso se sei sicuro della sua provenienza.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3451"/>
+        <location filename="../EMailPageView.cpp" line="3435"/>
         <source>A temporary folder to open %1 from could not be created.</source>
         <translation>Non è stato possibile creare una cartella temporanea da cui aprire %1.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3466"/>
+        <location filename="../EMailPageView.cpp" line="3450"/>
         <source>%1 could not be written out to be opened.</source>
         <translation>Non è stato possibile scrivere %1 per aprirlo.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3474"/>
+        <location filename="../EMailPageView.cpp" line="3458"/>
         <source>Nothing on this system is registered to open %1.</source>
         <translation>Nessun programma su questo sistema è registrato per aprire %1.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3504"/>
+        <location filename="../EMailPageView.cpp" line="3488"/>
         <source>Remove Attachment</source>
         <translation>Rimuovi allegato</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3505"/>
+        <location filename="../EMailPageView.cpp" line="3489"/>
         <source>Take out of this message:
 
 %1
@@ -2114,12 +2114,12 @@ This message came from somewhere else, so unless these have been saved already t
 Questo messaggio proviene da un&apos;altra parte, quindi a meno che questi file non siano già stati salvati, questa è l&apos;unica copia. La rimozione non può essere annullata.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3630"/>
+        <location filename="../EMailPageView.cpp" line="3614"/>
         <source>%1 -&gt; %2</source>
         <translation>%1 -&gt; %2</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3636"/>
+        <location filename="../EMailPageView.cpp" line="3620"/>
         <source>Saved. Some names were already taken in that folder, so these were written under a different name:
 
 %1</source>
@@ -2128,35 +2128,35 @@ Questo messaggio proviene da un&apos;altra parte, quindi a meno che questi file 
 %1</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3643"/>
+        <location filename="../EMailPageView.cpp" line="3627"/>
         <source>Saved 1 file.</source>
         <translation>Salvato 1 file.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3644"/>
+        <location filename="../EMailPageView.cpp" line="3628"/>
         <source>Saved %1 files.</source>
         <translation>Salvati %1 file.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3584"/>
-        <location filename="../EMailPageView.cpp" line="3593"/>
+        <location filename="../EMailPageView.cpp" line="3568"/>
+        <location filename="../EMailPageView.cpp" line="3577"/>
         <source>Save Attachment</source>
         <translation>Salva allegato</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3594"/>
+        <location filename="../EMailPageView.cpp" line="3578"/>
         <source>Cannot write %1.</source>
         <translation>Impossibile scrivere %1.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3600"/>
-        <location filename="../EMailPageView.cpp" line="3617"/>
-        <location filename="../EMailPageView.cpp" line="3635"/>
+        <location filename="../EMailPageView.cpp" line="3584"/>
+        <location filename="../EMailPageView.cpp" line="3601"/>
+        <location filename="../EMailPageView.cpp" line="3619"/>
         <source>Save Attachments</source>
         <translation>Salva allegati</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3618"/>
+        <location filename="../EMailPageView.cpp" line="3602"/>
         <source>Could not write: %1</source>
         <translation>Impossibile scrivere: %1</translation>
     </message>
@@ -3200,57 +3200,57 @@ Questo messaggio proviene da un&apos;altra parte, quindi a meno che questi file 
 <context>
     <name>ModuleEMail</name>
     <message>
-        <location filename="../EMailModule.cpp" line="440"/>
+        <location filename="../EMailModule.cpp" line="442"/>
         <source>E-Mail</source>
         <translation>Email</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="441"/>
+        <location filename="../EMailModule.cpp" line="443"/>
         <source>E-Mail Message (*.eml);;All Files (*)</source>
         <translation>Messaggio e-mail (*.eml);;Tutti i file (*)</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="446"/>
+        <location filename="../EMailModule.cpp" line="448"/>
         <source>Mail Accounts</source>
         <translation>Account di posta</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="447"/>
+        <location filename="../EMailModule.cpp" line="449"/>
         <source>mail,email,imap,smtp,account,send</source>
         <translation>mail,email,imap,smtp,account,send,posta,account,invia</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="450"/>
+        <location filename="../EMailModule.cpp" line="452"/>
         <source>IMAP Controller</source>
         <translation>Controller IMAP</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1711"/>
+        <location filename="../EMailModule.cpp" line="1713"/>
         <source>Mail Editor</source>
         <translation>Editor di posta</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1712"/>
+        <location filename="../EMailModule.cpp" line="1714"/>
         <source>Open a new text editor for email.</source>
         <translation>Apri un nuovo editor di testo per email.</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1731"/>
+        <location filename="../EMailModule.cpp" line="1733"/>
         <source>Open IMAP Controller</source>
         <translation>Apri Controller IMAP</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1732"/>
+        <location filename="../EMailModule.cpp" line="1734"/>
         <source>Open IMAP Controller Dialog</source>
         <translation>Apri il dialogo Controller IMAP</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1748"/>
+        <location filename="../EMailModule.cpp" line="1750"/>
         <source>No mail account</source>
         <translation>Nessun account di posta</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1749"/>
+        <location filename="../EMailModule.cpp" line="1751"/>
         <source>Configure a mail account with IMAP enabled in Settings first.</source>
         <translation>Configura prima un account di posta con IMAP abilitato nelle Impostazioni.</translation>
     </message>
@@ -3258,7 +3258,7 @@ Questo messaggio proviene da un&apos;altra parte, quindi a meno che questi file 
 <context>
     <name>QObject</name>
     <message>
-        <location filename="../EMailHelper.cpp" line="1936"/>
+        <location filename="../EMailHelper.cpp" line="1938"/>
         <source>Signed part no longer in canonical form</source>
         <translation>La parte firmata non è più nella forma canonica</translation>
     </message>
@@ -3267,17 +3267,17 @@ Questo messaggio proviene da un&apos;altra parte, quindi a meno che questi file 
         <translation type="vanished">La parte firmata contiene terminazioni di riga che non sono CRLF, che non è la forma su cui viene calcolata una firma. Qualcosa ha riscritto questo messaggio dopo che è stato firmato, di solito un programma che ha cambiato le terminazioni di riga durante il salvataggio o la copia, più che un attacco. La firma non può essere verificata su questi byte e importare la chiave del mittente non cambierà le cose. Per verificarla serve il messaggio originale, non modificato.</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="1958"/>
+        <location filename="../EMailHelper.cpp" line="1960"/>
         <source>Duplicate %1 header</source>
         <translation>Intestazione %1 duplicata</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="1959"/>
+        <location filename="../EMailHelper.cpp" line="1961"/>
         <source>This message carries %1 copies of a header that may appear only once. Different mail programs pick different copies, so what you see here may not be what another reader sees.</source>
         <translation>Questo messaggio contiene %1 copie di un&apos;intestazione che può apparire una sola volta. Programmi di posta diversi scelgono copie diverse, quindi ciò che vedi qui potrebbe non essere ciò che vede un altro lettore.</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="1972"/>
+        <location filename="../EMailHelper.cpp" line="1974"/>
         <source>Address may be disguised</source>
         <translation>L&apos;indirizzo potrebbe essere camuffato</translation>
     </message>
@@ -3286,7 +3286,7 @@ Questo messaggio proviene da un&apos;altra parte, quindi a meno che questi file 
         <translation type="vanished">Il dominio in &quot;%1&quot; usa caratteri che possono essere visualizzati in modo da sembrare un indirizzo diverso e familiare.</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="1987"/>
+        <location filename="../EMailHelper.cpp" line="1989"/>
         <source>Replies go somewhere else</source>
         <translation>Le risposte vanno altrove</translation>
     </message>
@@ -3295,147 +3295,147 @@ Questo messaggio proviene da un&apos;altra parte, quindi a meno che questi file 
         <translation type="vanished">Questo messaggio proviene da &quot;%1&quot;, ma le risposte verrebbero inviate a &quot;%2&quot;, che è un dominio diverso.</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="1843"/>
+        <location filename="../EMailHelper.cpp" line="1845"/>
         <source>On %1, %2 wrote:</source>
         <translation>Il %1, %2 ha scritto:</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="1845"/>
+        <location filename="../EMailHelper.cpp" line="1847"/>
         <source>%1 wrote:</source>
         <translation>%1 ha scritto:</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="1937"/>
+        <location filename="../EMailHelper.cpp" line="1939"/>
         <source>The signed part contains line endings that are not CRLF, which is not the form the signature was computed over. Something rewrote this message after it was signed, usually a program that changed line endings while saving or copying it, not an attack. The signature cannot verify against these bytes, and importing the sender&apos;s key will not change that. Checking it needs the original, unmodified message.</source>
         <translation>La parte firmata contiene terminatori di riga che non sono CRLF, che non è la forma su cui è stata calcolata la firma. Qualcosa ha riscritto questo messaggio dopo che è stato firmato, di solito un programma che ha cambiato i terminatori di riga durante il salvataggio o la copia, non un attacco. La firma non può essere verificata rispetto a questi byte e importare la chiave del mittente non cambierà le cose. Per verificarla serve il messaggio originale, non modificato.</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="1973"/>
+        <location filename="../EMailHelper.cpp" line="1975"/>
         <source>The domain in &quot;%1&quot; uses characters that can be made to look like a different, familiar address.</source>
         <translation>Il dominio in &quot;%1&quot; usa caratteri che possono essere fatti sembrare un indirizzo diverso e familiare.</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="1988"/>
+        <location filename="../EMailHelper.cpp" line="1990"/>
         <source>This message is from &quot;%1&quot;, but replies would be sent to &quot;%2&quot;, which is a different domain.</source>
         <translation>Questo messaggio proviene da &quot;%1&quot;, ma le risposte verrebbero inviate a &quot;%2&quot;, che è un dominio diverso.</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2002"/>
+        <location filename="../EMailHelper.cpp" line="2004"/>
         <source>Malformed signed section</source>
         <translation>Sezione firmata malformata</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2003"/>
+        <location filename="../EMailHelper.cpp" line="2005"/>
         <source>A signed section must contain exactly two parts; this one contains %1. It may not verify, and what it covers is ambiguous.</source>
         <translation>Una sezione firmata deve contenere esattamente due parti; questa ne contiene %1. Potrebbe non superare la verifica e ciò che copre è ambiguo.</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2011"/>
+        <location filename="../EMailHelper.cpp" line="2013"/>
         <source>Malformed encrypted section</source>
         <translation>Sezione cifrata malformata</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2012"/>
+        <location filename="../EMailHelper.cpp" line="2014"/>
         <source>An encrypted section must contain exactly two parts; this one contains %1.</source>
         <translation>Una sezione cifrata deve contenere esattamente due parti; questa ne contiene %1.</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2028"/>
+        <location filename="../EMailHelper.cpp" line="2030"/>
         <source>Not everything is signed</source>
         <translation>Non tutto è firmato</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2029"/>
+        <location filename="../EMailHelper.cpp" line="2031"/>
         <source>%1 part(s) of this message sit outside the signature. They arrived unauthenticated and could have been added or changed by anyone in the path.</source>
         <translation>%1 parte/i di questo messaggio si trovano al di fuori della firma. Sono arrivate non autenticate e chiunque nel percorso potrebbe averle aggiunte o modificate.</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2043"/>
+        <location filename="../EMailHelper.cpp" line="2045"/>
         <source>Signature covers the encrypted data only</source>
         <translation>La firma copre solo i dati cifrati</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2044"/>
+        <location filename="../EMailHelper.cpp" line="2046"/>
         <source>This signature was made over the encrypted block, not over the message inside it. It shows who sent the ciphertext along; it does not say who wrote what you are reading, and anyone could have signed a copy of this same block.</source>
         <translation>Questa firma è stata apposta sul blocco cifrato, non sul messaggio al suo interno. Indica chi ha inviato il testo cifrato, non dice chi ha scritto ciò che stai leggendo, e chiunque potrebbe aver firmato una copia dello stesso blocco.</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2075"/>
+        <location filename="../EMailHelper.cpp" line="2077"/>
         <source>Public key attached</source>
         <translation>Chiave pubblica allegata</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2076"/>
+        <location filename="../EMailHelper.cpp" line="2078"/>
         <source>This message carries %1 OpenPGP public key(s). A key arriving in a message proves nothing about who sent it: anyone can attach any key, including one they made for the name on the From line.</source>
         <translation>Questo messaggio contiene %1 chiave/i pubblica/e OpenPGP. Una chiave che arriva in un messaggio non prova nulla sull&apos;identità del mittente: chiunque può allegare qualsiasi chiave, anche una creata per il nome nel campo Da.</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2085"/>
+        <location filename="../EMailHelper.cpp" line="2087"/>
         <source>Detached signature attached</source>
         <translation>Firma separata allegata</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2086"/>
+        <location filename="../EMailHelper.cpp" line="2088"/>
         <source>This message carries %1 signature file(s) that are not part of its own signed structure. Opening the message does not check them; they sign something else.</source>
         <translation>Questo messaggio contiene %1 file di firma che non fanno parte della sua struttura firmata. L&apos;apertura del messaggio non li verifica; firmano qualcos&apos;altro.</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2096"/>
+        <location filename="../EMailHelper.cpp" line="2098"/>
         <source>Blind recipients are visible</source>
         <translation>I destinatari in copia nascosta sono visibili</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2097"/>
+        <location filename="../EMailHelper.cpp" line="2099"/>
         <source>This message carries a Bcc header naming %1 recipient(s). Anyone who received it can see who was blind-copied.</source>
         <translation>Questo messaggio riporta un&apos;intestazione Bcc che elenca %1 destinatario/i. Chiunque lo abbia ricevuto può vedere chi è stato messo in copia nascosta.</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2113"/>
+        <location filename="../EMailHelper.cpp" line="2115"/>
         <source>Nothing is signed</source>
         <translation>Nulla è firmato</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2114"/>
+        <location filename="../EMailHelper.cpp" line="2116"/>
         <source>This message carries no signature, so the recipient cannot tell that it came from you or that it arrived unchanged.</source>
         <translation>Questo messaggio non contiene alcuna firma, quindi il destinatario non può sapere che proviene da te o che è arrivato senza modifiche.</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2130"/>
+        <location filename="../EMailHelper.cpp" line="2132"/>
         <source>Some parts are not signed</source>
         <translation>Alcune parti non sono firmate</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2131"/>
+        <location filename="../EMailHelper.cpp" line="2133"/>
         <source>%1 part(s) of this message would go out without the signature covering them.</source>
         <translation>La firma non coprirebbe %1 parte/i di questo messaggio.</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2140"/>
+        <location filename="../EMailHelper.cpp" line="2142"/>
         <source>Blind recipients</source>
         <translation>Destinatari nascosti</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2141"/>
+        <location filename="../EMailHelper.cpp" line="2143"/>
         <source>%1 blind recipient(s) will be included in encryption but will not appear anywhere in the message.</source>
         <translation>La cifratura includerà %1 destinatario/i in copia nascosta, che non compariranno nel messaggio.</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2148"/>
+        <location filename="../EMailHelper.cpp" line="2150"/>
         <source>Bcc header present</source>
         <translation>Intestazione Bcc presente</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2149"/>
+        <location filename="../EMailHelper.cpp" line="2151"/>
         <source>This message carries a Bcc header. Sending it would tell every recipient who was blind-copied.</source>
         <translation>Questo messaggio contiene un&apos;intestazione Bcc. Inviandolo, ogni destinatario saprebbe chi è stato messo in copia nascosta.</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2157"/>
+        <location filename="../EMailHelper.cpp" line="2159"/>
         <source>Recipient may be disguised</source>
         <translation>Il destinatario potrebbe essere camuffato</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2158"/>
+        <location filename="../EMailHelper.cpp" line="2160"/>
         <source>The domain in &quot;%1&quot; uses characters that can be made to look like a different address. Check it before sending.</source>
         <translation>Il dominio in &quot;%1&quot; usa caratteri che possono essere fatti sembrare un indirizzo diverso. Controllalo prima di inviare.</translation>
     </message>
@@ -3444,12 +3444,12 @@ Questo messaggio proviene da un&apos;altra parte, quindi a meno che questi file 
         <translation type="vanished">Il dominio in &quot;%1&quot; utilizza caratteri che possono essere resi simili a un indirizzo diverso. Controllalo prima di inviare.</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2165"/>
+        <location filename="../EMailHelper.cpp" line="2167"/>
         <source>No recipients</source>
         <translation>Nessun destinatario</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2166"/>
+        <location filename="../EMailHelper.cpp" line="2168"/>
         <source>This message is not addressed to anyone.</source>
         <translation>Questo messaggio non è indirizzato a nessuno.</translation>
     </message>

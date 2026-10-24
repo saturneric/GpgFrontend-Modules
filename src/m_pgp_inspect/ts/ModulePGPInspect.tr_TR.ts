@@ -4,91 +4,91 @@
 <context>
     <name>ModulePGPInspect</name>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="101"/>
+        <location filename="../PGPInspectDialog.cpp" line="103"/>
         <location filename="../PGPInspectModule.cpp" line="97"/>
         <source>OpenPGP Structure</source>
         <translation>OpenPGP Yapısı</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="111"/>
+        <location filename="../PGPInspectDialog.cpp" line="113"/>
         <source>Search packets, fields and values</source>
         <translation>Paketleri, alanları ve değerleri ara</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="117"/>
+        <location filename="../PGPInspectDialog.cpp" line="119"/>
         <source>Structure</source>
         <translation>Yapı</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="117"/>
+        <location filename="../PGPInspectDialog.cpp" line="119"/>
         <source>Value</source>
         <translation>Değer</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="139"/>
+        <location filename="../PGPInspectDialog.cpp" line="141"/>
         <source>The current tab holds no OpenPGP data.</source>
         <translation>Geçerli sekmede OpenPGP verisi yok.</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="153"/>
+        <location filename="../PGPInspectDialog.cpp" line="155"/>
         <source>Armor Type</source>
         <translation>Okunabilir ASCII türü</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="154"/>
+        <location filename="../PGPInspectDialog.cpp" line="156"/>
         <source>CRC24</source>
         <translation>CRC24</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="159"/>
+        <location filename="../PGPInspectDialog.cpp" line="161"/>
         <source>Signed Text</source>
         <translation>İmzalanmış metin</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="163"/>
-        <location filename="../PGPInspectDialog.cpp" line="209"/>
+        <location filename="../PGPInspectDialog.cpp" line="165"/>
+        <location filename="../PGPInspectDialog.cpp" line="210"/>
         <source>Problem</source>
         <translation>Sorun</translation>
     </message>
     <message numerus="yes">
-        <location filename="../PGPInspectDialog.cpp" line="185"/>
+        <location filename="../PGPInspectDialog.cpp" line="187"/>
         <source>%1, %2, %n packet(s)</source>
         <translation>
             <numerusform>%1, %2, %n paket</numerusform>
         </translation>
     </message>
     <message>
-        <location filename="../PGPInspectModel.cpp" line="131"/>
+        <location filename="../PGPInspectModel.cpp" line="133"/>
         <source>The inspector returned no data.</source>
         <translation>İnceleyici veri döndürmedi.</translation>
     </message>
     <message>
-        <location filename="../PGPInspectModel.cpp" line="158"/>
+        <location filename="../PGPInspectModel.cpp" line="160"/>
         <source>#%1  %2 (tag %3)</source>
         <translation>#%1  %2 (etiket %3)</translation>
     </message>
     <message>
-        <location filename="../PGPInspectModel.cpp" line="160"/>
+        <location filename="../PGPInspectModel.cpp" line="162"/>
         <source>Unknown</source>
         <translation>Bilinmiyor</translation>
     </message>
     <message>
-        <location filename="../PGPInspectModel.cpp" line="167"/>
+        <location filename="../PGPInspectModel.cpp" line="169"/>
         <source>  %1 B</source>
         <translation>  %1 B</translation>
     </message>
     <message>
-        <location filename="../PGPInspectModel.cpp" line="179"/>
+        <location filename="../PGPInspectModel.cpp" line="180"/>
         <source>Block %1: cleartext-signed message</source>
         <translation>Blok %1: açık metin imzalı ileti</translation>
     </message>
     <message>
-        <location filename="../PGPInspectModel.cpp" line="182"/>
+        <location filename="../PGPInspectModel.cpp" line="183"/>
         <source>Block %1: armored, %2</source>
         <translation>Blok %1: okunabilir ASCII, %2</translation>
     </message>
     <message>
-        <location filename="../PGPInspectModel.cpp" line="186"/>
+        <location filename="../PGPInspectModel.cpp" line="187"/>
         <source>Block %1: binary packet stream</source>
         <translation>Blok %1: ikili paket akışı</translation>
     </message>

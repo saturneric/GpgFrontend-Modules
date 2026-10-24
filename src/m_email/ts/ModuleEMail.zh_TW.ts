@@ -776,7 +776,7 @@ Use Refresh to try again.</source>
 <context>
     <name>EMailModule</name>
     <message>
-        <location filename="../EMailModule.cpp" line="538"/>
+        <location filename="../EMailModule.cpp" line="540"/>
         <source># EML Data Error
 
 The provided EML data does not conform to RFC 3156 standards and cannot be processed.
@@ -807,7 +807,7 @@ EML 是一種用於表示電子郵件訊息的檔案格式，通常包含標頭�
 修正 EML 資料後，請再次嘗試操作。</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="563"/>
+        <location filename="../EMailModule.cpp" line="565"/>
         <source># Email Operation Error
 
 An error occurred during the email operation. The process could not be completed.
@@ -850,60 +850,60 @@ If the issue persists, consider seeking technical support or consulting the docu
 若問題持續發生，請尋求技術支援或查閱文件。</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="105"/>
-        <location filename="../EMailModule.cpp" line="813"/>
-        <location filename="../EMailModule.cpp" line="957"/>
-        <location filename="../EMailModule.cpp" line="1617"/>
+        <location filename="../EMailModule.cpp" line="107"/>
+        <location filename="../EMailModule.cpp" line="815"/>
+        <location filename="../EMailModule.cpp" line="959"/>
+        <location filename="../EMailModule.cpp" line="1619"/>
         <source>From</source>
         <translation>寄件者</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="104"/>
+        <location filename="../EMailModule.cpp" line="106"/>
         <source>E-Mail</source>
         <translation>電子郵件</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="106"/>
-        <location filename="../EMailModule.cpp" line="816"/>
-        <location filename="../EMailModule.cpp" line="960"/>
-        <location filename="../EMailModule.cpp" line="1620"/>
+        <location filename="../EMailModule.cpp" line="108"/>
+        <location filename="../EMailModule.cpp" line="818"/>
+        <location filename="../EMailModule.cpp" line="962"/>
+        <location filename="../EMailModule.cpp" line="1622"/>
         <source>To</source>
         <translation>收件者</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="107"/>
-        <location filename="../EMailModule.cpp" line="819"/>
-        <location filename="../EMailModule.cpp" line="963"/>
-        <location filename="../EMailModule.cpp" line="1623"/>
+        <location filename="../EMailModule.cpp" line="109"/>
+        <location filename="../EMailModule.cpp" line="821"/>
+        <location filename="../EMailModule.cpp" line="965"/>
+        <location filename="../EMailModule.cpp" line="1625"/>
         <source>Subject</source>
         <translation>主旨</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="108"/>
-        <location filename="../EMailModule.cpp" line="822"/>
-        <location filename="../EMailModule.cpp" line="966"/>
-        <location filename="../EMailModule.cpp" line="1626"/>
+        <location filename="../EMailModule.cpp" line="110"/>
+        <location filename="../EMailModule.cpp" line="824"/>
+        <location filename="../EMailModule.cpp" line="968"/>
+        <location filename="../EMailModule.cpp" line="1628"/>
         <source>CC</source>
         <translation>副本</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="109"/>
-        <location filename="../EMailModule.cpp" line="825"/>
-        <location filename="../EMailModule.cpp" line="969"/>
-        <location filename="../EMailModule.cpp" line="1629"/>
+        <location filename="../EMailModule.cpp" line="111"/>
+        <location filename="../EMailModule.cpp" line="827"/>
+        <location filename="../EMailModule.cpp" line="971"/>
+        <location filename="../EMailModule.cpp" line="1631"/>
         <source>BCC</source>
         <translation>密件副本</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="110"/>
-        <location filename="../EMailModule.cpp" line="828"/>
-        <location filename="../EMailModule.cpp" line="972"/>
-        <location filename="../EMailModule.cpp" line="1632"/>
+        <location filename="../EMailModule.cpp" line="112"/>
+        <location filename="../EMailModule.cpp" line="830"/>
+        <location filename="../EMailModule.cpp" line="974"/>
+        <location filename="../EMailModule.cpp" line="1634"/>
         <source>Date</source>
         <translation>日期</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="117"/>
+        <location filename="../EMailModule.cpp" line="119"/>
         <source>OpenPGP</source>
         <translation>OpenPGP</translation>
     </message>
@@ -916,41 +916,41 @@ If the issue persists, consider seeking technical support or consulting the docu
         <translation type="vanished">訊息完整性檢查演算法</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="121"/>
-        <location filename="../EMailModule.cpp" line="837"/>
-        <location filename="../EMailModule.cpp" line="1651"/>
+        <location filename="../EMailModule.cpp" line="123"/>
+        <location filename="../EMailModule.cpp" line="839"/>
+        <location filename="../EMailModule.cpp" line="1653"/>
         <source>Digest of Signed MIME Entity (SHA-256)</source>
         <translation>已簽署 MIME 實體摘要 (SHA-256)</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="124"/>
-        <location filename="../EMailModule.cpp" line="841"/>
-        <location filename="../EMailModule.cpp" line="1656"/>
+        <location filename="../EMailModule.cpp" line="126"/>
+        <location filename="../EMailModule.cpp" line="843"/>
+        <location filename="../EMailModule.cpp" line="1658"/>
         <source>Declared Signature Hash (micalg)</source>
         <translation>宣告的簽章雜湊值 (micalg)</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="160"/>
+        <location filename="../EMailModule.cpp" line="162"/>
         <source>Attachments</source>
         <translation>附件</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="229"/>
+        <location filename="../EMailModule.cpp" line="231"/>
         <source>Encryption Recipient</source>
         <translation>加密收件者</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="230"/>
+        <location filename="../EMailModule.cpp" line="232"/>
         <source>Recipient</source>
         <translation>收件者</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="231"/>
+        <location filename="../EMailModule.cpp" line="233"/>
         <source>Key ID</source>
         <translation>金鑰 ID</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="285"/>
+        <location filename="../EMailModule.cpp" line="287"/>
         <source>encrypted to</source>
         <translation>加密至</translation>
     </message>
@@ -959,7 +959,7 @@ If the issue persists, consider seeking technical support or consulting the docu
         <translation type="vanished">加密至（不在標頭中）</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="305"/>
+        <location filename="../EMailModule.cpp" line="307"/>
         <source>Hidden recipient</source>
         <translation>隱藏收件者</translation>
     </message>
@@ -968,123 +968,123 @@ If the issue persists, consider seeking technical support or consulting the docu
         <translation type="vanished">寄件者未提供此金鑰 ID</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="314"/>
+        <location filename="../EMailModule.cpp" line="316"/>
         <source>Recipient Check</source>
         <translation>收件者檢查</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="363"/>
+        <location filename="../EMailModule.cpp" line="365"/>
         <source>DETAILS</source>
         <translation>詳細資料</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="364"/>
+        <location filename="../EMailModule.cpp" line="366"/>
         <source>Decrypt</source>
         <translation>解密</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="366"/>
+        <location filename="../EMailModule.cpp" line="368"/>
         <source>RECIPIENT</source>
         <translation>收件者</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="368"/>
+        <location filename="../EMailModule.cpp" line="370"/>
         <source>Sign</source>
         <translation>簽署</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="371"/>
+        <location filename="../EMailModule.cpp" line="373"/>
         <source>Verify</source>
         <translation>驗證</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="373"/>
+        <location filename="../EMailModule.cpp" line="375"/>
         <source>SIGNER</source>
         <translation>簽署者</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="510"/>
+        <location filename="../EMailModule.cpp" line="512"/>
         <source>Check before exporting</source>
         <translation>匯出前檢查</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="511"/>
+        <location filename="../EMailModule.cpp" line="513"/>
         <source>Something about this message is worth checking before you save it.</source>
         <translation>此訊息在儲存前有值得檢查的內容。</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="696"/>
+        <location filename="../EMailModule.cpp" line="698"/>
         <source> The bytes the signature covers were rewritten after it was made: their line endings are no longer CRLF. This is usually caused by a program that changed them while saving or copying the message. Checking the signature requires the original bytes.</source>
         <translation>簽章所涵蓋的位元組在簽章建立後遭到改寫：其行結尾不再是 CRLF。這通常是由程式在儲存或複製訊息時變更行結尾所致。檢查簽章需要原始位元組。</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="707"/>
+        <location filename="../EMailModule.cpp" line="709"/>
         <source>The signature is valid, and the key that made it speaks for the address this message says it is from.</source>
         <translation>簽章有效，且產生簽章的金鑰為此訊息所聲稱的寄件地址背書。</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="713"/>
+        <location filename="../EMailModule.cpp" line="715"/>
         <source>The signature itself is valid, but the key that made it does not speak for the address this message says it is from. That is what a signature moved from another message looks like, so it is worth checking who the signer is before trusting the contents.</source>
         <translation>簽章本身有效，但產生簽章的金鑰並不為此訊息所聲稱的寄件地址背書。這看起來就像從另一則訊息搬移過來的簽章，因此在信任內容之前，值得先檢查簽署者是誰。</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="721"/>
+        <location filename="../EMailModule.cpp" line="723"/>
         <source>The key that made this signature is not in your keyring, so nothing here can say whether the signature is genuine. Import the sender&apos;s key and verify again.</source>
         <translation>產生此簽章的金鑰不在您的金鑰環中，因此這裡無法判斷簽章是否真實。請匯入寄件者的金鑰並重新驗證。</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="728"/>
+        <location filename="../EMailModule.cpp" line="730"/>
         <source>The signature was made with a key that has expired, or the signature itself has. It may still be genuine; what cannot be confirmed is that the key was valid at the time it was used.</source>
         <translation>此簽章是由已過期的金鑰所產生，或簽章本身已過期。它仍可能是真實的；無法確認的是金鑰在使用時是否有效。</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="735"/>
+        <location filename="../EMailModule.cpp" line="737"/>
         <source>The signature does not match the bytes it covers. Either the message was changed after it was signed, or the signature was not made for this message.</source>
         <translation>簽章與其所涵蓋的位元組不符。可能是訊息在簽署後遭到變更，或此簽章並非為這則訊息所產生。</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="743"/>
+        <location filename="../EMailModule.cpp" line="745"/>
         <source>The signature matches the bytes it covers, but it was made with a key the sender&apos;s certificate does not authorize to sign. It cannot be relied on as the sender&apos;s signature.</source>
         <translation>簽章與其涵蓋的位元組相符，但它是以寄件者憑證未授權簽署的金鑰所產生，不能將其視為寄件者的簽章。</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="751"/>
+        <location filename="../EMailModule.cpp" line="753"/>
         <source>The check could not be completed, so nothing is known about this signature either way. This is not a statement that the signature is bad.</source>
         <translation>檢查無法完成，因此對這個簽章的好壞一無所知。這並非表示簽章無效。</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="759"/>
+        <location filename="../EMailModule.cpp" line="761"/>
         <source>This message claims to carry an OpenPGP signature, but its structure does not hold up well enough to check one.</source>
         <translation>此訊息聲稱帶有 OpenPGP 簽章，但其結構不足以進行檢查。</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="765"/>
+        <location filename="../EMailModule.cpp" line="767"/>
         <source>The signatures in this message cover the encrypted data rather than the content you read. They confirm who encrypted the message, but say nothing about who wrote what is inside it.</source>
         <translation>此訊息中的簽章涵蓋的是加密資料，而非您所閱讀的內容。它們只能確認誰加密了訊息，但無法說明內部內容的作者是誰。</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="776"/>
+        <location filename="../EMailModule.cpp" line="778"/>
         <source>There was no signature in this message to check.</source>
         <translation>此訊息中沒有可供檢查的簽章。</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="849"/>
-        <location filename="../EMailModule.cpp" line="1665"/>
+        <location filename="../EMailModule.cpp" line="851"/>
+        <location filename="../EMailModule.cpp" line="1667"/>
         <source>**Note**: the signed part is not in canonical form, because its line endings are not CRLF. Something rewrote this message after it was signed, which is usually a program that changed line endings while saving or copying it. A signature cannot verify against these bytes, and importing the sender&apos;s key will not change that.</source>
         <translation>**注意**：簽署的部分並非規範形式，因為其行結尾不是 CRLF。此訊息在簽署後曾被重寫，通常是某個程式在儲存或複製時變更了行結尾。簽章無法針對這些位元組進行驗證，匯入寄件者的金鑰也不會改變這一點。</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="865"/>
+        <location filename="../EMailModule.cpp" line="867"/>
         <source>Verify E-Mail</source>
         <translation>驗證電子郵件</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="150"/>
+        <location filename="../EMailModule.cpp" line="152"/>
         <source>, an OpenPGP key</source>
         <translation>，一個 OpenPGP 金鑰</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="153"/>
+        <location filename="../EMailModule.cpp" line="155"/>
         <source>, not covered by the signature</source>
         <translation>，未受簽章涵蓋</translation>
     </message>
@@ -1093,50 +1093,50 @@ If the issue persists, consider seeking technical support or consulting the docu
         <translation type="vanished">在 %1 中，但未加密給它：無法讀取</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="916"/>
-        <location filename="../EMailModule.cpp" line="986"/>
+        <location filename="../EMailModule.cpp" line="918"/>
+        <location filename="../EMailModule.cpp" line="988"/>
         <source>Decrypt E-Mail</source>
         <translation>解密電子郵件</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1042"/>
-        <location filename="../EMailModule.cpp" line="1095"/>
-        <location filename="../EMailModule.cpp" line="1146"/>
-        <location filename="../EMailModule.cpp" line="1171"/>
+        <location filename="../EMailModule.cpp" line="1044"/>
+        <location filename="../EMailModule.cpp" line="1097"/>
+        <location filename="../EMailModule.cpp" line="1148"/>
+        <location filename="../EMailModule.cpp" line="1173"/>
         <source>Sign E-Mail</source>
         <translation>簽署電子郵件</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1216"/>
-        <location filename="../EMailModule.cpp" line="1273"/>
-        <location filename="../EMailModule.cpp" line="1316"/>
-        <location filename="../EMailModule.cpp" line="1341"/>
+        <location filename="../EMailModule.cpp" line="1218"/>
+        <location filename="../EMailModule.cpp" line="1275"/>
+        <location filename="../EMailModule.cpp" line="1318"/>
+        <location filename="../EMailModule.cpp" line="1343"/>
         <source>Encrypt E-Mail</source>
         <translation>加密電子郵件</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1485"/>
-        <location filename="../EMailModule.cpp" line="1514"/>
+        <location filename="../EMailModule.cpp" line="1487"/>
+        <location filename="../EMailModule.cpp" line="1516"/>
         <source>Encrypt and Sign E-Mail</source>
         <translation>加密並簽署電子郵件</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1551"/>
+        <location filename="../EMailModule.cpp" line="1553"/>
         <source>This message is not signed, so there is no signature to check. It was decrypted successfully.</source>
         <translation>此訊息未簽署，因此沒有簽章可檢查。已成功解密。</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1555"/>
+        <location filename="../EMailModule.cpp" line="1557"/>
         <source>The decrypted content is not a MIME message, so there is no signature to check. It was decrypted successfully.</source>
         <translation>解密內容不是 MIME 訊息，因此沒有簽章可檢查。已成功解密。</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1644"/>
+        <location filename="../EMailModule.cpp" line="1646"/>
         <source>This message was decrypted. It carries no signature, so nothing here says who sent it.</source>
         <translation>此訊息已解密。它未帶有簽章，因此這裡沒有任何資訊能指出寄件者是誰。</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1689"/>
+        <location filename="../EMailModule.cpp" line="1691"/>
         <source>Decrypt and Verify E-Mail</source>
         <translation>解密並驗證電子郵件</translation>
     </message>
@@ -1153,17 +1153,17 @@ If the issue persists, consider seeking technical support or consulting the docu
         <translation type="vanished">警告</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="291"/>
+        <location filename="../EMailModule.cpp" line="293"/>
         <source>in %1, but not encrypted to it: they cannot read this message</source>
         <translation>在 %1 中，但未加密給該收件者：對方無法讀取此訊息</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="299"/>
+        <location filename="../EMailModule.cpp" line="301"/>
         <source>encrypted to, but not listed in the headers</source>
         <translation>已加密給該收件者，但未列於標頭中</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="306"/>
+        <location filename="../EMailModule.cpp" line="308"/>
         <source>the sender withheld this key ID</source>
         <translation>寄件者隱藏了此金鑰 ID</translation>
     </message>
@@ -1205,48 +1205,48 @@ If the issue persists, consider seeking technical support or consulting the docu
         <translation type="vanished">以「;」分隔多個地址</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="607"/>
+        <location filename="../EMailPageView.cpp" line="609"/>
         <source>From:</source>
         <translation>寄件者:</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="620"/>
+        <location filename="../EMailPageView.cpp" line="622"/>
         <source>Cc/Bcc</source>
         <translation>副本/密件副本</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="629"/>
+        <location filename="../EMailPageView.cpp" line="631"/>
         <source>To:</source>
         <translation>收件者:</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="630"/>
+        <location filename="../EMailPageView.cpp" line="632"/>
         <source>Cc:</source>
         <translation>副本:</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="631"/>
+        <location filename="../EMailPageView.cpp" line="633"/>
         <source>Bcc:</source>
         <translation>密件副本:</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="642"/>
+        <location filename="../EMailPageView.cpp" line="644"/>
         <source>Subject:</source>
         <translation>主旨:</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="771"/>
+        <location filename="../EMailPageView.cpp" line="772"/>
         <source>Send...</source>
         <translation>傳送...</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="772"/>
+        <location filename="../EMailPageView.cpp" line="773"/>
         <source>Send this message through a configured mail account.</source>
         <translation>透過已設定的郵件帳號傳送此訊息。</translation>
     </message>
     <message>
         <location filename="../EMailPageView.cpp" line="907"/>
-        <location filename="../EMailPageView.cpp" line="1416"/>
+        <location filename="../EMailPageView.cpp" line="1400"/>
         <source>Write your message here.</source>
         <translation>在此輸入您的訊息。</translation>
     </message>
@@ -1256,43 +1256,43 @@ If the issue persists, consider seeking technical support or consulting the docu
         <translation>將一或多個檔案新增至此訊息。也可以將檔案拖曳到訊息上。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1035"/>
+        <location filename="../EMailPageView.cpp" line="1031"/>
         <source>Take the selected attachments out of this message.</source>
         <translation>將選取的附件從此訊息中移除。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1019"/>
+        <location filename="../EMailPageView.cpp" line="1017"/>
         <source>Write the selected attachments to a folder.</source>
         <translation>將選取的附件寫入資料夾。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1024"/>
+        <location filename="../EMailPageView.cpp" line="1021"/>
         <source>Write every attachment to a folder.</source>
         <translation>將所有附件寫入資料夾。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1327"/>
+        <location filename="../EMailPageView.cpp" line="1311"/>
         <source>This message is encrypted. Decrypt it before editing it.</source>
         <translation>此訊息已加密。編輯前請先解密。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1331"/>
+        <location filename="../EMailPageView.cpp" line="1315"/>
         <source>This message is encrypted and signed. Decrypt it, then remove the signature, before editing it.</source>
         <translation>此訊息已加密並簽署。編輯前請先解密，然後移除簽章。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="699"/>
+        <location filename="../EMailPageView.cpp" line="701"/>
         <source>Raw Source</source>
         <translation>原始來源</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="582"/>
+        <location filename="../EMailPageView.cpp" line="584"/>
         <source>Separate several addresses with &quot;;&quot;</source>
         <translation>以 &quot;;&quot; 分隔多個地址</translation>
     </message>
     <message>
         <location filename="../EMailPageView.cpp" line="828"/>
-        <location filename="../EMailPageView.cpp" line="977"/>
+        <location filename="../EMailPageView.cpp" line="976"/>
         <source>Attachments</source>
         <translation>附件</translation>
     </message>
@@ -1301,137 +1301,137 @@ If the issue persists, consider seeking technical support or consulting the docu
         <translation type="vanished">更多附件操作</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1590"/>
+        <location filename="../EMailPageView.cpp" line="1574"/>
         <source>Protected Message</source>
         <translation>受保護的訊息</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1591"/>
-        <location filename="../EMailPageView.cpp" line="3713"/>
+        <location filename="../EMailPageView.cpp" line="1575"/>
+        <location filename="../EMailPageView.cpp" line="3697"/>
         <source>These bytes are covered by a signature, or are ciphertext. Remove the signature, or decrypt the message, before editing its source.</source>
         <translation>這些位元組受簽章保護，或為密文。編輯其來源前，請先移除簽章或解密訊息。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1613"/>
+        <location filename="../EMailPageView.cpp" line="1597"/>
         <source>Stop Editing</source>
         <translation>停止編輯</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1614"/>
+        <location filename="../EMailPageView.cpp" line="1598"/>
         <source>Edit Raw Source</source>
         <translation>編輯原始來源</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1620"/>
+        <location filename="../EMailPageView.cpp" line="1604"/>
         <source>You are editing the raw message source. What you type here is the document.</source>
         <translation>您正在編輯原始訊息來源。您在此輸入的內容即為文件。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1627"/>
-        <location filename="../EMailPageView.cpp" line="3710"/>
+        <location filename="../EMailPageView.cpp" line="1611"/>
+        <location filename="../EMailPageView.cpp" line="3694"/>
         <source>This message is locked for inspection. Its source cannot be edited.</source>
         <translation>此訊息已鎖定以供檢視。其來源無法編輯。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1636"/>
+        <location filename="../EMailPageView.cpp" line="1620"/>
         <source>Read-only. Unlock to edit the message source directly.</source>
         <translation>唯讀。解鎖後即可直接編輯訊息來源。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1876"/>
+        <location filename="../EMailPageView.cpp" line="1860"/>
         <source>untitled.eml</source>
         <translation>未命名.eml</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1908"/>
-        <location filename="../EMailPageView.cpp" line="1957"/>
+        <location filename="../EMailPageView.cpp" line="1892"/>
+        <location filename="../EMailPageView.cpp" line="1941"/>
         <source>This message is encrypted</source>
         <translation>此郵件已加密</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1936"/>
-        <location filename="../EMailPageView.cpp" line="2633"/>
-        <location filename="../EMailPageView.cpp" line="2644"/>
+        <location filename="../EMailPageView.cpp" line="1920"/>
+        <location filename="../EMailPageView.cpp" line="2617"/>
+        <location filename="../EMailPageView.cpp" line="2628"/>
         <source>Decrypt</source>
         <translation>解密</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1956"/>
+        <location filename="../EMailPageView.cpp" line="1940"/>
         <source>This message is encrypted and signed</source>
         <translation>此郵件已加密並簽署</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1980"/>
+        <location filename="../EMailPageView.cpp" line="1964"/>
         <source>The recipients are not named in the headers.</source>
         <translation>收件者未在標頭中指名。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1981"/>
+        <location filename="../EMailPageView.cpp" line="1965"/>
         <source>Addressed to %1</source>
         <translation>收件者：%1</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2048"/>
+        <location filename="../EMailPageView.cpp" line="2032"/>
         <source>You hold the private key for %1, so this message can be opened here.</source>
         <translation>您持有 %1 的私鑰，因此此郵件可以在這裡開啟。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2051"/>
+        <location filename="../EMailPageView.cpp" line="2035"/>
         <source>You hold private keys for %1, so this message can be opened here.</source>
         <translation>您持有 %1 的多個私鑰，因此此郵件可以在這裡開啟。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2060"/>
+        <location filename="../EMailPageView.cpp" line="2044"/>
         <source>This message is encrypted to keys you do not hold the private half of, so it cannot be opened on this computer.</source>
         <translation>此郵件已使用您未持有對應私鑰的金鑰加密，因此無法在此電腦上開啟。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2068"/>
+        <location filename="../EMailPageView.cpp" line="2052"/>
         <source>Some recipients of this message were deliberately not named, so there is no way to tell whether you can open it until you try.</source>
         <translation>此郵件的部分收件者刻意未在標頭中指名，因此在嘗試之前無法得知您是否能開啟。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2071"/>
+        <location filename="../EMailPageView.cpp" line="2055"/>
         <source>The recipients of this message cannot be read, so there is no way to tell whether you can open it until you try.</source>
         <translation>此郵件的收件者資訊無法讀取，因此在嘗試之前無法得知您是否能開啟。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2109"/>
+        <location filename="../EMailPageView.cpp" line="2093"/>
         <source>The recipients are not named, so there is no way to tell whether you can open this until you try.</source>
         <translation>收件者未具名，因此在你嘗試之前無從得知是否能開啟此訊息。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2143"/>
+        <location filename="../EMailPageView.cpp" line="2127"/>
         <source>attach a public key</source>
         <translation>附加公鑰</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2164"/>
+        <location filename="../EMailPageView.cpp" line="2148"/>
         <source>add text to this message</source>
         <translation>新增文字至此郵件</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2181"/>
+        <location filename="../EMailPageView.cpp" line="2165"/>
         <source>Message Locked</source>
         <translation>郵件已鎖定</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2182"/>
+        <location filename="../EMailPageView.cpp" line="2166"/>
         <source>This message is open for inspection only, so it is not possible to %1.</source>
         <translation>此郵件僅供檢視，因此無法%1。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2191"/>
+        <location filename="../EMailPageView.cpp" line="2175"/>
         <source>Message Is Encrypted</source>
         <translation>郵件已加密</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2192"/>
+        <location filename="../EMailPageView.cpp" line="2176"/>
         <source>Decrypt this message before trying to %1.</source>
         <translation>請先解密此郵件，再嘗試%1。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2200"/>
+        <location filename="../EMailPageView.cpp" line="2184"/>
         <source>Message Is Signed</source>
         <translation>郵件已簽署</translation>
     </message>
@@ -1444,175 +1444,175 @@ If the issue persists, consider seeking technical support or consulting the docu
         <translation type="vanished">此訊息本來就無法編輯：它已簽署或加密，因此已受到保護，無法被改寫。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2360"/>
+        <location filename="../EMailPageView.cpp" line="2344"/>
         <source>No mail account is set up yet. Add one in Settings, under Mail Accounts, and this message can be sent.</source>
         <translation>尚未設定郵件帳戶。請在「設定」的「郵件帳戶」下新增一個帳戶，即可傳送此訊息。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2363"/>
+        <location filename="../EMailPageView.cpp" line="2347"/>
         <source>Fill in who this message is from.</source>
         <translation>請填寫此訊息的寄件人。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2365"/>
+        <location filename="../EMailPageView.cpp" line="2349"/>
         <source>The From address does not look like an e-mail address.</source>
         <translation>寄件人地址看起來不像電子郵件地址。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2367"/>
+        <location filename="../EMailPageView.cpp" line="2351"/>
         <source>Add at least one recipient.</source>
         <translation>請至少新增一位收件者。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2369"/>
+        <location filename="../EMailPageView.cpp" line="2353"/>
         <source>Give this message a subject.</source>
         <translation>請為此訊息填寫主旨。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2378"/>
+        <location filename="../EMailPageView.cpp" line="2362"/>
         <source>This does not look like an e-mail address: %1</source>
         <translation>這看起來不像電子郵件地址：%1</translation>
     </message>
     <message>
-        <location filename="../EMailViewLayout.cpp" line="120"/>
+        <location filename="../EMailViewLayout.cpp" line="122"/>
         <source>Encrypted</source>
         <translation>已加密</translation>
     </message>
     <message>
-        <location filename="../EMailViewLayout.cpp" line="154"/>
+        <location filename="../EMailViewLayout.cpp" line="156"/>
         <source>Signing key not authorized</source>
         <translation>簽章金鑰未獲授權</translation>
     </message>
     <message>
-        <location filename="../EMailViewLayout.cpp" line="161"/>
+        <location filename="../EMailViewLayout.cpp" line="163"/>
         <source>Signature could not be checked</source>
         <translation>無法檢查簽章</translation>
     </message>
     <message>
-        <location filename="../EMailViewLayout.cpp" line="165"/>
+        <location filename="../EMailViewLayout.cpp" line="167"/>
         <source>Malformed OpenPGP structure</source>
         <translation>OpenPGP 結構格式錯誤</translation>
     </message>
     <message>
-        <location filename="../EMailViewLayout.cpp" line="175"/>
+        <location filename="../EMailViewLayout.cpp" line="177"/>
         <source>Not signed or encrypted</source>
         <translation>未簽署且未加密</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2598"/>
+        <location filename="../EMailPageView.cpp" line="2582"/>
         <source>This message is locked for inspection.</source>
         <translation>此訊息已鎖定，僅供檢視。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2613"/>
+        <location filename="../EMailPageView.cpp" line="2597"/>
         <source>Sign...</source>
         <translation>簽署...</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2614"/>
+        <location filename="../EMailPageView.cpp" line="2598"/>
         <source>Encrypt...</source>
         <translation>加密...</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2615"/>
+        <location filename="../EMailPageView.cpp" line="2599"/>
         <source>Encrypt and Sign...</source>
         <translation>加密並簽署...</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2619"/>
+        <location filename="../EMailPageView.cpp" line="2603"/>
         <source>Verify Signature</source>
         <translation>驗證簽章</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2620"/>
+        <location filename="../EMailPageView.cpp" line="2604"/>
         <source>Signature Details...</source>
         <translation>簽章詳細資料...</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2624"/>
+        <location filename="../EMailPageView.cpp" line="2608"/>
         <source>Sign Again With Another Key...</source>
         <translation>使用另一個金鑰重新簽署...</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2625"/>
-        <location filename="../EMailPageView.cpp" line="2650"/>
+        <location filename="../EMailPageView.cpp" line="2609"/>
+        <location filename="../EMailPageView.cpp" line="2634"/>
         <source>Remove Signature...</source>
         <translation>移除簽章...</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2634"/>
-        <location filename="../EMailPageView.cpp" line="2643"/>
+        <location filename="../EMailPageView.cpp" line="2618"/>
+        <location filename="../EMailPageView.cpp" line="2627"/>
         <source>Decrypt and Verify</source>
         <translation>解密並驗證</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2636"/>
+        <location filename="../EMailPageView.cpp" line="2620"/>
         <source>Encryption Details...</source>
         <translation>加密詳細資料...</translation>
     </message>
     <message>
         <location filename="../EMailPageView.cpp" line="787"/>
-        <location filename="../EMailPageView.cpp" line="2646"/>
+        <location filename="../EMailPageView.cpp" line="2630"/>
         <source>Details...</source>
         <translation>詳細資料...</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2660"/>
+        <location filename="../EMailPageView.cpp" line="2644"/>
         <source>Decrypt this message first.</source>
         <translation>請先解密此訊息。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2669"/>
+        <location filename="../EMailPageView.cpp" line="2653"/>
         <source>What Is Wrong With This Message?</source>
         <translation>此訊息有什麼問題？</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2673"/>
+        <location filename="../EMailPageView.cpp" line="2657"/>
         <source>Try to Verify Anyway</source>
         <translation>仍嘗試驗證</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2674"/>
+        <location filename="../EMailPageView.cpp" line="2658"/>
         <source>Try to Decrypt Anyway</source>
         <translation>仍嘗試解密</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2689"/>
+        <location filename="../EMailPageView.cpp" line="2673"/>
         <source>Signature Not Reachable</source>
         <translation>無法取得簽章</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2690"/>
+        <location filename="../EMailPageView.cpp" line="2674"/>
         <source>The signature is inside the encrypted part of this message. Decrypt it first.</source>
         <translation>簽章位於此訊息的加密部分。請先解密。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2694"/>
+        <location filename="../EMailPageView.cpp" line="2678"/>
         <source>Nothing to Remove</source>
         <translation>沒有可移除的簽章</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2695"/>
+        <location filename="../EMailPageView.cpp" line="2679"/>
         <source>This message carries no signature.</source>
         <translation>此訊息沒有簽章。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2699"/>
+        <location filename="../EMailPageView.cpp" line="2683"/>
         <source>Cannot Remove the Signature</source>
         <translation>無法移除簽章</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2700"/>
+        <location filename="../EMailPageView.cpp" line="2684"/>
         <source>This message does not follow RFC 3156 closely enough to take its signature off safely. Edit the raw source instead.</source>
         <translation>此訊息未充分遵循 RFC 3156，無法安全地移除簽章。請改為編輯原始來源。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2708"/>
+        <location filename="../EMailPageView.cpp" line="2692"/>
         <source>Remove Signature</source>
         <translation>移除簽章</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2709"/>
+        <location filename="../EMailPageView.cpp" line="2693"/>
         <source>Remove the signature from this message?
 
 The signature is discarded and the message becomes an ordinary, unsigned one. The message itself is kept exactly as it is. This cannot be undone.</source>
@@ -1621,12 +1621,12 @@ The signature is discarded and the message becomes an ordinary, unsigned one. Th
 簽章將被丟棄，訊息將變成一般未簽署的訊息。訊息本身會保持原樣。此操作無法復原。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2826"/>
+        <location filename="../EMailPageView.cpp" line="2810"/>
         <source>signed</source>
         <translation>已簽署</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2852"/>
+        <location filename="../EMailPageView.cpp" line="2836"/>
         <source>unsigned</source>
         <translation>未簽署</translation>
     </message>
@@ -1635,42 +1635,42 @@ The signature is discarded and the message becomes an ordinary, unsigned one. Th
         <translation type="vanished">無法傳送</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3093"/>
+        <location filename="../EMailPageView.cpp" line="3077"/>
         <source>This message needs a sender and at least one recipient before it can be sent.</source>
         <translation>此訊息需要有寄件者和至少一位收件者才能傳送。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="998"/>
+        <location filename="../EMailPageView.cpp" line="997"/>
         <source>Type</source>
         <translation>類型</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="697"/>
+        <location filename="../EMailPageView.cpp" line="699"/>
         <source>Message</source>
         <translation>訊息</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="454"/>
+        <location filename="../EMailPageView.cpp" line="456"/>
         <source>Structure</source>
         <translation>結構</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="453"/>
+        <location filename="../EMailPageView.cpp" line="455"/>
         <source>Security</source>
         <translation>安全性</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="434"/>
+        <location filename="../EMailPageView.cpp" line="436"/>
         <source>Message Details</source>
         <translation>訊息詳細資料</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="455"/>
+        <location filename="../EMailPageView.cpp" line="457"/>
         <source>Headers</source>
         <translation>標頭</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="588"/>
+        <location filename="../EMailPageView.cpp" line="590"/>
         <source>%1.
 
 Blind recipients are never written into the message: a Bcc header would tell every recipient who was blind-copied. They are used to choose encryption recipients and are not saved with the file.</source>
@@ -1679,53 +1679,53 @@ Blind recipients are never written into the message: a Bcc header would tell eve
 密件收件者永遠不會被寫入訊息中：Bcc 標頭會讓所有收件者得知誰被密件副本。密件收件者只用來選擇加密收件者，且不會隨檔案儲存。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="625"/>
+        <location filename="../EMailPageView.cpp" line="627"/>
         <source>Show carbon copy and blind carbon copy (%1)</source>
         <translation>顯示副本與密件副本 (%1)</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="688"/>
-        <location filename="../EMailPageView.cpp" line="740"/>
+        <location filename="../EMailPageView.cpp" line="690"/>
+        <location filename="../EMailPageView.cpp" line="742"/>
         <source>%1 (%2)</source>
         <translation>%1 (%2)</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="697"/>
+        <location filename="../EMailPageView.cpp" line="699"/>
         <source>Show the message</source>
         <translation>顯示訊息</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="699"/>
+        <location filename="../EMailPageView.cpp" line="701"/>
         <source>Show the raw document</source>
         <translation>顯示原始文件</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="758"/>
+        <location filename="../EMailPageView.cpp" line="760"/>
         <source>Reply</source>
         <translation>回覆</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="759"/>
+        <location filename="../EMailPageView.cpp" line="760"/>
         <source>Write a reply to the sender.</source>
         <translation>撰寫回覆給寄件者。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="762"/>
+        <location filename="../EMailPageView.cpp" line="763"/>
         <source>Reply All</source>
         <translation>全部回覆</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="763"/>
+        <location filename="../EMailPageView.cpp" line="764"/>
         <source>Write a reply to the sender and everyone else who was addressed. Blind recipients are not included.</source>
         <translation>撰寫回覆給寄件者和所有其他收件者。不包含密件副本收件者。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="767"/>
+        <location filename="../EMailPageView.cpp" line="768"/>
         <source>Forward</source>
         <translation>轉寄</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="768"/>
+        <location filename="../EMailPageView.cpp" line="769"/>
         <source>Pass this message on, with its attachments.</source>
         <translation>轉寄此訊息及其附件。</translation>
     </message>
@@ -1746,17 +1746,17 @@ Blind recipients are never written into the message: a Bcc header would tell eve
         <translation>顯示此訊息的已知資訊：簽章、結構和標頭。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="998"/>
+        <location filename="../EMailPageView.cpp" line="997"/>
         <source>Size</source>
         <translation>大小</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="998"/>
+        <location filename="../EMailPageView.cpp" line="997"/>
         <source>Signed</source>
         <translation>已簽署</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="998"/>
+        <location filename="../EMailPageView.cpp" line="997"/>
         <source>Name</source>
         <translation>名稱</translation>
     </message>
@@ -1766,64 +1766,64 @@ Blind recipients are never written into the message: a Bcc header would tell eve
         <translation>附加檔案...</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1033"/>
-        <location filename="../EMailPageView.cpp" line="3363"/>
+        <location filename="../EMailPageView.cpp" line="1029"/>
+        <location filename="../EMailPageView.cpp" line="3347"/>
         <source>Remove</source>
         <translation>移除</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1017"/>
-        <location filename="../EMailPageView.cpp" line="3350"/>
+        <location filename="../EMailPageView.cpp" line="1015"/>
+        <location filename="../EMailPageView.cpp" line="3334"/>
         <source>Save...</source>
         <translation>儲存...</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1023"/>
+        <location filename="../EMailPageView.cpp" line="1020"/>
         <source>Save All...</source>
         <translation>全部儲存...</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1318"/>
+        <location filename="../EMailPageView.cpp" line="1302"/>
         <source>This message is open for inspection only. It cannot be edited or rewritten; Reply and Forward still work, and produce new messages.</source>
         <translation>此訊息僅供檢視。無法編輯或重寫；回覆和轉寄仍可使用，並會產生新訊息。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1338"/>
+        <location filename="../EMailPageView.cpp" line="1322"/>
         <source>This message is signed. Remove the signature before editing it. An edit under a signature reads as a forgery.</source>
         <translation>此訊息已簽署。編輯前請先移除簽章。在簽章下進行編輯會被視為偽造。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1355"/>
+        <location filename="../EMailPageView.cpp" line="1339"/>
         <source>This message was written in HTML. It is shown as its source rather than rendered: nothing here loads images or follows links.</source>
         <translation>此訊息以 HTML 撰寫。顯示為原始碼而非轉譯結果：此處不會載入圖片或連結。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1632"/>
+        <location filename="../EMailPageView.cpp" line="1616"/>
         <source>Read-only. These bytes are protected. Remove the signature, or decrypt the message, to edit them.</source>
         <translation>唯讀。這些位元組受到保護。若要編輯，請移除簽章或解密訊息。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1736"/>
+        <location filename="../EMailPageView.cpp" line="1720"/>
         <source>This message could not be assembled for inspection, so there is nothing to show here. The message itself is unchanged.</source>
         <translation>此訊息無法組裝以供檢視，因此此處沒有可顯示的內容。訊息本身未變更。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1829"/>
+        <location filename="../EMailPageView.cpp" line="1813"/>
         <source>Cannot Reply</source>
         <translation>無法回覆</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1831"/>
+        <location filename="../EMailPageView.cpp" line="1815"/>
         <source>Cannot Reply to All</source>
         <translation>無法回覆所有人</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1835"/>
+        <location filename="../EMailPageView.cpp" line="1819"/>
         <source>Cannot Forward</source>
         <translation>無法轉寄</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1841"/>
+        <location filename="../EMailPageView.cpp" line="1825"/>
         <source>
 
 This message itself has not been changed.</source>
@@ -1834,12 +1834,12 @@ This message itself has not been changed.</source>
         <translation type="vanished">無法從此處開啟新訊息，因為此檢視不在包含分頁的視窗內。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1864"/>
+        <location filename="../EMailPageView.cpp" line="1848"/>
         <source>The new message could not be assembled. This usually means a part of the original could not be re-encoded, most often an attachment.</source>
         <translation>無法組合新訊息。這通常表示原始訊息中有部分無法重新編碼，最常見的是附件。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1891"/>
+        <location filename="../EMailPageView.cpp" line="1875"/>
         <source>A tab for the new message could not be opened.</source>
         <translation>無法開啟新訊息的分頁。</translation>
     </message>
@@ -1852,22 +1852,22 @@ This message itself has not been changed.</source>
         <translation type="vanished">收件者未具名，因此是否能開啟此訊息，必須嘗試後才能得知。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2126"/>
+        <location filename="../EMailPageView.cpp" line="2110"/>
         <source>You do not hold a private key for any of these addresses. Unless the message was also encrypted to a key that is not named here, it cannot be opened on this computer.</source>
         <translation>您未持有這些電子郵件地址中任何一個對應的私鑰。除非此訊息同時也加密到此處未列出的金鑰，否則無法在此電腦上開啟。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2135"/>
+        <location filename="../EMailPageView.cpp" line="2119"/>
         <source>You hold the private key for %1.</source>
         <translation>您持有 %1 的私鑰。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2136"/>
+        <location filename="../EMailPageView.cpp" line="2120"/>
         <source>You hold private keys for %1.</source>
         <translation>您持有 %1 的多把私鑰。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2201"/>
+        <location filename="../EMailPageView.cpp" line="2185"/>
         <source>This message is signed, so it cannot be changed: an edit under a signature reads as a forgery.
 
 Remove the signature and make it an ordinary message?</source>
@@ -1876,62 +1876,62 @@ Remove the signature and make it an ordinary message?</source>
 是否移除簽章並使其成為一般訊息？</translation>
     </message>
     <message>
-        <location filename="../EMailViewLayout.cpp" line="127"/>
+        <location filename="../EMailViewLayout.cpp" line="129"/>
         <source>Encrypted, signature not checked</source>
         <translation>已加密，未檢查簽章</translation>
     </message>
     <message>
-        <location filename="../EMailViewLayout.cpp" line="129"/>
+        <location filename="../EMailViewLayout.cpp" line="131"/>
         <source>Signature not checked</source>
         <translation>簽章未檢查</translation>
     </message>
     <message>
-        <location filename="../EMailViewLayout.cpp" line="133"/>
+        <location filename="../EMailViewLayout.cpp" line="135"/>
         <source>Encrypted, signature verified</source>
         <translation>已加密，簽章已驗證</translation>
     </message>
     <message>
-        <location filename="../EMailViewLayout.cpp" line="135"/>
+        <location filename="../EMailViewLayout.cpp" line="137"/>
         <source>Signature verified</source>
         <translation>簽章已驗證</translation>
     </message>
     <message>
-        <location filename="../EMailViewLayout.cpp" line="139"/>
+        <location filename="../EMailViewLayout.cpp" line="141"/>
         <source>Signed by a different address</source>
         <translation>由不同地址簽署</translation>
     </message>
     <message>
-        <location filename="../EMailViewLayout.cpp" line="143"/>
+        <location filename="../EMailViewLayout.cpp" line="145"/>
         <source>Signature or key expired</source>
         <translation>簽章或金鑰已過期</translation>
     </message>
     <message>
-        <location filename="../EMailViewLayout.cpp" line="147"/>
+        <location filename="../EMailViewLayout.cpp" line="149"/>
         <source>Signed by an unknown key</source>
         <translation>由未知金鑰簽署</translation>
     </message>
     <message>
-        <location filename="../EMailViewLayout.cpp" line="151"/>
+        <location filename="../EMailViewLayout.cpp" line="153"/>
         <source>Bad signature</source>
         <translation>簽章無效</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2829"/>
+        <location filename="../EMailPageView.cpp" line="2813"/>
         <source>signed, not checked</source>
         <translation>已簽署，未檢查</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2834"/>
+        <location filename="../EMailPageView.cpp" line="2818"/>
         <source>signed, could not be checked</source>
         <translation>已簽署，無法檢查</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2840"/>
+        <location filename="../EMailPageView.cpp" line="2824"/>
         <source>signature not good</source>
         <translation>簽章無效</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2868"/>
+        <location filename="../EMailPageView.cpp" line="2852"/>
         <source>Some parts are outside the signed section of this message. They are not covered by the signature and could have been added by anyone.</source>
         <translation>此訊息的某些部分位於簽章區段之外。這些部分不受簽章涵蓋，可能由任何人新增。</translation>
     </message>
@@ -1944,43 +1944,43 @@ Remove the signature and make it an ordinary message?</source>
         <translation type="vanished">%1 個附件</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3041"/>
+        <location filename="../EMailPageView.cpp" line="3025"/>
         <source>E-Mail Message (*.eml);;All Files (*)</source>
         <translation>電子郵件訊息 (*.eml);;所有檔案 (*)</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3092"/>
+        <location filename="../EMailPageView.cpp" line="3076"/>
         <source>Cannot Send</source>
         <translation>無法傳送</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3213"/>
-        <location filename="../EMailPageView.cpp" line="3280"/>
+        <location filename="../EMailPageView.cpp" line="3197"/>
+        <location filename="../EMailPageView.cpp" line="3264"/>
         <source>Attach Files</source>
         <translation>附加檔案</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3243"/>
+        <location filename="../EMailPageView.cpp" line="3227"/>
         <source>%1 is a folder</source>
         <translation>%1 是資料夾</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3244"/>
+        <location filename="../EMailPageView.cpp" line="3228"/>
         <source>%1 is not an ordinary file</source>
         <translation>%1 不是一般檔案</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3249"/>
+        <location filename="../EMailPageView.cpp" line="3233"/>
         <source>%1 is too large (%2); the most that can be attached is %3</source>
         <translation>%1 太大 (%2)；最多可附加 %3</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3255"/>
+        <location filename="../EMailPageView.cpp" line="3239"/>
         <source>%1: %2</source>
         <translation>%1：%2</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3282"/>
+        <location filename="../EMailPageView.cpp" line="3266"/>
         <source>Nothing was attached:
 
 %1</source>
@@ -1989,7 +1989,7 @@ Remove the signature and make it an ordinary message?</source>
 %1</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3283"/>
+        <location filename="../EMailPageView.cpp" line="3267"/>
         <source>These were not attached:
 
 %1</source>
@@ -1998,8 +1998,8 @@ Remove the signature and make it an ordinary message?</source>
 %1</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1013"/>
-        <location filename="../EMailPageView.cpp" line="3349"/>
+        <location filename="../EMailPageView.cpp" line="1012"/>
+        <location filename="../EMailPageView.cpp" line="3333"/>
         <source>Open</source>
         <translation>開啟</translation>
     </message>
@@ -2024,55 +2024,55 @@ Remove the signature and make it an ordinary message?</source>
         <translation>此郵件僅供檢查。可在「更多」中關閉。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2912"/>
+        <location filename="../EMailPageView.cpp" line="2896"/>
         <source>%1 · %2 · %3</source>
         <translation>%1 · %2 · %3</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2918"/>
+        <location filename="../EMailPageView.cpp" line="2902"/>
         <source>%1 files · %2</source>
         <translation>%1 個檔案 · %2</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2963"/>
+        <location filename="../EMailPageView.cpp" line="2947"/>
         <source>Collapse</source>
         <translation>收合</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2963"/>
+        <location filename="../EMailPageView.cpp" line="2947"/>
         <source>Expand</source>
         <translation>展開</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2964"/>
+        <location filename="../EMailPageView.cpp" line="2948"/>
         <source>Show only the summary</source>
         <translation>僅顯示摘要</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2965"/>
+        <location filename="../EMailPageView.cpp" line="2949"/>
         <source>Show every attachment</source>
         <translation>顯示所有附件</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3358"/>
+        <location filename="../EMailPageView.cpp" line="3342"/>
         <source>Import Key</source>
         <translation>匯入金鑰</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3362"/>
+        <location filename="../EMailPageView.cpp" line="3346"/>
         <source>Copy Name</source>
         <translation>複製名稱</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3435"/>
-        <location filename="../EMailPageView.cpp" line="3450"/>
-        <location filename="../EMailPageView.cpp" line="3465"/>
-        <location filename="../EMailPageView.cpp" line="3473"/>
+        <location filename="../EMailPageView.cpp" line="3419"/>
+        <location filename="../EMailPageView.cpp" line="3434"/>
+        <location filename="../EMailPageView.cpp" line="3449"/>
+        <location filename="../EMailPageView.cpp" line="3457"/>
         <source>Open Attachment</source>
         <translation>開啟附件</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3436"/>
+        <location filename="../EMailPageView.cpp" line="3420"/>
         <source>%1 is not a kind of file this program will open for you, because opening it would mean running it or handing it to something that might.
 
 Save it instead, and open it yourself if you are sure of where it came from.</source>
@@ -2081,27 +2081,27 @@ Save it instead, and open it yourself if you are sure of where it came from.</so
 請改為儲存它，並在確定其來源後自行開啟。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3451"/>
+        <location filename="../EMailPageView.cpp" line="3435"/>
         <source>A temporary folder to open %1 from could not be created.</source>
         <translation>無法建立用來開啟 %1 的暫存資料夾。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3466"/>
+        <location filename="../EMailPageView.cpp" line="3450"/>
         <source>%1 could not be written out to be opened.</source>
         <translation>無法將 %1 寫出以開啟。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3474"/>
+        <location filename="../EMailPageView.cpp" line="3458"/>
         <source>Nothing on this system is registered to open %1.</source>
         <translation>此系統上沒有註冊可開啟 %1 的程式。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3504"/>
+        <location filename="../EMailPageView.cpp" line="3488"/>
         <source>Remove Attachment</source>
         <translation>移除附件</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3505"/>
+        <location filename="../EMailPageView.cpp" line="3489"/>
         <source>Take out of this message:
 
 %1
@@ -2114,12 +2114,12 @@ This message came from somewhere else, so unless these have been saved already t
 此訊息來自其他地方，因此除非這些附件已儲存，否則這將是唯一的副本。移除後無法復原。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3630"/>
+        <location filename="../EMailPageView.cpp" line="3614"/>
         <source>%1 -&gt; %2</source>
         <translation>%1 -&gt; %2</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3636"/>
+        <location filename="../EMailPageView.cpp" line="3620"/>
         <source>Saved. Some names were already taken in that folder, so these were written under a different name:
 
 %1</source>
@@ -2128,35 +2128,35 @@ This message came from somewhere else, so unless these have been saved already t
 %1</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3643"/>
+        <location filename="../EMailPageView.cpp" line="3627"/>
         <source>Saved 1 file.</source>
         <translation>已儲存 1 個檔案。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3644"/>
+        <location filename="../EMailPageView.cpp" line="3628"/>
         <source>Saved %1 files.</source>
         <translation>已儲存 %1 個檔案。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3584"/>
-        <location filename="../EMailPageView.cpp" line="3593"/>
+        <location filename="../EMailPageView.cpp" line="3568"/>
+        <location filename="../EMailPageView.cpp" line="3577"/>
         <source>Save Attachment</source>
         <translation>儲存附件</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3594"/>
+        <location filename="../EMailPageView.cpp" line="3578"/>
         <source>Cannot write %1.</source>
         <translation>無法寫入 %1。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3600"/>
-        <location filename="../EMailPageView.cpp" line="3617"/>
-        <location filename="../EMailPageView.cpp" line="3635"/>
+        <location filename="../EMailPageView.cpp" line="3584"/>
+        <location filename="../EMailPageView.cpp" line="3601"/>
+        <location filename="../EMailPageView.cpp" line="3619"/>
         <source>Save Attachments</source>
         <translation>儲存附件</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3618"/>
+        <location filename="../EMailPageView.cpp" line="3602"/>
         <source>Could not write: %1</source>
         <translation>無法寫入：%1</translation>
     </message>
@@ -3198,57 +3198,57 @@ This message came from somewhere else, so unless these have been saved already t
 <context>
     <name>ModuleEMail</name>
     <message>
-        <location filename="../EMailModule.cpp" line="440"/>
+        <location filename="../EMailModule.cpp" line="442"/>
         <source>E-Mail</source>
         <translation>電子郵件</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="441"/>
+        <location filename="../EMailModule.cpp" line="443"/>
         <source>E-Mail Message (*.eml);;All Files (*)</source>
         <translation>電子郵件訊息 (*.eml);;所有檔案 (*)</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="446"/>
+        <location filename="../EMailModule.cpp" line="448"/>
         <source>Mail Accounts</source>
         <translation>郵件帳戶</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="447"/>
+        <location filename="../EMailModule.cpp" line="449"/>
         <source>mail,email,imap,smtp,account,send</source>
         <translation>mail,email,imap,smtp,account,send,郵件,電子郵件,帳戶,傳送</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="450"/>
+        <location filename="../EMailModule.cpp" line="452"/>
         <source>IMAP Controller</source>
         <translation>IMAP 控制器</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1711"/>
+        <location filename="../EMailModule.cpp" line="1713"/>
         <source>Mail Editor</source>
         <translation>電子郵件編輯器</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1712"/>
+        <location filename="../EMailModule.cpp" line="1714"/>
         <source>Open a new text editor for email.</source>
         <translation>開啟新的電子郵件文字編輯器。</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1731"/>
+        <location filename="../EMailModule.cpp" line="1733"/>
         <source>Open IMAP Controller</source>
         <translation>開啟 IMAP 控制器</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1732"/>
+        <location filename="../EMailModule.cpp" line="1734"/>
         <source>Open IMAP Controller Dialog</source>
         <translation>開啟 IMAP 控制器對話方塊</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1748"/>
+        <location filename="../EMailModule.cpp" line="1750"/>
         <source>No mail account</source>
         <translation>沒有郵件帳戶</translation>
     </message>
     <message>
-        <location filename="../EMailModule.cpp" line="1749"/>
+        <location filename="../EMailModule.cpp" line="1751"/>
         <source>Configure a mail account with IMAP enabled in Settings first.</source>
         <translation>請先在設定中設定已啟用 IMAP 的郵件帳戶。</translation>
     </message>
@@ -3256,7 +3256,7 @@ This message came from somewhere else, so unless these have been saved already t
 <context>
     <name>QObject</name>
     <message>
-        <location filename="../EMailHelper.cpp" line="1936"/>
+        <location filename="../EMailHelper.cpp" line="1938"/>
         <source>Signed part no longer in canonical form</source>
         <translation>簽署部分已非標準形式</translation>
     </message>
@@ -3265,17 +3265,17 @@ This message came from somewhere else, so unless these have been saved already t
         <translation type="vanished">簽署部分包含非 CRLF 的行尾，這不是計算簽章所依據的形式。此訊息在簽署後遭到重寫，通常是程式在儲存或複製時變更了行尾，而非攻擊。簽章無法針對這些位元組驗證，匯入寄件者的金鑰也不會改變這一點。檢查時需要原始未修改的訊息。</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="1958"/>
+        <location filename="../EMailHelper.cpp" line="1960"/>
         <source>Duplicate %1 header</source>
         <translation>重複的 %1 標頭</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="1959"/>
+        <location filename="../EMailHelper.cpp" line="1961"/>
         <source>This message carries %1 copies of a header that may appear only once. Different mail programs pick different copies, so what you see here may not be what another reader sees.</source>
         <translation>此訊息包含 %1 份只能出現一次的標頭。不同的郵件程式會選取不同的副本，因此您在這裡看到的可能與其他讀者看到的不同。</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="1972"/>
+        <location filename="../EMailHelper.cpp" line="1974"/>
         <source>Address may be disguised</source>
         <translation>地址可能經過偽裝</translation>
     </message>
@@ -3284,7 +3284,7 @@ This message came from somewhere else, so unless these have been saved already t
         <translation type="vanished">「%1」中的網域使用了可被繪製成看似另一個熟悉地址的字元。</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="1987"/>
+        <location filename="../EMailHelper.cpp" line="1989"/>
         <source>Replies go somewhere else</source>
         <translation>回覆會寄到其他地方</translation>
     </message>
@@ -3293,147 +3293,147 @@ This message came from somewhere else, so unless these have been saved already t
         <translation type="vanished">此訊息來自「%1」，但回覆會寄到「%2」，這是不同的網域。</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="1843"/>
+        <location filename="../EMailHelper.cpp" line="1845"/>
         <source>On %1, %2 wrote:</source>
         <translation>在 %1，%2 寫道：</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="1845"/>
+        <location filename="../EMailHelper.cpp" line="1847"/>
         <source>%1 wrote:</source>
         <translation>%1 寫道：</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="1937"/>
+        <location filename="../EMailHelper.cpp" line="1939"/>
         <source>The signed part contains line endings that are not CRLF, which is not the form the signature was computed over. Something rewrote this message after it was signed, usually a program that changed line endings while saving or copying it, not an attack. The signature cannot verify against these bytes, and importing the sender&apos;s key will not change that. Checking it needs the original, unmodified message.</source>
         <translation>簽署的部分包含非 CRLF 的行結尾，這不是簽章計算時所用的形式。此訊息在簽署後被某些程式重寫，通常是程式在儲存或複製時變更了行結尾，並非攻擊。簽章無法針對這些位元組驗證，匯入寄件者的金鑰也不會改變這一點。檢查它需要原始、未修改的訊息。</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="1973"/>
+        <location filename="../EMailHelper.cpp" line="1975"/>
         <source>The domain in &quot;%1&quot; uses characters that can be made to look like a different, familiar address.</source>
         <translation>「%1」中的網域使用了可被製成看似另一個熟悉地址的字元。</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="1988"/>
+        <location filename="../EMailHelper.cpp" line="1990"/>
         <source>This message is from &quot;%1&quot;, but replies would be sent to &quot;%2&quot;, which is a different domain.</source>
         <translation>此訊息來自「%1」，但回覆會寄到「%2」，這是不同的網域。</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2002"/>
+        <location filename="../EMailHelper.cpp" line="2004"/>
         <source>Malformed signed section</source>
         <translation>格式錯誤的簽署區段</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2003"/>
+        <location filename="../EMailHelper.cpp" line="2005"/>
         <source>A signed section must contain exactly two parts; this one contains %1. It may not verify, and what it covers is ambiguous.</source>
         <translation>簽署區段必須恰好包含兩個部分；此區段包含 %1 個。它可能無法驗證，且其涵蓋的內容不明確。</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2011"/>
+        <location filename="../EMailHelper.cpp" line="2013"/>
         <source>Malformed encrypted section</source>
         <translation>格式錯誤的加密區段</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2012"/>
+        <location filename="../EMailHelper.cpp" line="2014"/>
         <source>An encrypted section must contain exactly two parts; this one contains %1.</source>
         <translation>加密區段必須恰好包含兩個部分；此區段包含 %1 個。</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2028"/>
+        <location filename="../EMailHelper.cpp" line="2030"/>
         <source>Not everything is signed</source>
         <translation>並非所有內容均已簽署</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2029"/>
+        <location filename="../EMailHelper.cpp" line="2031"/>
         <source>%1 part(s) of this message sit outside the signature. They arrived unauthenticated and could have been added or changed by anyone in the path.</source>
         <translation>此訊息的 %1 個部分位於簽章之外。它們未經驗證送達，路徑上的任何人都可能新增或變更。</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2043"/>
+        <location filename="../EMailHelper.cpp" line="2045"/>
         <source>Signature covers the encrypted data only</source>
         <translation>簽章僅涵蓋加密資料</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2044"/>
+        <location filename="../EMailHelper.cpp" line="2046"/>
         <source>This signature was made over the encrypted block, not over the message inside it. It shows who sent the ciphertext along; it does not say who wrote what you are reading, and anyone could have signed a copy of this same block.</source>
         <translation>此簽章是對加密區塊簽署，而非對其中的訊息簽署。它顯示誰傳送了密文；它並未說明你所閱讀內容的撰寫者是誰，且任何人都可能簽署同一個區塊的副本。</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2075"/>
+        <location filename="../EMailHelper.cpp" line="2077"/>
         <source>Public key attached</source>
         <translation>已附加公鑰</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2076"/>
+        <location filename="../EMailHelper.cpp" line="2078"/>
         <source>This message carries %1 OpenPGP public key(s). A key arriving in a message proves nothing about who sent it: anyone can attach any key, including one they made for the name on the From line.</source>
         <translation>此訊息帶有 %1 個 OpenPGP 公鑰。訊息中附帶的金鑰無法證明寄件者身分：任何人都能附加任何金鑰，包括他們為寄件者欄位上的名稱所製作的金鑰。</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2085"/>
+        <location filename="../EMailHelper.cpp" line="2087"/>
         <source>Detached signature attached</source>
         <translation>已附加分離式簽章</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2086"/>
+        <location filename="../EMailHelper.cpp" line="2088"/>
         <source>This message carries %1 signature file(s) that are not part of its own signed structure. Opening the message does not check them; they sign something else.</source>
         <translation>此訊息帶有 %1 個簽章檔，這些檔案不屬於其自身簽章結構的一部分。開啟訊息不會檢查它們；它們簽署的是其他內容。</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2096"/>
+        <location filename="../EMailHelper.cpp" line="2098"/>
         <source>Blind recipients are visible</source>
         <translation>密件副本收件者可見</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2097"/>
+        <location filename="../EMailHelper.cpp" line="2099"/>
         <source>This message carries a Bcc header naming %1 recipient(s). Anyone who received it can see who was blind-copied.</source>
         <translation>此訊息帶有包含 %1 位收件者的 Bcc 標頭。任何收到此訊息的人都能看到誰被列入密件副本。</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2113"/>
+        <location filename="../EMailHelper.cpp" line="2115"/>
         <source>Nothing is signed</source>
         <translation>未簽署任何內容</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2114"/>
+        <location filename="../EMailHelper.cpp" line="2116"/>
         <source>This message carries no signature, so the recipient cannot tell that it came from you or that it arrived unchanged.</source>
         <translation>此訊息沒有攜帶任何簽章，因此收件者無法確認它是否來自您，也無法確認它送達時是否未經更改。</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2130"/>
+        <location filename="../EMailHelper.cpp" line="2132"/>
         <source>Some parts are not signed</source>
         <translation>有些部分未簽署</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2131"/>
+        <location filename="../EMailHelper.cpp" line="2133"/>
         <source>%1 part(s) of this message would go out without the signature covering them.</source>
         <translation>此訊息的 %1 個部分將在簽章未涵蓋的情況下寄出。</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2140"/>
+        <location filename="../EMailHelper.cpp" line="2142"/>
         <source>Blind recipients</source>
         <translation>密件收件者</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2141"/>
+        <location filename="../EMailHelper.cpp" line="2143"/>
         <source>%1 blind recipient(s) will be included in encryption but will not appear anywhere in the message.</source>
         <translation>加密將包含 %1 位密件收件者，但不會出現在訊息中的任何位置。</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2148"/>
+        <location filename="../EMailHelper.cpp" line="2150"/>
         <source>Bcc header present</source>
         <translation>含有 Bcc 標頭</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2149"/>
+        <location filename="../EMailHelper.cpp" line="2151"/>
         <source>This message carries a Bcc header. Sending it would tell every recipient who was blind-copied.</source>
         <translation>此訊息帶有 Bcc 標頭。寄出後會讓所有收件者知道密件副本收件者。</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2157"/>
+        <location filename="../EMailHelper.cpp" line="2159"/>
         <source>Recipient may be disguised</source>
         <translation>收件者可能遭到偽裝</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2158"/>
+        <location filename="../EMailHelper.cpp" line="2160"/>
         <source>The domain in &quot;%1&quot; uses characters that can be made to look like a different address. Check it before sending.</source>
         <translation>「%1」中的網域使用了可被製成看似另一個地址的字元。寄出前請檢查。</translation>
     </message>
@@ -3442,12 +3442,12 @@ This message came from somewhere else, so unless these have been saved already t
         <translation type="vanished">「%1」中的網域使用了可被繪製成看似不同地址的字元。寄出前請檢查。</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2165"/>
+        <location filename="../EMailHelper.cpp" line="2167"/>
         <source>No recipients</source>
         <translation>沒有收件者</translation>
     </message>
     <message>
-        <location filename="../EMailHelper.cpp" line="2166"/>
+        <location filename="../EMailHelper.cpp" line="2168"/>
         <source>This message is not addressed to anyone.</source>
         <translation>此訊息沒有指定任何收件者。</translation>
     </message>

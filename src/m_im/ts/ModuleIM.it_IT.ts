@@ -4,73 +4,73 @@
 <context>
     <name>ModuleIM</name>
     <message>
-        <location filename="../ImCodec.cpp" line="58"/>
+        <location filename="../ImCodec.cpp" line="60"/>
         <source>Encoding</source>
         <translation>Codifica</translation>
     </message>
     <message>
-        <location filename="../ImCodec.cpp" line="59"/>
+        <location filename="../ImCodec.cpp" line="61"/>
         <source>Container Format</source>
         <translation>Formato contenitore</translation>
     </message>
     <message>
-        <location filename="../ImCodec.cpp" line="61"/>
+        <location filename="../ImCodec.cpp" line="63"/>
         <source>Message Book</source>
         <translation>Rubrica messaggi</translation>
     </message>
     <message>
-        <location filename="../ImCodec.cpp" line="62"/>
+        <location filename="../ImCodec.cpp" line="64"/>
         <source>Shared phrase (Argon2id)</source>
         <translation>Frase condivisa (Argon2id)</translation>
     </message>
     <message>
-        <location filename="../ImCodec.cpp" line="63"/>
+        <location filename="../ImCodec.cpp" line="65"/>
         <source>Default, no shared phrase set</source>
         <translation>Predefinito, nessuna frase condivisa impostata</translation>
     </message>
     <message>
-        <location filename="../ImCodec.cpp" line="67"/>
+        <location filename="../ImCodec.cpp" line="69"/>
         <location filename="../ImSettingsPage.cpp" line="158"/>
         <source>Book Fingerprint</source>
         <translation>Impronta digitale del libro</translation>
     </message>
     <message>
-        <location filename="../ImCodec.cpp" line="69"/>
+        <location filename="../ImCodec.cpp" line="71"/>
         <source>Set a Phrase</source>
         <translation>Imposta una frase</translation>
     </message>
     <message>
-        <location filename="../ImCodec.cpp" line="69"/>
+        <location filename="../ImCodec.cpp" line="71"/>
         <source>Settings &gt; Instant Messaging</source>
         <translation>Impostazioni &gt; Messaggistica istantanea</translation>
     </message>
     <message>
-        <location filename="../ImCodec.cpp" line="72"/>
+        <location filename="../ImCodec.cpp" line="74"/>
         <source>OpenPGP Payload</source>
         <translation>Payload OpenPGP</translation>
     </message>
     <message>
-        <location filename="../ImCodec.cpp" line="72"/>
+        <location filename="../ImCodec.cpp" line="74"/>
         <source>%1 bytes</source>
         <translation>%1 byte</translation>
     </message>
     <message>
-        <location filename="../ImCodec.cpp" line="75"/>
+        <location filename="../ImCodec.cpp" line="77"/>
         <source>Token Length</source>
         <translation>Lunghezza token</translation>
     </message>
     <message>
-        <location filename="../ImCodec.cpp" line="75"/>
+        <location filename="../ImCodec.cpp" line="77"/>
         <source>%1 characters</source>
         <translation>%1 caratteri</translation>
     </message>
     <message>
-        <location filename="../ImCodec.cpp" line="82"/>
+        <location filename="../ImCodec.cpp" line="84"/>
         <source>Wire Overhead</source>
         <translation>Overhead di rete</translation>
     </message>
     <message>
-        <location filename="../ImCodec.cpp" line="87"/>
+        <location filename="../ImCodec.cpp" line="88"/>
         <location filename="../ImModule.cpp" line="253"/>
         <source>Instant Messaging</source>
         <translation>Messaggistica istantanea</translation>

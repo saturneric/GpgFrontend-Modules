@@ -4,48 +4,48 @@
 <context>
     <name>ModulePGPInspect</name>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="101"/>
+        <location filename="../PGPInspectDialog.cpp" line="103"/>
         <location filename="../PGPInspectModule.cpp" line="97"/>
         <source>OpenPGP Structure</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="117"/>
+        <location filename="../PGPInspectDialog.cpp" line="119"/>
         <source>Structure</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="117"/>
+        <location filename="../PGPInspectDialog.cpp" line="119"/>
         <source>Value</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="111"/>
+        <location filename="../PGPInspectDialog.cpp" line="113"/>
         <source>Search packets, fields and values</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="139"/>
+        <location filename="../PGPInspectDialog.cpp" line="141"/>
         <source>The current tab holds no OpenPGP data.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="153"/>
+        <location filename="../PGPInspectDialog.cpp" line="155"/>
         <source>Armor Type</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="154"/>
+        <location filename="../PGPInspectDialog.cpp" line="156"/>
         <source>CRC24</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="159"/>
+        <location filename="../PGPInspectDialog.cpp" line="161"/>
         <source>Signed Text</source>
         <translation type="unfinished"></translation>
     </message>
     <message numerus="yes">
-        <location filename="../PGPInspectDialog.cpp" line="185"/>
+        <location filename="../PGPInspectDialog.cpp" line="187"/>
         <source>%1, %2, %n packet(s)</source>
         <translation type="unfinished">
             <numerusform></numerusform>
@@ -53,43 +53,43 @@
         </translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="163"/>
-        <location filename="../PGPInspectDialog.cpp" line="209"/>
+        <location filename="../PGPInspectDialog.cpp" line="165"/>
+        <location filename="../PGPInspectDialog.cpp" line="210"/>
         <source>Problem</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../PGPInspectModel.cpp" line="131"/>
+        <location filename="../PGPInspectModel.cpp" line="133"/>
         <source>The inspector returned no data.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../PGPInspectModel.cpp" line="158"/>
+        <location filename="../PGPInspectModel.cpp" line="160"/>
         <source>#%1  %2 (tag %3)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../PGPInspectModel.cpp" line="160"/>
+        <location filename="../PGPInspectModel.cpp" line="162"/>
         <source>Unknown</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../PGPInspectModel.cpp" line="167"/>
+        <location filename="../PGPInspectModel.cpp" line="169"/>
         <source>  %1 B</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../PGPInspectModel.cpp" line="179"/>
+        <location filename="../PGPInspectModel.cpp" line="180"/>
         <source>Block %1: cleartext-signed message</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../PGPInspectModel.cpp" line="182"/>
+        <location filename="../PGPInspectModel.cpp" line="183"/>
         <source>Block %1: armored, %2</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../PGPInspectModel.cpp" line="186"/>
+        <location filename="../PGPInspectModel.cpp" line="187"/>
         <source>Block %1: binary packet stream</source>
         <translation type="unfinished"></translation>
     </message>
