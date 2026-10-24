@@ -36,6 +36,8 @@
 #include "GFModuleTr.h"
 #include "ImToken.h"
 
+using namespace Qt::StringLiterals;
+
 namespace ImCodec {
 
 namespace {
@@ -55,7 +57,7 @@ auto BookCard(const QString& phrase, qsizetype payload, qsizetype token_len)
     fields.append(QJsonArray{k, v});
   };
 
-  add(GTrC::tr("Encoding"), QStringLiteral("Base58 (Bitcoin/IPFS)"));
+  add(GTrC::tr("Encoding"), u"Base58 (Bitcoin/IPFS)"_s);
   add(GTrC::tr("Container Format"),
       QString("v%1").arg(ImToken::FormatVersion()));
   add(GTrC::tr("Message Book"),
@@ -83,19 +85,17 @@ auto BookCard(const QString& phrase, qsizetype payload, qsizetype token_len)
         QString("+%1%").arg((ratio * 100.0) - 100.0, 0, 'f', 0));
   }
 
-  return QJsonObject{
-      {QStringLiteral("title"), GTrC::tr("Instant Messaging")},
-      {QStringLiteral("status"),
-       configured ? QStringLiteral("ok") : QStringLiteral("warn")},
-      {QStringLiteral("fields"), fields}};
+  return QJsonObject{{u"title"_s, GTrC::tr("Instant Messaging")},
+                     {u"status"_s, configured ? u"ok"_s : u"warn"_s},
+                     {u"fields"_s, fields}};
 }
 
 auto CardsJson(const QJsonObject& card) -> QString {
   const QJsonObject payload{
-      {QStringLiteral("description"),
+      {u"description"_s,
        GTrC::tr(
            "An Instant Messaging section followed by the OpenPGP result.")},
-      {QStringLiteral("cards"), QJsonArray{card}}};
+      {u"cards"_s, QJsonArray{card}}};
   return QString::fromUtf8(
       QJsonDocument(payload).toJson(QJsonDocument::Compact));
 }

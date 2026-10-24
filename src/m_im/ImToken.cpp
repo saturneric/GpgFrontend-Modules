@@ -41,6 +41,8 @@
 #include <cstring>
 #include <string_view>
 
+using namespace Qt::StringLiterals;
+
 // The token format, moved out of the Host's core unchanged: the wire is a
 // contract between every copy of GpgFrontend, so not one byte of what Encode()
 // writes or Decode() accepts may differ from what the core used to do. The
@@ -588,7 +590,7 @@ auto BuildPermutation(const QByteArray& material, int m) -> QList<int> {
 // What it does buy us is local: ordinary text now stops at its first space or
 // punctuation mark instead of reaching the O(n^2) decoder and the 128 MiB KDF.
 auto Normalize(const QString& text, QString& compact) -> bool {
-  if (text.contains(QLatin1String("-----BEGIN PGP"))) return false;
+  if (text.contains("-----BEGIN PGP"_L1)) return false;
 
   compact.clear();
   compact.reserve(std::min<qsizetype>(text.size(), kMaxTokenChars));

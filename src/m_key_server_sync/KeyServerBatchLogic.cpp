@@ -33,6 +33,8 @@
 
 #include "GFModuleTr.h"
 
+using namespace Qt::StringLiterals;
+
 namespace KeyServerBatchLogic {
 
 namespace {
@@ -40,9 +42,9 @@ namespace {
 /// The failures, one per line, under the headline.
 auto WithFailures(QString headline, const QStringList& failures) -> QString {
   if (failures.isEmpty()) return headline;
-  headline += QStringLiteral("\n\n");
+  headline += u"\n\n"_s;
   headline += GTrC::tr("Failed:");
-  for (const auto& f : failures) headline += QStringLiteral("\n") + f;
+  for (const auto& f : failures) headline += u"\n"_s + f;
   return headline;
 }
 

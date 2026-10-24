@@ -36,6 +36,8 @@
 
 #include "GFModuleTr.h"
 
+using namespace Qt::StringLiterals;
+
 namespace {
 
 auto ParseFields(const QJsonValue& value) -> QList<PGPInspectField> {
@@ -166,8 +168,7 @@ auto PGPInspectPacketSummary(const PGPInspectPacket& packet, int index)
   summary += QString("  @0x%1").arg(packet.offset, 4, 16, QChar('0'));
   summary += GTrC::tr("  %1 B").arg(packet.header_length + packet.body_length);
 
-  if (packet.length_type != QLatin1String("fixed") &&
-      !packet.length_type.isEmpty()) {
+  if (packet.length_type != "fixed"_L1 && !packet.length_type.isEmpty()) {
     summary += QString("  [%1]").arg(packet.length_type);
   }
   return summary;
@@ -175,7 +176,7 @@ auto PGPInspectPacketSummary(const PGPInspectPacket& packet, int index)
 
 auto PGPInspectBlockSummary(const PGPInspectBlock& block, int index)
     -> QString {
-  if (block.kind == QLatin1String("cleartext")) {
+  if (block.kind == "cleartext"_L1) {
     return GTrC::tr("Block %1: cleartext-signed message").arg(index);
   }
   if (block.has_armor) {

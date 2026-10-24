@@ -33,22 +33,24 @@
 #include "ReleaseCheck.h"
 #include "VersionCheckingModule.h"
 
+using namespace Qt::StringLiterals;
+
 namespace {
 
 auto VerdictName(Verdict v) -> QString {
   switch (v) {
     case Verdict::kUpdateAvailable:
-      return QStringLiteral("update_available");
+      return u"update_available"_s;
     case Verdict::kWithdrawnOrUnreleased:
-      return QStringLiteral("withdrawn_or_unreleased");
+      return u"withdrawn_or_unreleased"_s;
     case Verdict::kUnofficialBuild:
-      return QStringLiteral("unofficial_build");
+      return u"unofficial_build"_s;
     case Verdict::kUpToDate:
-      return QStringLiteral("up_to_date");
+      return u"up_to_date"_s;
     case Verdict::kUnknown:
       break;
   }
-  return QStringLiteral("unknown");
+  return u"unknown"_s;
 }
 
 }  // namespace

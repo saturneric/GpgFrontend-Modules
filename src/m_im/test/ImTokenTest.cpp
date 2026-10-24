@@ -36,6 +36,8 @@
 
 #include "ImToken.h"
 
+using namespace Qt::StringLiterals;
+
 /**
  * @file ImTokenTest.cpp
  * @brief The token format, moved out of the core unchanged. These are the
@@ -157,7 +159,7 @@ TEST(ImTokenTest, NormalRoundTrip) {
   ASSERT_FALSE(token.isEmpty());
   // Single Base58 word (alphanumeric minus 0 O I l), no markdown/link chars.
   EXPECT_TRUE(QRegularExpression(QRegularExpression::anchoredPattern(
-                                     QStringLiteral("[1-9A-HJ-NP-Za-km-z]+")))
+                                     u"[1-9A-HJ-NP-Za-km-z]+"_s))
                   .match(token)
                   .hasMatch());
 
@@ -185,7 +187,7 @@ TEST(ImTokenTest, DecodeRejectsArmoredMessage) {
 TEST(ImTokenTest, DecodeToleratesWhitespace) {
   const QByteArray blob = PgpLikeBlob();
   auto token = Encode(blob);
-  token.insert(token.size() / 2, QStringLiteral("\n  "));
+  token.insert(token.size() / 2, u"\n  "_s);
 
   const auto r = Decode(token);
   EXPECT_TRUE(r.ok);
@@ -246,7 +248,7 @@ TEST(ImTokenTest, FormatVersionIsStable) {
 }
 
 TEST(ImTokenTest, ShortInputIsRejected) {
-  EXPECT_FALSE(Decode(QStringLiteral("hi")).ok);
+  EXPECT_FALSE(Decode(u"hi"_s).ok);
   EXPECT_FALSE(Decode(QString(37, 'z')).ok);
 }
 
@@ -264,7 +266,7 @@ TEST(ImTokenTest, NonBase58InputIsRejected) {
 TEST(ImTokenTest, PreFilterIsFastOnLargeInput) {
   ScopedKdfCost cost(ImToken::DefaultKdfCost());
 
-  const QString prose = QStringLiteral("the quick brown fox. ").repeated(50000);
+  const QString prose = u"the quick brown fox. "_s.repeated(50000);
   const QString base58_only = QString(qsizetype{1024} * 1024, 'z');
 
   QElapsedTimer timer;
@@ -297,9 +299,8 @@ TEST(ImTokenTest, MaxPayloadBytesIsPinned) {
 // across phrases, and short enough to compare by eye.
 TEST(ImTokenTest, BookFingerprintIdentifiesBook) {
   const auto fpr = ImToken::BookFingerprintOf(kPhrase);
-  EXPECT_TRUE(QRegularExpression(QStringLiteral("^[0-9A-F]{4}-[0-9A-F]{4}$"))
-                  .match(fpr)
-                  .hasMatch());
+  EXPECT_TRUE(
+      QRegularExpression(u"^[0-9A-F]{4}-[0-9A-F]{4}$"_s).match(fpr).hasMatch());
   EXPECT_EQ(ImToken::BookFingerprintOf(kPhrase), fpr);
 
   const auto other = ImToken::BookFingerprintOf("a completely different one");
@@ -309,13 +310,12 @@ TEST(ImTokenTest, BookFingerprintIdentifiesBook) {
   EXPECT_NE(def, other);
 
   // Whitespace around a phrase is not part of it.
-  EXPECT_EQ(ImToken::BookFingerprintOf(QStringLiteral("  ") + kPhrase + " "),
-            fpr);
+  EXPECT_EQ(ImToken::BookFingerprintOf(u"  "_s + kPhrase + " "), fpr);
 }
 
 // Every copy of GpgFrontend builds the same default book.
 TEST(ImTokenTest, DefaultBookIsPinned) {
-  EXPECT_EQ(ImToken::BookFingerprintOf({}), QStringLiteral("9138-57AC"));
+  EXPECT_EQ(ImToken::BookFingerprintOf({}), u"9138-57AC"_s);
 }
 
 TEST(ImTokenTest, GeneratePhraseIsLongAndUnique) {
@@ -325,7 +325,7 @@ TEST(ImTokenTest, GeneratePhraseIsLongAndUnique) {
   EXPECT_EQ(b.size(), 256);
   EXPECT_NE(a, b);
   EXPECT_TRUE(QRegularExpression(QRegularExpression::anchoredPattern(
-                                     QStringLiteral("[1-9A-HJ-NP-Za-km-z]+")))
+                                     u"[1-9A-HJ-NP-Za-km-z]+"_s))
                   .match(a)
                   .hasMatch());
   EXPECT_NE(ImToken::BookFingerprintOf(a), ImToken::BookFingerprintOf({}));

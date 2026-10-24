@@ -46,6 +46,8 @@
 #include "SearchKeyDialog.h"
 #include "VKSInterface.h"
 
+using namespace Qt::StringLiterals;
+
 namespace {
 
 using Severity = gf::cmd::host::AppMessage::Severity;
@@ -224,8 +226,7 @@ class KeyServerBatch : public QObject {
             Schedule();
           },
           [this, key](const QString& error, const QString&) {
-            failures_.append(
-                QStringLiteral("%1: %2").arg(key.fingerprint, error));
+            failures_.append(u"%1: %2"_s.arg(key.fingerprint, error));
             Schedule();
           },
           this);
@@ -247,7 +248,7 @@ class KeyServerBatch : public QObject {
       Schedule();
     };
     const auto failed = [this, key](const QString& error) {
-      failures_.append(QStringLiteral("%1: %2").arg(key.fingerprint, error));
+      failures_.append(u"%1: %2"_s.arg(key.fingerprint, error));
       Schedule();
     };
     if (route_.vks) {

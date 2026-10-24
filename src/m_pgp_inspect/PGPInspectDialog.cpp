@@ -41,6 +41,8 @@
 
 #include "GFModuleTr.h"
 
+using namespace Qt::StringLiterals;
+
 namespace {
 
 /// Which column holds what. Packet rows use the first only; a field row puts
@@ -164,7 +166,7 @@ void PGPInspectDialog::render_document() {
     }
     add_fields(item, facts);
 
-    if (block.has_armor && block.armor.crc24 == QLatin1String("mismatch")) {
+    if (block.has_armor && block.armor.crc24 == "mismatch"_L1) {
       item->setForeground(kLabelColumn,
                           QBrush(QColor(GFUIThemeColorForRole(
                               GFModuleSdkContext(), GF_UI_COLOR_DANGER))));
@@ -185,8 +187,7 @@ void PGPInspectDialog::render_document() {
   auto summary = GTrC::tr("%1, %2, %n packet(s)", nullptr, packet_count)
                      .arg(document_.format, HumanSize(size_));
   if (!document_.errors.isEmpty()) {
-    summary +=
-        QLatin1String("  -  ") + document_.errors.join(QLatin1String("; "));
+    summary += "  -  "_L1 + document_.errors.join("; "_L1);
   }
   summary_label_->setText(summary);
 }

@@ -36,6 +36,8 @@
 #include "GFModule.h"
 #include "GFSDKUI.h"
 
+using namespace Qt::StringLiterals;
+
 namespace {
 
 // Relative: the Host places them in this module's own settings group, which
@@ -126,8 +128,7 @@ auto KeyServerEntry::ToJson() const -> QJsonObject {
       {"url", url},
       {"hkp", hkp},
       {"vks", vks},
-      {"state",
-       verified ? QStringLiteral("verified") : QStringLiteral("unverified")},
+      {"state", verified ? u"verified"_s : u"unverified"_s},
       {"last_tested", last_tested.isValid()
                           ? last_tested.toUTC().toString(Qt::ISODate)
                           : QString()},

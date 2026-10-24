@@ -62,7 +62,7 @@ template <typename Enum, std::size_t N>
 auto ValueOf(const std::array<std::pair<Enum, const char*>, N>& names,
              const QString& name) -> Enum {
   for (const auto& [e, n] : names) {
-    if (name == QLatin1String(n)) return e;
+    if (name == QLatin1StringView(n)) return e;
   }
   return names.front().first;
 }
