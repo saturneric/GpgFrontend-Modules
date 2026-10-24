@@ -31,6 +31,8 @@
 #include "EMailModel.h"
 #include "EMailViewLayout.h"
 
+using namespace Qt::StringLiterals;
+
 // The details inspector's rules, checked without a widget. The view itself
 // cannot be built in a test here -- these bodies run off the GUI thread -- so
 // the decisions it makes are kept in a file that can be.
@@ -265,29 +267,28 @@ TEST(EMailViewLayoutTest, EveryCommandIsReachableInEveryMode) {
 
 TEST(EMailViewLayoutTest, TheSecurityStatusSaysOnlyWhatIsKnown) {
   EXPECT_EQ(EMailSecurityStatus(EMailBadgeState::kENCRYPTED_ONLY, true).text,
-            QStringLiteral("Encrypted"));
+            u"Encrypted"_s);
   EXPECT_EQ(
       EMailSecurityStatus(EMailBadgeState::kSIGNED_UNVERIFIED, false).text,
-      QStringLiteral("Signature not checked"));
+      u"Signature not checked"_s);
   EXPECT_EQ(EMailSecurityStatus(EMailBadgeState::kSIGNED_UNVERIFIED, true).text,
-            QStringLiteral("Encrypted, signature not checked"));
+            u"Encrypted, signature not checked"_s);
   EXPECT_EQ(EMailSecurityStatus(EMailBadgeState::kSIGNED_GOOD, false).text,
-            QStringLiteral("Signature verified"));
+            u"Signature verified"_s);
   EXPECT_EQ(EMailSecurityStatus(EMailBadgeState::kSIGNED_BAD, false).text,
-            QStringLiteral("Bad signature"));
+            u"Bad signature"_s);
   EXPECT_EQ(
       EMailSecurityStatus(EMailBadgeState::kSIGNED_UNAUTHORIZED_KEY, false)
           .text,
-      QStringLiteral("Signing key not authorized"));
+      u"Signing key not authorized"_s);
   EXPECT_EQ(EMailSecurityStatus(EMailBadgeState::kNOT_PROTECTED, false).text,
-            QStringLiteral("Not signed or encrypted"));
+            u"Not signed or encrypted"_s);
   // A verdict against the signature never wears the signature's icon.
   for (const auto badge :
        {EMailBadgeState::kSIGNED_BAD, EMailBadgeState::kSIGNED_ERROR,
         EMailBadgeState::kSIGNED_UNAUTHORIZED_KEY,
         EMailBadgeState::kSIGNED_MISMATCH, EMailBadgeState::kMALFORMED}) {
-    EXPECT_EQ(EMailSecurityStatus(badge, false).icon,
-              QStringLiteral(":/icons/warning.png"));
+    EXPECT_EQ(EMailSecurityStatus(badge, false).icon, u":/icons/warning.png"_s);
   }
 }
 

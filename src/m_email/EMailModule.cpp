@@ -82,6 +82,8 @@
 #include "EMailVerificationPayload.h"
 #include "GFModuleTr.h"
 
+using namespace Qt::StringLiterals;
+
 namespace {
 
 // Build one Info Board card object (title/status/fields) in the JSON shape the
@@ -616,7 +618,7 @@ auto OpenRawAsEMailTab(const QByteArray& raw, const QString& title) -> bool {
   // arrived with, and a PGP/MIME signature covers the exact octets.
   return Commands()
       .Invoke<gf::cmd::host::DocumentOpen>(
-          {QStringLiteral("email"), title, QString(),
+          {u"email"_s, title, QString(),
            gf::cmd::MakeBlob(raw.constData(), static_cast<size_t>(raw.size())),
            false, false})
       .Ok();
@@ -1721,7 +1723,7 @@ auto DoNewMessage(const gf::cmd::CommandContext& /*ctx*/,
                   const gf::cmd::Unit& /*args*/)
     -> gf::cmd::Outcome<gf::cmd::Unit> {
   Commands().Invoke<gf::cmd::host::DocumentNew>(
-      {QStringLiteral("email"), QStringLiteral("untitled.eml")});
+      {u"email"_s, u"untitled.eml"_s});
   return gf::cmd::Outcome<gf::cmd::Unit>::Success({});
 }
 

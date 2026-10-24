@@ -24,6 +24,8 @@
 #include <cstring>
 #include <set>
 
+using namespace Qt::StringLiterals;
+
 namespace {
 
 std::set<void*>& NormalArena() {
@@ -207,7 +209,7 @@ auto SettingsRoot(GFHostContextRef) -> void* {
 /// Settings by key, kept in the same file the old settings root used, under
 /// the group the Host would give this module.
 auto SettingKey(const char* key) -> QString {
-  return QStringLiteral("email/") + QString::fromUtf8(key);
+  return u"email/"_s + QString::fromUtf8(key);
 }
 
 auto SettingGet(GFHostContextRef ctx, int, const char* key, GFBufferRef* out)

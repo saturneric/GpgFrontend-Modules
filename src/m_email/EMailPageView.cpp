@@ -90,6 +90,8 @@
 #include "EMailViewStyle.h"
 #include "GFModule.h"
 
+using namespace Qt::StringLiterals;
+
 namespace {
 
 /// How far a locked surface moves from the page's own background towards its
@@ -754,34 +756,32 @@ auto EMailPageView::build_message_surface() -> QWidget* {
 
   // Message-level actions. Each produces a NEW document in a new tab; none of
   // them writes to this one.
-  reply_act_ = make_command(
-      QStringLiteral("mail-reply-sender"), ":/icons/reply.png", tr("Reply"),
-      tr("Write a reply to the sender."), QKeySequence(Qt::CTRL | Qt::Key_R));
+  reply_act_ = make_command(u"mail-reply-sender"_s, ":/icons/reply.png",
+                            tr("Reply"), tr("Write a reply to the sender."),
+                            QKeySequence(Qt::CTRL | Qt::Key_R));
   reply_all_act_ = make_command(
-      QStringLiteral("mail-reply-all"), ":/icons/reply-all.png",
-      tr("Reply All"),
+      u"mail-reply-all"_s, ":/icons/reply-all.png", tr("Reply All"),
       tr("Write a reply to the sender and everyone else who was addressed. "
          "Blind recipients are not included."),
       QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_R));
-  forward_act_ = make_command(
-      QStringLiteral("mail-forward"), ":/icons/redo.png", tr("Forward"),
-      tr("Pass this message on, with its attachments."),
-      QKeySequence(Qt::CTRL | Qt::Key_L));
-  send_act_ = make_command(QStringLiteral("mail-send"),
-                           ":/icons/export-email.png", tr("Send..."),
-                           tr("Send this message through a configured "
-                              "mail account."),
-                           QKeySequence(Qt::CTRL | Qt::Key_Return));
+  forward_act_ =
+      make_command(u"mail-forward"_s, ":/icons/redo.png", tr("Forward"),
+                   tr("Pass this message on, with its attachments."),
+                   QKeySequence(Qt::CTRL | Qt::Key_L));
+  send_act_ =
+      make_command(u"mail-send"_s, ":/icons/export-email.png", tr("Send..."),
+                   tr("Send this message through a configured "
+                      "mail account."),
+                   QKeySequence(Qt::CTRL | Qt::Key_Return));
   // The attachment menu's Attach is this same action, so the row and the
   // menu cannot disagree about it.
   attachment_attach_act_ = make_command(
-      QStringLiteral("mail-attachment"), ":/icons/attachment.png",
-      tr("Attach File..."),
+      u"mail-attachment"_s, ":/icons/attachment.png", tr("Attach File..."),
       tr("Add one or more files to this message. Files can also be dropped "
          "onto the message."),
       QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_A));
   details_act_ = make_command(
-      QStringLiteral("dialog-information"), ":/icons/detail.png",
+      u"dialog-information"_s, ":/icons/detail.png",
       // The ellipsis is doing its usual job: this opens a window rather than
       // changing anything here.
       tr("Details..."),
@@ -789,7 +789,7 @@ auto EMailPageView::build_message_surface() -> QWidget* {
          "structure and its headers."),
       QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_D));
   forensic_act_ = make_command(
-      QStringLiteral("object-locked"), ":/icons/read-only.png", tr("Read-only"),
+      u"object-locked"_s, ":/icons/read-only.png", tr("Read-only"),
       tr("Lock this message so it cannot be edited or rewritten. Reply and "
          "Forward still work and produce new messages."),
       QKeySequence());
@@ -823,8 +823,8 @@ auto EMailPageView::build_message_surface() -> QWidget* {
   // attachments to operate on. Built here, filled in with the section below.
   attachment_menu_ = new QMenu(this);
   attachments_button_ = new QToolButton(this);
-  attachments_button_->setIcon(QIcon::fromTheme(
-      QStringLiteral("mail-attachment"), QIcon(":/icons/attachment.png")));
+  attachments_button_->setIcon(
+      QIcon::fromTheme(u"mail-attachment"_s, QIcon(":/icons/attachment.png")));
   attachments_button_->setText(tr("Attachments"));
   attachments_button_->setToolTip(tr("Open, save and manage attachments"));
   attachments_button_->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
@@ -847,8 +847,8 @@ auto EMailPageView::build_message_surface() -> QWidget* {
   more_button_ = new QToolButton(this);
   more_button_->setText(tr("More"));
   more_button_->setToolTip(tr("More actions for this message"));
-  more_button_->setIcon(QIcon::fromTheme(QStringLiteral("view-more"),
-                                         QIcon(":/icons/detail.png")));
+  more_button_->setIcon(
+      QIcon::fromTheme(u"view-more"_s, QIcon(":/icons/detail.png")));
   more_button_->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
   more_button_->setAutoRaise(true);
   more_button_->setPopupMode(QToolButton::InstantPopup);
@@ -858,7 +858,7 @@ auto EMailPageView::build_message_surface() -> QWidget* {
 
   // A state, not a control: the lock itself is toggled from More.
   read_only_label_ = new QLabel(this);
-  read_only_label_->setObjectName(QStringLiteral("emailReadOnlyStatus"));
+  read_only_label_->setObjectName(u"emailReadOnlyStatus"_s);
   read_only_label_->setText(tr("Read-only"));
   read_only_label_->setToolTip(
       tr("This message is open for inspection only. Turn it off in More."));
@@ -970,8 +970,7 @@ auto EMailPageView::build_message_surface() -> QWidget* {
 
   attachment_icon_ = new QLabel(this);
   attachment_icon_->setPixmap(
-      QIcon::fromTheme(QStringLiteral("mail-attachment"),
-                       QIcon(":/icons/attachment.png"))
+      QIcon::fromTheme(u"mail-attachment"_s, QIcon(":/icons/attachment.png"))
           .pixmap(16, 16));
 
   attachment_title_ = new QLabel(tr("Attachments"), this);
@@ -1012,14 +1011,12 @@ auto EMailPageView::build_message_surface() -> QWidget* {
   // part, Save on the parts the user can see chosen, Save All on every one.
   attachment_open_act_ = attachment_menu_->addAction(tr("Open"));
   attachment_save_act_ = attachment_menu_->addAction(
-      QIcon::fromTheme(QStringLiteral("document-save"),
-                       QIcon(":/icons/filesave.png")),
+      QIcon::fromTheme(u"document-save"_s, QIcon(":/icons/filesave.png")),
       tr("Save..."));
   attachment_save_act_->setToolTip(
       tr("Write the selected attachments to a folder."));
   attachment_save_all_act_ = attachment_menu_->addAction(
-      QIcon::fromTheme(QStringLiteral("document-save-all"),
-                       QIcon(":/icons/save-all.png")),
+      QIcon::fromTheme(u"document-save-all"_s, QIcon(":/icons/save-all.png")),
       tr("Save All..."));
   attachment_save_all_act_->setToolTip(tr("Write every attachment to a folder."));
   attachment_edit_separator_ = attachment_menu_->addSeparator();
@@ -1028,8 +1025,7 @@ auto EMailPageView::build_message_surface() -> QWidget* {
   // nothing on disk, and the wording and icon both stay away from suggesting
   // it does.
   attachment_remove_act_ = attachment_menu_->addAction(
-      QIcon::fromTheme(QStringLiteral("list-remove"),
-                       QIcon(":/icons/remove.png")),
+      QIcon::fromTheme(u"list-remove"_s, QIcon(":/icons/remove.png")),
       tr("Remove"));
   attachment_remove_act_->setToolTip(
       tr("Take the selected attachments out of this message."));
@@ -1868,7 +1864,7 @@ void EMailPageView::slot_derive_message(int mode) {
   // the tab says so.
   QPointer<EMailPageView> guard(this);
   Commands().Invoke<gf::cmd::host::DocumentOpen>(
-      {QStringLiteral("email"), title, QString(),
+      {u"email"_s, title, QString(),
        gf::cmd::MakeBlob(eml.constData(), static_cast<size_t>(eml.size())),
        false, true},
       this, [guard, what, intact](const auto& r) {
@@ -1931,8 +1927,8 @@ auto EMailPageView::build_locked_panel() -> QWidget* {
     // inside the ciphertext is the only kind worth anything here.
     emit SignalCryptoOperationRequested(
         security_state_ == EMailSecurityState::kSIGNED_ENCRYPTED
-            ? QStringLiteral("decrypt_verify")
-            : QStringLiteral("decrypt"));
+            ? u"decrypt_verify"_s
+            : u"decrypt"_s);
   });
 
   return panel;

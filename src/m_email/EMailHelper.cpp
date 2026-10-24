@@ -41,6 +41,8 @@
 #include <algorithm>
 #include <limits>
 
+using namespace Qt::StringLiterals;
+
 namespace {
 MimeLogFn g_mime_log_sink = nullptr;
 }  // namespace
@@ -559,18 +561,18 @@ auto SplitExtension(const QString& name) -> QPair<QString, QString> {
 
 auto SuggestedEMailFileName(const QString& subject) -> QString {
   const auto trimmed = subject.trimmed();
-  if (trimmed.isEmpty()) return QStringLiteral("untitled.eml");
+  if (trimmed.isEmpty()) return u"untitled.eml"_s;
 
   // Capped before sanitizing rather than after: the sanitizer's own length cap
   // is a filesystem limit, and a name that long is unusable as a suggestion
   // long before it is illegal.
   auto name = SanitizeAttachmentFileName(trimmed.left(kSuggestedNameLength),
-                                         QStringLiteral("message/rfc822"));
+                                         u"message/rfc822"_s);
 
   // The sanitizer guarantees a non-empty name but not this extension -- a
   // subject that was entirely path separators comes back as "attachment".
-  if (!name.endsWith(QStringLiteral(".eml"), Qt::CaseInsensitive)) {
-    name += QStringLiteral(".eml");
+  if (!name.endsWith(u".eml"_s, Qt::CaseInsensitive)) {
+    name += u".eml"_s;
   }
   return name;
 }
@@ -2334,7 +2336,7 @@ auto PartDescription(const vmime::shared_ptr<const vmime::bodyPart>& part)
 auto IsSignerPublicKeyPart(const vmime::shared_ptr<vmime::bodyPart>& part)
     -> bool {
   return PartContentType(part) == "application/pgp-keys" &&
-         PartDescription(part) == QLatin1String(kSignerKeyDescription);
+         PartDescription(part) == QLatin1StringView(kSignerKeyDescription);
 }
 
 /// Replaces every Content-* field of @p dst with the ones @p src carries.

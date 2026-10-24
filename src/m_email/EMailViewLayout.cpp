@@ -33,6 +33,8 @@
 
 #include "EMailModel.h"
 
+using namespace Qt::StringLiterals;
+
 auto EMailClampDetailsSize(int width, int height) -> std::pair<int, int> {
   const auto wanted_width = width > 0 ? width : kEMailDetailsDefaultWidth;
   const auto wanted_height = height > 0 ? height : kEMailDetailsDefaultHeight;
@@ -112,13 +114,13 @@ auto EMailSecurityStatus(EMailBadgeState badge, bool encrypted)
   // Translated under the view's own context, spelled out at every call so
   // lupdate sees each one: these are the view's strings, moved here only so
   // they can be checked.
-  const auto warning = QStringLiteral(":/icons/warning.png");
-  const auto signature = QStringLiteral(":/icons/signature.png");
+  const auto warning = u":/icons/warning.png"_s;
+  const auto signature = u":/icons/signature.png"_s;
 
   switch (badge) {
     case EMailBadgeState::kENCRYPTED_ONLY:
       return {QCoreApplication::translate("EMailPageView", "Encrypted"),
-              QStringLiteral(":/icons/lock.png")};
+              u":/icons/lock.png"_s};
     case EMailBadgeState::kSIGNED_UNVERIFIED:
       // What is actually known at this point: the message CARRIES a
       // signature. Whether it is any good is a separate question that has
@@ -173,7 +175,7 @@ auto EMailSecurityStatus(EMailBadgeState badge, bool encrypted)
   }
   return {
       QCoreApplication::translate("EMailPageView", "Not signed or encrypted"),
-      QStringLiteral(":/icons/email.png")};
+      u":/icons/email.png"_s};
 }
 
 auto EMailAttachmentTargets(int count, const QList<int>& selected_rows,

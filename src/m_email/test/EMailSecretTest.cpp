@@ -48,13 +48,15 @@
 
 #include "EMailSecret.h"
 
+using namespace Qt::StringLiterals;
+
 /// Supplied by the harness (EMailSdkStubs.cpp).
 auto GFModuleSdkContext() -> GFSDKContext*;
 
 namespace {
 
 TEST(EMailSecretTest, AQStringWipeDoesNotReachASharedBuffer) {
-  QString original = QStringLiteral("correct-horse-battery");
+  QString original = u"correct-horse-battery"_s;
   // Force a heap buffer of our own rather than a literal's shared data.
   original.detach();
 
@@ -64,13 +66,13 @@ TEST(EMailSecretTest, AQStringWipeDoesNotReachASharedBuffer) {
   original.fill(QChar('\0'));
 
   // The copy still reads the secret: original detached and zeroed elsewhere.
-  EXPECT_EQ(shared, QStringLiteral("correct-horse-battery"));
+  EXPECT_EQ(shared, u"correct-horse-battery"_s);
   EXPECT_EQ(buffer[0], QChar('c'))
       << "if this ever fails, QString has changed and the note above is stale";
 }
 
 TEST(EMailSecretTest, WipingClearsTheOnlyCopy) {
-  auto secret = EMailSecret::CopyFrom(QStringLiteral("hunter2"));
+  auto secret = EMailSecret::CopyFrom(u"hunter2"_s);
   ASSERT_FALSE(secret->IsEmpty());
   EXPECT_EQ(secret->Size(), 7U);
 
@@ -82,7 +84,7 @@ TEST(EMailSecretTest, WipingClearsTheOnlyCopy) {
 }
 
 TEST(EMailSecretTest, WipingTwiceIsHarmless) {
-  auto secret = EMailSecret::CopyFrom(QStringLiteral("hunter2"));
+  auto secret = EMailSecret::CopyFrom(u"hunter2"_s);
   secret->Wipe();
   secret->Wipe();
   EXPECT_TRUE(secret->IsEmpty());
@@ -99,7 +101,7 @@ TEST(EMailSecretTest, AnEmptySecretIsUsable) {
 TEST(EMailSecretTest, MovingTransfersAndLeavesNothingBehind) {
   EMailSecret from;
   {
-    auto source = EMailSecret::CopyFrom(QStringLiteral("s3cret"));
+    auto source = EMailSecret::CopyFrom(u"s3cret"_s);
     from = std::move(*source);
   }
   EXPECT_EQ(from.StdStringCopy(), "s3cret");
@@ -110,8 +112,8 @@ TEST(EMailSecretTest, MovingTransfersAndLeavesNothingBehind) {
 }
 
 TEST(EMailSecretTest, MoveAssignmentWipesWhatItReplaces) {
-  auto first = EMailSecret::CopyFrom(QStringLiteral("first-secret"));
-  auto second = EMailSecret::CopyFrom(QStringLiteral("second"));
+  auto first = EMailSecret::CopyFrom(u"first-secret"_s);
+  auto second = EMailSecret::CopyFrom(u"second"_s);
 
   *first = std::move(*second);
 
@@ -125,7 +127,7 @@ TEST(EMailSecretTest, TheLastHolderReleasingErasesTheBytes) {
   // the same bytes, not a duplicate.
   EMailSecretPtr shared;
   {
-    auto secret = EMailSecret::CopyFrom(QStringLiteral("shared-secret"));
+    auto secret = EMailSecret::CopyFrom(u"shared-secret"_s);
     shared = secret;
     EXPECT_EQ(shared.use_count(), 2);
     secret.reset();
@@ -175,7 +177,7 @@ TEST(EMailSecretTest, ASecureCStringCarriesTheSecretVerbatim) {
   // QSecStrDup(QString), which builds an unwiped QByteArray temporary on the
   // way -- one more copy of the password than there needs to be, and one
   // nothing can erase.
-  auto secret = EMailSecret::CopyFrom(QStringLiteral("correct-horse"));
+  auto secret = EMailSecret::CopyFrom(u"correct-horse"_s);
 
   auto* buffer = secret->ToSecureCString();
   ASSERT_NE(buffer, nullptr);
