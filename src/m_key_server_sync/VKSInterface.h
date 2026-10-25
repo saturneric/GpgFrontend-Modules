@@ -44,23 +44,14 @@ class VKSInterface : public QObject {
    */
   explicit VKSInterface(QString target_key_server, QObject* parent = nullptr);
 
-  [[nodiscard]] auto TargetKeyServer() const -> QString {
-    return target_key_server_;
-  }
-
   void GetByFingerprint(const QString& fingerprint);
   void GetByKeyId(const QString& keyId);
-  void GetByEmail(const QString& email);
   void UploadKey(const QString& key_text);
-  void RequestVerify(const QString& token, const QStringList& addresses,
-                     const QStringList& locale = QStringList());
 
  signals:
   void SignalKeyRetrieved(const QString& key);
   void SignalKeyUploaded(const QString& key_fingerprint,
                          const QJsonObject& status, const QString& token);
-  void SignalVerificationRequested(const QString& key_fingerprint,
-                                   const QJsonObject& status);
   void SignalErrorOccurred(const QString& error_string,
                            const QString& reply_data);
 

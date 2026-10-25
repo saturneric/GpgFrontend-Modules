@@ -29,8 +29,6 @@
 #include "VKSInterface.h"
 
 #include <QByteArray>
-#include <QDebug>
-#include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QNetworkAccessManager>
@@ -99,13 +97,6 @@ void VKSInterface::GetByKeyId(const QString& key_id) {
   network_manager_->get(make_request(url));
 }
 
-void VKSInterface::GetByEmail(const QString& email) {
-  QUrl url(QString("%1/vks/v1/by-email/%2")
-               .arg(target_key_server_)
-               .arg(QUrl::toPercentEncoding(email)));
-  network_manager_->get(make_request(url));
-}
-
 void VKSInterface::UploadKey(const QString& key_text) {
   QUrl url(QString("%1/vks/v1/upload").arg(target_key_server_));
   auto request = make_request(url);
@@ -113,32 +104,6 @@ void VKSInterface::UploadKey(const QString& key_text) {
 
   QJsonObject json;
   json["keytext"] = key_text;
-
-  network_manager_->post(request, QJsonDocument(json).toJson());
-}
-
-void VKSInterface::RequestVerify(const QString& token,
-                                 const QStringList& addresses,
-                                 const QStringList& locale) {
-  QUrl url(QString("%1/vks/v1/request-verify").arg(target_key_server_));
-  auto request = make_request(url);
-  request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-
-  QJsonObject json;
-  json["token"] = token;
-  QJsonArray addresses_array;
-  for (const QString& address : addresses) {
-    addresses_array.append(address);
-  }
-  json["addresses"] = addresses_array;
-
-  if (!locale.isEmpty()) {
-    QJsonArray locale_array;
-    for (const QString& loc : locale) {
-      locale_array.append(loc);
-    }
-    json["locale"] = locale_array;
-  }
 
   network_manager_->post(request, QJsonDocument(json).toJson());
 }
@@ -160,8 +125,7 @@ void VKSInterface::on_reply_finished(QNetworkReply* reply) {
   QJsonDocument json_response = QJsonDocument::fromJson(response_data);
 
   if (url.path().contains("/vks/v1/by-fingerprint") ||
-      url.path().contains("/vks/v1/by-keyid") ||
-      url.path().contains("/vks/v1/by-email")) {
+      url.path().contains("/vks/v1/by-keyid")) {
     gf::sdk::SetCacheText(GFModuleSdkContext(), GF_STORE_SESSION,
                           (cache_key_).toUtf8().constData(),
                           (QString(response_data)).toUtf8().constData(), 300);
@@ -172,12 +136,6 @@ void VKSInterface::on_reply_finished(QNetworkReply* reply) {
       emit SignalKeyUploaded(response_object["key_fpr"].toString(),
                              response_object["status"].toObject(),
                              response_object["token"].toString());
-    }
-  } else if (url.path().contains("/vks/v1/request-verify")) {
-    if (json_response.isObject()) {
-      QJsonObject response_object = json_response.object();
-      emit SignalVerificationRequested(response_object["key_fpr"].toString(),
-                                       response_object["status"].toObject());
     }
   }
 
