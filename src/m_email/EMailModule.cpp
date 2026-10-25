@@ -321,6 +321,33 @@ auto BuildRecipientCheckCard(const EMailMetaData& m,
 // cards followed by the crypto-analysis cards produced by the SDK (which reuses
 // the same converter the native operations use). `crypto_cards_json` is the
 // JSON array string returned via the GFAnalyse*Result `cards` out-param.
+/// The envelope, as the first section of a Markdown report.
+auto EnvelopeMarkdown(const EMailMetaData& meta_data) -> QString {
+  QString email_info;
+  email_info.append("# E-Mail Information\n\n");
+  email_info.append(QString("- %1: %2\n")
+                        .arg(QApplication::translate("EMailModule", "From"))
+                        .arg(meta_data.from));
+  email_info.append(QString("- %1: %2\n")
+                        .arg(QApplication::translate("EMailModule", "To"))
+                        .arg(meta_data.to.join("; ")));
+  email_info.append(QString("- %1: %2\n")
+                        .arg(QApplication::translate("EMailModule", "Subject"))
+                        .arg(meta_data.subject));
+  email_info.append(QString("- %1: %2\n")
+                        .arg(QApplication::translate("EMailModule", "CC"))
+                        .arg(meta_data.cc.join("; ")));
+  email_info.append(QString("- %1: %2\n")
+                        .arg(QApplication::translate("EMailModule", "BCC"))
+                        .arg(meta_data.bcc_header.join("; ")));
+  email_info.append(QString("- %1: %2\n")
+                        .arg(QApplication::translate("EMailModule", "Date"))
+                        .arg(QLocale().toString(meta_data.datetime)));
+
+  email_info.append("\n");
+  return email_info;
+}
+
 auto BuildResultCardsParam(const QString& operation,
                            const QJsonArray& meta_cards,
                            const QString& crypto_cards_json,
@@ -590,6 +617,29 @@ auto ErrorHelper(int ret, const QString& err) -> QString {
   return error_message;
 }
 
+/// Answers a step that failed before GnuPG could explain it: the document
+/// unchanged, and the module's own account of why.
+void AnswerModuleFailure(const GFEvent& event, const QString& unchanged,
+                         int ret, const QString& error) {
+  event.Answer().Ok({{"data", unchanged},
+                     {"result_status", QString::number(-1)},
+                     {"result", ErrorHelper(ret, error)}});
+}
+
+/// Answers a step GnuPG refused. The analysis cards travel with it: a failure
+/// is the outcome that most needs explaining, not the one to explain least.
+void AnswerGpgFailure(const GFEvent& event, const QString& unchanged,
+                      int result_status, const QString& result_detail,
+                      const QString& operation, const QString& result_cards,
+                      const QByteArray& info_json) {
+  event.Answer().Ok(
+      {{"data", unchanged},
+       {"result_status", QString::number(result_status)},
+       {"result", result_detail},
+       {"result_cards",
+        BuildResultCardsParam(operation, {}, result_cards, info_json)}});
+}
+
 }  // namespace
 
 auto OnKeyDatabaseRefreshDone(const GFEvent& event) -> GFEventResult {
@@ -809,28 +859,7 @@ auto OnEditTabTypeEmailOpVerify(const GFEvent& event) -> GFEventResult {
   const auto& meta_data = result.meta;
   const auto result_status = ReportStatusFor(result.overall);
 
-  QString email_info;
-  email_info.append("# E-Mail Information\n\n");
-  email_info.append(QString("- %1: %2\n")
-                        .arg(QApplication::translate("EMailModule", "From"))
-                        .arg(meta_data.from));
-  email_info.append(QString("- %1: %2\n")
-                        .arg(QApplication::translate("EMailModule", "To"))
-                        .arg(meta_data.to.join("; ")));
-  email_info.append(QString("- %1: %2\n")
-                        .arg(QApplication::translate("EMailModule", "Subject"))
-                        .arg(meta_data.subject));
-  email_info.append(QString("- %1: %2\n")
-                        .arg(QApplication::translate("EMailModule", "CC"))
-                        .arg(meta_data.cc.join("; ")));
-  email_info.append(QString("- %1: %2\n")
-                        .arg(QApplication::translate("EMailModule", "BCC"))
-                        .arg(meta_data.bcc_header.join("; ")));
-  email_info.append(QString("- %1: %2\n")
-                        .arg(QApplication::translate("EMailModule", "Date"))
-                        .arg(QLocale().toString(meta_data.datetime)));
-
-  email_info.append("\n");
+  QString email_info = EnvelopeMarkdown(meta_data);
 
   email_info.append("# OpenPGP Information\n\n");
 
@@ -889,10 +918,7 @@ auto DoDecryptEMLData(int channel, const QByteArray& data, const GFEvent& event,
       DecryptEMLData(channel, data, meta_data, eml_data, err, capsule_id);
 
   if (ret == kFAILED || ret == kEML_FAILED) {
-    event.Answer().Ok(
-        {{"data", data},
-         {"result_status", QString::number(-1)},
-         {"result", ErrorHelper(ret, QString::fromUtf8(eml_data))}});
+    AnswerModuleFailure(event, data, ret, QString::fromUtf8(eml_data));
     return ret;
   }
 
@@ -907,24 +933,14 @@ auto DoDecryptEMLData(int channel, const QByteArray& data, const GFEvent& event,
   decrypt_info_json = analysis.info_json.toUtf8();
 
   if (ret == kGPG_FAILED) {
-    // decrypt failed. The analysis cards built above travel with it: a failure
-    // is the outcome that most needs explaining, not the one to explain least.
-    event.Answer().Ok(
-        {{"data", data},
-         {"result_status", QString::number(result_status)},
-         {"result", result_detail},
-         {"result_cards",
-          BuildResultCardsParam(
-              QApplication::translate("EMailModule", "Decrypt E-Mail"), {},
-              result_cards, decrypt_info_json)}});
+    AnswerGpgFailure(event, data, result_status, result_detail,
+                     QApplication::translate("EMailModule", "Decrypt E-Mail"),
+                     result_cards, decrypt_info_json);
     return ret;
   }
 
   if (ret != kSUCCESS) {
-    event.Answer().Ok(
-        {{"data", data},
-         {"result_status", QString::number(-1)},
-         {"result", ErrorHelper(ret, QString::fromUtf8(eml_data))}});
+    AnswerModuleFailure(event, data, ret, QString::fromUtf8(eml_data));
     return ret;
   }
 
@@ -953,28 +969,7 @@ auto OnEditTabTypeEmailOpDecrypt(const GFEvent& event) -> GFEventResult {
     return GFEventResult::Deferred();
   }
 
-  QString email_info;
-  email_info.append("# E-Mail Information\n\n");
-  email_info.append(QString("- %1: %2\n")
-                        .arg(QApplication::translate("EMailModule", "From"))
-                        .arg(meta_data.from));
-  email_info.append(QString("- %1: %2\n")
-                        .arg(QApplication::translate("EMailModule", "To"))
-                        .arg(meta_data.to.join("; ")));
-  email_info.append(QString("- %1: %2\n")
-                        .arg(QApplication::translate("EMailModule", "Subject"))
-                        .arg(meta_data.subject));
-  email_info.append(QString("- %1: %2\n")
-                        .arg(QApplication::translate("EMailModule", "CC"))
-                        .arg(meta_data.cc.join("; ")));
-  email_info.append(QString("- %1: %2\n")
-                        .arg(QApplication::translate("EMailModule", "BCC"))
-                        .arg(meta_data.bcc_header.join("; ")));
-  email_info.append(QString("- %1: %2\n")
-                        .arg(QApplication::translate("EMailModule", "Date"))
-                        .arg(QLocale().toString(meta_data.datetime)));
-
-  email_info.append("\n");
+  QString email_info = EnvelopeMarkdown(meta_data);
 
   email_info.append("# OpenPGP Information\n\n");
   email_info.append("#" + result_detail + "\n");
@@ -1016,10 +1011,7 @@ auto DoSignEMLData(int channel, const QString& sign_key,
   ret = SignEMLData(channel, sign_key, message, eml_data, err, capsule_id);
 
   if (ret == kFAILED || ret == kEML_FAILED) {
-    event.Answer().Ok(
-        {{"data", body_data},
-         {"result_status", QString::number(-1)},
-         {"result", ErrorHelper(ret, QString::fromUtf8(eml_data))}});
+    AnswerModuleFailure(event, body_data, ret, QString::fromUtf8(eml_data));
     return ret;
   }
 
@@ -1035,23 +1027,14 @@ auto DoSignEMLData(int channel, const QString& sign_key,
   info_json = analysis.info_json.toUtf8();
 
   if (ret == kGPG_FAILED) {
-    // decrypt failed. The analysis cards built above travel with it: a failure
-    // is the outcome that most needs explaining, not the one to explain least.
-    event.Answer().Ok({{"data", body_data},
-                       {"result_status", QString::number(result_status)},
-                       {"result", result_detail},
-                       {"result_cards",
-                        BuildResultCardsParam(QApplication::translate(
-                                                  "EMailModule", "Sign E-Mail"),
-                                              {}, result_cards, info_json)}});
+    AnswerGpgFailure(event, body_data, result_status, result_detail,
+                     QApplication::translate("EMailModule", "Sign E-Mail"),
+                     result_cards, info_json);
     return ret;
   }
 
   if (ret != kSUCCESS) {
-    event.Answer().Ok(
-        {{"data", body_data},
-         {"result_status", QString::number(-1)},
-         {"result", ErrorHelper(ret, QString::fromUtf8(eml_data))}});
+    AnswerModuleFailure(event, body_data, ret, QString::fromUtf8(eml_data));
     return ret;
   }
 
@@ -1069,10 +1052,7 @@ auto DoSignPlainText(int channel, const QString& sign_key,
   auto ret = SignPlainText(channel, sign_key, meta_data, body_data, eml_data,
                            err, capsule_id);
   if (ret == kFAILED || ret == kEML_FAILED) {
-    event.Answer().Ok(
-        {{"data", body_data},
-         {"result_status", QString::number(-1)},
-         {"result", ErrorHelper(ret, QString::fromUtf8(eml_data))}});
+    AnswerModuleFailure(event, body_data, ret, QString::fromUtf8(eml_data));
     return ret;
   }
 
@@ -1088,23 +1068,14 @@ auto DoSignPlainText(int channel, const QString& sign_key,
   info_json = analysis.info_json.toUtf8();
 
   if (ret == kGPG_FAILED) {
-    // decrypt failed. The analysis cards built above travel with it: a failure
-    // is the outcome that most needs explaining, not the one to explain least.
-    event.Answer().Ok({{"data", body_data},
-                       {"result_status", QString::number(result_status)},
-                       {"result", result_detail},
-                       {"result_cards",
-                        BuildResultCardsParam(QApplication::translate(
-                                                  "EMailModule", "Sign E-Mail"),
-                                              {}, result_cards, info_json)}});
+    AnswerGpgFailure(event, body_data, result_status, result_detail,
+                     QApplication::translate("EMailModule", "Sign E-Mail"),
+                     result_cards, info_json);
     return ret;
   }
 
   if (ret != kSUCCESS) {
-    event.Answer().Ok(
-        {{"data", body_data},
-         {"result_status", QString::number(-1)},
-         {"result", ErrorHelper(ret, QString::fromUtf8(eml_data))}});
+    AnswerModuleFailure(event, body_data, ret, QString::fromUtf8(eml_data));
     return ret;
   }
 
@@ -1188,10 +1159,8 @@ auto DoEncryptEMLData(int channel, const QStringList& encrypt_keys,
                             err, capsule_id);
 
   if (ret == kFAILED || ret == kEML_FAILED) {
-    event.Answer().Ok(
-        {{"data", DocumentUnchangedOnFailure(body_data)},
-         {"result_status", QString::number(-1)},
-         {"result", ErrorHelper(ret, QString::fromUtf8(eml_data))}});
+    AnswerModuleFailure(event, DocumentUnchangedOnFailure(body_data), ret,
+                        QString::fromUtf8(eml_data));
     return ret;
   }
 
@@ -1207,16 +1176,10 @@ auto DoEncryptEMLData(int channel, const QStringList& encrypt_keys,
   info_json = analysis.info_json.toUtf8();
 
   if (ret == kGPG_FAILED) {
-    // encrypt failed. The analysis cards built above travel with it: a failure
-    // is the outcome that most needs explaining, not the one to explain least.
-    event.Answer().Ok(
-        {{"data", DocumentUnchangedOnFailure(body_data)},
-         {"result_status", QString::number(result_status)},
-         {"result", result_detail},
-         {"result_cards",
-          BuildResultCardsParam(
-              QApplication::translate("EMailModule", "Encrypt E-Mail"), {},
-              result_cards, info_json)}});
+    AnswerGpgFailure(event, DocumentUnchangedOnFailure(body_data),
+                     result_status, result_detail,
+                     QApplication::translate("EMailModule", "Encrypt E-Mail"),
+                     result_cards, info_json);
     return ret;
   }
 
@@ -1235,11 +1198,8 @@ auto DoEncryptPlainText(int channel, const QStringList& encrypt_keys,
 
   // The builder's error is in its own output, not in eml_data.
   if (ret != kSUCCESS) {
-    event.Answer().Ok(
-        {{"data", DocumentUnchangedOnFailure(body_data)},
-         {"result_status", QString::number(-1)},
-         {"result",
-          ErrorHelper(ret, QString::fromUtf8(plain_text_eml_data))}});
+    AnswerModuleFailure(event, DocumentUnchangedOnFailure(body_data), ret,
+                        QString::fromUtf8(plain_text_eml_data));
     return ret;
   }
 
@@ -1247,10 +1207,8 @@ auto DoEncryptPlainText(int channel, const QStringList& encrypt_keys,
                          eml_data, err, capsule_id);
 
   if (ret == kFAILED || ret == kEML_FAILED) {
-    event.Answer().Ok(
-        {{"data", DocumentUnchangedOnFailure(body_data)},
-         {"result_status", QString::number(-1)},
-         {"result", ErrorHelper(ret, QString::fromUtf8(eml_data))}});
+    AnswerModuleFailure(event, DocumentUnchangedOnFailure(body_data), ret,
+                        QString::fromUtf8(eml_data));
     return ret;
   }
 
@@ -1266,16 +1224,10 @@ auto DoEncryptPlainText(int channel, const QStringList& encrypt_keys,
   info_json = analysis.info_json.toUtf8();
 
   if (ret == kGPG_FAILED) {
-    // encrypt failed. The analysis cards built above travel with it: a failure
-    // is the outcome that most needs explaining, not the one to explain least.
-    event.Answer().Ok(
-        {{"data", DocumentUnchangedOnFailure(body_data)},
-         {"result_status", QString::number(result_status)},
-         {"result", result_detail},
-         {"result_cards",
-          BuildResultCardsParam(
-              QApplication::translate("EMailModule", "Encrypt E-Mail"), {},
-              result_cards, info_json)}});
+    AnswerGpgFailure(event, DocumentUnchangedOnFailure(body_data),
+                     result_status, result_detail,
+                     QApplication::translate("EMailModule", "Encrypt E-Mail"),
+                     result_cards, info_json);
     return ret;
   }
 
@@ -1350,18 +1302,13 @@ auto OnEditTabTypeEmailOpEncrypt(const GFEvent& event) -> GFEventResult {
 
 namespace {
 
-auto DoEncryptSignEMLData(int channel, const QStringList& encrypt_keys,
-                          const QString& sign_key,
-                          vmime::shared_ptr<vmime::message>& message,
-                          QByteArray& body_data, const GFEvent& event,
-                          int& result_status, QString& result_detail,
-                          QString& result_cards, QByteArray& eml_data) -> int {
-  QString sign_cards;
-  if (DoSignEMLData(channel, sign_key, message, body_data, event, result_status,
-                    result_detail, sign_cards, eml_data) != kSUCCESS) {
-    return -1;
-  }
-
+/// The second half of encrypt-and-sign: encrypts the signed message the
+/// sign step left in @p eml_data, and folds the two results into one.
+auto EncryptSignedEML(int channel, const QStringList& encrypt_keys,
+                      QByteArray& body_data, const GFEvent& event,
+                      int& result_status, QString& result_detail,
+                      QString& result_cards, const QString& sign_cards,
+                      QByteArray& eml_data) -> int {
   // UTF-8, not Latin-1: these are the bytes the signature was just taken
   // over, and they are about to be re-parsed and encrypted. Latin-1 collapses
   // every two-byte sequence to one byte and replaces anything above U+00FF, so
@@ -1398,6 +1345,23 @@ auto DoEncryptSignEMLData(int channel, const QStringList& encrypt_keys,
   return ret;
 }
 
+auto DoEncryptSignEMLData(int channel, const QStringList& encrypt_keys,
+                          const QString& sign_key,
+                          vmime::shared_ptr<vmime::message>& message,
+                          QByteArray& body_data, const GFEvent& event,
+                          int& result_status, QString& result_detail,
+                          QString& result_cards, QByteArray& eml_data) -> int {
+  QString sign_cards;
+  if (DoSignEMLData(channel, sign_key, message, body_data, event, result_status,
+                    result_detail, sign_cards, eml_data) != kSUCCESS) {
+    return -1;
+  }
+
+  return EncryptSignedEML(channel, encrypt_keys, body_data, event,
+                          result_status, result_detail, result_cards,
+                          sign_cards, eml_data);
+}
+
 auto DoEncryptSignPlainText(int channel, const QStringList& encrypt_keys,
                             const QString& sign_key,
                             const EMailMetaData& meta_data,
@@ -1412,40 +1376,9 @@ auto DoEncryptSignPlainText(int channel, const QStringList& encrypt_keys,
     return -1;
   }
 
-  // UTF-8, not Latin-1: these are the bytes the signature was just taken
-  // over, and they are about to be re-parsed and encrypted. Latin-1 collapses
-  // every two-byte sequence to one byte and replaces anything above U+00FF, so
-  // the recipient would verify a different message than the one that was
-  // signed. The module converts through UTF-8 everywhere else -- Q_SC, QDUP
-  // and UDUP are all UTF-8 -- and corpus fixture 18 pins it.
-  body_data = eml_data;
-  eml_data.clear();
-
-  int t_result_status = 0;
-  QString t_result_detail;
-  QString encrypt_cards;
-
-  vmime::shared_ptr<vmime::message> signed_message;
-  bool r = CheckIfEMLMessage(body_data, signed_message);
-  if (!r) {
-    event.Answer().Fail("Parse Signed Message Failed");
-    return -1;
-  }
-
-  auto ret = DoEncryptEMLData(channel, encrypt_keys, signed_message, body_data,
-                              event, t_result_status, t_result_detail,
-                              encrypt_cards, eml_data);
-
-  // The callee has already reported every failure of its own through CB, and
-  // leaves t_result_status untouched on the earliest of those paths.
-  // Aggregating there would read an uninitialised value and overwrite a status
-  // that has already been sent.
-  if (ret != kSUCCESS) return ret;
-
-  result_status = WorseStatus(t_result_status, result_status);
-  result_detail = t_result_detail + "\n" + result_detail;
-  result_cards = MergeCardArrays(encrypt_cards, sign_cards);
-  return ret;
+  return EncryptSignedEML(channel, encrypt_keys, body_data, event,
+                          result_status, result_detail, result_cards,
+                          sign_cards, eml_data);
 }
 
 }  // namespace
@@ -1612,28 +1545,7 @@ auto OnEditTabTypeEmailOpDecryptVerify(const GFEvent& event) -> GFEventResult {
   }
   const bool verified = plan == EMailPostDecryptPlan::kVERIFY;
 
-  QString email_info;
-  email_info.append("# E-Mail Information\n\n");
-  email_info.append(QString("- %1: %2\n")
-                        .arg(QApplication::translate("EMailModule", "From"))
-                        .arg(meta_data.from));
-  email_info.append(QString("- %1: %2\n")
-                        .arg(QApplication::translate("EMailModule", "To"))
-                        .arg(meta_data.to.join("; ")));
-  email_info.append(QString("- %1: %2\n")
-                        .arg(QApplication::translate("EMailModule", "Subject"))
-                        .arg(meta_data.subject));
-  email_info.append(QString("- %1: %2\n")
-                        .arg(QApplication::translate("EMailModule", "CC"))
-                        .arg(meta_data.cc.join("; ")));
-  email_info.append(QString("- %1: %2\n")
-                        .arg(QApplication::translate("EMailModule", "BCC"))
-                        .arg(meta_data.bcc_header.join("; ")));
-  email_info.append(QString("- %1: %2\n")
-                        .arg(QApplication::translate("EMailModule", "Date"))
-                        .arg(QLocale().toString(meta_data.datetime)));
-
-  email_info.append("\n");
+  QString email_info = EnvelopeMarkdown(meta_data);
 
   email_info.append("# OpenPGP Information\n\n");
 
