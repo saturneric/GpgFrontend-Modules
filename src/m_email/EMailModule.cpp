@@ -1233,11 +1233,13 @@ auto DoEncryptPlainText(int channel, const QStringList& encrypt_keys,
   QByteArray plain_text_eml_data;
   auto ret = BuildPlainTextEML(meta_data, body_data, plain_text_eml_data);
 
+  // The builder's error is in its own output, not in eml_data.
   if (ret != kSUCCESS) {
     event.Answer().Ok(
         {{"data", DocumentUnchangedOnFailure(body_data)},
          {"result_status", QString::number(-1)},
-         {"result", ErrorHelper(ret, QString::fromUtf8(eml_data))}});
+         {"result",
+          ErrorHelper(ret, QString::fromUtf8(plain_text_eml_data))}});
     return ret;
   }
 
