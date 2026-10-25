@@ -25,8 +25,6 @@
 
 cmake_minimum_required(VERSION 3.16)
 
-set(CMAKE_USER_MAKE_RULES_OVERRIDE "${CMAKE_SOURCE_DIR}/cmake/FlagsOverrides.cmake")
-
 # define project
 project(GpgFrontendModules
   VERSION ${CMAKE_PROJECT_VERSION}
@@ -48,9 +46,7 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Opt-in unit tests for modules. Declared here rather than inside a single
-# module so every module can hang a test target off the one switch, and so it
-# exists whether this project is configured standalone or as a subdirectory of
-# the application.
+# module so every module can hang a test target off the one switch.
 option(GPGFRONTEND_MODULES_BUILD_TESTS "Build unit tests for modules" OFF)
 
 # show build arguments
@@ -122,9 +118,6 @@ include(GNUInstallDirs)
 #
 # Nothing under modules/ calls install() directly; the only install rules for a
 # module are the two in gf_add_module().
-
-# third_party
-add_subdirectory(third_party)
 
 # source code
 add_subdirectory(src)
