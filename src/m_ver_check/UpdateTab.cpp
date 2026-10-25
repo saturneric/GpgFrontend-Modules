@@ -220,9 +220,10 @@ void UpdateTab::showEvent(QShowEvent* event) {
 
   // The Host's own switch, the one the setup wizard and this module's
   // settings page share. Off, the dialog still offers the button: pressing
-  // it is the user asking.
+  // it is the user asking. Absent means the wizard has not asked yet, which
+  // is not a yes: the startup check reads it the same way.
   const auto prohibit = gf::sdk::Setting(GFModuleSdkContext(), GF_SETTING_HOST,
-                                         "network/prohibit_update_check", false)
+                                         "network/prohibit_update_check", true)
                             .toBool();
   if (!prohibit && !checker_.isNull()) checker_->Start(CheckMode::kIfStale);
 }
