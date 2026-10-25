@@ -37,10 +37,7 @@ EMailBodyView::EMailBodyView(QWidget* parent) : QPlainTextEdit(parent) {
   setLineWrapMode(QPlainTextEdit::NoWrap);
 }
 
-void EMailBodyView::Clear() {
-  shown_as_source_ = false;
-  clear();
-}
+void EMailBodyView::Clear() { clear(); }
 
 void EMailBodyView::SetBody(const EMailPart* body) {
   Clear();
@@ -53,6 +50,5 @@ void EMailBodyView::SetBody(const EMailPart* body) {
 
   if (body->content_type != "text/html") return;
 
-  shown_as_source_ = true;
   emit SignalHtmlShownAsSource();
 }

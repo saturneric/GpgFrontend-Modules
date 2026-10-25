@@ -266,10 +266,6 @@ void EMailHeaderView::ShowNotice(const QString& text) {
   empty_notice_->setVisible(true);
 }
 
-void EMailHeaderView::copy_selected(bool whole_field) {
-  copy_item(tree_->currentItem(), whole_field);
-}
-
 void EMailHeaderView::copy_item(QTreeWidgetItem* item, bool whole_field) {
   if (item == nullptr) return;
 

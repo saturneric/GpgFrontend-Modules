@@ -103,15 +103,6 @@ void Store(const QList<MailAccountConfig>& accounts, const QString& default_id);
  */
 auto DefaultAccount() -> MailAccountConfig;
 
-/**
- * @brief Look one account up by its stable id.
- *
- * @param id account id
- * @param out receives the account when found
- * @return true when @p id named a configured account
- */
-auto FindById(const QString& id, MailAccountConfig& out) -> bool;
-
 /// Accounts that can be browsed. Empty means "hide Import from IMAP".
 auto ImapAccounts() -> QList<MailAccountConfig>;
 

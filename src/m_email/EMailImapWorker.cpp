@@ -463,8 +463,6 @@ void EMailImapWorker::Connect(quint64 seq, const MailAccountConfig& account,
   }
 }
 
-namespace {}  // namespace
-
 void EMailImapWorker::ListFolders(quint64 seq) {
   const CancelScope cancel_scope(token_, seq, impl_->timeouts);
 

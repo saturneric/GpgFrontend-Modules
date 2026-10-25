@@ -189,16 +189,6 @@ auto ParseEmailString(const QString& input, QString& name, QString& email)
  * @brief
  *
  * @param data
- * @param lineLength
- * @return QString
- */
-auto EncodeBase64WithLineBreaks(const QByteArray& data, int lineLength = 76)
-    -> QString;
-
-/**
- * @brief
- *
- * @param data
  * @return true
  * @return false
  */

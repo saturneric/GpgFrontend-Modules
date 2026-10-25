@@ -70,9 +70,6 @@ class EMailBodyView : public QPlainTextEdit {
 
   void Clear();
 
-  /// Whether what is shown is HTML source rather than a plain-text body.
-  [[nodiscard]] auto ShownAsSource() const -> bool { return shown_as_source_; }
-
  signals:
   /**
    * @brief An HTML body is being shown as its source.
@@ -82,7 +79,4 @@ class EMailBodyView : public QPlainTextEdit {
    * are looking at.
    */
   void SignalHtmlShownAsSource();
-
- private:
-  bool shown_as_source_{false};
 };

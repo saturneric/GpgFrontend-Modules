@@ -1279,7 +1279,7 @@ auto DoEncryptPlainText(int channel, const QStringList& encrypt_keys,
 
   return kSUCCESS;
 }
-};  // namespace
+}  // namespace
 
 auto OnEditTabTypeEmailOpEncrypt(const GFEvent& event) -> GFEventResult {
   if (event.Str("body_data").isEmpty())
@@ -1591,9 +1591,6 @@ auto OnEditTabTypeEmailOpDecryptVerify(const GFEvent& event) -> GFEventResult {
 
   auto channel = event.Str("channel").toInt();
   auto data = QByteArray::fromBase64(QString(event.Str("data")).toLatin1());
-
-  auto body_data =
-      QByteArray::fromBase64(QString(event.Str("body_data")).toLatin1());
 
   QByteArray eml_data;
   EMailMetaData meta_data;

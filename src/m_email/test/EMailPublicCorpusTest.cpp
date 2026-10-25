@@ -160,14 +160,6 @@ auto ParseOrDie(const QString& name, QByteArray& raw, EMailPart& root,
   return ParseMimeTree(message, raw, root, regions) == 0;
 }
 
-auto FindByFileName(const EMailPart& root, const QString& name)
-    -> const EMailPart* {
-  for (const auto* part : FlattenMimeTree(root)) {
-    if (part->filename == name) return part;
-  }
-  return nullptr;
-}
-
 }  // namespace
 
 // --- the contract every public message is held to ---------------------------

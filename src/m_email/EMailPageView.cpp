@@ -28,17 +28,13 @@
 
 #include "EMailPageView.h"
 
-#include <GFSDKHostCommands.hpp>
-
-#include "EMailModule.h"
-
 #include <GFSDKGpg.h>
 #include <GFSDKGpgList.h>
 
 #include <GFSDKBuffer.hpp>
+#include <GFSDKHostCommands.hpp>
 #include <QAbstractItemView>
 #include <QApplication>
-#include <QButtonGroup>
 #include <QClipboard>
 #include <QCompleter>
 #include <QDesktopServices>
@@ -82,6 +78,7 @@
 #include "EMailBodyView.h"
 #include "EMailHeaderView.h"
 #include "EMailHelper.h"
+#include "EMailModule.h"
 #include "EMailSecurityView.h"
 #include "EMailSendDialog.h"
 #include "EMailStructureView.h"
@@ -400,23 +397,13 @@ void EMailPageView::build_ui() {
 
   build_details_dialog();
 
-  // Three keys rather than the five the tabs had: there are two ways to look at
-  // the document, and one window that describes it.
-  //
   // Only within this widget: several of these views can be open at once, and a
   // key pressed in one must not move another.
-  const auto add_shortcut = [this](const QKeySequence& keys,
-                                   const std::function<void()>& action) {
-    auto* shortcut = new QShortcut(keys, this);
-    shortcut->setContext(Qt::WidgetWithChildrenShortcut);
-    connect(shortcut, &QShortcut::activated, this, action);
-  };
-
-  add_shortcut(QKeySequence(Qt::ALT | Qt::Key_1),
-               [this]() { set_source_mode(false); });
-  add_shortcut(QKeySequence(Qt::ALT | Qt::Key_2),
-               [this]() { set_source_mode(true); });
-  add_shortcut(QKeySequence(Qt::ALT | Qt::Key_3), [this]() { open_details(); });
+  auto* details_shortcut =
+      new QShortcut(QKeySequence(Qt::ALT | Qt::Key_3), this);
+  details_shortcut->setContext(Qt::WidgetWithChildrenShortcut);
+  connect(details_shortcut, &QShortcut::activated, this,
+          [this]() { open_details(); });
 
   apply_colors();
 }
@@ -663,58 +650,6 @@ auto EMailPageView::build_message_surface() -> QWidget* {
   body_row->setContentsMargins(0, 0, 0, 0);
   body_row->setSpacing(2);
 
-  // Message / Raw Source. Flat and adjacent, the same shape the host uses for
-  // the pair when a view does NOT adopt its editor -- two views of one
-  // document, rather than two buttons that do something.
-  //
-  // It sits in the action row rather than in a strip of its own because the
-  // row stays on screen in both modes: a switcher that lives above everything
-  // is the second tab bar this redesign exists to remove.
-  view_switcher_ = new QWidget(this);
-  auto* switcher_row = new QHBoxLayout(view_switcher_);
-  switcher_row->setContentsMargins(0, 0, 0, 0);
-  switcher_row->setSpacing(2);
-
-  const auto make_mode = [this, switcher_row](const QString& text,
-                                              const QString& tip, bool checked,
-                                              const QKeySequence& shortcut) {
-    auto* button = new QToolButton(view_switcher_);
-    button->setText(text);
-    button->setCheckable(true);
-    button->setChecked(checked);
-    button->setAutoRaise(true);
-    button->setFocusPolicy(Qt::NoFocus);
-    button->setCursor(Qt::PointingHandCursor);
-    button->setToolButtonStyle(Qt::ToolButtonTextOnly);
-    button->setToolTip(
-        tr("%1 (%2)").arg(tip, shortcut.toString(QKeySequence::NativeText)));
-    // Held at its natural width. Which view you are looking at is not
-    // something to work out from "Me...ge"; when the row runs out of room it is
-    // the message ACTIONS that give way, in refresh_action_density().
-    button->setMinimumWidth(button->sizeHint().width());
-    switcher_row->addWidget(button);
-    return button;
-  };
-
-  message_mode_button_ = make_mode(tr("Message"), tr("Show the message"), true,
-                                   QKeySequence(Qt::ALT | Qt::Key_1));
-  source_mode_button_ = make_mode(tr("Raw Source"), tr("Show the raw document"),
-                                  false, QKeySequence(Qt::ALT | Qt::Key_2));
-
-  auto* mode_group = new QButtonGroup(view_switcher_);
-  mode_group->setExclusive(true);
-  mode_group->addButton(message_mode_button_);
-  mode_group->addButton(source_mode_button_);
-
-  connect(message_mode_button_, &QToolButton::clicked, this,
-          [this]() { set_source_mode(false); });
-  connect(source_mode_button_, &QToolButton::clicked, this,
-          [this]() { set_source_mode(true); });
-
-  // A host that kept its own switcher never hands over an editor, and then
-  // there is no second mode to offer.
-  view_switcher_->setVisible(false);
-  body_row->addWidget(view_switcher_);
   body_row->addSpacing(4);
 
   // Every command is a QAction owned by the view and registered on it, so its
@@ -1174,46 +1109,6 @@ void EMailPageView::persist_details_state() {
   SetEMailViewSetting(kEMailDetailsTabKey, details_tabs_->currentIndex());
 }
 
-void EMailPageView::set_source_mode(bool on) {
-  // Nothing was adopted, so there is only one mode and this cannot be entered.
-  if (raw_tab_ == nullptr || source_mode_ == on) {
-    if (message_mode_button_ != nullptr) {
-      message_mode_button_->setChecked(!source_mode_);
-      source_mode_button_->setChecked(source_mode_);
-    }
-    return;
-  }
-
-  if (on) {
-    // The host answers by writing pending edits into the document. It has to
-    // happen before the editor is on screen, or the octets the user reads as
-    // the raw source are behind what this view already has.
-    emit SignalSourceViewRequested();
-  }
-
-  source_mode_ = on;
-  message_mode_button_->setChecked(!on);
-  source_mode_button_->setChecked(on);
-
-  // The envelope and the attachment list describe the parsed message. Beside
-  // the raw octets they would be describing something the user is no longer
-  // looking at, so they go away and the document gets the whole area.
-  envelope_box_->setVisible(!on);
-  envelope_rule_->setVisible(!on);
-  apply_attachment_bar();
-
-  if (on) {
-    body_stack_->setCurrentWidget(raw_tab_);
-    refresh_raw_lock_ui();
-    source_view_->setFocus(Qt::OtherFocusReason);
-    return;
-  }
-
-  // Back to whichever of the editor, the rendered body or the locked panel the
-  // message actually calls for.
-  refresh_body_view();
-}
-
 void EMailPageView::refresh_action_density() {
   if (message_surface_ == nullptr || reply_button_ == nullptr) return;
 
@@ -1281,13 +1176,6 @@ void EMailPageView::apply_content_lock() {
   // Attaching and removing change the message; saving a part out does not.
   // The attachment row decides from the same lock.
   if (attachment_box_ != nullptr) apply_attachment_bar();
-
-  // The raw editor writes straight into the document, so leaving it writable
-  // would be a hole right through the lock. Forensic mode locks it outright;
-  // otherwise it follows the unlock the user asked for on the Raw Source tab.
-  if (source_view_ != nullptr) {
-    source_view_->setProperty("readOnly", forensic_ || !raw_unlocked_);
-  }
 
   // The icon travels with the wording: the same reason, said twice, so the
   // state is recognisable before the sentence is read.
@@ -1361,7 +1249,6 @@ void EMailPageView::apply_content_lock() {
   }
 
   style_as_locked(locked);
-  refresh_raw_lock_ui();
 }
 
 void EMailPageView::style_as_locked(bool locked) {
@@ -1402,18 +1289,6 @@ void EMailPageView::style_as_locked(bool locked) {
 
 void EMailPageView::SetForensicMode(bool on) {
   forensic_ = on;
-
-  // Forensic mode revokes an unlock already in force. Leaving it does NOT
-  // unlock: the raw editor is locked by default either way, and has to be
-  // asked for deliberately each time.
-  if (on) {
-    raw_unlocked_ = false;
-    if (raw_unlock_button_ != nullptr) {
-      const QSignalBlocker blocker(raw_unlock_button_);
-      raw_unlock_button_->setChecked(false);
-    }
-  }
-
   if (on) dirty_ = false;
 
   apply_content_lock();
@@ -1551,81 +1426,6 @@ void EMailPageView::refresh_structure() {
 
   structure_view_->SetTree(tree_root_, regions_);
   header_view_->SetMessage(tree_root_, last_source_);
-}
-
-void EMailPageView::slot_toggle_raw_edit(bool on) {
-  if (!on) {
-    raw_unlocked_ = false;
-    if (source_view_ != nullptr) source_view_->setProperty("readOnly", true);
-    refresh_raw_lock_ui();
-    return;
-  }
-
-  // Should be unreachable -- the control is disabled -- but the document must
-  // not become writable through a path that skipped the check.
-  if (forensic_) {
-    const QSignalBlocker blocker(raw_unlock_button_);
-    raw_unlock_button_->setChecked(false);
-    return;
-  }
-
-  if (content_lock() == EMailLockReason::kPROTECTED) {
-    QMessageBox::information(
-        this, tr("Protected Message"),
-        tr("These bytes are covered by a signature, or are ciphertext. Remove "
-           "the signature, or decrypt the message, before editing its "
-           "source."));
-    const QSignalBlocker blocker(raw_unlock_button_);
-    raw_unlock_button_->setChecked(false);
-    return;
-  }
-
-  raw_unlocked_ = true;
-  if (source_view_ != nullptr) source_view_->setProperty("readOnly", false);
-  refresh_raw_lock_ui();
-}
-
-void EMailPageView::refresh_raw_lock_ui() {
-  if (raw_unlock_button_ == nullptr || raw_notice_ == nullptr) return;
-
-  const auto reason = content_lock();
-  const bool unlockable = reason == EMailLockReason::kNONE;
-
-  raw_unlock_button_->setEnabled(unlockable || raw_unlocked_);
-  raw_unlock_button_->setIcon(
-      QIcon(raw_unlocked_ ? ":/icons/unlock.png" : ":/icons/read-only.png"));
-  raw_unlock_button_->setText(raw_unlocked_ ? tr("Stop Editing")
-                                            : tr("Edit Raw Source"));
-
-  QString notice;
-  QColor colour = MutedColor(this);
-  if (raw_unlocked_) {
-    notice =
-        tr("You are editing the raw message source. What you type here is the "
-           "document.");
-    colour = EMailWarningColor(this);
-  } else {
-    switch (reason) {
-      case EMailLockReason::kFORENSIC:
-        notice =
-            tr("This message is locked for inspection. Its source cannot be "
-               "edited.");
-        break;
-      case EMailLockReason::kPROTECTED:
-        notice =
-            tr("Read-only. These bytes are protected. Remove the signature, or "
-               "decrypt the message, to edit them.");
-        break;
-      case EMailLockReason::kNONE:
-        notice = tr("Read-only. Unlock to edit the message source directly.");
-        break;
-    }
-  }
-
-  raw_notice_->setText(notice);
-  auto palette = raw_notice_->palette();
-  palette.setColor(QPalette::WindowText, colour);
-  raw_notice_->setPalette(palette);
 }
 
 void EMailPageView::ApplyEditorFont(const QFont& font) {
@@ -2193,12 +1993,6 @@ auto EMailPageView::refuse_when_locked(const QString& what) -> bool {
 }
 
 void EMailPageView::refresh_body_view() {
-  // The raw document is on screen, and this function's whole job is to decide
-  // which of the OTHER pages belongs there. Without this guard the host's own
-  // reload -- which it runs on every content change, including the user's own
-  // keystrokes in that editor -- would pull the editor out from under them.
-  if (source_mode_) return;
-
   // Cleared before the body view is told anything, so the flag can only be set
   // again by the view itself saying it fell back to source.
   // apply_content_lock() runs after this function in LoadFromSource() and is
@@ -2925,8 +2719,7 @@ void EMailPageView::apply_attachment_bar() {
        static_cast<int>(attachment_list_->selectedItems().size()), !locked,
        attachments_expanded_});
 
-  // The raw source mode takes the whole section away, whatever it would say.
-  attachment_box_->setVisible(s.section_visible && !source_mode_);
+  attachment_box_->setVisible(s.section_visible);
   attachment_list_->setVisible(s.list_visible);
 
   // The menu is the one place the operations are. What cannot apply in this
@@ -3019,10 +2812,6 @@ auto EMailPageView::SuggestedFileName() const -> QString {
   const auto subject =
       subject_edit_ != nullptr ? subject_edit_->text() : message_.subject;
   return SuggestedEMailFileName(subject);
-}
-
-auto EMailPageView::FileTypeFilter() -> QString {
-  return tr("E-Mail Message (*.eml);;All Files (*)");
 }
 
 auto EMailPageView::SaveToSource() -> QByteArray {

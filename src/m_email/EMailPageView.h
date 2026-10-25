@@ -208,9 +208,6 @@ class EMailPageView : public QWidget, public gf::ui::DocumentWidget {
    */
   QString SuggestedFileName() const override;  // NOLINT
 
-  /// Optional half of the page/view contract: the save dialog's filter.
-  QString FileTypeFilter();  // NOLINT
-
   void LoadFromSource(const QByteArray& source);  // NOLINT
 
   /**
@@ -291,14 +288,6 @@ class EMailPageView : public QWidget, public gf::ui::DocumentWidget {
   void SignalContentModified();
 
   /**
-   * @brief Emitted just before the adopted raw editor is shown.
-   *
-   * The host answers by writing any pending edits into the document, so what
-   * the user reads as the raw source is never behind the structured view.
-   */
-  void SignalSourceViewRequested();
-
-  /**
    * @brief Asks the host to run a crypto operation on this tab's document.
    *
    * Optional half of the page/view contract. @p operation is one of
@@ -345,8 +334,6 @@ class EMailPageView : public QWidget, public gf::ui::DocumentWidget {
   /// Opens a new tab holding a message derived from this one. The current
   /// document is only read: deriving never modifies what it derives from.
   void slot_derive_message(int mode);
-  /// Unlocks or re-locks the adopted raw editor.
-  void slot_toggle_raw_edit(bool on);
   /// Lifts the outermost signature off the message, leaving an ordinary one.
   void slot_remove_protection_layer();
   /// Freezes the message and opens the send dialog. Reads the document only.
@@ -427,8 +414,6 @@ class EMailPageView : public QWidget, public gf::ui::DocumentWidget {
   /// True when the content may be changed. Otherwise explains why not, and
   /// for a signed message offers to remove the signature, then returns false.
   auto refuse_when_locked(const QString& what) -> bool;
-  /// Keeps the raw source notice and unlock control in step.
-  void refresh_raw_lock_ui();
   /// Builds the details window, hidden, along with the rest of the view. The
   /// three inspection views live in its tab widget; a tab widget is the right
   /// shape in a window of its own, where there is no outer row of tabs for it
@@ -456,10 +441,6 @@ class EMailPageView : public QWidget, public gf::ui::DocumentWidget {
   /// and the security state keep theirs: those are read at a glance, while
   /// Reply and Forward are recognisable as icons and keep their tooltips.
   void refresh_action_density();
-  /// Shows the message, or the raw document the host handed over. The only
-  /// place the body stack is switched to the raw editor, because the host has
-  /// to be given the chance to flush its edits first.
-  void set_source_mode(bool on);
   /// Builds the panel shown in place of a body that is still ciphertext.
   auto build_locked_panel() -> QWidget*;
   /// Writes that panel from what is knowable without decrypting.
@@ -676,29 +657,11 @@ class EMailPageView : public QWidget, public gf::ui::DocumentWidget {
   /// lose the tab or the size.
   QDialog* details_dialog_{};
   QTabWidget* details_tabs_{};
-  /// Message / Raw Source. Hidden until an editor is actually adopted: a host
-  /// that kept its own switcher leaves this view with only one mode.
-  QWidget* view_switcher_{};
-  QToolButton* message_mode_button_{};
-  QToolButton* source_mode_button_{};
   /// Coalesces settings writes, so a window being dragged to a new size does
   /// not write a settings file per pixel.
   QTimer* persist_timer_{};
-  /// Whether the raw document is the thing on screen.
-  bool source_mode_{false};
   /// Whether the message actions are currently showing icons alone.
   bool actions_compact_{false};
-  /// The host's raw document editor, once adopted. Owned by the page of the
-  /// body stack it was placed in; null when the host kept its own switcher.
-  QWidget* source_view_{};
-  /// The raw source page itself: the adopted editor plus the row that says
-  /// whether it may be written to. Never the editor alone.
-  QWidget* raw_tab_{};
-  QLabel* raw_notice_{};
-  QToolButton* raw_unlock_button_{};
-  /// Whether the user has deliberately asked to edit the raw document.
-  /// Read-only is the default: these are the octets a signature covers.
-  bool raw_unlocked_{false};
   EMailStructureView* structure_view_{};
   EMailHeaderView* header_view_{};
   EMailSecurityView* security_view_{};

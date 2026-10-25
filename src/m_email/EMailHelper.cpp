@@ -226,21 +226,6 @@ auto ParseEmailString(const QString& input, QString& name, QString& email)
   return false;
 }
 
-auto EncodeBase64WithLineBreaks(const QByteArray& data, int line_length)
-    -> QString {
-  // Get the Base64 encoded data
-  QByteArray base64_data = data.toBase64();
-
-  // Split the base64 data into lines of the given line length
-  QStringList lines;
-  for (int i = 0; i < base64_data.size(); i += line_length) {
-    lines.append(base64_data.mid(i, line_length));
-  }
-
-  // Join lines with CRLF
-  return lines.join("\r\n");
-}
-
 auto CheckIfEMLMessage(const QByteArray& data,
                        vmime::shared_ptr<vmime::message>& message) -> bool {
   if (data.size() > kMaxParseInputBytes) {
@@ -466,8 +451,6 @@ auto BuildPlainTextEML(const EMailMetaData& meta_data,
     -> int {
   return BuildMimeEML(meta_data, body_data, {}, eml_data);
 }
-
-auto GetMetaData(QByteArray& data, EMailMetaData& meta_data) {}
 
 auto GetEMLMetaData(vmime::shared_ptr<vmime::message>& message,
                     EMailMetaData& meta_data) -> int {

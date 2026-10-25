@@ -32,7 +32,6 @@
 #include <QJsonDocument>
 #include <QMutex>
 #include <QMutexLocker>
-#include <QSettings>
 #include <QUuid>
 
 #include "GFModule.h"
@@ -151,16 +150,6 @@ auto DefaultAccount() -> MailAccountConfig {
     if (account.IsUsable()) return account;
   }
   return accounts.first();
-}
-
-auto FindById(const QString& id, MailAccountConfig& out) -> bool {
-  if (id.isEmpty()) return false;
-  for (const auto& account : Load()) {
-    if (account.id != id) continue;
-    out = account;
-    return true;
-  }
-  return false;
 }
 
 auto ImapAccounts() -> QList<MailAccountConfig> {

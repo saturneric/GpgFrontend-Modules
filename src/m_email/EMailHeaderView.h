@@ -85,7 +85,6 @@ class EMailHeaderView : public QWidget {
   /// when that leaves nothing. Never rebuilds: filtering is a view choice and
   /// must not be able to change what is in the list.
   void apply_filter();
-  void copy_selected(bool whole_field);
   /// Copies out of @p item, which may be nullptr.
   void copy_item(QTreeWidgetItem* item, bool whole_field);
 
