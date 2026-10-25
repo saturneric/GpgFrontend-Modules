@@ -36,9 +36,11 @@
 #ifndef VMIME_STATIC
 #define VMIME_STATIC
 #endif
+#include <vmime/security/defaultAuthenticator.hpp>
 #include <vmime/vmime.hpp>
 
 #include "EMailAccountModel.h"
+#include "EMailSecret.h"
 
 /**
  * @brief Everything that decides how secure a mail connection is.
@@ -118,5 +120,37 @@ auto ProtocolName(bool imap, MailTlsMode mode) -> QString;
  * @return true when the link is TLS-protected
  */
 auto IsSecured(const vmime::shared_ptr<vmime::net::service>& service) -> bool;
+
+/**
+ * @brief An authenticator that refuses to hand over a password in the clear.
+ *
+ * The last line of defence, and the reason it is a separate class: vmime
+ * connects and authenticates inside one call, so there is no moment between
+ * the two where a caller could check. The authenticator callback is that
+ * moment. By then STARTTLS has already run -- the IMAP and SMTP connections
+ * do it before authenticate() -- so the connection can be asked whether it is
+ * actually encrypted, and the password simply is not produced if it is not.
+ *
+ * A policy failure therefore becomes a failed login rather than a leaked
+ * credential.
+ */
+class SecureAuthenticator : public vmime::security::defaultAuthenticator {
+ public:
+  SecureAuthenticator(QString username, EMailSecretPtr password,
+                      bool allow_cleartext);
+
+  // No wipe here: the bytes belong to EMailSecret and are erased when the
+  // last holder releases them. Wiping a local copy was the old mistake -- it
+  // detached and zeroed a fresh buffer, leaving the original intact.
+  ~SecureAuthenticator() override = default;
+
+  auto getUsername() const -> const vmime::string override;
+  auto getPassword() const -> const vmime::string override;
+
+ private:
+  QString username_;
+  EMailSecretPtr password_;
+  bool allow_cleartext_;
+};
 
 }  // namespace EMailTlsSetup

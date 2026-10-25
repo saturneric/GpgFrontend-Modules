@@ -36,62 +36,11 @@
 #include <vmime/net/imap/IMAPFolder.hpp>
 #include <vmime/net/imap/IMAPFolderStatus.hpp>
 #include <vmime/net/imap/IMAPSearchAttributes.hpp>
-#include <vmime/security/defaultAuthenticator.hpp>
 
 #include "EMailTlsSetup.h"
 #include "GFModule.h"
 
 namespace {
-
-/**
- * @brief An authenticator that refuses to hand over a password in the clear.
- *
- * The last line of defence, and the reason it is a separate class: vmime
- * connects and authenticates inside one call, so there is no moment between
- * the two where a caller could check. The authenticator callback is that
- * moment. By then STARTTLS has already run -- IMAPConnection does it before
- * authenticate() -- so the connection can be asked whether it is actually
- * encrypted, and the password simply is not produced if it is not.
- *
- * A policy failure therefore becomes a failed login rather than a leaked
- * credential.
- */
-class SecureAuthenticator : public vmime::security::defaultAuthenticator {
- public:
-  SecureAuthenticator(QString username, EMailSecretPtr password,
-                      bool allow_cleartext)
-      : username_(std::move(username)),
-        password_(std::move(password)),
-        allow_cleartext_(allow_cleartext) {}
-
-  // No wipe here: the bytes belong to EMailSecret and are erased when the
-  // last holder releases them. Wiping a local copy was the old mistake -- it
-  // detached and zeroed a fresh buffer, leaving the original intact.
-  ~SecureAuthenticator() override = default;
-
-  auto getUsername() const -> const vmime::string override {
-    return username_.toStdString();
-  }
-
-  auto getPassword() const -> const vmime::string override {
-    if (!allow_cleartext_) {
-      auto service = getService().lock();
-      if (!EMailTlsSetup::IsSecured(service)) {
-        LOG_ERROR("refusing to send mail password over an unencrypted link");
-        throw vmime::exceptions::authentication_error(
-            "refusing to authenticate over an unencrypted connection");
-      }
-    }
-    // A copy vmime owns and goes on to copy again while encoding AUTH.
-    // Neither is ours to erase; see EMailSecret.
-    return password_ ? password_->StdStringCopy() : std::string();
-  }
-
- private:
-  QString username_;
-  EMailSecretPtr password_;
-  bool allow_cleartext_;
-};
 
 /// A header field in its WIRE form: exactly the octets the server sent.
 ///
@@ -434,8 +383,9 @@ void EMailImapWorker::Connect(quint64 seq, const MailAccountConfig& account,
         EMailTlsSetup::Apply(impl_->session, impl_->store,
                              QString("store.%1").arg(protocol), config, true);
 
-    impl_->store->setAuthenticator(vmime::make_shared<SecureAuthenticator>(
-        config.username, password, cleartext));
+    impl_->store->setAuthenticator(
+        vmime::make_shared<EMailTlsSetup::SecureAuthenticator>(
+            config.username, password, cleartext));
 
     impl_->store->connect();
 

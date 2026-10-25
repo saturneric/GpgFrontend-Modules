@@ -286,4 +286,29 @@ auto IsSecured(const vmime::shared_ptr<vmime::net::service>& service) -> bool {
              infos) != nullptr;
 }
 
+SecureAuthenticator::SecureAuthenticator(QString username,
+                                         EMailSecretPtr password,
+                                         bool allow_cleartext)
+    : username_(std::move(username)),
+      password_(std::move(password)),
+      allow_cleartext_(allow_cleartext) {}
+
+auto SecureAuthenticator::getUsername() const -> const vmime::string {
+  return username_.toStdString();
+}
+
+auto SecureAuthenticator::getPassword() const -> const vmime::string {
+  if (!allow_cleartext_) {
+    auto service = getService().lock();
+    if (!IsSecured(service)) {
+      LOG_ERROR("refusing to send mail password over an unencrypted link");
+      throw vmime::exceptions::authentication_error(
+          "refusing to authenticate over an unencrypted connection");
+    }
+  }
+  // A copy vmime owns and goes on to copy again while encoding AUTH.
+  // Neither is ours to erase; see EMailSecret.
+  return password_ ? password_->StdStringCopy() : std::string();
+}
+
 }  // namespace EMailTlsSetup
