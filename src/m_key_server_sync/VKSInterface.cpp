@@ -39,6 +39,7 @@
 #include <QUrlQuery>
 
 #include "GFModule.h"
+#include "GFModuleTr.h"
 #include "KeyServerBatchLogic.h"
 
 namespace {
@@ -131,11 +132,17 @@ void VKSInterface::on_reply_finished(QNetworkReply* reply) {
                           (QString(response_data)).toUtf8().constData(), 300);
     emit SignalKeyRetrieved(QString(response_data));
   } else if (url.path().contains("/vks/v1/upload")) {
+    // Every reply must end in one of the two signals: the caller releases
+    // this object, and a batch moves on, only when one of them arrives.
     if (json_response.isObject()) {
       QJsonObject response_object = json_response.object();
       emit SignalKeyUploaded(response_object["key_fpr"].toString(),
                              response_object["status"].toObject(),
                              response_object["token"].toString());
+    } else {
+      emit SignalErrorOccurred(
+          GTrC::tr("The key server sent a reply that could not be read."),
+          QString::fromUtf8(response_data));
     }
   }
 
