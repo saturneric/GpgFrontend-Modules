@@ -34,8 +34,13 @@ add_subdirectory(m_pgp_inspect)
 # Local only: tokens are made and read in memory, so the sandbox keeps it.
 add_subdirectory(m_im)
 
-# modules that are not needed in sandboxed environment
-if(NOT GPGFRONTEND_XCODE_ENABLE_SANDBOX)
+# Updates come from the App Store or Flathub, never from a GitHub check.
+if(NOT GPGFRONTEND_BUILD_FLAVOR MATCHES "^(sandbox|flatpak)$")
   add_subdirectory(m_ver_check)
+endif()
+
+# GnuPG-only: the App Store build offers nothing GnuPG-specific. Flatpak ships
+# its own GnuPG, so it keeps it.
+if(NOT GPGFRONTEND_BUILD_FLAVOR STREQUAL "sandbox")
   add_subdirectory(m_gpg_info)
 endif()
