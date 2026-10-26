@@ -434,6 +434,11 @@ Hata: %2</translation>
 
 %2</translation>
     </message>
+    <message>
+        <location filename="../VKSInterface.cpp" line="144"/>
+        <source>The key server sent a reply that could not be read.</source>
+        <translation>Anahtar sunucusu okunamayan bir yanıt gönderdi.</translation>
+    </message>
 </context>
 <context>
     <name>SearchKeyDialog</name>

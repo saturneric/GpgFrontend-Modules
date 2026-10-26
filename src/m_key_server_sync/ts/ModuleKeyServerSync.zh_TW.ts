@@ -465,6 +465,11 @@ Error: %2</source>
         <source>The key databases were changed while this was running, so it was stopped after %1 of %2 keys. Nothing fetched was imported. Please start it again.</source>
         <translation>執行期間金鑰資料庫已變更，因此在處理 %2 把金鑰中的 %1 把後停止。未匯入任何擷取到的金鑰。請重新開始。</translation>
     </message>
+    <message>
+        <location filename="../VKSInterface.cpp" line="144"/>
+        <source>The key server sent a reply that could not be read.</source>
+        <translation>金鑰伺服器傳送的回覆無法讀取。</translation>
+    </message>
 </context>
 <context>
     <name>SearchKeyDialog</name>

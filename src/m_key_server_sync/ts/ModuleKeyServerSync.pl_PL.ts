@@ -438,6 +438,11 @@ Błąd: %2</translation>
         <source>The key databases were changed while this was running, so it was stopped after %1 of %2 keys. Nothing fetched was imported. Please start it again.</source>
         <translation>Bazy kluczy zostały zmienione w trakcie działania, więc operacja została zatrzymana po %1 z %2 kluczy. Nic z pobranych danych nie zostało zaimportowane. Uruchom ją ponownie.</translation>
     </message>
+    <message>
+        <location filename="../VKSInterface.cpp" line="144"/>
+        <source>The key server sent a reply that could not be read.</source>
+        <translation>Serwer kluczy wysłał odpowiedź, której nie można było odczytać.</translation>
+    </message>
 </context>
 <context>
     <name>SearchKeyDialog</name>
