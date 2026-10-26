@@ -1,7 +1,6 @@
 {
   "schema_version": 1,
   "id": "com.bktus.gpgfrontend.module.pgp_inspect",
-  "version": "1.0.0",
   "name": "PGPInspect",
   "description": "Inspect the packet structure of any OpenPGP data.",
   "author": "Saturneric",

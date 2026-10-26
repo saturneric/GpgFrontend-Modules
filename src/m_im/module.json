@@ -1,7 +1,6 @@
 {
   "schema_version": 1,
   "id": "com.bktus.gpgfrontend.module.im",
-  "version": "1.0.0",
   "name": "InstantMessaging",
   "description": "Send OpenPGP messages as single-line tokens that look like random text.",
   "author": "Saturneric",

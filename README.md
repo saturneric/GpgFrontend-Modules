@@ -88,7 +88,6 @@ Add `add_subdirectory(my_module)` to `modules/src/CMakeLists.txt`.
 {
   "schema_version": 1,
   "id": "com.example.my_module",
-  "version": "1.0.0",
   "name": "MyModule",
   "description": "What this module does.",
   "author": "Your Name",
@@ -98,6 +97,11 @@ Add `add_subdirectory(my_module)` to `modules/src/CMakeLists.txt`.
   "translation_context": "ModuleMyModule"
 }
 ```
+
+An optional `"version"` field sets the module's version; it defaults to the
+version of GpgFrontend it was built against. Modules bundled with GpgFrontend
+leave it out, so they never need a separate bump. An external module that is
+released on its own schedule should state it.
 
 An optional `"min_host_version"` field pins the oldest GpgFrontend release the
 module requires; it defaults to the version of GpgFrontend it was built

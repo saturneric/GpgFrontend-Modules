@@ -1,7 +1,6 @@
 {
   "schema_version": 1,
   "id": "com.bktus.gpgfrontend.module.key_server_sync",
-  "version": "2.0.0",
   "name": "KeyServerSync",
   "description": "Sync Information From Trusted Key Server.",
   "author": "Saturneric",
