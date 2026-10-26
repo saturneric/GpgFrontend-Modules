@@ -37,6 +37,8 @@
 
 class QLabel;
 class QLineEdit;
+class QPlainTextEdit;
+class QTabWidget;
 class QTreeWidget;
 class QTreeWidgetItem;
 
@@ -49,14 +51,28 @@ auto PGPInspectBytes(const QByteArray& data) -> PGPInspectDocument;
 /**
  * @brief Shows what the OpenPGP data in the current tab is made of.
  *
- * A dumb view, and a deliberately bare one: it is handed a document and
- * renders it. There is nothing to press -- the content comes from the tab the
- * user was already looking at, so a dialog that asked them to fetch it again
- * would be asking a question they have already answered. The only control is
- * the search box, which is there because a certificate's packet tree is long.
+ * Master and detail. The tree on the left is the structure alone: blocks,
+ * packets, and what nests inside them, one line each. Everything a packet
+ * says goes in the tabs on the right, one kind of detail per tab, for the
+ * selected row:
  *
- * Every rule about what the bytes mean lives in PGPInspectModel.h and, below
- * that, in the Rust packet walk.
+ *  - Overview: the packet's main facts, and its framing;
+ *  - Subpackets: a signature's hashed and unhashed areas;
+ *  - Key / Signature / Session Key Material, named for the packet: its
+ *    format in one line, then the key parameters, signature values or
+ *    encrypted session keys, each with its length and encoding, and a
+ *    secret key's protection;
+ *  - Hex: the octets, each range labelled, as `sq packet dump --hex` lays
+ *    them out.
+ *
+ * A tab with nothing to show for the selection is hidden, and the tab the
+ * reader picked stays picked while they step through packets. The search box
+ * filters the tree by everything a packet shows, and marks the matching rows
+ * in the tabs.
+ *
+ * There is nothing to press: the content comes from the tab the user was
+ * already looking at. Every rule about what the bytes mean lives in
+ * PGPPacketDecoder.h and PGPInspectModel.h.
  */
 class PGPInspectDialog : public QDialog, public gf::ui::DialogWidget {
   Q_OBJECT
@@ -65,24 +81,54 @@ class PGPInspectDialog : public QDialog, public gf::ui::DialogWidget {
   PGPInspectDialog(const PGPInspectDocument& document, qint64 size,
                    QWidget* parent = nullptr);
 
+ protected:
+  auto eventFilter(QObject* watched, QEvent* event) -> bool override;
+
  private slots:
   void slot_filter_changed(const QString& needle);
+  void slot_selection_changed(QTreeWidgetItem* current);
+  void slot_tab_chosen(int index);
 
  private:
   void create_widgets();
   void render_document();
   void add_packets(QTreeWidgetItem* parent,
-                   const QList<PGPInspectPacket>& packets);
-  void add_fields(QTreeWidgetItem* parent,
-                  const QList<PGPInspectField>& fields);
+                   const QList<PGPInspectPacket>& packets,
+                   const QString& parent_index);
+  void measure_columns();
+  void layout_columns();
+  void show_block(const PGPInspectBlock& block);
+  void show_packet(const PGPInspectPacket& packet, const QString& index);
+  void fill_fields(QTreeWidget* tree, const QList<PGPInspectField>& fields);
+  void show_tabs(bool subpackets, bool material, bool hex);
 
   PGPInspectDocument document_;
   qint64 size_ = 0;
+  /// The tab the reader last picked, kept across selections.
+  int preferred_tab_ = 0;
+  /// What the longest packet label and size need; 0 before rendering.
+  int label_width_ = 0;
+  /// The narrowest the name column may get: its "#index" in full.
+  int index_width_ = 0;
+  int size_width_ = 0;
+  /// Set while the dialog itself switches tabs, so that is not mistaken for
+  /// the reader's choice.
+  bool switching_tabs_ = false;
 
   QLineEdit* search_{};
   QTreeWidget* tree_{};
+  QTabWidget* tabs_{};
+  QTreeWidget* overview_{};
+  QTreeWidget* subpackets_{};
+  QTreeWidget* material_{};
+  QLabel* material_summary_{};
+  QPlainTextEdit* hex_{};
   QLabel* summary_label_{};
 };
+
+/// The item role holding the text a structure row is searched by: its own
+/// line, and every field its packet shows in any tab.
+constexpr int kPGPInspectSearchRole = Qt::UserRole + 1;
 
 /// Show a row when it matches, when an ancestor matched, or when a descendant
 /// does. Returns whether @p item ended up visible.

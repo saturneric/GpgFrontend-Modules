@@ -35,6 +35,7 @@
 #include <QJsonParseError>
 
 #include "GFModuleTr.h"
+#include "PGPPacketNames.h"
 
 using namespace Qt::StringLiterals;
 
@@ -47,8 +48,9 @@ auto ParseFields(const QJsonValue& value) -> QList<PGPInspectField> {
     // A row with neither half says nothing; dropping it keeps the detail
     // table from growing blank lines out of a malformed document.
     if (!object.contains("label") && !object.contains("value")) continue;
-    fields.push_back(
-        {object.value("label").toString(), object.value("value").toString()});
+    fields.push_back({object.value("label").toString(),
+                      object.value("value").toString(),
+                      {}});
   }
   return fields;
 }
@@ -56,7 +58,6 @@ auto ParseFields(const QJsonValue& value) -> QList<PGPInspectField> {
 auto ParsePacket(const QJsonObject& object) -> PGPInspectPacket {
   PGPInspectPacket packet;
   packet.tag = object.value("tag").toInt(-1);
-  packet.tag_name = object.value("tagName").toString();
   packet.offset = static_cast<qint64>(object.value("offset").toDouble());
   packet.header_version = object.value("headerVersion").toString();
   packet.header_length =
@@ -64,10 +65,8 @@ auto ParsePacket(const QJsonObject& object) -> PGPInspectPacket {
   packet.body_length =
       static_cast<qint64>(object.value("bodyLength").toDouble());
   packet.length_type = object.value("lengthType").toString();
-  // Absent for the packet types that carry no version octet, which is a fact
-  // about the type rather than a defect in the document.
-  packet.version = object.value("version").toInt(-1);
-  packet.fields = ParseFields(object.value("fields"));
+  packet.raw = QByteArray::fromHex(object.value("raw").toString().toLatin1());
+  packet.raw_truncated = object.value("rawTruncated").toBool();
   packet.error = object.value("error").toString();
 
   for (const auto& child : object.value("children").toArray()) {
@@ -102,6 +101,26 @@ auto ParseBlock(const QJsonObject& object) -> PGPInspectBlock {
     block.packets.push_back(ParsePacket(packet.toObject()));
   }
   return block;
+}
+
+void DecodePackets(QList<PGPInspectPacket>& packets) {
+  for (auto& packet : packets) {
+    DecodePackets(packet.children);
+    // Past the walk's document budget a packet carries framing only; that
+    // is a cap the summary line reports, not a defect in this packet.
+    if (!packet.raw.isEmpty()) {
+      packet.decoded = PGPDecodePacket(packet.raw, packet.WireLength());
+    }
+
+    // The decompressed stream ends where its last packet does.
+    if (packet.tag == 8 && !packet.children.isEmpty()) {
+      const auto& last = packet.children.last();
+      packet.decoded.overview.push_back(
+          {QStringLiteral("Decompressed Size"),
+           QStringLiteral("%1 bytes").arg(last.offset + last.WireLength()),
+           {}});
+    }
+  }
 }
 
 auto CountPackets(const QList<PGPInspectPacket>& packets) -> int {
@@ -148,41 +167,43 @@ auto ParsePGPInspectDocument(const QByteArray& json) -> PGPInspectDocument {
   return document;
 }
 
+void PGPInspectDecode(PGPInspectDocument& document) {
+  for (auto& block : document.blocks) DecodePackets(block.packets);
+}
+
 auto PGPInspectHasStructure(const PGPInspectDocument& document) -> bool {
   return document.valid && document.PacketCount() > 0;
 }
 
-auto PGPInspectPacketSummary(const PGPInspectPacket& packet, int index)
-    -> QString {
-  // "#1  Signature (tag 2)  v4  @0x0000  189 B". The offset is hexadecimal
-  // because that is what every other packet dumper prints, and what a reader
-  // comparing two tools needs in order to line them up.
-  auto summary = GTrC::tr("#%1  %2 (tag %3)")
-                     .arg(index)
-                     .arg(packet.tag_name.isEmpty() ? GTrC::tr("Unknown")
-                                                    : packet.tag_name)
-                     .arg(packet.tag);
+auto PGPInspectPacketSummary(const PGPInspectPacket& packet,
+                             const QString& index) -> QString {
+  // The index to find and name it by ("#2.3") and what it is. Version, tag
+  // number, offset and framing stay in the Overview tab.
+  return QString("#%1  %2").arg(index, PGPTagName(packet.tag));
+}
 
-  if (packet.version >= 0) summary += QString("  v%1").arg(packet.version);
-
-  summary += QString("  @0x%1").arg(packet.offset, 4, 16, QChar('0'));
-  summary += GTrC::tr("  %1 B").arg(packet.header_length + packet.body_length);
-
-  if (packet.length_type != "fixed"_L1 && !packet.length_type.isEmpty()) {
-    summary += QString("  [%1]").arg(packet.length_type);
-  }
-  return summary;
+auto PGPInspectPacketIndex(const QString& parent, int position) -> QString {
+  return parent.isEmpty() ? QString::number(position)
+                          : QString("%1.%2").arg(parent).arg(position);
 }
 
 auto PGPInspectBlockSummary(const PGPInspectBlock& block, int index)
     -> QString {
+  QString kind;
   if (block.kind == "cleartext"_L1) {
-    return GTrC::tr("Block %1: cleartext-signed message").arg(index);
+    kind = GTrC::tr("Cleartext Signed Message");
+  } else if (block.has_armor) {
+    kind = block.armor.block_type;
+  } else {
+    kind = GTrC::tr("Binary Data");
   }
-  if (block.has_armor) {
-    return GTrC::tr("Block %1: armored, %2")
-        .arg(index)
-        .arg(block.armor.block_type);
-  }
-  return GTrC::tr("Block %1: binary packet stream").arg(index);
+
+  // Counted through locals: a function call inside a translate() %n
+  // argument makes lupdate silently skip every string in the file.
+  const int total = CountPackets(block.packets);
+  const auto nested = total != block.packets.size();
+  const auto count =
+      nested ? GTrC::tr("%n packet(s) including nested", nullptr, total)
+             : GTrC::tr("%n packet(s)", nullptr, total);
+  return GTrC::tr("Block %1: %2 (%3)").arg(index).arg(kind, count);
 }

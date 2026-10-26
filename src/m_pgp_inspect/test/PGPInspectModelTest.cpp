@@ -51,24 +51,23 @@ constexpr const char* kDocument = R"({
       "packets": [
         {
           "tag": 8,
-          "tagName": "Compressed Data",
           "offset": 0,
           "headerVersion": "new",
           "headerLength": 2,
           "bodyLength": 189,
           "lengthType": "fixed",
-          "fields": [{"label": "Compression Algorithm", "value": "ZIP"}],
+          "raw": "",
+          "rawTruncated": true,
           "children": [
             {
               "tag": 2,
-              "tagName": "Signature",
               "offset": 0,
-              "headerVersion": "old",
-              "headerLength": 3,
-              "bodyLength": 100,
+              "headerVersion": "new",
+              "headerLength": 2,
+              "bodyLength": 189,
               "lengthType": "fixed",
-              "version": 4,
-              "fields": [{"label": "Hash Algorithm", "value": "Sha256"}],
+              "raw": "c2bd0400160a006f05826a635e290910f29a1d9930f596bf471400000000001e002073616c74406e6f746174696f6e732e736571756f69612d7067702e6f7267d9f858c597f2543c34aad671a22714d17afc468aa4da563489d0033186aa531d16210408046811f5ed9f4215ee2bb9f29a1d9930f596bf00007b750100d50684a93169046d737307e8c2034459074f892d98b5ec2babdb948878a1d0ca00fd158d3dc0b90cd5e6d4fbaea19e360ef07436e712b78d6ee88148ba55b7a0b404",
+              "rawTruncated": false,
               "children": [],
               "error": null
             }
@@ -80,6 +79,13 @@ constexpr const char* kDocument = R"({
     }
   ]
 })";
+
+/// kDocument, parsed and decoded the way the dialog does it.
+auto DecodedDocument() -> PGPInspectDocument {
+  auto document = ParsePGPInspectDocument(kDocument);
+  PGPInspectDecode(document);
+  return document;
+}
 
 }  // namespace
 
@@ -108,14 +114,14 @@ TEST(PGPInspectModelTest, ReadsTheArmorEnvelope) {
 
 TEST(PGPInspectModelTest, NestsChildrenUnderTheirContainer) {
   // The recursion is the reason the tree exists; a flat read would lose it.
-  const auto document = ParsePGPInspectDocument(kDocument);
+  const auto document = DecodedDocument();
   const auto& packets = document.blocks.at(0).packets;
 
   ASSERT_EQ(packets.size(), 1);
   EXPECT_EQ(packets.at(0).tag, 8);
   ASSERT_EQ(packets.at(0).children.size(), 1);
   EXPECT_EQ(packets.at(0).children.at(0).tag, 2);
-  EXPECT_EQ(packets.at(0).children.at(0).version, 4);
+  EXPECT_EQ(packets.at(0).children.at(0).decoded.version, 4);
 }
 
 TEST(PGPInspectModelTest, CountsNestedPacketsToo) {
@@ -136,10 +142,62 @@ TEST(PGPInspectModelTest, KeepsTheFramingFiguresVerbatim) {
 TEST(PGPInspectModelTest, AbsentVersionReadsAsMinusOne) {
   // Most container packets carry no version octet. That is a fact about the
   // type, so it must not look like a defect in the document.
-  const auto document = ParsePGPInspectDocument(kDocument);
+  const auto document = DecodedDocument();
   const auto& packet = document.blocks.at(0).packets.at(0);
-  EXPECT_EQ(packet.version, -1);
+  EXPECT_EQ(packet.decoded.version, -1);
   EXPECT_FALSE(packet.Malformed());
+}
+
+TEST(PGPInspectModelTest, ReadsTheRawOctets) {
+  const auto document = ParsePGPInspectDocument(kDocument);
+  const auto& container = document.blocks.at(0).packets.at(0);
+  EXPECT_TRUE(container.raw.isEmpty());
+  EXPECT_TRUE(container.raw_truncated);
+
+  const auto& sig = container.children.at(0);
+  EXPECT_EQ(sig.raw.size(), sig.WireLength());
+  EXPECT_EQ(static_cast<quint8>(sig.raw.at(0)), 0xc2);
+  EXPECT_FALSE(sig.raw_truncated);
+}
+
+TEST(PGPInspectModelTest, ParsingAloneDecodesNothing) {
+  // The menu probe parses a document on every opening; decoding is the
+  // dialog's cost, not the probe's.
+  const auto document = ParsePGPInspectDocument(kDocument);
+  const auto& sig = document.blocks.at(0).packets.at(0).children.at(0);
+  EXPECT_TRUE(sig.decoded.spans.isEmpty());
+  EXPECT_EQ(sig.decoded.version, -1);
+}
+
+TEST(PGPInspectModelTest, DecodingFillsEveryNestedPacket) {
+  const auto document = DecodedDocument();
+  const auto& sig = document.blocks.at(0).packets.at(0).children.at(0);
+  EXPECT_FALSE(sig.decoded.overview.isEmpty());
+  ASSERT_EQ(sig.decoded.subpackets.size(), 2);
+  EXPECT_EQ(sig.decoded.subpackets.at(0).label, QString("Hashed Area"));
+  EXPECT_FALSE(sig.decoded.subpackets.at(0).children.isEmpty())
+      << "subpackets nest under their area";
+  EXPECT_FALSE(sig.decoded.material.isEmpty());
+  EXPECT_FALSE(sig.Malformed());
+}
+
+TEST(PGPInspectModelTest, AContainerLearnsItsDecompressedSize) {
+  // Only the children say where the decompressed stream ends.
+  const auto document = DecodedDocument();
+  const auto& overview = document.blocks.at(0).packets.at(0).decoded.overview;
+  ASSERT_EQ(overview.size(), 1);
+  EXPECT_EQ(overview.at(0).label, QString("Decompressed Size"));
+  EXPECT_EQ(overview.at(0).value, QString("191 bytes"));
+}
+
+TEST(PGPInspectModelTest, OctetsThatDoNotDecodeMarkThePacketMalformed) {
+  auto document = ParsePGPInspectDocument(
+      R"({"blocks":[{"packets":[{"tag":2,"headerLength":2,"bodyLength":3,"raw":"c20304ffff"}]}]})");
+  PGPInspectDecode(document);
+  const auto& packet = document.blocks.at(0).packets.at(0);
+  EXPECT_TRUE(packet.error.isEmpty());
+  EXPECT_FALSE(packet.decoded.error.isEmpty());
+  EXPECT_TRUE(packet.Malformed());
 }
 
 // -- the shapes that are not the happy one ------------------------------------
@@ -194,15 +252,16 @@ TEST(PGPInspectModelTest, MissingFieldsTakeTheirDefaults) {
   ASSERT_TRUE(document.valid);
   const auto& packet = document.blocks.at(0).packets.at(0);
   EXPECT_EQ(packet.tag, -1);
-  EXPECT_TRUE(packet.tag_name.isEmpty());
+  EXPECT_TRUE(packet.raw.isEmpty());
+  EXPECT_FALSE(packet.raw_truncated);
   EXPECT_EQ(packet.body_length, 0);
 }
 
-TEST(PGPInspectModelTest, ADetailRowWithNeitherHalfIsDropped) {
+TEST(PGPInspectModelTest, AHeaderRowWithNeitherHalfIsDropped) {
   const auto document = ParsePGPInspectDocument(
-      R"({"blocks":[{"packets":[{"fields":[{},{"label":"A","value":"B"}]}]}]})");
+      R"({"blocks":[{"armor":{"headers":[{},{"label":"A","value":"B"}]},"packets":[]}]})");
 
-  const auto& fields = document.blocks.at(0).packets.at(0).fields;
+  const auto& fields = document.blocks.at(0).armor.headers;
   ASSERT_EQ(fields.size(), 1);
   EXPECT_EQ(fields.at(0).label, QString("A"));
 }
@@ -251,49 +310,45 @@ TEST(PGPInspectModelTest, ANestedPacketAloneIsStructureEnough) {
 
 // -- the summaries the tree shows ---------------------------------------------
 
-TEST(PGPInspectModelTest, APacketSummaryNamesTagVersionOffsetAndSize) {
-  // Held by value: a reference into the temporary document would dangle as
-  // soon as this statement ends.
-  const auto document = ParsePGPInspectDocument(kDocument);
+TEST(PGPInspectModelTest, APacketSummaryIsItsPositionAndName) {
+  // Version, tag number, offset and framing are in the Overview tab.
+  const auto document = DecodedDocument();
   const auto& packet = document.blocks.at(0).packets.at(0).children.at(0);
-  const auto summary = PGPInspectPacketSummary(packet, 1);
-
-  EXPECT_TRUE(summary.contains("#1"));
-  EXPECT_TRUE(summary.contains("Signature"));
-  EXPECT_TRUE(summary.contains("tag 2"));
-  EXPECT_TRUE(summary.contains("v4"));
-  EXPECT_TRUE(summary.contains("@0x0000"));
-  // Header plus body: the bytes this packet occupies on the wire.
-  EXPECT_TRUE(summary.contains("103"));
+  EXPECT_EQ(PGPInspectPacketSummary(packet, "1.1"), QString("#1.1  Signature"));
 }
 
-TEST(PGPInspectModelTest, ASummaryFlagsANonFixedLength) {
-  PGPInspectPacket packet;
-  packet.tag = 11;
-  packet.tag_name = "Literal Data";
-  packet.length_type = "partial";
-
-  EXPECT_TRUE(PGPInspectPacketSummary(packet, 2).contains("partial"));
+TEST(PGPInspectModelTest, APacketIndexNestsUnderItsParent) {
+  EXPECT_EQ(PGPInspectPacketIndex({}, 3), QString("3"));
+  EXPECT_EQ(PGPInspectPacketIndex("3", 1), QString("3.1"));
+  EXPECT_EQ(PGPInspectPacketIndex("3.1", 12), QString("3.1.12"));
 }
 
 TEST(PGPInspectModelTest, ASummaryOfANamelessPacketStillReads) {
   PGPInspectPacket packet;
-  packet.tag = 60;
-
-  const auto summary = PGPInspectPacketSummary(packet, 1);
-  EXPECT_TRUE(summary.contains("Unknown"));
-  EXPECT_TRUE(summary.contains("tag 60"));
+  packet.tag = 42;
+  EXPECT_EQ(PGPInspectPacketSummary(packet, "2"), QString("#2  Unknown"));
 }
 
 TEST(PGPInspectModelTest, ABlockSummaryDistinguishesTheThreeKinds) {
   const auto armored = ParsePGPInspectDocument(kDocument).blocks.at(0);
-  EXPECT_TRUE(PGPInspectBlockSummary(armored, 1).contains("PGP SIGNATURE"));
+  EXPECT_TRUE(
+      PGPInspectBlockSummary(armored, 1).startsWith("Block 1: PGP SIGNATURE"));
 
   PGPInspectBlock cleartext;
   cleartext.kind = "cleartext";
-  EXPECT_TRUE(PGPInspectBlockSummary(cleartext, 1).contains("cleartext"));
+  EXPECT_TRUE(PGPInspectBlockSummary(cleartext, 2).contains("Cleartext"));
 
   PGPInspectBlock binary;
   binary.kind = "binary";
-  EXPECT_TRUE(PGPInspectBlockSummary(binary, 1).contains("binary"));
+  EXPECT_TRUE(PGPInspectBlockSummary(binary, 3).contains("Binary"));
+}
+
+TEST(PGPInspectModelTest, ABlockCountsNestedPacketsAndSaysSo) {
+  // kDocument holds one container with one packet inside it: two in all.
+  const auto nested = ParsePGPInspectDocument(kDocument).blocks.at(0);
+  EXPECT_TRUE(PGPInspectBlockSummary(nested, 1).contains("including nested"));
+
+  auto flat = nested;
+  flat.packets.first().children.clear();
+  EXPECT_FALSE(PGPInspectBlockSummary(flat, 1).contains("nested"));
 }

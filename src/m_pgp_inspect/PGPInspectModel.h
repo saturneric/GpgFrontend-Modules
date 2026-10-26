@@ -50,7 +50,6 @@
 struct PGPInspectPacket {
   /// The numeric packet type ID; -1 when the document did not say.
   int tag = -1;
-  QString tag_name;
   qint64 offset = 0;
   /// "old" or "new".
   QString header_version;
@@ -58,14 +57,26 @@ struct PGPInspectPacket {
   qint64 body_length = 0;
   /// "fixed", "partial" or "indeterminate".
   QString length_type;
-  /// The body's own version octet; -1 for the types that carry none.
-  int version = -1;
-  QList<PGPInspectField> fields;
+  /// The packet's wire octets from its CTB on, as far as the walk handed
+  /// them over; see @ref raw_truncated.
+  QByteArray raw;
+  /// Set when @ref raw holds fewer octets than the packet has on the wire.
+  bool raw_truncated = false;
   QList<PGPInspectPacket> children;
-  /// Why this packet could not be decoded, empty when it could.
+  /// What the walk found wrong with the framing, empty when nothing.
   QString error;
+  /// What @ref raw says. Filled by PGPInspectDecode(), not by the parse:
+  /// the menu probe parses a document on every opening and needs none of it.
+  PGPDecodedPacket decoded;
 
-  [[nodiscard]] auto Malformed() const -> bool { return !error.isEmpty(); }
+  /// The octets on the wire: header plus body.
+  [[nodiscard]] auto WireLength() const -> qint64 {
+    return header_length + body_length;
+  }
+
+  [[nodiscard]] auto Malformed() const -> bool {
+    return !error.isEmpty() || !decoded.error.isEmpty();
+  }
 };
 
 /// The armor envelope of a block.
@@ -114,15 +125,30 @@ struct PGPInspectDocument {
 auto ParsePGPInspectDocument(const QByteArray& json) -> PGPInspectDocument;
 
 /**
- * @brief The one-line summary a packet gets in the tree.
+ * @brief Decode every packet's octets, nested ones included.
  *
- * @param packet the packet to describe
- * @param index its 1-based position among its siblings
+ * A compressed packet also gains its decompressed size, which only the
+ * walk's children know.
  */
-auto PGPInspectPacketSummary(const PGPInspectPacket& packet, int index)
-    -> QString;
+void PGPInspectDecode(PGPInspectDocument& document);
 
-/// A block's one-line summary: what kind it is, and what it wraps.
+/**
+ * @brief The line a packet gets in the structure tree: "#2.1  Signature".
+ *
+ * Its position and type; everything else about it is in the dialog's tabs.
+ *
+ * @param index its dotted position, from PGPInspectPacketIndex()
+ */
+auto PGPInspectPacketSummary(const PGPInspectPacket& packet,
+                             const QString& index) -> QString;
+
+/// The dotted position of a packet: "3" at the top, "3.1" for the first
+/// packet inside it.
+auto PGPInspectPacketIndex(const QString& parent, int position) -> QString;
+
+/// The line a block gets in the structure tree: its number, its armor type
+/// (or what it is when it has none), and how many packets it holds. The
+/// count includes nested packets, and says so when there are any.
 auto PGPInspectBlockSummary(const PGPInspectBlock& block, int index) -> QString;
 
 /**

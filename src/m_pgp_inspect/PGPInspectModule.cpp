@@ -94,8 +94,8 @@ auto OnActivate() -> GFResult {
   // it is offered is ui/main.lua's business.
   const bool ok = gf::ui::RegisterNativeWidget<PGPInspectDialog>(
       "inspector",
-      {GTrC::Noop("OpenPGP Structure"), "", "", "", ":/icons/help.png", 820,
-       620},
+      {GTrC::Noop("OpenPGP Structure"), "", "", "", ":/icons/help.png", 1200,
+       660},
       [](const QCborMap& /*args*/) {
         const auto bytes = PGPInspectCurrentTabBytes();
         return new PGPInspectDialog(PGPInspectBytes(bytes), bytes.size());
