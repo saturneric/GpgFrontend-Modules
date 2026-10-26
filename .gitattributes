@@ -4,3 +4,8 @@
 # Without this, a checkout with core.autocrlf on rewrites them and the corpus
 # silently stops testing what it says it tests.
 src/m_email/test/corpus/**    -text
+
+# The OpenPGP inspector's vectors are packet streams and sq's dumps of them.
+# They are byte-exact fixtures: a newline rewrite corrupts a binary packet,
+# and the dumps are compared octet column by octet column.
+src/m_pgp_inspect/test/vectors/**    -text

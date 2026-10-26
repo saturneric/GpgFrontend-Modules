@@ -33,6 +33,8 @@
 #include <QString>
 #include <QStringList>
 
+#include "PGPPacketDecoder.h"
+
 /**
  * @file PGPInspectModel.h
  * @brief The inspector's document, and the JSON that carries it.
@@ -43,12 +45,6 @@
  * without a GUI thread or a loaded host. The dialog stays a dumb view over
  * what comes out.
  */
-
-/// One label / value row in a packet's detail table.
-struct PGPInspectField {
-  QString label;
-  QString value;
-};
 
 /// A packet, and whatever is nested inside it.
 struct PGPInspectPacket {

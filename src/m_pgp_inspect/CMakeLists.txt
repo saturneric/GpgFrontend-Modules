@@ -34,6 +34,8 @@ gf_add_module(
   QT      Core Widgets
   SOURCES PGPInspectModule.cpp
           PGPInspectModel.cpp
+          PGPPacketDecoder.cpp
+          PGPPacketNames.cpp
           PGPInspectDialog.cpp
   LUA_SCRIPTS ui/main.lua)
 

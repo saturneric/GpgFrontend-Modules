@@ -1,0 +1,35 @@
+Symmetric-Key Encrypted Session Key Packet, new CTB, 2 header bytes + 39 bytes
+    Version: 4
+    Symmetric algo: AES-128
+    S2K: Argon2
+      Salt: 9C52F83C27F95E50D535440ECDFF3136
+      Passes: 1
+      Parallelism: 4
+      Memory: 21 (2097152 KiB)
+    ESK: 9E52FCAD22CF3F956542CBA794EF840B11
+  
+    00000000  c3                                                 CTB
+    00000001     27                                              length
+    00000002        04                                           version
+    00000003           07                                        sym_algo
+    00000004              04                                     s2k_type
+    00000005                 9c 52 f8  3c 27 f9 5e 50 d5 35 44   argon2_salt
+    00000010  0e cd ff 31 36
+    00000015                 01                                  argon2_t
+    00000016                    04                               argon2_p
+    00000017                       15                            argon2_m
+    00000018                           9e 52 fc ad 22 cf 3f 95   esk
+    00000020  65 42 cb a7 94 ef 84 0b  11
+  
+Sym. Encrypted and Integrity Protected Data Packet, new CTB, 2 header bytes + 62 bytes
+    Version: 1
+    Decryption failed: No such device or address (os error 6)
+  
+   00000000  d2                                                 CTB
+   00000001     3e                                              length
+   00000002        01                                           version
+   00000003           98 18 a6 3e 60  9c f8 bb a1 7e 0c 39 43      ...>`....~.9C
+   00000010  04 ea f9 35 14 17 b7 f2  89 21 fe 26 e2 63 a5 2b   ...5.....!.&.c.+
+   00000020  20 bf ba a2 db a6 72 c9  64 c9 d3 ab 7a 3b f4 6c    .....r.d...z;.l
+   00000030  41 4d d2 1d 3b 38 47 5d  f0 37 a6 a5 78 99 3c c5   AM..;8G].7..x.<.
+  

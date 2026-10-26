@@ -1,0 +1,146 @@
+Public-Key Packet, new CTB, 2 header bytes + 42 bytes
+    Version: 6
+    Creation time: 2022-11-30 16:08:03 UTC
+    Pk algo: Ed25519
+    Pk size: 256 bits
+    Fingerprint: CB186C4F0609A697E4D52DFA6C722B0C1F1E27C18A56708F6525EC27BAD9ACC9
+    KeyID: CB186C4F0609A697
+  
+    00000000  c6                                                 CTB
+    00000001     2a                                              length
+    00000002        06                                           version
+    00000003           63 87 7f e3                               creation_time
+    00000007                       1b                            pk_algo
+    00000008                           00 00 00 20               public_len
+    0000000c                                       f9 4d a7 bb   ed25519_public
+    00000010  48 d6 0a 61 e5 67 70 6a  65 87 d0 33 19 99 bb 9d
+    00000020  89 1a 08 24 2e ad 84 54  3d f8 95 a3
+  
+Signature Packet, new CTB, 2 header bytes + 177 bytes
+    Version: 6
+    Type: DirectKey
+    Pk algo: Ed25519
+    Hash algo: SHA512
+    Hashed area:
+      Signature creation time: 2022-11-30 16:08:03 UTC (critical)
+      Symmetric algo preferences: AES256, AES128
+      Hash preferences: SHA512, SHA3_512, SHA256, SHA3_256
+      Compression preferences: Uncompressed
+      Key flags: CS (critical)
+      Features: SEIPDv1, SEIPDv2
+      Issuer Fingerprint: CB186C4F0609A697E4D52DFA6C722B0C1F1E27C18A56708F6525EC27BAD9ACC9
+      AEAD preferences: AES256+OCB, AES128+OCB
+    Digest prefix: AD28
+    Salt: 103E2D7D227EC0E6D7CE4471DB36BFC97083253690271498A7EF0576C07FAAE1
+    Level: 0 (signature over data)
+  
+  00000000  c2                                                 CTB
+  00000001     b1                                              length
+  00000002        06                                           version
+  00000003           1f                                        type
+  00000004              1b                                     pk_algo
+  00000005                 0a                                  hash_algo
+  00000006                    00 00  00 42                     hashed_area_len
+  0000000a                                 05                  subpacket length
+  0000000b                                    82               subpacket tag
+  0000000c                                       63 87 7f e3   sig creation time
+  00000010  03                                                 subpacket length
+  00000011     0b                                              subpacket tag
+  00000012        09 07                                        pref sym algos
+  00000014              05                                     subpacket length
+  00000015                 15                                  subpacket tag
+  00000016                    0a 0e  08 0c                     pref hash algos
+  0000001a                                 02                  subpacket length
+  0000001b                                    16               subpacket tag
+  0000001c                                       00            pref compression algos
+  0000001d                                          02         subpacket length
+  0000001e                                             9b      subpacket tag
+  0000001f                                                03   key flags
+  00000020  02                                                 subpacket length
+  00000021     1e                                              subpacket tag
+  00000022        09                                           features
+  00000023           22                                        subpacket length
+  00000024              21                                     subpacket tag
+  00000025                 06                                  version
+  00000026                    cb 18  6c 4f 06 09 a6 97 e4 d5   issuer fp
+  00000030  2d fa 6c 72 2b 0c 1f 1e  27 c1 8a 56 70 8f 65 25
+  00000040  ec 27 ba d9 ac c9
+  00000046                    05                               subpacket length
+  00000047                       27                            subpacket tag
+  00000048                           09 02 07 02               pref aead ciphersuites
+  0000004c                                       00 00 00 00   unhashed_area_len
+  00000050  ad                                                 digest_prefix1
+  00000051     28                                              digest_prefix2
+  00000052        20                                           salt_len
+  00000053           10 3e 2d 7d 22  7e c0 e6 d7 ce 44 71 db   salt
+  00000060  36 bf c9 70 83 25 36 90  27 14 98 a7 ef 05 76 c0
+  00000070  7f aa e1
+  00000073           45 85 b3 b9 03  b0 12 7e c4 fd a2 f0 23   ed25519_sig
+  00000080  04 5a 2e c7 6b cb 4f 95  71 a9 65 1e 14 ae e1 13
+  00000090  7a 1d 66 84 42 c8 8f 95  1e 33 c4 ff d3 3f b9 a1
+  000000a0  7d 51 1e ed 75 8f c6 d9  cc 50 cb 5f d7 93 b2 03
+  000000b0  9d 58 04
+  
+Public-Subkey Packet, new CTB, 2 header bytes + 42 bytes
+    Version: 6
+    Creation time: 2022-11-30 16:08:03 UTC
+    Pk algo: X25519
+    Pk size: 256 bits
+    Fingerprint: 12C83F1E706F6308FE151A417743A1F033790E93E9978488D1DB378DA9930885
+    KeyID: 12C83F1E706F6308
+  
+    00000000  ce                                                 CTB
+    00000001     2a                                              length
+    00000002        06                                           version
+    00000003           63 87 7f e3                               creation_time
+    00000007                       19                            pk_algo
+    00000008                           00 00 00 20               public_len
+    0000000c                                       86 93 24 83   x25519_public
+    00000010  67 f9 e5 01 5d b9 22 f8  f4 80 95 dd a7 84 98 7f
+    00000020  2d 59 85 b1 2f ba d1 6c  af 5e 44 35
+  
+Signature Packet, new CTB, 2 header bytes + 155 bytes
+    Version: 6
+    Type: SubkeyBinding
+    Pk algo: Ed25519
+    Hash algo: SHA512
+    Hashed area:
+      Signature creation time: 2022-11-30 16:08:03 UTC (critical)
+      Key flags: EtEr (critical)
+      Issuer Fingerprint: CB186C4F0609A697E4D52DFA6C722B0C1F1E27C18A56708F6525EC27BAD9ACC9
+    Digest prefix: 0401
+    Salt: A6E9186D9D5935FC8FE56314CDB527486A5A5120F9B762A235A729F039010A56
+    Level: 0 (signature over data)
+  
+  00000000  c2                                                 CTB
+  00000001     9b                                              length
+  00000002        06                                           version
+  00000003           18                                        type
+  00000004              1b                                     pk_algo
+  00000005                 0a                                  hash_algo
+  00000006                    00 00  00 2c                     hashed_area_len
+  0000000a                                 05                  subpacket length
+  0000000b                                    82               subpacket tag
+  0000000c                                       63 87 7f e3   sig creation time
+  00000010  02                                                 subpacket length
+  00000011     9b                                              subpacket tag
+  00000012        0c                                           key flags
+  00000013           22                                        subpacket length
+  00000014              21                                     subpacket tag
+  00000015                 06                                  version
+  00000016                    cb 18  6c 4f 06 09 a6 97 e4 d5   issuer fp
+  00000020  2d fa 6c 72 2b 0c 1f 1e  27 c1 8a 56 70 8f 65 25
+  00000030  ec 27 ba d9 ac c9
+  00000036                    00 00  00 00                     unhashed_area_len
+  0000003a                                 04                  digest_prefix1
+  0000003b                                    01               digest_prefix2
+  0000003c                                       20            salt_len
+  0000003d                                          a6 e9 18   salt
+  00000040  6d 9d 59 35 fc 8f e5 63  14 cd b5 27 48 6a 5a 51
+  00000050  20 f9 b7 62 a2 35 a7 29  f0 39 01 0a 56
+  0000005d                                          51 6b 67   ed25519_sig
+  00000060  37 00 c4 33 48 35 da f6  31 a1 63 3c 63 cd 56 f9
+  00000070  b1 c1 c3 cd 39 23 c9 16  56 45 d4 ea f1 4e 8b e1
+  00000080  d6 be ff e2 ad ae e8 7c  9b b5 e8 d9 e8 52 48 5c
+  00000090  96 45 2b 93 49 97 b9 b6  6f ca 5e 06 06
+  

@@ -1,0 +1,54 @@
+Signature Packet, new CTB, 2 header bytes + 189 bytes
+    Version: 4
+    Type: Binary
+    Pk algo: EdDSA
+    Hash algo: SHA512
+    Hashed area:
+      Signature creation time: 2026-07-24 12:44:25 UTC (critical)
+      Issuer: F29A1D9930F596BF
+      Notation: salt@notations.sequoia-pgp.org
+        00000000  d9 f8 58 c5 97 f2 54 3c  34 aa d6 71 a2 27 14 d1
+        00000010  7a fc 46 8a a4 da 56 34  89 d0 03 31 86 aa 53 1d
+      Issuer Fingerprint: 08046811F5ED9F4215EE2BB9F29A1D9930F596BF
+    Digest prefix: 7B75
+    Level: 0 (signature over data)
+  
+  00000000  c2                                                 CTB
+  00000001     bd                                              length
+  00000002        04                                           version
+  00000003           00                                        type
+  00000004              16                                     pk_algo
+  00000005                 0a                                  hash_algo
+  00000006                    00 6f                            hashed_area_len
+  00000008                           05                        subpacket length
+  00000009                              82                     subpacket tag
+  0000000a                                 6a 63 5e 29         sig creation time
+  0000000e                                             09      subpacket length
+  0000000f                                                10   subpacket tag
+  00000010  f2 9a 1d 99 30 f5 96 bf                            issuer
+  00000018                           47                        subpacket length
+  00000019                              14                     subpacket tag
+  0000001a                                 00 00 00 00         flags
+  0000001e                                             00 1e   name len
+  00000020  00 20                                              value len
+  00000022        73 61 6c 74 40 6e  6f 74 61 74 69 6f 6e 73   notation name
+  00000030  2e 73 65 71 75 6f 69 61  2d 70 67 70 2e 6f 72 67
+  00000040  d9 f8 58 c5 97 f2 54 3c  34 aa d6 71 a2 27 14 d1   notation value
+  00000050  7a fc 46 8a a4 da 56 34  89 d0 03 31 86 aa 53 1d
+  00000060  16                                                 subpacket length
+  00000061     21                                              subpacket tag
+  00000062        04                                           version
+  00000063           08 04 68 11 f5  ed 9f 42 15 ee 2b b9 f2   issuer fp
+  00000070  9a 1d 99 30 f5 96 bf
+  00000077                       00  00                        unhashed_area_len
+  00000079                              7b                     digest_prefix1
+  0000007a                                 75                  digest_prefix2
+  0000007b                                    01 00            eddsa_sig_r_len
+  0000007d                                          d5 06 84   eddsa_sig_r
+  00000080  a9 31 69 04 6d 73 73 07  e8 c2 03 44 59 07 4f 89
+  00000090  2d 98 b5 ec 2b ab db 94  88 78 a1 d0 ca
+  0000009d                                          00 fd      eddsa_sig_s_len
+  0000009f                                                15   eddsa_sig_s
+  000000a0  8d 3d c0 b9 0c d5 e6 d4  fb ae a1 9e 36 0e f0 74
+  000000b0  36 e7 12 b7 8d 6e e8 81  48 ba 55 b7 a0 b4 04
+  
