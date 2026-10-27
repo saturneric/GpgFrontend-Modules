@@ -2094,6 +2094,21 @@ Si el problema persiste, considere buscar soporte técnico o consultar la docume
         <translation>Detalles...</translation>
     </message>
     <message>
+        <location filename="../EMailPageView.cpp" line="2145"/>
+        <source>Restart to Show Preview</source>
+        <translation>Reiniciar para mostrar la vista previa</translation>
+    </message>
+    <message>
+        <location filename="../EMailPageView.cpp" line="2147"/>
+        <source>The message preview was just installed. Restart GpgFrontend to use it.</source>
+        <translation>La vista previa de mensajes se acaba de instalar. Reinicie GpgFrontend para utilizarla.</translation>
+    </message>
+    <message>
+        <location filename="../EMailPageView.cpp" line="2152"/>
+        <source>Show Preview</source>
+        <translation>Mostrar vista previa</translation>
+    </message>
+    <message>
         <location filename="../EMailPageView.cpp" line="2541"/>
         <source>Decrypt this message first.</source>
         <translation>Descifre este mensaje primero.</translation>
@@ -2560,14 +2575,12 @@ Remove the signature and make it an ordinary message?</source>
         <translation>Este mensaje se escribió en HTML y se muestra con formato. No se carga nada de internet: las imágenes de la web permanecen en blanco y los enlaces preguntan antes de abrirse.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2145"/>
         <source>Restart to Show Formatted</source>
-        <translation>Reiniciar para mostrar con formato</translation>
+        <translation type="vanished">Reiniciar para mostrar con formato</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2147"/>
         <source>The formatted view was just installed. Restart GpgFrontend to use it.</source>
-        <translation>La vista con formato se acaba de instalar. Reinicia GpgFrontend para usarla.</translation>
+        <translation type="vanished">La vista con formato se acaba de instalar. Reinicia GpgFrontend para usarla.</translation>
     </message>
     <message>
         <location filename="../EMailPageView.cpp" line="2151"/>
@@ -2575,9 +2588,8 @@ Remove the signature and make it an ordinary message?</source>
         <translation>Mostrar código fuente</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2152"/>
         <source>Show Formatted</source>
-        <translation>Mostrar con formato</translation>
+        <translation type="vanished">Mostrar con formato</translation>
     </message>
     <message>
         <location filename="../EMailPageView.cpp" line="2793"/>

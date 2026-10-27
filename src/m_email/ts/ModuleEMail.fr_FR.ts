@@ -2094,6 +2094,21 @@ Si le problème persiste, envisagez de contacter le support technique ou de cons
         <translation>Détails...</translation>
     </message>
     <message>
+        <location filename="../EMailPageView.cpp" line="2145"/>
+        <source>Restart to Show Preview</source>
+        <translation>Redémarrer pour afficher l&apos;aperçu</translation>
+    </message>
+    <message>
+        <location filename="../EMailPageView.cpp" line="2147"/>
+        <source>The message preview was just installed. Restart GpgFrontend to use it.</source>
+        <translation>L&apos;aperçu des messages vient d&apos;être installé. Redémarrez GpgFrontend pour l&apos;utiliser.</translation>
+    </message>
+    <message>
+        <location filename="../EMailPageView.cpp" line="2152"/>
+        <source>Show Preview</source>
+        <translation>Afficher l&apos;aperçu</translation>
+    </message>
+    <message>
         <location filename="../EMailPageView.cpp" line="2541"/>
         <source>Decrypt this message first.</source>
         <translation>Déchiffrez d&apos;abord ce message.</translation>
@@ -2560,14 +2575,12 @@ Supprimer la signature et en faire un message ordinaire ?</translation>
         <translation>Ce message a été écrit en HTML et est affiché mis en forme. Rien n&apos;est chargé depuis Internet : les images du web restent vides et les liens demandent confirmation avant de s&apos;ouvrir.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2145"/>
         <source>Restart to Show Formatted</source>
-        <translation>Redémarrer pour afficher la version mise en forme</translation>
+        <translation type="vanished">Redémarrer pour afficher la version mise en forme</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2147"/>
         <source>The formatted view was just installed. Restart GpgFrontend to use it.</source>
-        <translation>La vue mise en forme vient d&apos;être installée. Redémarrez GpgFrontend pour l&apos;utiliser.</translation>
+        <translation type="vanished">La vue mise en forme vient d&apos;être installée. Redémarrez GpgFrontend pour l&apos;utiliser.</translation>
     </message>
     <message>
         <location filename="../EMailPageView.cpp" line="2151"/>
@@ -2575,9 +2588,8 @@ Supprimer la signature et en faire un message ordinaire ?</translation>
         <translation>Afficher la source</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2152"/>
         <source>Show Formatted</source>
-        <translation>Afficher la version mise en forme</translation>
+        <translation type="vanished">Afficher la version mise en forme</translation>
     </message>
     <message>
         <location filename="../EMailPageView.cpp" line="2793"/>

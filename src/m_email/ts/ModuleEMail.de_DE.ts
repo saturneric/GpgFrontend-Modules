@@ -2094,6 +2094,21 @@ Wenn das Problem weiterhin besteht, wenden Sie sich an den technischen Support o
         <translation>Details...</translation>
     </message>
     <message>
+        <location filename="../EMailPageView.cpp" line="2145"/>
+        <source>Restart to Show Preview</source>
+        <translation>Neu starten, um die Vorschau anzuzeigen</translation>
+    </message>
+    <message>
+        <location filename="../EMailPageView.cpp" line="2147"/>
+        <source>The message preview was just installed. Restart GpgFrontend to use it.</source>
+        <translation>Die Nachrichtenvorschau wurde gerade installiert. Starten Sie GpgFrontend neu, um sie zu verwenden.</translation>
+    </message>
+    <message>
+        <location filename="../EMailPageView.cpp" line="2152"/>
+        <source>Show Preview</source>
+        <translation>Vorschau anzeigen</translation>
+    </message>
+    <message>
         <location filename="../EMailPageView.cpp" line="2541"/>
         <source>Decrypt this message first.</source>
         <translation>Entschlüsseln Sie zuerst diese Nachricht.</translation>
@@ -2560,14 +2575,12 @@ Signatur entfernen und die Nachricht in eine gewöhnliche Nachricht umwandeln?</
         <translation>Diese Nachricht wurde in HTML verfasst und wird formatiert angezeigt. Es wird nichts aus dem Internet geladen: Bilder aus dem Web bleiben leer, und Links fragen vor dem Öffnen nach.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2145"/>
         <source>Restart to Show Formatted</source>
-        <translation>Neu starten für formatierte Anzeige</translation>
+        <translation type="vanished">Neu starten für formatierte Anzeige</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2147"/>
         <source>The formatted view was just installed. Restart GpgFrontend to use it.</source>
-        <translation>Die formatierte Ansicht wurde gerade installiert. Starten Sie GpgFrontend neu, um sie zu verwenden.</translation>
+        <translation type="vanished">Die formatierte Ansicht wurde gerade installiert. Starten Sie GpgFrontend neu, um sie zu verwenden.</translation>
     </message>
     <message>
         <location filename="../EMailPageView.cpp" line="2151"/>
@@ -2575,9 +2588,8 @@ Signatur entfernen und die Nachricht in eine gewöhnliche Nachricht umwandeln?</
         <translation>Quelltext anzeigen</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2152"/>
         <source>Show Formatted</source>
-        <translation>Formatiert anzeigen</translation>
+        <translation type="vanished">Formatiert anzeigen</translation>
     </message>
     <message>
         <location filename="../EMailPageView.cpp" line="2793"/>

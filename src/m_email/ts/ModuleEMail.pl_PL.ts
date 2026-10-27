@@ -2094,6 +2094,21 @@ Jeśli problem będzie się powtarzać, rozważ skorzystanie z pomocy techniczne
         <translation>Szczegóły...</translation>
     </message>
     <message>
+        <location filename="../EMailPageView.cpp" line="2145"/>
+        <source>Restart to Show Preview</source>
+        <translation>Uruchom ponownie, aby pokazać podgląd</translation>
+    </message>
+    <message>
+        <location filename="../EMailPageView.cpp" line="2147"/>
+        <source>The message preview was just installed. Restart GpgFrontend to use it.</source>
+        <translation>Podgląd wiadomości został właśnie zainstalowany. Uruchom ponownie GpgFrontend, aby go użyć.</translation>
+    </message>
+    <message>
+        <location filename="../EMailPageView.cpp" line="2152"/>
+        <source>Show Preview</source>
+        <translation>Pokaż podgląd</translation>
+    </message>
+    <message>
         <location filename="../EMailPageView.cpp" line="2541"/>
         <source>Decrypt this message first.</source>
         <translation>Najpierw odszyfruj tę wiadomość.</translation>
@@ -2560,14 +2575,12 @@ Usunąć podpis i uczynić z niej zwykłą wiadomość?</translation>
         <translation>Ta wiadomość została napisana w HTML i jest wyświetlana w wersji sformatowanej. Nic nie jest ładowane z internetu: obrazy z sieci pozostają puste, a linki pytają przed otwarciem.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2145"/>
         <source>Restart to Show Formatted</source>
-        <translation>Uruchom ponownie, aby wyświetlić sformatowaną</translation>
+        <translation type="vanished">Uruchom ponownie, aby wyświetlić sformatowaną</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2147"/>
         <source>The formatted view was just installed. Restart GpgFrontend to use it.</source>
-        <translation>Widok sformatowany został właśnie zainstalowany. Uruchom ponownie GpgFrontend, aby z niego korzystać.</translation>
+        <translation type="vanished">Widok sformatowany został właśnie zainstalowany. Uruchom ponownie GpgFrontend, aby z niego korzystać.</translation>
     </message>
     <message>
         <location filename="../EMailPageView.cpp" line="2151"/>
@@ -2575,9 +2588,8 @@ Usunąć podpis i uczynić z niej zwykłą wiadomość?</translation>
         <translation>Pokaż źródło</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2152"/>
         <source>Show Formatted</source>
-        <translation>Pokaż sformatowaną</translation>
+        <translation type="vanished">Pokaż sformatowaną</translation>
     </message>
     <message>
         <location filename="../EMailPageView.cpp" line="2793"/>

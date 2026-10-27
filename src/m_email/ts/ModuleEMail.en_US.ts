@@ -1642,23 +1642,8 @@ If the issue persists, consider seeking technical support or consulting the docu
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2145"/>
-        <source>Restart to Show Formatted</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../EMailPageView.cpp" line="2147"/>
-        <source>The formatted view was just installed. Restart GpgFrontend to use it.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <location filename="../EMailPageView.cpp" line="2151"/>
         <source>Show Source</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../EMailPageView.cpp" line="2152"/>
-        <source>Show Formatted</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1792,6 +1777,21 @@ If the issue persists, consider seeking technical support or consulting the docu
     <message>
         <location filename="../EMailPageView.cpp" line="799"/>
         <source>This message is open for inspection only. Turn it off in More.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../EMailPageView.cpp" line="2145"/>
+        <source>Restart to Show Preview</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../EMailPageView.cpp" line="2147"/>
+        <source>The message preview was just installed. Restart GpgFrontend to use it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../EMailPageView.cpp" line="2152"/>
+        <source>Show Preview</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

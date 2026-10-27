@@ -2094,6 +2094,21 @@ If the issue persists, consider seeking technical support or consulting the docu
         <translation>Подробнее...</translation>
     </message>
     <message>
+        <location filename="../EMailPageView.cpp" line="2145"/>
+        <source>Restart to Show Preview</source>
+        <translation>Перезапустить, чтобы показать предпросмотр</translation>
+    </message>
+    <message>
+        <location filename="../EMailPageView.cpp" line="2147"/>
+        <source>The message preview was just installed. Restart GpgFrontend to use it.</source>
+        <translation>Предпросмотр сообщений только что установлен. Перезапустите GpgFrontend, чтобы использовать его.</translation>
+    </message>
+    <message>
+        <location filename="../EMailPageView.cpp" line="2152"/>
+        <source>Show Preview</source>
+        <translation>Показать предпросмотр</translation>
+    </message>
+    <message>
         <location filename="../EMailPageView.cpp" line="2541"/>
         <source>Decrypt this message first.</source>
         <translation>Сначала расшифруйте это сообщение.</translation>
@@ -2560,14 +2575,12 @@ Remove the signature and make it an ordinary message?</source>
         <translation>Это сообщение написано в HTML и показано в форматированном виде. Из интернета ничего не загружается: внешние изображения остаются пустыми, а ссылки открываются только после подтверждения.</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2145"/>
         <source>Restart to Show Formatted</source>
-        <translation>Перезапустить для форматированного просмотра</translation>
+        <translation type="vanished">Перезапустить для форматированного просмотра</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2147"/>
         <source>The formatted view was just installed. Restart GpgFrontend to use it.</source>
-        <translation>Форматированный просмотр только что установлен. Перезапустите GpgFrontend, чтобы использовать его.</translation>
+        <translation type="vanished">Форматированный просмотр только что установлен. Перезапустите GpgFrontend, чтобы использовать его.</translation>
     </message>
     <message>
         <location filename="../EMailPageView.cpp" line="2151"/>
@@ -2575,9 +2588,8 @@ Remove the signature and make it an ordinary message?</source>
         <translation>Показать исходный код</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2152"/>
         <source>Show Formatted</source>
-        <translation>Показать форматированный вид</translation>
+        <translation type="vanished">Показать форматированный вид</translation>
     </message>
     <message>
         <location filename="../EMailPageView.cpp" line="2793"/>

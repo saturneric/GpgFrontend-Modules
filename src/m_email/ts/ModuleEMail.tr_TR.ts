@@ -2082,14 +2082,12 @@ Remove the signature and make it an ordinary message?</source>
 İmza kaldırılsın ve ileti sıradan bir ileti yapılsın mı?</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2145"/>
         <source>Restart to Show Formatted</source>
-        <translation>Biçimlendirilmiş Gösterim için Yeniden Başlat</translation>
+        <translation type="vanished">Biçimlendirilmiş Gösterim için Yeniden Başlat</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2147"/>
         <source>The formatted view was just installed. Restart GpgFrontend to use it.</source>
-        <translation>Biçimlendirilmiş görünüm az önce yüklendi. Kullanmak için GpgFrontend&apos;i yeniden başlatın.</translation>
+        <translation type="vanished">Biçimlendirilmiş görünüm az önce yüklendi. Kullanmak için GpgFrontend&apos;i yeniden başlatın.</translation>
     </message>
     <message>
         <location filename="../EMailPageView.cpp" line="2151"/>
@@ -2097,9 +2095,23 @@ Remove the signature and make it an ordinary message?</source>
         <translation>Kaynağı Göster</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2152"/>
         <source>Show Formatted</source>
-        <translation>Biçimlendirilmişi Göster</translation>
+        <translation type="vanished">Biçimlendirilmişi Göster</translation>
+    </message>
+    <message>
+        <location filename="../EMailPageView.cpp" line="2145"/>
+        <source>Restart to Show Preview</source>
+        <translation>Önizlemeyi Göstermek için Yeniden Başlat</translation>
+    </message>
+    <message>
+        <location filename="../EMailPageView.cpp" line="2147"/>
+        <source>The message preview was just installed. Restart GpgFrontend to use it.</source>
+        <translation>İleti önizlemesi az önce yüklendi. Kullanmak için GpgFrontend&apos;i yeniden başlatın.</translation>
+    </message>
+    <message>
+        <location filename="../EMailPageView.cpp" line="2152"/>
+        <source>Show Preview</source>
+        <translation>Önizlemeyi Göster</translation>
     </message>
     <message>
         <location filename="../EMailPageView.cpp" line="2241"/>

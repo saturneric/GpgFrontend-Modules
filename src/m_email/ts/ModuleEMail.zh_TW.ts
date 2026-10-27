@@ -2094,6 +2094,21 @@ If the issue persists, consider seeking technical support or consulting the docu
         <translation>詳細資料...</translation>
     </message>
     <message>
+        <location filename="../EMailPageView.cpp" line="2145"/>
+        <source>Restart to Show Preview</source>
+        <translation>重新啟動以顯示預覽</translation>
+    </message>
+    <message>
+        <location filename="../EMailPageView.cpp" line="2147"/>
+        <source>The message preview was just installed. Restart GpgFrontend to use it.</source>
+        <translation>訊息預覽剛剛安裝完成。請重新啟動 GpgFrontend 以使用它。</translation>
+    </message>
+    <message>
+        <location filename="../EMailPageView.cpp" line="2152"/>
+        <source>Show Preview</source>
+        <translation>顯示預覽</translation>
+    </message>
+    <message>
         <location filename="../EMailPageView.cpp" line="2541"/>
         <source>Decrypt this message first.</source>
         <translation>請先解密此訊息。</translation>
@@ -2560,14 +2575,12 @@ Remove the signature and make it an ordinary message?</source>
         <translation>此郵件以 HTML 撰寫，並以格式化方式顯示。不會從網際網路載入任何內容：網路圖片會保持空白，連結開啟前會先詢問。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2145"/>
         <source>Restart to Show Formatted</source>
-        <translation>重新啟動以顯示格式化內容</translation>
+        <translation type="vanished">重新啟動以顯示格式化內容</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2147"/>
         <source>The formatted view was just installed. Restart GpgFrontend to use it.</source>
-        <translation>格式化檢視剛安裝完成。請重新啟動 GpgFrontend 以使用。</translation>
+        <translation type="vanished">格式化檢視剛安裝完成。請重新啟動 GpgFrontend 以使用。</translation>
     </message>
     <message>
         <location filename="../EMailPageView.cpp" line="2151"/>
@@ -2575,9 +2588,8 @@ Remove the signature and make it an ordinary message?</source>
         <translation>顯示原始碼</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2152"/>
         <source>Show Formatted</source>
-        <translation>顯示格式化內容</translation>
+        <translation type="vanished">顯示格式化內容</translation>
     </message>
     <message>
         <location filename="../EMailPageView.cpp" line="2793"/>
