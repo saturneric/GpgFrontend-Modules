@@ -143,13 +143,23 @@ auto DefaultAccount() -> MailAccountConfig {
     default_id = Get(kDefaultAccountKey).toString();
   }
 
+  // A disabled account is never the one offered first, even when it is the
+  // stored default: it is not offered at all.
   for (const auto& account : accounts) {
-    if (account.id == default_id) return account;
+    if (account.id == default_id && account.enabled) return account;
   }
   for (const auto& account : accounts) {
     if (account.IsUsable()) return account;
   }
-  return accounts.first();
+  for (const auto& account : accounts) {
+    if (account.enabled) return account;
+  }
+  return {};
+}
+
+auto StoredDefaultId() -> QString {
+  QMutexLocker locker(settings_mutex());
+  return Get(kDefaultAccountKey).toString();
 }
 
 auto ImapAccounts() -> QList<MailAccountConfig> {

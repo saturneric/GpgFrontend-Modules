@@ -2312,7 +2312,7 @@ void EMailPageView::install_address_hints() {
   };
 
   for (const auto& account : EMailAccountStore::Load()) {
-    remember(account.Label());
+    if (account.enabled) remember(account.Label());
   }
   for (const auto& entry : addresses(true)) remember(entry);
 

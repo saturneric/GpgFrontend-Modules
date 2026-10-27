@@ -119,6 +119,11 @@ struct MailAccountConfig {
   /// it must not change when the user renames or re-hosts the account.
   QString id;
 
+  /// Whether the account is in use. A disabled one keeps everything it was
+  /// set up with, password included, and is simply not offered anywhere --
+  /// for sending, for fetching, or as a sender -- until it is enabled again.
+  bool enabled{true};
+
   QString display_name;
   QString address;
   QString reply_to;

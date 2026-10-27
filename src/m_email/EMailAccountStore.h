@@ -98,10 +98,16 @@ void Store(const QList<MailAccountConfig>& accounts, const QString& default_id);
 /**
  * @brief The account to offer first.
  *
- * @return the default account, or the first usable one, or a default-
- *         constructed account when nothing is configured
+ * Never a disabled account, even when that is the one stored as default.
+ *
+ * @return the default account, or the first usable one, or the first enabled
+ *         one, or a default-constructed account when none is enabled
  */
 auto DefaultAccount() -> MailAccountConfig;
+
+/// The id stored as the default, as stored: the settings page shows and edits
+/// the choice itself, disabled or not.
+auto StoredDefaultId() -> QString;
 
 /// Accounts that can be browsed. Empty means "hide Import from IMAP".
 auto ImapAccounts() -> QList<MailAccountConfig>;

@@ -147,6 +147,7 @@ auto MailAccountConfig::Label() const -> QString {
 }
 
 auto MailAccountConfig::IsUsable() const -> bool {
+  if (!enabled) return false;
   if (address.trimmed().isEmpty()) return false;
   if (!imap.enabled && !smtp.enabled) return false;
   if (imap.enabled && imap.host.isEmpty()) return false;
@@ -160,6 +161,7 @@ auto MailAccountConfig::ToJson() const -> QJsonObject {
   // ordinary settings, logged, and exported.
   return QJsonObject{
       {"id", id},
+      {"enabled", enabled},
       {"display_name", display_name},
       {"address", address},
       {"reply_to", reply_to},
@@ -173,6 +175,9 @@ auto MailAccountConfig::ToJson() const -> QJsonObject {
 auto MailAccountConfig::FromJson(const QJsonObject& json) -> MailAccountConfig {
   MailAccountConfig config;
   config.id = json.value("id").toString();
+  // Absent in lists written before accounts could be disabled, and every one
+  // of those accounts was in use.
+  config.enabled = json.value("enabled").toBool(true);
   config.display_name = json.value("display_name").toString();
   config.address = json.value("address").toString().trimmed();
   config.reply_to = json.value("reply_to").toString().trimmed();
