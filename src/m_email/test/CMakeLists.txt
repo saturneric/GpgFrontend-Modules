@@ -55,6 +55,10 @@ add_executable(gf_mod_email_test
   # Kept SDK-free for exactly this reason.
   ${CMAKE_CURRENT_SOURCE_DIR}/../EMailAccountModel.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../EMailOutgoing.cpp
+  # The Add Account wizard's rules: provider presets, SRV ranking, validation
+  # and step gating. The wizard itself is widgets; its decisions are here.
+  EMailAccountSetupTest.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/../EMailAccountSetup.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../EMailNetError.cpp
   # The message view's layout rules. Kept out of the view itself so they can be
   # checked at all: EMailPageView needs Qt Widgets and the SDK, and a widget
