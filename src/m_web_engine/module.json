@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "id": "com.bktus.gpgfrontend.module.web_engine",
+  "name": "WebEngine",
+  "description": "Shows HTML messages formatted, with QtWebEngine, loading nothing from the network.",
+  "author": "Saturneric",
+  "capabilities": [
+    "html.provider",
+    "ui",
+    "ui.custom"
+  ],
+  "events": [],
+  "translation_context": "ModuleWebEngine"
+}

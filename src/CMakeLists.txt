@@ -34,6 +34,10 @@ add_subdirectory(m_pgp_inspect)
 # Local only: tokens are made and read in memory, so the sandbox keeps it.
 add_subdirectory(m_im)
 
+if(GPGFRONTEND_MODULES_WEB_ENGINE)
+  add_subdirectory(m_web_engine)
+endif()
+
 # Updates come from the App Store or Flathub, never from a GitHub check.
 if(NOT GPGFRONTEND_BUILD_FLAVOR MATCHES "^(sandbox|flatpak)$")
   add_subdirectory(m_ver_check)

@@ -49,6 +49,12 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # module so every module can hang a test target off the one switch.
 option(GPGFRONTEND_MODULES_BUILD_TESTS "Build unit tests for modules" OFF)
 
+# The QtWebEngine HTML renderer (m_web_engine). Off by default: it brings
+# Chromium into the package, and without it an HTML message is shown as its
+# source, as it always was. On, it requires Qt WebEngine.
+option(GPGFRONTEND_MODULES_WEB_ENGINE
+  "Build the QtWebEngine renderer for HTML views" OFF)
+
 # show build arguments
 message(STATUS "GpgFrontend Modules Source Path: ${CMAKE_SOURCE_DIR}")
 message(STATUS "GpgFrontend Modules Runtime Path: ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
