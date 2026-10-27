@@ -2,302 +2,69 @@
 <!DOCTYPE TS>
 <TS version="2.1" language="zh_CN">
 <context>
-    <name>EMailAccountSettingsPage</name>
+    <name>EMailAccountProbe</name>
     <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="72"/>
-        <source>TLS (recommended)</source>
-        <translation>TLS（推荐）</translation>
+        <location filename="../EMailAccountProbe.cpp" line="145"/>
+        <source>Could not connect, and the reason is not known.</source>
+        <translation>无法连接，原因未知。</translation>
     </message>
     <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="76"/>
-        <source>STARTTLS</source>
-        <translation>STARTTLS</translation>
-    </message>
-    <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="80"/>
-        <source>None (this machine only)</source>
-        <translation>无（仅本机）</translation>
-    </message>
-    <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="126"/>
-        <source>Identity</source>
-        <translation>身份</translation>
-    </message>
-    <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="133"/>
-        <source>Optional</source>
-        <translation>可选</translation>
-    </message>
-    <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="135"/>
-        <source>Display name</source>
-        <translation>显示名称</translation>
-    </message>
-    <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="136"/>
-        <source>Email address</source>
-        <translation>电子邮件地址</translation>
-    </message>
-    <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="137"/>
-        <source>Reply-To</source>
-        <translation>回复地址</translation>
-    </message>
-    <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="148"/>
-        <source>Receiving (IMAP)</source>
-        <translation>接收（IMAP）</translation>
-    </message>
-    <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="148"/>
-        <source>Sending (SMTP)</source>
-        <translation>发送（SMTP）</translation>
-    </message>
-    <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="155"/>
-        <source>Use this account to receive</source>
-        <translation>使用此账户接收</translation>
-    </message>
-    <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="155"/>
-        <source>Use this account to send</source>
-        <translation>使用此账户发送</translation>
-    </message>
-    <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="178"/>
-        <source>Server</source>
-        <translation>服务器</translation>
-    </message>
-    <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="179"/>
-        <source>Connection</source>
-        <translation>连接</translation>
-    </message>
-    <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="180"/>
-        <source>Username</source>
-        <translation>用户名</translation>
-    </message>
-    <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="182"/>
-        <source>Test Connection</source>
-        <translation>测试连接</translation>
-    </message>
-    <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="202"/>
-        <source>Discovered automatically</source>
-        <translation>自动发现</translation>
-    </message>
-    <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="203"/>
-        <source>Sent folder</source>
-        <translation>已发送文件夹</translation>
-    </message>
-    <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="224"/>
-        <source>Stop</source>
-        <translation>停止</translation>
-    </message>
-    <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="273"/>
-        <source>Add</source>
-        <translation>添加</translation>
-    </message>
-    <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="274"/>
-        <source>Remove</source>
-        <translation>移除</translation>
-    </message>
-    <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="276"/>
-        <source>Set as Default</source>
-        <translation>设为默认</translation>
-    </message>
-    <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="278"/>
-        <source>The account offered first when sending, and the one used when nothing else is chosen.</source>
-        <translation>发送时首选账户，未选择其他账户时使用的账户。</translation>
-    </message>
-    <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="307"/>
-        <source>No mail accounts yet</source>
-        <translation>尚无邮件账户</translation>
-    </message>
-    <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="314"/>
-        <source>An account is needed only to fetch and send messages. Everything else in GpgFrontend works without one.</source>
-        <translation>仅当获取和发送消息时才需要账户。GpgFrontend 中的其他一切功能均无需账户即可使用。</translation>
-    </message>
-    <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="319"/>
-        <source>Add an Account</source>
-        <translation>添加账户</translation>
-    </message>
-    <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="349"/>
-        <location filename="../EMailAccountSettingsPage.cpp" line="364"/>
-        <source>Password</source>
-        <translation>密码</translation>
-    </message>
-    <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="354"/>
-        <source>Leave blank to keep the stored one</source>
-        <translation>留空以保留已存储的密码</translation>
-    </message>
-    <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="357"/>
-        <source>Signing in through a provider&apos;s own web page (OAuth2) is not supported yet. If your provider requires it, create an app-specific password and use that here.</source>
-        <translation>尚不支持通过提供商自己的网页（OAuth2）登录。如果您的提供商要求这样做，请创建应用专用密码并在此处使用。</translation>
-    </message>
-    <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="429"/>
-        <source>Mail Accounts Not Saved</source>
-        <translation>邮件账户未保存</translation>
-    </message>
-    <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="431"/>
-        <source>These accounts were set up by a newer version of GpgFrontend, so this version did not read them and has not changed them.
-
-Your accounts are still there. Use the newer version to edit them.</source>
-        <translation>这些账户是由更高版本的 GpgFrontend 设置的，因此此版本未读取它们，也未更改它们。
-
-您的账户仍然存在。请使用更高版本来编辑它们。</translation>
-    </message>
-    <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="435"/>
-        <source>The stored mail accounts could not be read, so this version has not changed them.
-
-Nothing has been lost. If this keeps happening, the stored list may need to be removed by hand.</source>
-        <translation>无法读取存储的邮件账户，因此此版本未更改它们。
-
-没有丢失任何内容。如果这种情况持续发生，可能需要手动删除存储的列表。</translation>
-    </message>
-    <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="481"/>
-        <source>Untitled account</source>
-        <translation>未命名账户</translation>
-    </message>
-    <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="499"/>
-        <location filename="../EMailAccountSettingsPage.cpp" line="521"/>
-        <source>%1 (default)</source>
-        <translation>%1（默认）</translation>
-    </message>
-    <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="569"/>
-        <source>Remove Account</source>
-        <translation>删除账户</translation>
-    </message>
-    <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="570"/>
-        <source>Remove %1?
-
-Its stored password is forgotten as well. This cannot be undone once you press OK in this dialog.</source>
-        <translation>删除 %1？
-
-其存储的密码也会被遗忘。一旦在此对话框中按下“确定”，此操作将无法撤销。</translation>
-    </message>
-    <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="680"/>
-        <source>This account needs an e-mail address.</source>
-        <translation>此账户需要一个电子邮件地址。</translation>
-    </message>
-    <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="682"/>
-        <source>&quot;%1&quot; does not look like an e-mail address.</source>
-        <translation>“%1”看起来不像电子邮件地址。</translation>
-    </message>
-    <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="687"/>
-        <source>Receiving is turned on but no server is set.</source>
-        <translation>已开启接收，但未设置服务器。</translation>
-    </message>
-    <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="690"/>
-        <source>Sending is turned on but no server is set.</source>
-        <translation>已开启发送，但未设置服务器。</translation>
-    </message>
-    <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="695"/>
-        <source>Turn on receiving, sending, or both. An account that does neither cannot be used.</source>
-        <translation>请开启接收、发送或两者。两者都不开启的账户无法使用。</translation>
-    </message>
-    <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="710"/>
-        <source>Another account already uses this address. They cannot be told apart wherever accounts are offered.</source>
-        <translation>另一个账户已在使用此地址。无论在何处提供账户，都无法区分它们。</translation>
-    </message>
-    <message>
-        <source>Another account already uses this address. They cannot be told apart where accounts are offered.</source>
-        <translation type="vanished">另一个账户已在使用此地址。在提供账户选择时无法区分它们。</translation>
-    </message>
-    <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="738"/>
-        <source>Port %1</source>
-        <translation>端口 %1</translation>
-    </message>
-    <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="877"/>
-        <source>Trusting one certificate: %1 &amp;nbsp; &lt;a href=&quot;forget&quot;&gt;Stop trusting it&lt;/a&gt;</source>
-        <translation>信任一个证书：%1 &amp;nbsp; &lt;a href=&quot;forget&quot;&gt;停止信任它&lt;/a&gt;</translation>
-    </message>
-    <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="977"/>
+        <location filename="../EMailAccountProbe.cpp" line="153"/>
         <source>Check the user name and password.</source>
         <translation>请检查用户名和密码。</translation>
     </message>
     <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="980"/>
+        <location filename="../EMailAccountProbe.cpp" line="156"/>
         <source>Check the server address for a typo.</source>
         <translation>请检查服务器地址是否有拼写错误。</translation>
     </message>
     <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="984"/>
+        <location filename="../EMailAccountProbe.cpp" line="160"/>
         <source>The address resolves but nothing answered. Check the connection type, and whether the server is reachable from here.</source>
         <translation>地址解析成功，但无响应。请检查连接类型，以及服务器是否可从此处访问。</translation>
     </message>
     <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="990"/>
+        <location filename="../EMailAccountProbe.cpp" line="166"/>
         <source>The server&apos;s certificate is not signed by an authority this computer trusts. If you run this server yourself, you can choose to trust its certificate.</source>
         <translation>服务器的证书不是由这台计算机信任的机构签发的。如果您自己运行此服务器，可以选择信任其证书。</translation>
     </message>
     <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="996"/>
+        <location filename="../EMailAccountProbe.cpp" line="172"/>
         <source>The server&apos;s certificate is expired or not yet valid. Check the clock on both machines before anything else.</source>
         <translation>服务器的证书已过期或尚未生效。请先检查两台机器上的时钟。</translation>
     </message>
     <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="1001"/>
+        <location filename="../EMailAccountProbe.cpp" line="177"/>
         <source>The server&apos;s certificate is for a different host. Check the server address.</source>
         <translation>服务器的证书对应的是另一台主机。请检查服务器地址。</translation>
     </message>
     <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="1006"/>
+        <location filename="../EMailAccountProbe.cpp" line="182"/>
         <source>The server would not start an encrypted session. Nothing was sent to it.</source>
         <translation>服务器拒绝建立加密会话。未向其发送任何内容。</translation>
     </message>
     <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="1010"/>
+        <location filename="../EMailAccountProbe.cpp" line="186"/>
         <source>The encrypted connection could not be established.</source>
         <translation>无法建立加密连接。</translation>
     </message>
     <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="1013"/>
+        <location filename="../EMailAccountProbe.cpp" line="189"/>
         <source>The server stopped answering. Try again.</source>
         <translation>服务器不再响应。请重试。</translation>
     </message>
     <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="1016"/>
+        <location filename="../EMailAccountProbe.cpp" line="192"/>
         <source>This is a fault in GpgFrontend rather than in the server.</source>
         <translation>这是 GpgFrontend 的故障，而非服务器的问题。</translation>
     </message>
     <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="1025"/>
+        <location filename="../EMailAccountProbe.cpp" line="201"/>
         <source>This may be temporary. Try again.</source>
         <translation>这可能是暂时性的。请重试。</translation>
     </message>
     <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="1060"/>
+        <location filename="../EMailAccountProbe.cpp" line="226"/>
         <source>This server presented a certificate that no authority vouches for. That is normal for a server you run yourself, and it is also what an interception looks like.
 
 %1
@@ -312,49 +79,839 @@ SHA-256: %2
 是否为此账户信任这一确切证书？任何其他证书，包括该证书之后的替换证书，仍将被拒绝。</translation>
     </message>
     <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="1066"/>
+        <location filename="../EMailAccountProbe.cpp" line="232"/>
         <source>(no certificate details)</source>
         <translation>（无证书详细信息）</translation>
     </message>
     <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="1069"/>
+        <location filename="../EMailAccountProbe.cpp" line="235"/>
         <source>Trust This Certificate?</source>
         <translation>信任此证书？</translation>
     </message>
     <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="1082"/>
-        <source>Certificate trusted for this account. Test again to confirm.</source>
-        <translation>此证书已被该账户信任。请再次测试以确认。</translation>
-    </message>
-    <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="1108"/>
-        <source>Enter a server address first.</source>
-        <translation>请先输入服务器地址。</translation>
-    </message>
-    <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="1122"/>
-        <source>Enter a password first.</source>
-        <translation>请先输入密码。</translation>
-    </message>
-    <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="1130"/>
-        <source>Testing...</source>
-        <translation>正在测试...</translation>
-    </message>
-    <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="1227"/>
-        <source>Stopped.</source>
-        <translation>已停止。</translation>
-    </message>
-    <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="1235"/>
+        <location filename="../EMailAccountProbe.cpp" line="338"/>
         <source>Connected successfully.</source>
         <translation>连接成功。</translation>
     </message>
     <message>
-        <location filename="../EMailAccountSettingsPage.cpp" line="1240"/>
+        <location filename="../EMailAccountProbe.cpp" line="341"/>
+        <source>Stopped.</source>
+        <translation>已停止。</translation>
+    </message>
+</context>
+<context>
+    <name>EMailAccountSettingsPage</name>
+    <message>
+        <location filename="../EMailAccountForm.cpp" line="39"/>
+        <source>TLS (recommended)</source>
+        <translation>TLS（推荐）</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountForm.cpp" line="43"/>
+        <location filename="../EMailAccountForm.cpp" line="89"/>
+        <source>STARTTLS</source>
+        <translation>STARTTLS</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountForm.cpp" line="47"/>
+        <source>None (this machine only)</source>
+        <translation>无（仅本机）</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountForm.cpp" line="78"/>
+        <source>No server set</source>
+        <translation>未设置服务器</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountForm.cpp" line="85"/>
+        <source>TLS</source>
+        <translation>TLS</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountForm.cpp" line="92"/>
+        <source>No encryption</source>
+        <translation>不加密</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountForm.cpp" line="96"/>
+        <source>%1 · %2 · port %3</source>
+        <translation>%1 · %2 · 端口 %3</translation>
+    </message>
+    <message>
+        <source>Identity</source>
+        <translation type="vanished">身份</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountSettingsPage.cpp" line="249"/>
+        <source>Optional</source>
+        <translation>可选</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountSettingsPage.cpp" line="329"/>
+        <source>Display name</source>
+        <translation>显示名称</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountSettingsPage.cpp" line="330"/>
+        <source>Email address</source>
+        <translation>电子邮件地址</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountSettingsPage.cpp" line="261"/>
+        <source>Reply-To</source>
+        <translation>回复地址</translation>
+    </message>
+    <message>
+        <source>Receiving (IMAP)</source>
+        <translation type="vanished">接收（IMAP）</translation>
+    </message>
+    <message>
+        <source>Sending (SMTP)</source>
+        <translation type="vanished">发送（SMTP）</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountSettingsPage.cpp" line="158"/>
+        <source>Use this account to receive</source>
+        <translation>使用此账户接收</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountSettingsPage.cpp" line="158"/>
+        <source>Use this account to send</source>
+        <translation>使用此账户发送</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountSettingsPage.cpp" line="180"/>
+        <source>Server</source>
+        <translation>服务器</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountSettingsPage.cpp" line="181"/>
+        <source>Connection</source>
+        <translation>连接</translation>
+    </message>
+    <message>
+        <source>Username</source>
+        <translation type="vanished">用户名</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountSettingsPage.cpp" line="215"/>
+        <source>Test Connection</source>
+        <translation>测试连接</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountSettingsPage.cpp" line="259"/>
+        <source>Discovered automatically</source>
+        <translation>自动发现</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountSettingsPage.cpp" line="264"/>
+        <source>Sent folder</source>
+        <translation>已发送文件夹</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountSettingsPage.cpp" line="216"/>
+        <source>Stop</source>
+        <translation>停止</translation>
+    </message>
+    <message>
+        <source>Add</source>
+        <translation type="vanished">添加</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountSettingsPage.cpp" line="643"/>
+        <source>Remove</source>
+        <translation>移除</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountSettingsPage.cpp" line="627"/>
+        <source>Set as Default</source>
+        <translation>设为默认</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountSettingsPage.cpp" line="629"/>
+        <source>The account offered first when sending, and the one used when nothing else is chosen.</source>
+        <translation>发送时首选账户，未选择其他账户时使用的账户。</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountSettingsPage.cpp" line="100"/>
+        <source>No mail accounts yet</source>
+        <translation>尚无邮件账户</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountSettingsPage.cpp" line="106"/>
+        <source>An account is needed only to fetch and send messages. Everything else in GpgFrontend works without one.</source>
+        <translation>仅当获取和发送消息时才需要账户。GpgFrontend 中的其他一切功能均无需账户即可使用。</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountSettingsPage.cpp" line="111"/>
+        <source>Add an Account</source>
+        <translation>添加账户</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountSettingsPage.cpp" line="331"/>
+        <source>Password</source>
+        <translation>密码</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountSettingsPage.cpp" line="327"/>
+        <source>Leave blank to keep the stored one</source>
+        <translation>留空以保留已存储的密码</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountSettingsPage.cpp" line="139"/>
+        <source>Add Account...</source>
+        <translation>添加账户...</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountSettingsPage.cpp" line="186"/>
+        <source>Not tested</source>
+        <translation>未测试</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountSettingsPage.cpp" line="206"/>
+        <source>Servers</source>
+        <translation>服务器</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountSettingsPage.cpp" line="253"/>
+        <source>Empty: send without signing in</source>
+        <translation>留空：发送时不登录</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountSettingsPage.cpp" line="262"/>
+        <source>Incoming user name</source>
+        <translation>接收用户名</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountSettingsPage.cpp" line="263"/>
+        <source>Outgoing user name</source>
+        <translation>发送用户名</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountSettingsPage.cpp" line="286"/>
+        <source>Advanced</source>
+        <translation>高级</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountSettingsPage.cpp" line="318"/>
+        <source>Account</source>
+        <translation>账户</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountSettingsPage.cpp" line="335"/>
+        <source>Signing in through a provider&apos;s own web page (OAuth2) is not supported yet. If your provider requires it, create an app-specific password and use that here.</source>
+        <translation>尚不支持通过提供商自己的网页（OAuth2）登录。如果您的提供商要求这样做，请创建应用专用密码并在此处使用。</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountSettingsPage.cpp" line="417"/>
+        <source>Mail Accounts Not Saved</source>
+        <translation>邮件账户未保存</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountSettingsPage.cpp" line="419"/>
+        <source>These accounts were set up by a newer version of GpgFrontend, so this version did not read them and has not changed them.
+
+Your accounts are still there. Use the newer version to edit them.</source>
+        <translation>这些账户是由更高版本的 GpgFrontend 设置的，因此此版本未读取它们，也未更改它们。
+
+您的账户仍然存在。请使用更高版本来编辑它们。</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountSettingsPage.cpp" line="423"/>
+        <source>The stored mail accounts could not be read, so this version has not changed them.
+
+Nothing has been lost. If this keeps happening, the stored list may need to be removed by hand.</source>
+        <translation>无法读取存储的邮件账户，因此此版本未更改它们。
+
+没有丢失任何内容。如果这种情况持续发生，可能需要手动删除存储的列表。</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountSettingsPage.cpp" line="470"/>
+        <location filename="../EMailAccountSettingsPage.cpp" line="478"/>
+        <source>Untitled account</source>
+        <translation>未命名账户</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountSettingsPage.cpp" line="480"/>
+        <source>%1 (default)</source>
+        <translation>%1（默认）</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountSettingsPage.cpp" line="539"/>
+        <source>Disabled: not offered for sending or fetching until it is enabled again.</source>
+        <translation>已禁用：在重新启用之前，不会用于发送或接收。</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountSettingsPage.cpp" line="581"/>
+        <source>Remove Account</source>
+        <translation>删除账户</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountSettingsPage.cpp" line="582"/>
+        <source>Remove %1?
+
+Its stored password is forgotten as well. This cannot be undone once you press OK in this dialog.</source>
+        <translation>删除 %1？
+
+其存储的密码也会被遗忘。一旦在此对话框中按下“确定”，此操作将无法撤销。</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountSettingsPage.cpp" line="639"/>
+        <source>Disable</source>
+        <translation>禁用</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountSettingsPage.cpp" line="639"/>
+        <source>Enable</source>
+        <translation>启用</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountSettingsPage.cpp" line="763"/>
+        <source>This account needs an e-mail address.</source>
+        <translation>此账户需要一个电子邮件地址。</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountSettingsPage.cpp" line="766"/>
+        <source>&quot;%1&quot; does not look like an e-mail address.</source>
+        <translation>“%1”看起来不像电子邮件地址。</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountSettingsPage.cpp" line="770"/>
+        <source>Receiving is turned on but no server is set.</source>
+        <translation>已开启接收，但未设置服务器。</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountSettingsPage.cpp" line="773"/>
+        <source>Sending is turned on but no server is set.</source>
+        <translation>已开启发送，但未设置服务器。</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountSettingsPage.cpp" line="777"/>
+        <source>Turn on receiving, sending, or both. An account that does neither cannot be used.</source>
+        <translation>请开启接收、发送或两者。两者都不开启的账户无法使用。</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountSettingsPage.cpp" line="782"/>
+        <source>Another account already uses this address. They cannot be told apart wherever accounts are offered.</source>
+        <translation>另一个账户已在使用此地址。无论在何处提供账户，都无法区分它们。</translation>
+    </message>
+    <message>
+        <source>Another account already uses this address. They cannot be told apart where accounts are offered.</source>
+        <translation type="vanished">另一个账户已在使用此地址。在提供账户选择时无法区分它们。</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountSettingsPage.cpp" line="804"/>
+        <source>Port %1</source>
+        <translation>端口 %1</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountSettingsPage.cpp" line="1017"/>
+        <source>Receiving server</source>
+        <translation>接收服务器</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountSettingsPage.cpp" line="1017"/>
+        <source>Sending server</source>
+        <translation>发送服务器</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountSettingsPage.cpp" line="1019"/>
+        <source>Trusting one certificate: %1 &amp;nbsp; &lt;a href=&quot;forget&quot;&gt;Stop trusting it&lt;/a&gt;</source>
+        <translation>信任一个证书：%1 &amp;nbsp; &lt;a href=&quot;forget&quot;&gt;停止信任它&lt;/a&gt;</translation>
+    </message>
+    <message>
+        <source>Check the user name and password.</source>
+        <translation type="vanished">请检查用户名和密码。</translation>
+    </message>
+    <message>
+        <source>Check the server address for a typo.</source>
+        <translation type="vanished">请检查服务器地址是否有拼写错误。</translation>
+    </message>
+    <message>
+        <source>The address resolves but nothing answered. Check the connection type, and whether the server is reachable from here.</source>
+        <translation type="vanished">地址解析成功，但无响应。请检查连接类型，以及服务器是否可从此处访问。</translation>
+    </message>
+    <message>
+        <source>The server&apos;s certificate is not signed by an authority this computer trusts. If you run this server yourself, you can choose to trust its certificate.</source>
+        <translation type="vanished">服务器的证书不是由这台计算机信任的机构签发的。如果您自己运行此服务器，可以选择信任其证书。</translation>
+    </message>
+    <message>
+        <source>The server&apos;s certificate is expired or not yet valid. Check the clock on both machines before anything else.</source>
+        <translation type="vanished">服务器的证书已过期或尚未生效。请先检查两台机器上的时钟。</translation>
+    </message>
+    <message>
+        <source>The server&apos;s certificate is for a different host. Check the server address.</source>
+        <translation type="vanished">服务器的证书对应的是另一台主机。请检查服务器地址。</translation>
+    </message>
+    <message>
+        <source>The server would not start an encrypted session. Nothing was sent to it.</source>
+        <translation type="vanished">服务器拒绝建立加密会话。未向其发送任何内容。</translation>
+    </message>
+    <message>
+        <source>The encrypted connection could not be established.</source>
+        <translation type="vanished">无法建立加密连接。</translation>
+    </message>
+    <message>
+        <source>The server stopped answering. Try again.</source>
+        <translation type="vanished">服务器不再响应。请重试。</translation>
+    </message>
+    <message>
+        <source>This is a fault in GpgFrontend rather than in the server.</source>
+        <translation type="vanished">这是 GpgFrontend 的故障，而非服务器的问题。</translation>
+    </message>
+    <message>
+        <source>This may be temporary. Try again.</source>
+        <translation type="vanished">这可能是暂时性的。请重试。</translation>
+    </message>
+    <message>
+        <source>This server presented a certificate that no authority vouches for. That is normal for a server you run yourself, and it is also what an interception looks like.
+
+%1
+SHA-256: %2
+
+Trust this exact certificate for this account? Any other certificate, including a later replacement of this one, will still be refused.</source>
+        <translation type="vanished">此服务器出示了一份没有权威机构为其担保的证书。对于您自己运行的服务器，这很正常；但这也正是中间人截获时的样子。
+
+%1
+SHA-256: %2
+
+是否为此账户信任这一确切证书？任何其他证书，包括该证书之后的替换证书，仍将被拒绝。</translation>
+    </message>
+    <message>
+        <source>(no certificate details)</source>
+        <translation type="vanished">（无证书详细信息）</translation>
+    </message>
+    <message>
+        <source>Trust This Certificate?</source>
+        <translation type="vanished">信任此证书？</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountSettingsPage.cpp" line="981"/>
+        <source>Certificate trusted for this account. Test again to confirm.</source>
+        <translation>此证书已被该账户信任。请再次测试以确认。</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountSettingsPage.cpp" line="928"/>
+        <source>Enter a server address first.</source>
+        <translation>请先输入服务器地址。</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountSettingsPage.cpp" line="542"/>
+        <source>Default account</source>
+        <translation>默认账户</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountSettingsPage.cpp" line="932"/>
+        <source>Enter a password first.</source>
+        <translation>请先输入密码。</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountSettingsPage.cpp" line="935"/>
+        <source>Testing...</source>
+        <translation>正在测试...</translation>
+    </message>
+    <message>
+        <source>Stopped.</source>
+        <translation type="vanished">已停止。</translation>
+    </message>
+    <message>
+        <source>Connected successfully.</source>
+        <translation type="vanished">连接成功。</translation>
+    </message>
+    <message>
         <source>Could not connect, and the reason is not known.</source>
-        <translation>无法连接，原因未知。</translation>
+        <translation type="vanished">无法连接，原因未知。</translation>
+    </message>
+</context>
+<context>
+    <name>EMailAccountWizard</name>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="134"/>
+        <source>Add Account</source>
+        <translation>添加账户</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="135"/>
+        <source>Account</source>
+        <translation>账户</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="135"/>
+        <source>Check</source>
+        <translation>检查</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="141"/>
+        <source>Add Mail Account</source>
+        <translation>添加邮件账户</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="186"/>
+        <source>Your Account</source>
+        <translation>您的账户</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="195"/>
+        <source>for example: Alice Liddell</source>
+        <translation>例如：Alice Liddell</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="199"/>
+        <source>for example: alice@example.org</source>
+        <translation>例如：alice@example.org</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="209"/>
+        <source>Your name</source>
+        <translation>您的姓名</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="210"/>
+        <source>Email address</source>
+        <translation>电子邮件地址</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="212"/>
+        <source>Password</source>
+        <translation>密码</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="221"/>
+        <source>Signing in through a provider&apos;s own web page (OAuth2) is not supported yet. If your provider requires it, create an app-specific password and use that here.</source>
+        <translation>尚不支持通过提供商自己的网页（OAuth2）登录。如果您的提供商要求这样做，请创建应用专用密码并在此处使用。</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="272"/>
+        <source>Looking up the servers for %1...</source>
+        <translation>正在查找 %1 的服务器...</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="135"/>
+        <location filename="../EMailAccountWizard.cpp" line="327"/>
+        <source>Servers</source>
+        <translation>服务器</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="342"/>
+        <source>Send and receive</source>
+        <translation>发送和接收</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="343"/>
+        <source>Receive only</source>
+        <translation>仅接收</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="344"/>
+        <source>Send only</source>
+        <translation>仅发送</translation>
+    </message>
+    <message>
+        <source>Receiving (IMAP)</source>
+        <translation type="vanished">接收（IMAP）</translation>
+    </message>
+    <message>
+        <source>Sending (SMTP)</source>
+        <translation type="vanished">发送（SMTP）</translation>
+    </message>
+    <message>
+        <source>Test Connection</source>
+        <translation type="vanished">测试连接</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="508"/>
+        <source>Stop</source>
+        <translation>停止</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="488"/>
+        <source>Connection Check</source>
+        <translation>连接检查</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="135"/>
+        <location filename="../EMailAccountWizard.cpp" line="550"/>
+        <source>Review</source>
+        <translation>检查</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="187"/>
+        <source>GpgFrontend finds the servers from your address.</source>
+        <translation>GpgFrontend 会根据您的地址查找服务器。</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="291"/>
+        <location filename="../EMailAccountWizard.cpp" line="461"/>
+        <source>Incoming mail (IMAP)</source>
+        <translation>接收邮件（IMAP）</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="291"/>
+        <location filename="../EMailAccountWizard.cpp" line="461"/>
+        <source>Outgoing mail (SMTP)</source>
+        <translation>发送邮件（SMTP）</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="310"/>
+        <source>Server address</source>
+        <translation>服务器地址</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="311"/>
+        <source>Security</source>
+        <translation>安全性</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="328"/>
+        <source>Check the servers this account will use.</source>
+        <translation>检查此账户将使用的服务器。</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="334"/>
+        <source>Use this account to</source>
+        <translation>使用此账户进行</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="356"/>
+        <source>Edit</source>
+        <translation>编辑</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="357"/>
+        <source>Edit servers</source>
+        <translation>编辑服务器</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="359"/>
+        <location filename="../EMailAccountWizard.cpp" line="371"/>
+        <source>Server settings</source>
+        <translation>服务器设置</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="368"/>
+        <source>Done</source>
+        <translation>完成</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="369"/>
+        <source>Done editing servers</source>
+        <translation>完成服务器编辑</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="381"/>
+        <source>Incoming (IMAP)</source>
+        <translation>接收（IMAP）</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="382"/>
+        <source>Outgoing (SMTP)</source>
+        <translation>发送（SMTP）</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="384"/>
+        <source>Login usernames</source>
+        <translation>登录用户名</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="489"/>
+        <source>GpgFrontend signs in to each server without sending or changing anything.</source>
+        <translation>GpgFrontend 登录每台服务器时不会发送或更改任何内容。</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="551"/>
+        <source>Nothing is saved until you press OK in the Settings window.</source>
+        <translation>在设置窗口中按下“确定”之前，不会保存任何内容。</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="558"/>
+        <source>Use as the default account</source>
+        <translation>用作默认账户</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="560"/>
+        <source>The account offered first when sending, and the one used when nothing else is chosen.</source>
+        <translation>发送时首选账户，未选择其他账户时使用的账户。</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="572"/>
+        <source>As your only account, this becomes the default one.</source>
+        <translation>作为您的唯一账户，它将成为默认账户。</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="635"/>
+        <source>This does not look like an email address.</source>
+        <translation>这看起来不像电子邮件地址。</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="644"/>
+        <source>Another account already uses this address.</source>
+        <translation>另一个账户已使用此地址。</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="660"/>
+        <source>%1 is not in GpgFrontend&apos;s list of providers. To find its mail servers, pressing Continue asks your DNS server about %1.</source>
+        <translation>%1 不在 GpgFrontend 的提供商列表中。要查找其邮件服务器，按下“继续”会向您的 DNS 服务器查询 %1。</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="674"/>
+        <source>%1 usually refuses your normal password here. Create an app password in your %1 account settings and use that.</source>
+        <translation>%1 通常不接受你的普通密码。请在 %1 账户设置中创建应用专用密码并使用该密码。</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="679"/>
+        <source>%1 asks mail programs to sign in through its own web page, which GpgFrontend cannot do yet. Signing in works only if your account allows an app password.</source>
+        <translation>%1 要求邮件程序通过其自己的网页登录，GpgFrontend 目前尚无法做到。仅当你的账户允许使用应用专用密码时才能登录。</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="759"/>
+        <source>Partly found in DNS for %1, partly guessed</source>
+        <translation>部分在 %1 的 DNS 中找到，部分为推测</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="762"/>
+        <source>Found in DNS for %1</source>
+        <translation>已在 %1 的 DNS 中找到</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="1029"/>
+        <source>%1 Added without a working connection.</source>
+        <translation>%1 已添加，但连接不可用。</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="1039"/>
+        <source>Not checked.</source>
+        <translation>未检查。</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="872"/>
+        <location filename="../EMailAccountWizard.cpp" line="1015"/>
+        <source>Connected</source>
+        <translation>已连接</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="773"/>
+        <location filename="../EMailAccountWizard.cpp" line="1057"/>
+        <source>Incoming</source>
+        <translation>接收</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="778"/>
+        <location filename="../EMailAccountWizard.cpp" line="1064"/>
+        <source>Outgoing</source>
+        <translation>发送</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="864"/>
+        <source>Waiting</source>
+        <translation>等待中</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="876"/>
+        <source>Failed</source>
+        <translation>失败</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="884"/>
+        <source>Not verified</source>
+        <translation>未验证</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="924"/>
+        <source>Checking the servers...</source>
+        <translation>正在检查服务器...</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="926"/>
+        <source>Everything works. Continue to review the account.</source>
+        <translation>一切正常。请继续检查账户。</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="930"/>
+        <source>The account cannot connect yet. Correct the servers and retry, or add it anyway and fix it later in Settings.</source>
+        <translation>该账户目前无法连接。请更正服务器设置后重试，或仍然添加该账户，稍后在设置中修复。</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="934"/>
+        <source>The check was stopped, so nothing was verified.</source>
+        <translation>检查已停止，因此未进行任何验证。</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="1027"/>
+        <source>Could not connect. Added without a working connection.</source>
+        <translation>无法连接。已在没有可用连接的情况下添加。</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="1035"/>
+        <source>Not verified: the check was stopped.</source>
+        <translation>未验证：检查已停止。</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="1049"/>
+        <source>Name</source>
+        <translation>名称</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="1051"/>
+        <source>Address</source>
+        <translation>地址</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="322"/>
+        <source>Empty: send without signing in</source>
+        <translation>留空：发送时不登录</translation>
+    </message>
+    <message>
+        <source>Server</source>
+        <translation type="vanished">服务器</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="507"/>
+        <source>Retry</source>
+        <translation>重试</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="524"/>
+        <source>Add this account anyway and fix the connection later</source>
+        <translation>仍然添加此账户，稍后修复连接</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="739"/>
+        <source>Entered by you</source>
+        <translation>由你输入</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="752"/>
+        <source>Built-in settings for %1</source>
+        <translation>%1 的内置设置</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="755"/>
+        <source>Published by %1 in DNS</source>
+        <translation>由 %1 在 DNS 中发布</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="757"/>
+        <source>Guessed from %1</source>
+        <translation>根据 %1 推测</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="781"/>
+        <source>Source</source>
+        <translation>来源</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="789"/>
+        <source>Port %1</source>
+        <translation>端口 %1</translation>
+    </message>
+    <message>
+        <location filename="../EMailAccountWizard.cpp" line="868"/>
+        <source>Connecting...</source>
+        <translation>正在连接...</translation>
+    </message>
+    <message>
+        <source>Connection</source>
+        <translation type="vanished">连接</translation>
     </message>
 </context>
 <context>
@@ -1234,7 +1791,7 @@ If the issue persists, consider seeking technical support or consulting the docu
     </message>
     <message>
         <location filename="../EMailPageView.cpp" line="842"/>
-        <location filename="../EMailPageView.cpp" line="1287"/>
+        <location filename="../EMailPageView.cpp" line="1307"/>
         <source>Write your message here.</source>
         <translation>在此处撰写您的消息。</translation>
     </message>
@@ -1244,27 +1801,27 @@ If the issue persists, consider seeking technical support or consulting the docu
         <translation>向此消息添加一个或多个文件。也可以将文件拖放到消息上。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="966"/>
+        <location filename="../EMailPageView.cpp" line="979"/>
         <source>Take the selected attachments out of this message.</source>
         <translation>从消息中移除选中的附件。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="952"/>
+        <location filename="../EMailPageView.cpp" line="965"/>
         <source>Write the selected attachments to a folder.</source>
         <translation>将选定的附件写入文件夹。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="956"/>
+        <location filename="../EMailPageView.cpp" line="969"/>
         <source>Write every attachment to a folder.</source>
         <translation>将所有附件写入文件夹。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1199"/>
+        <location filename="../EMailPageView.cpp" line="1212"/>
         <source>This message is encrypted. Decrypt it before editing it.</source>
         <translation>此消息已加密。编辑前请先解密。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1203"/>
+        <location filename="../EMailPageView.cpp" line="1216"/>
         <source>This message is encrypted and signed. Decrypt it, then remove the signature, before editing it.</source>
         <translation>此消息已加密并签名。编辑前请先解密，然后移除签名。</translation>
     </message>
@@ -1279,7 +1836,7 @@ If the issue persists, consider seeking technical support or consulting the docu
     </message>
     <message>
         <location filename="../EMailPageView.cpp" line="763"/>
-        <location filename="../EMailPageView.cpp" line="911"/>
+        <location filename="../EMailPageView.cpp" line="924"/>
         <source>Attachments</source>
         <translation>附件</translation>
     </message>
@@ -1292,7 +1849,7 @@ If the issue persists, consider seeking technical support or consulting the docu
         <translation type="vanished">受保护消息</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3486"/>
+        <location filename="../EMailPageView.cpp" line="3594"/>
         <source>These bytes are covered by a signature, or are ciphertext. Remove the signature, or decrypt the message, before editing its source.</source>
         <translation>这些字节受签名保护，或是密文。编辑其源前，请先移除签名或解密消息。</translation>
     </message>
@@ -1309,7 +1866,7 @@ If the issue persists, consider seeking technical support or consulting the docu
         <translation type="vanished">您正在编辑原始消息源。您在此输入的内容就是文档。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3483"/>
+        <location filename="../EMailPageView.cpp" line="3591"/>
         <source>This message is locked for inspection. Its source cannot be edited.</source>
         <translation>此消息已锁定以供检查。无法编辑其源。</translation>
     </message>
@@ -1318,100 +1875,100 @@ If the issue persists, consider seeking technical support or consulting the docu
         <translation type="vanished">只读。解锁后可直接编辑消息源。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1660"/>
+        <location filename="../EMailPageView.cpp" line="1680"/>
         <source>untitled.eml</source>
         <translation>未命名.eml</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1692"/>
-        <location filename="../EMailPageView.cpp" line="1741"/>
+        <location filename="../EMailPageView.cpp" line="1712"/>
+        <location filename="../EMailPageView.cpp" line="1761"/>
         <source>This message is encrypted</source>
         <translation>此消息已加密</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1720"/>
-        <location filename="../EMailPageView.cpp" line="2411"/>
-        <location filename="../EMailPageView.cpp" line="2422"/>
+        <location filename="../EMailPageView.cpp" line="1740"/>
+        <location filename="../EMailPageView.cpp" line="2514"/>
+        <location filename="../EMailPageView.cpp" line="2525"/>
         <source>Decrypt</source>
         <translation>解密</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1740"/>
+        <location filename="../EMailPageView.cpp" line="1760"/>
         <source>This message is encrypted and signed</source>
         <translation>此消息已加密并签名</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1764"/>
+        <location filename="../EMailPageView.cpp" line="1784"/>
         <source>The recipients are not named in the headers.</source>
         <translation>邮件头中未指明接收者。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1765"/>
+        <location filename="../EMailPageView.cpp" line="1785"/>
         <source>Addressed to %1</source>
         <translation>收件人：%1</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1832"/>
+        <location filename="../EMailPageView.cpp" line="1852"/>
         <source>You hold the private key for %1, so this message can be opened here.</source>
         <translation>您持有 %1 的私钥，因此可以在此处打开此消息。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1835"/>
+        <location filename="../EMailPageView.cpp" line="1855"/>
         <source>You hold private keys for %1, so this message can be opened here.</source>
         <translation>您持有 %1 的私钥，因此可以在此处打开此消息。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1844"/>
+        <location filename="../EMailPageView.cpp" line="1864"/>
         <source>This message is encrypted to keys you do not hold the private half of, so it cannot be opened on this computer.</source>
         <translation>此消息加密到的密钥，您并不持有对应的私钥，因此无法在此计算机上打开。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1852"/>
+        <location filename="../EMailPageView.cpp" line="1872"/>
         <source>Some recipients of this message were deliberately not named, so there is no way to tell whether you can open it until you try.</source>
         <translation>此消息的部分接收者被故意未指明，因此在尝试之前无法判断您能否打开它。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1855"/>
+        <location filename="../EMailPageView.cpp" line="1875"/>
         <source>The recipients of this message cannot be read, so there is no way to tell whether you can open it until you try.</source>
         <translation>此消息的接收者无法读取，因此尝试之前无法判断您能否打开它。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1893"/>
+        <location filename="../EMailPageView.cpp" line="1913"/>
         <source>The recipients are not named, so there is no way to tell whether you can open this until you try.</source>
         <translation>未列出接收者，因此只有尝试后才能知道您能否打开此消息。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1927"/>
+        <location filename="../EMailPageView.cpp" line="1947"/>
         <source>attach a public key</source>
         <translation>附加公钥</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1948"/>
+        <location filename="../EMailPageView.cpp" line="1968"/>
         <source>add text to this message</source>
         <translation>向此消息添加文本</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1965"/>
+        <location filename="../EMailPageView.cpp" line="1985"/>
         <source>Message Locked</source>
         <translation>消息已锁定</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1966"/>
+        <location filename="../EMailPageView.cpp" line="1986"/>
         <source>This message is open for inspection only, so it is not possible to %1.</source>
         <translation>此消息仅供查看，因此无法%1。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1975"/>
+        <location filename="../EMailPageView.cpp" line="1995"/>
         <source>Message Is Encrypted</source>
         <translation>消息已加密</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1976"/>
+        <location filename="../EMailPageView.cpp" line="1996"/>
         <source>Decrypt this message before trying to %1.</source>
         <translation>请先解密此消息，再尝试%1。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1984"/>
+        <location filename="../EMailPageView.cpp" line="2004"/>
         <source>Message Is Signed</source>
         <translation>消息已签名</translation>
     </message>
@@ -1424,32 +1981,32 @@ If the issue persists, consider seeking technical support or consulting the docu
         <translation type="vanished">此邮件无论如何都无法编辑：它已签名或加密，因此已受到保护，无法被重写。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2138"/>
+        <location filename="../EMailPageView.cpp" line="2241"/>
         <source>No mail account is set up yet. Add one in Settings, under Mail Accounts, and this message can be sent.</source>
         <translation>尚未设置邮件账户。请在“设置”的“邮件账户”下添加一个账户，然后即可发送此邮件。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2141"/>
+        <location filename="../EMailPageView.cpp" line="2244"/>
         <source>Fill in who this message is from.</source>
         <translation>请填写此邮件的发件人。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2143"/>
+        <location filename="../EMailPageView.cpp" line="2246"/>
         <source>The From address does not look like an e-mail address.</source>
         <translation>发件人地址看起来不像电子邮件地址。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2145"/>
+        <location filename="../EMailPageView.cpp" line="2248"/>
         <source>Add at least one recipient.</source>
         <translation>请至少添加一个收件人。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2147"/>
+        <location filename="../EMailPageView.cpp" line="2250"/>
         <source>Give this message a subject.</source>
         <translation>请为此邮件填写主题。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2156"/>
+        <location filename="../EMailPageView.cpp" line="2259"/>
         <source>This does not look like an e-mail address: %1</source>
         <translation>这看起来不像电子邮件地址：%1</translation>
     </message>
@@ -1479,120 +2036,120 @@ If the issue persists, consider seeking technical support or consulting the docu
         <translation>既未签名也未加密</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2376"/>
+        <location filename="../EMailPageView.cpp" line="2479"/>
         <source>This message is locked for inspection.</source>
         <translation>此邮件已锁定，仅供查看。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2391"/>
+        <location filename="../EMailPageView.cpp" line="2494"/>
         <source>Sign...</source>
         <translation>签名...</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2392"/>
+        <location filename="../EMailPageView.cpp" line="2495"/>
         <source>Encrypt...</source>
         <translation>加密...</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2393"/>
+        <location filename="../EMailPageView.cpp" line="2496"/>
         <source>Encrypt and Sign...</source>
         <translation>加密并签名...</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2397"/>
+        <location filename="../EMailPageView.cpp" line="2500"/>
         <source>Verify Signature</source>
         <translation>验证签名</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2398"/>
+        <location filename="../EMailPageView.cpp" line="2501"/>
         <source>Signature Details...</source>
         <translation>签名详情...</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2402"/>
+        <location filename="../EMailPageView.cpp" line="2505"/>
         <source>Sign Again With Another Key...</source>
         <translation>使用另一密钥重新签名...</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2403"/>
-        <location filename="../EMailPageView.cpp" line="2428"/>
+        <location filename="../EMailPageView.cpp" line="2506"/>
+        <location filename="../EMailPageView.cpp" line="2531"/>
         <source>Remove Signature...</source>
         <translation>移除签名...</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2412"/>
-        <location filename="../EMailPageView.cpp" line="2421"/>
+        <location filename="../EMailPageView.cpp" line="2515"/>
+        <location filename="../EMailPageView.cpp" line="2524"/>
         <source>Decrypt and Verify</source>
         <translation>解密并验证</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2414"/>
+        <location filename="../EMailPageView.cpp" line="2517"/>
         <source>Encryption Details...</source>
         <translation>加密详情...</translation>
     </message>
     <message>
         <location filename="../EMailPageView.cpp" line="722"/>
-        <location filename="../EMailPageView.cpp" line="2424"/>
+        <location filename="../EMailPageView.cpp" line="2527"/>
         <source>Details...</source>
         <translation>详情...</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2438"/>
+        <location filename="../EMailPageView.cpp" line="2541"/>
         <source>Decrypt this message first.</source>
         <translation>请先解密此消息。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2447"/>
+        <location filename="../EMailPageView.cpp" line="2550"/>
         <source>What Is Wrong With This Message?</source>
         <translation>此消息有什么问题？</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2451"/>
+        <location filename="../EMailPageView.cpp" line="2554"/>
         <source>Try to Verify Anyway</source>
         <translation>仍然尝试验证</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2452"/>
+        <location filename="../EMailPageView.cpp" line="2555"/>
         <source>Try to Decrypt Anyway</source>
         <translation>仍然尝试解密</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2467"/>
+        <location filename="../EMailPageView.cpp" line="2570"/>
         <source>Signature Not Reachable</source>
         <translation>无法获取签名</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2468"/>
+        <location filename="../EMailPageView.cpp" line="2571"/>
         <source>The signature is inside the encrypted part of this message. Decrypt it first.</source>
         <translation>签名位于此消息的加密部分中。请先解密。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2472"/>
+        <location filename="../EMailPageView.cpp" line="2575"/>
         <source>Nothing to Remove</source>
         <translation>没有可移除的内容</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2473"/>
+        <location filename="../EMailPageView.cpp" line="2576"/>
         <source>This message carries no signature.</source>
         <translation>此消息不包含签名。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2477"/>
+        <location filename="../EMailPageView.cpp" line="2580"/>
         <source>Cannot Remove the Signature</source>
         <translation>无法移除签名</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2478"/>
+        <location filename="../EMailPageView.cpp" line="2581"/>
         <source>This message does not follow RFC 3156 closely enough to take its signature off safely. Edit the raw source instead.</source>
         <translation>此消息未严格遵循 RFC 3156，无法安全地移除其签名。请改为编辑原始源。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2486"/>
+        <location filename="../EMailPageView.cpp" line="2589"/>
         <source>Remove Signature</source>
         <translation>移除签名</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2487"/>
+        <location filename="../EMailPageView.cpp" line="2590"/>
         <source>Remove the signature from this message?
 
 The signature is discarded and the message becomes an ordinary, unsigned one. The message itself is kept exactly as it is. This cannot be undone.</source>
@@ -1601,12 +2158,12 @@ The signature is discarded and the message becomes an ordinary, unsigned one. Th
 签名将被丢弃，消息将变为普通的未签名消息。消息本身将保持原样。此操作无法撤销。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2604"/>
+        <location filename="../EMailPageView.cpp" line="2707"/>
         <source>signed</source>
         <translation>已签名</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2630"/>
+        <location filename="../EMailPageView.cpp" line="2733"/>
         <source>unsigned</source>
         <translation>未签名</translation>
     </message>
@@ -1615,12 +2172,12 @@ The signature is discarded and the message becomes an ordinary, unsigned one. Th
         <translation type="vanished">无法发送</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2866"/>
+        <location filename="../EMailPageView.cpp" line="2969"/>
         <source>This message needs a sender and at least one recipient before it can be sent.</source>
         <translation>此消息需要发件人和至少一个接收者才能发送。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="932"/>
+        <location filename="../EMailPageView.cpp" line="945"/>
         <source>Type</source>
         <translation>类型</translation>
     </message>
@@ -1722,17 +2279,17 @@ Blind recipients are never written into the message: a Bcc header would tell eve
         <translation>显示此消息的已知信息：其签名、结构和邮件头。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="932"/>
+        <location filename="../EMailPageView.cpp" line="945"/>
         <source>Size</source>
         <translation>大小</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="932"/>
+        <location filename="../EMailPageView.cpp" line="945"/>
         <source>Signed</source>
         <translation>已签名</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="932"/>
+        <location filename="../EMailPageView.cpp" line="945"/>
         <source>Name</source>
         <translation>名称</translation>
     </message>
@@ -1742,34 +2299,34 @@ Blind recipients are never written into the message: a Bcc header would tell eve
         <translation>附加文件...</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="964"/>
-        <location filename="../EMailPageView.cpp" line="3136"/>
+        <location filename="../EMailPageView.cpp" line="977"/>
+        <location filename="../EMailPageView.cpp" line="3244"/>
         <source>Remove</source>
         <translation>移除</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="950"/>
-        <location filename="../EMailPageView.cpp" line="3123"/>
+        <location filename="../EMailPageView.cpp" line="963"/>
+        <location filename="../EMailPageView.cpp" line="3231"/>
         <source>Save...</source>
         <translation>保存...</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="955"/>
+        <location filename="../EMailPageView.cpp" line="968"/>
         <source>Save All...</source>
         <translation>全部保存...</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1190"/>
+        <location filename="../EMailPageView.cpp" line="1203"/>
         <source>This message is open for inspection only. It cannot be edited or rewritten; Reply and Forward still work, and produce new messages.</source>
         <translation>此消息仅供查看。无法编辑或重写；回复和转发仍然有效，并会生成新消息。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1210"/>
+        <location filename="../EMailPageView.cpp" line="1223"/>
         <source>This message is signed. Remove the signature before editing it. An edit under a signature reads as a forgery.</source>
         <translation>此消息已签名。编辑前请移除签名。在签名下进行编辑会被视为伪造。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1227"/>
+        <location filename="../EMailPageView.cpp" line="1246"/>
         <source>This message was written in HTML. It is shown as its source rather than rendered: nothing here loads images or follows links.</source>
         <translation>此消息以 HTML 编写。显示的是其源代码而非渲染结果：此处不会加载图片或打开链接。</translation>
     </message>
@@ -1778,27 +2335,27 @@ Blind recipients are never written into the message: a Bcc header would tell eve
         <translation type="vanished">只读。这些字节受保护。要编辑它们，请移除签名或解密消息。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1520"/>
+        <location filename="../EMailPageView.cpp" line="1540"/>
         <source>This message could not be assembled for inspection, so there is nothing to show here. The message itself is unchanged.</source>
         <translation>无法组装此消息以供检查，因此这里没有可显示的内容。消息本身未更改。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1613"/>
+        <location filename="../EMailPageView.cpp" line="1633"/>
         <source>Cannot Reply</source>
         <translation>无法回复</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1615"/>
+        <location filename="../EMailPageView.cpp" line="1635"/>
         <source>Cannot Reply to All</source>
         <translation>无法全部回复</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1619"/>
+        <location filename="../EMailPageView.cpp" line="1639"/>
         <source>Cannot Forward</source>
         <translation>无法转发</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1625"/>
+        <location filename="../EMailPageView.cpp" line="1645"/>
         <source>
 
 This message itself has not been changed.</source>
@@ -1809,12 +2366,12 @@ This message itself has not been changed.</source>
         <translation type="vanished">无法从此处打开新消息，因为此视图不在包含标签页的窗口中。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1648"/>
+        <location filename="../EMailPageView.cpp" line="1668"/>
         <source>The new message could not be assembled. This usually means a part of the original could not be re-encoded, most often an attachment.</source>
         <translation>无法组装新消息。这通常意味着原始消息的某个部分无法重新编码，最常见的是附件。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1675"/>
+        <location filename="../EMailPageView.cpp" line="1695"/>
         <source>A tab for the new message could not be opened.</source>
         <translation>无法为新消息打开标签页。</translation>
     </message>
@@ -1827,22 +2384,22 @@ This message itself has not been changed.</source>
         <translation type="vanished">未列出接收者，因此能否打开此消息只有尝试后才能知道。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1910"/>
+        <location filename="../EMailPageView.cpp" line="1930"/>
         <source>You do not hold a private key for any of these addresses. Unless the message was also encrypted to a key that is not named here, it cannot be opened on this computer.</source>
         <translation>您不持有这些地址中任何一个的私钥。除非消息还加密到了此处未列出的密钥，否则无法在这台计算机上打开。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1919"/>
+        <location filename="../EMailPageView.cpp" line="1939"/>
         <source>You hold the private key for %1.</source>
         <translation>您持有 %1 的私钥。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1920"/>
+        <location filename="../EMailPageView.cpp" line="1940"/>
         <source>You hold private keys for %1.</source>
         <translation>您持有 %1 的多个私钥。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="1985"/>
+        <location filename="../EMailPageView.cpp" line="2005"/>
         <source>This message is signed, so it cannot be changed: an edit under a signature reads as a forgery.
 
 Remove the signature and make it an ordinary message?</source>
@@ -1891,22 +2448,22 @@ Remove the signature and make it an ordinary message?</source>
         <translation>签名无效</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2607"/>
+        <location filename="../EMailPageView.cpp" line="2710"/>
         <source>signed, not checked</source>
         <translation>已签名，未检查</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2612"/>
+        <location filename="../EMailPageView.cpp" line="2715"/>
         <source>signed, could not be checked</source>
         <translation>已签名，无法检查</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2618"/>
+        <location filename="../EMailPageView.cpp" line="2721"/>
         <source>signature not good</source>
         <translation>签名不正确</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2646"/>
+        <location filename="../EMailPageView.cpp" line="2749"/>
         <source>Some parts are outside the signed section of this message. They are not covered by the signature and could have been added by anyone.</source>
         <translation>此消息的某些部分位于签名部分之外。它们不受签名保护，任何人都可能添加。</translation>
     </message>
@@ -1923,38 +2480,38 @@ Remove the signature and make it an ordinary message?</source>
         <translation type="vanished">电子邮件 (*.eml);;所有文件 (*)</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2865"/>
+        <location filename="../EMailPageView.cpp" line="2968"/>
         <source>Cannot Send</source>
         <translation>无法发送</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2986"/>
-        <location filename="../EMailPageView.cpp" line="3053"/>
+        <location filename="../EMailPageView.cpp" line="3094"/>
+        <location filename="../EMailPageView.cpp" line="3161"/>
         <source>Attach Files</source>
         <translation>添加附件</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3016"/>
+        <location filename="../EMailPageView.cpp" line="3124"/>
         <source>%1 is a folder</source>
         <translation>%1 是一个文件夹</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3017"/>
+        <location filename="../EMailPageView.cpp" line="3125"/>
         <source>%1 is not an ordinary file</source>
         <translation>%1 不是普通文件</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3022"/>
+        <location filename="../EMailPageView.cpp" line="3130"/>
         <source>%1 is too large (%2); the most that can be attached is %3</source>
         <translation>%1 太大（%2）；最多可附加 %3</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3028"/>
+        <location filename="../EMailPageView.cpp" line="3136"/>
         <source>%1: %2</source>
         <translation>%1：%2</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3055"/>
+        <location filename="../EMailPageView.cpp" line="3163"/>
         <source>Nothing was attached:
 
 %1</source>
@@ -1963,7 +2520,7 @@ Remove the signature and make it an ordinary message?</source>
 %1</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3056"/>
+        <location filename="../EMailPageView.cpp" line="3164"/>
         <source>These were not attached:
 
 %1</source>
@@ -1972,8 +2529,8 @@ Remove the signature and make it an ordinary message?</source>
 %1</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="947"/>
-        <location filename="../EMailPageView.cpp" line="3122"/>
+        <location filename="../EMailPageView.cpp" line="960"/>
+        <location filename="../EMailPageView.cpp" line="3230"/>
         <source>Open</source>
         <translation>打开</translation>
     </message>
@@ -1998,55 +2555,80 @@ Remove the signature and make it an ordinary message?</source>
         <translation>此邮件仅供检查。可在“更多”中关闭。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2690"/>
+        <location filename="../EMailPageView.cpp" line="1241"/>
+        <source>This message was written in HTML and is shown formatted. Nothing is loaded from the internet: pictures from the web stay blank, and links ask before they open.</source>
+        <translation>此邮件以 HTML 编写，现以格式化形式显示。不会从互联网加载任何内容：网络图片保持空白，链接在打开前会先询问。</translation>
+    </message>
+    <message>
+        <location filename="../EMailPageView.cpp" line="2145"/>
+        <source>Restart to Show Formatted</source>
+        <translation>重启以显示格式化视图</translation>
+    </message>
+    <message>
+        <location filename="../EMailPageView.cpp" line="2147"/>
+        <source>The formatted view was just installed. Restart GpgFrontend to use it.</source>
+        <translation>格式化视图刚刚安装完成。请重启 GpgFrontend 以使用它。</translation>
+    </message>
+    <message>
+        <location filename="../EMailPageView.cpp" line="2151"/>
+        <source>Show Source</source>
+        <translation>显示源代码</translation>
+    </message>
+    <message>
+        <location filename="../EMailPageView.cpp" line="2152"/>
+        <source>Show Formatted</source>
+        <translation>显示格式化视图</translation>
+    </message>
+    <message>
+        <location filename="../EMailPageView.cpp" line="2793"/>
         <source>%1 · %2 · %3</source>
         <translation>%1 · %2 · %3</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2696"/>
+        <location filename="../EMailPageView.cpp" line="2799"/>
         <source>%1 files · %2</source>
         <translation>%1 个文件 · %2</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2740"/>
+        <location filename="../EMailPageView.cpp" line="2843"/>
         <source>Collapse</source>
         <translation>收起</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2740"/>
+        <location filename="../EMailPageView.cpp" line="2843"/>
         <source>Expand</source>
         <translation>展开</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2741"/>
+        <location filename="../EMailPageView.cpp" line="2844"/>
         <source>Show only the summary</source>
         <translation>仅显示摘要</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="2742"/>
+        <location filename="../EMailPageView.cpp" line="2845"/>
         <source>Show every attachment</source>
         <translation>显示所有附件</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3131"/>
+        <location filename="../EMailPageView.cpp" line="3239"/>
         <source>Import Key</source>
         <translation>导入密钥</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3135"/>
+        <location filename="../EMailPageView.cpp" line="3243"/>
         <source>Copy Name</source>
         <translation>复制名称</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3208"/>
-        <location filename="../EMailPageView.cpp" line="3223"/>
-        <location filename="../EMailPageView.cpp" line="3238"/>
-        <location filename="../EMailPageView.cpp" line="3246"/>
+        <location filename="../EMailPageView.cpp" line="3316"/>
+        <location filename="../EMailPageView.cpp" line="3331"/>
+        <location filename="../EMailPageView.cpp" line="3346"/>
+        <location filename="../EMailPageView.cpp" line="3354"/>
         <source>Open Attachment</source>
         <translation>打开附件</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3209"/>
+        <location filename="../EMailPageView.cpp" line="3317"/>
         <source>%1 is not a kind of file this program will open for you, because opening it would mean running it or handing it to something that might.
 
 Save it instead, and open it yourself if you are sure of where it came from.</source>
@@ -2055,27 +2637,27 @@ Save it instead, and open it yourself if you are sure of where it came from.</so
 请改为保存它，如果您确定其来源，再自行打开。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3224"/>
+        <location filename="../EMailPageView.cpp" line="3332"/>
         <source>A temporary folder to open %1 from could not be created.</source>
         <translation>无法创建用于打开 %1 的临时文件夹。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3239"/>
+        <location filename="../EMailPageView.cpp" line="3347"/>
         <source>%1 could not be written out to be opened.</source>
         <translation>无法写出 %1 以将其打开。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3247"/>
+        <location filename="../EMailPageView.cpp" line="3355"/>
         <source>Nothing on this system is registered to open %1.</source>
         <translation>此系统上没有注册可打开 %1 的程序。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3277"/>
+        <location filename="../EMailPageView.cpp" line="3385"/>
         <source>Remove Attachment</source>
         <translation>移除附件</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3278"/>
+        <location filename="../EMailPageView.cpp" line="3386"/>
         <source>Take out of this message:
 
 %1
@@ -2088,12 +2670,12 @@ This message came from somewhere else, so unless these have been saved already t
 这封邮件来自其他地方，因此除非这些文件已保存，否则这是唯一的副本。移除操作无法撤销。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3403"/>
+        <location filename="../EMailPageView.cpp" line="3511"/>
         <source>%1 -&gt; %2</source>
         <translation>%1 -&gt; %2</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3409"/>
+        <location filename="../EMailPageView.cpp" line="3517"/>
         <source>Saved. Some names were already taken in that folder, so these were written under a different name:
 
 %1</source>
@@ -2102,35 +2684,35 @@ This message came from somewhere else, so unless these have been saved already t
 %1</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3416"/>
+        <location filename="../EMailPageView.cpp" line="3524"/>
         <source>Saved 1 file.</source>
         <translation>已保存 1 个文件。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3417"/>
+        <location filename="../EMailPageView.cpp" line="3525"/>
         <source>Saved %1 files.</source>
         <translation>已保存 %1 个文件。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3357"/>
-        <location filename="../EMailPageView.cpp" line="3366"/>
+        <location filename="../EMailPageView.cpp" line="3465"/>
+        <location filename="../EMailPageView.cpp" line="3474"/>
         <source>Save Attachment</source>
         <translation>保存附件</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3367"/>
+        <location filename="../EMailPageView.cpp" line="3475"/>
         <source>Cannot write %1.</source>
         <translation>无法写入 %1。</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3373"/>
-        <location filename="../EMailPageView.cpp" line="3390"/>
-        <location filename="../EMailPageView.cpp" line="3408"/>
+        <location filename="../EMailPageView.cpp" line="3481"/>
+        <location filename="../EMailPageView.cpp" line="3498"/>
+        <location filename="../EMailPageView.cpp" line="3516"/>
         <source>Save Attachments</source>
         <translation>保存附件</translation>
     </message>
     <message>
-        <location filename="../EMailPageView.cpp" line="3391"/>
+        <location filename="../EMailPageView.cpp" line="3499"/>
         <source>Could not write: %1</source>
         <translation>无法写入：%1</translation>
     </message>
@@ -3167,6 +3749,24 @@ This message came from somewhere else, so unless these have been saved already t
         <location filename="../EMailNetError.cpp" line="448"/>
         <source>Something went wrong inside this application</source>
         <translation>此应用程序内部发生错误。</translation>
+    </message>
+</context>
+<context>
+    <name>EMailWizard</name>
+    <message>
+        <location filename="../EMailWizardWidgets.cpp" line="111"/>
+        <source>Step %1 of %2: %3</source>
+        <translation>第 %1 步，共 %2 步：%3</translation>
+    </message>
+    <message>
+        <location filename="../EMailWizardWidgets.cpp" line="312"/>
+        <source>Back</source>
+        <translation>上一步</translation>
+    </message>
+    <message>
+        <location filename="../EMailWizardWidgets.cpp" line="313"/>
+        <source>Continue</source>
+        <translation>继续</translation>
     </message>
 </context>
 <context>
