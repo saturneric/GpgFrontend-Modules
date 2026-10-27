@@ -875,12 +875,25 @@ auto EMailPageView::build_message_surface() -> QWidget* {
   // Colour belongs to apply_colors(), like every other colour in this view.
   banner_row->addWidget(locked_notice_, 1);
 
+  // Offered on the HTML notice and nowhere else: it is the answer to the
+  // sentence beside it. apply_render_toggle() decides whether it is there.
+  render_toggle_ = new QPushButton(locked_banner_);
+  render_toggle_->setVisible(false);
+  banner_row->addWidget(render_toggle_, 0, Qt::AlignVCenter);
+  connect(render_toggle_, &QPushButton::clicked, this, [this]() {
+    show_rendered_ = !show_rendered_;
+    refresh_body_view();
+    apply_content_lock();
+  });
+
   locked_panel_ = build_locked_panel();
 
   body_stack_ = new QStackedWidget(this);
   body_stack_->addWidget(body_edit_);
   body_stack_->addWidget(body_view_);
   body_stack_->addWidget(locked_panel_);
+  rendered_slot_ = new QWidget(this);
+  body_stack_->addWidget(rendered_slot_);
 
   // Everything about attachments, wrapped for the same reason as the envelope:
   // the raw source mode hides it whole.
@@ -1222,12 +1235,19 @@ void EMailPageView::apply_content_lock() {
   // stacked above the message would cost more room than either is worth. The
   // lock wins, because it is the reason the message will not take input, and
   // the HTML note falls back to the body's tooltip.
-  const auto html_notice =
-      body_is_html_
-          ? tr("This message was written in HTML. It is shown as its source "
-               "rather than rendered: nothing here loads images or follows "
-               "links.")
-          : QString();
+  QString html_notice;
+  if (body_is_html_ && show_rendered_ && html_view_.IsLive()) {
+    html_notice =
+        tr("This message was written in HTML and is shown formatted. "
+           "Nothing is loaded from the internet: pictures from the web stay "
+           "blank, and links ask before they open.");
+  } else if (body_is_html_) {
+    html_notice =
+        tr("This message was written in HTML. It is shown as its source "
+           "rather than rendered: nothing here loads images or follows "
+           "links.");
+  }
+  apply_render_toggle(locked);
 
   if (!locked && body_is_html_) {
     icon = ":/icons/code.png";
@@ -2036,18 +2056,101 @@ void EMailPageView::refresh_body_view() {
   if (locked) {
     refresh_locked_panel();
     body_view_->Clear();
+    html_view_.Destroy();
     body_stack_->setCurrentIndex(2);
     return;
   }
 
   if (!html_only) {
     body_view_->Clear();
+    html_view_.Destroy();
     body_stack_->setCurrentIndex(0);
     return;
   }
 
+  // The source is set either way: it is what body_is_html_ comes from, and
+  // what is shown again the moment the formatted view is closed or lost.
   body_view_->SetBody(body);
+  if (show_rendered_ && show_rendered_body(body)) {
+    body_stack_->setCurrentIndex(3);
+    return;
+  }
+  html_view_.Clear();
   body_stack_->setCurrentIndex(1);
+}
+
+auto EMailPageView::show_rendered_body(const EMailPart* body) -> bool {
+  if (gf::ui::HtmlViewAvailability() != gf::ui::HtmlViewStatus::kOK) {
+    return false;
+  }
+  if (!html_view_.IsLive()) {
+    gf::ui::HtmlView::Handlers handlers;
+    handlers.loaded = [this](bool shown) {
+      if (!shown) fall_back_to_source();
+    };
+    handlers.lost = [this]() { fall_back_to_source(); };
+    if (html_view_.Create(*this, rendered_slot_, std::move(handlers)) !=
+        gf::ui::HtmlViewStatus::kOK) {
+      return false;
+    }
+  }
+
+  // The inline images, which is all a part may be: the Host drops anything
+  // else, and anything over its limits.
+  QList<gf::ui::HtmlPart> parts;
+  std::function<void(const EMailPart&)> collect = [&](const EMailPart& part) {
+    if (!part.is_multipart && !part.content_id.isEmpty() &&
+        part.content_type.startsWith(u"image/")) {
+      parts.append({part.content_id, part.content_type, part.data});
+    }
+    for (const auto& child : part.children) collect(child);
+  };
+  collect(tree_root_);
+
+  // Decoded by the part's own charset: the formatted view shows the words
+  // the sender wrote, where the source view shows the octets.
+  const auto charset = body->charset.toUtf8();
+  QStringDecoder decoder(charset.constData());
+  if (charset.isEmpty() || !decoder.isValid()) {
+    decoder = QStringDecoder(QStringConverter::Utf8);
+  }
+  const QString text = decoder.decode(body->data);
+  return html_view_.Load(text, parts) == gf::ui::HtmlViewStatus::kOK;
+}
+
+void EMailPageView::fall_back_to_source() {
+  // Queued: this is reached from inside the view's own event, and the view
+  // is about to be, or has just been, taken down by the Host.
+  QMetaObject::invokeMethod(
+      this,
+      [this]() {
+        show_rendered_ = false;
+        html_view_.Destroy();
+        refresh_body_view();
+        apply_content_lock();
+      },
+      Qt::QueuedConnection);
+}
+
+void EMailPageView::apply_render_toggle(bool locked) {
+  if (render_toggle_ == nullptr) return;
+  const auto status = gf::ui::HtmlViewAvailability();
+  const bool restart = status == gf::ui::HtmlViewStatus::kRESTART_REQUIRED;
+  const bool offered = !locked && body_is_html_ &&
+                       (status == gf::ui::HtmlViewStatus::kOK || restart);
+  render_toggle_->setVisible(offered);
+  if (!offered) return;
+  render_toggle_->setEnabled(!restart);
+  if (restart) {
+    render_toggle_->setText(tr("Restart to Show Formatted"));
+    render_toggle_->setToolTip(
+        tr("The formatted view was just installed. Restart GpgFrontend to "
+           "use it."));
+    return;
+  }
+  render_toggle_->setText(show_rendered_ ? tr("Show Source")
+                                         : tr("Show Formatted"));
+  render_toggle_->setToolTip(QString());
 }
 
 void EMailPageView::refresh_security() {
@@ -2911,6 +3014,11 @@ auto EMailPageView::BuildOutgoing(EMailOutgoingMessage& out) -> bool {
 }
 
 void EMailPageView::WipeContent() {
+  // The formatted view goes first: the Host holds the body and its images
+  // for it, and drops both with the view.
+  html_view_.Destroy();
+  show_rendered_ = false;
+
   // Overwrite before releasing: a decrypted body or attachment left in a freed
   // QByteArray would outlive the tab that was supposed to hold it.
   auto wipe = [](QByteArray& b) {

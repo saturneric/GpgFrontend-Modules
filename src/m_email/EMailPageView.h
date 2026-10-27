@@ -492,6 +492,14 @@ class EMailPageView : public QWidget, public gf::ui::DocumentWidget {
   /// Chooses between the formatted and plain renderings of the body, and
   /// shows the toggle only when the message actually offers both.
   void refresh_body_view();
+  /// Show the HTML @p body formatted, in the Host's HTML view. false when it
+  /// could not be, and the source stays on screen.
+  auto show_rendered_body(const EMailPart* body) -> bool;
+  /// The formatted view went away or could not show the body: back to the
+  /// source, and the reader is told by the banner.
+  void fall_back_to_source();
+  /// Whether "Show Formatted" is offered, and what it says.
+  void apply_render_toggle(bool locked);
   /// Enables Send when the message could actually go out, and says why not
   /// when it could not.
   void refresh_send_state();
@@ -551,6 +559,9 @@ class EMailPageView : public QWidget, public gf::ui::DocumentWidget {
   /// EMailBodyView rather than derived here, so the notice cannot claim
   /// something different from what the view actually did.
   bool body_is_html_{false};
+  /// Whether the reader asked to see this HTML body formatted. Per tab and
+  /// never remembered: every message opens as its source.
+  bool show_rendered_{false};
   /// When set, this document cannot be modified or reserialized at all.
   bool forensic_{false};
   /// Whether this tab was opened on a message someone else produced, as
@@ -579,6 +590,12 @@ class EMailPageView : public QWidget, public gf::ui::DocumentWidget {
   /// Formatted rendering of an HTML body, shown instead of the editor while
   /// reading. Never fetches anything from the network.
   EMailBodyView* body_view_{};
+  /// Where the formatted view of an HTML body goes, empty until asked for.
+  /// What is drawn in it is the Host's: an engine this module never sees,
+  /// under a policy that loads nothing from the network.
+  QWidget* rendered_slot_{};
+  gf::ui::HtmlView html_view_;
+  QPushButton* render_toggle_{};
   QStackedWidget* body_stack_{};
   /// The message's commands. Each owns its shortcut and is registered on the
   /// view, so the shortcut works wherever the command is shown.

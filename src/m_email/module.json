@@ -6,6 +6,7 @@
   "author": "Saturneric",
   "capabilities": [
     "gpg",
+    "html.view",
     "network",
     "storage",
     "ui",
