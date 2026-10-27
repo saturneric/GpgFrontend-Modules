@@ -28,28 +28,26 @@
 
 #pragma once
 
-#include <QList>
 #include <GFModule.h>
 
+#include <QList>
+#include <QMap>
 #include <QWidget>
-#include <memory>
-#include <mutex>
 
 #include "EMailAccountModel.h"
+#include "EMailAccountProbe.h"
 #include "EMailAccountStore.h"
-#include "EMailCancelToken.h"
 #include "EMailNetError.h"
 #include "EMailSecret.h"
 
 class QCheckBox;
 class QComboBox;
-class QGroupBox;
 class QLabel;
-class QScrollArea;
 class QLineEdit;
 class QListWidget;
 class QPushButton;
-class QSpinBox;
+class QScrollArea;
+class QVBoxLayout;
 
 /**
  * @brief The Mail Accounts page of the application's Settings dialog.
@@ -58,10 +56,12 @@ class QSpinBox;
  * SetSettings() and ApplySettings() by name, so edits are staged here and only
  * written when the user accepts.
  *
- * The page is deliberately small. Protocol behaviour -- PEEK, read-only
- * folders, certificate verification, retry and Sent-copy policy -- is not
- * configurable and must not gain controls here; what a user can legitimately
- * want to vary is which server they use and how much of a mailbox to show.
+ * New accounts come from the Add Account wizard; this page is for looking at
+ * and changing the ones that exist. It shows what nearly everyone needs -- the
+ * address, the password and the two servers -- and keeps the rest behind
+ * Advanced. Protocol behaviour -- PEEK, read-only folders, certificate
+ * verification, retry and Sent-copy policy -- is not configurable and must not
+ * gain controls here.
  */
 class EMailAccountSettingsPage : public QWidget, public gf::ui::SettingsWidget {
   Q_OBJECT
@@ -81,29 +81,50 @@ class EMailAccountSettingsPage : public QWidget, public gf::ui::SettingsWidget {
   void slot_remove_account();
   void slot_selection_changed();
   void slot_field_edited();
-  void slot_test_imap();
-  void slot_test_smtp();
+  void slot_test();
+  void slot_set_default();
+  /// Takes the selected account out of use, or puts it back.
+  void slot_toggle_enabled();
+  /// The account list's context menu: make default, enable or disable,
+  /// remove.
+  void show_account_menu(const QPoint& pos);
 
  protected:
   void changeEvent(QEvent* event) override;
 
  private:
+  /// One direction's controls in the editor.
+  struct TransportControls {
+    QCheckBox* enabled{};
+    QLineEdit* host{};
+    QComboBox* security{};
+    QLabel* port_hint{};
+    QLineEdit* user{};
+    EMailProbeStatus* status{};
+    QLabel* pin{};
+    QWidget* fields{};
+  };
+
   void build_ui();
-  auto build_identity_group() -> QGroupBox*;
-  auto build_transport_group(bool imap) -> QGroupBox*;
+  auto build_empty_panel() -> QWidget*;
+  auto build_list_panel() -> QWidget*;
+  auto build_editor() -> QWidget*;
+  auto build_servers_card() -> QWidget*;
+  auto build_advanced() -> QWidget*;
+  void build_transport_rows(bool imap, QWidget* parent, QVBoxLayout* layout);
 
   /// Write the selected account into the widgets.
   void load_selected();
   /// Read the widgets back into the selected account.
   void store_selected();
   void refresh_list();
-  /// Update only the selected row's text. Used while typing, because
-  /// rebuilding the list mid-edit takes focus away from the field.
-  void refresh_current_label();
+  /// Update only the selected row. Used while typing, because rebuilding the
+  /// list mid-edit takes focus away from the field.
+  void refresh_current_row();
+  static auto label_for(const MailAccountConfig& account) -> QString;
   /// What one row of the account list says, marker included.
   [[nodiscard]] auto row_text_for(const MailAccountConfig& account) const
       -> QString;
-  static auto label_for(const MailAccountConfig& account) -> QString;
   /// Enable, disable and relabel everything that depends on current state.
   void refresh_enabled_state();
   /// Updates the read-only port labels from the connection choices.
@@ -112,138 +133,85 @@ class EMailAccountSettingsPage : public QWidget, public gf::ui::SettingsWidget {
   void refresh_security_choices();
   /// Says what is missing or wrong about the selected account, if anything.
   void refresh_validation();
+  /// The editor's heading: which account this is, and whether it is the
+  /// default.
+  void refresh_heading();
   /// The single place this page's colours are decided. Must not touch fonts.
   void apply_colors();
-  /// Makes the selected account the one used when nothing else is chosen.
-  void slot_set_default();
 
-  /// Run one connection test and report it in @p status.
-  void test_transport(bool imap, QLabel* status);
-
-  [[nodiscard]] auto selected_index() const -> int;
-
-  /// Staged, not stored: the dialog's Cancel throws these away by calling
-  /// LoadSettings() again.
-  QList<MailAccountConfig> accounts_;
-  QString default_id_;
-  /// Passwords the user typed this session, by account id. Only written to the
-  /// credential store on Apply, and only when remembering is on.
-  /// How a status line reads: neutral, an outcome to be glad of, or a problem.
-  enum class StatusTone : uint8_t { kPLAIN, kGOOD, kBAD };
-
-  /**
-   * @brief One connection test in flight.
-   *
-   * Heap-allocated and shared with the thread doing the work, because the
-   * function that starts a test now returns immediately -- its stack is gone
-   * long before the answer arrives.
-   */
-  struct Probe {
-    quint64 seq{0};
-    /// Which transport this test was for; the two are configured separately
-    /// and may be different machines, so an answer belongs to one of them.
-    bool imap{false};
-    bool connected{false};
-    bool cancelled{false};
-    MailError error;
-    /// Published by the worker thread once its worker exists, so Stop can
-    /// reach it. Guarded because the GUI thread reads it concurrently.
-    std::mutex mutex;
-    EMailCancelTokenPtr token;
-  };
-
-  /// Reports @p probe's outcome, unless it has been superseded.
-  void finish_probe(const std::shared_ptr<Probe>& probe, quint64 seq,
-                    QLabel* status);
-  /// Cancels the running test, if there is one.
-  void slot_stop_test();
+  /// Starts the next test in the queue, or ends testing.
+  void run_next_test();
+  void on_test_finished(bool imap, EMailAccountProbe::Outcome outcome,
+                        const MailError& error);
   /// Locks down the controls a running test must not have changed under it.
   void set_testing(bool testing);
-  /// Writes @p text into @p status in the colour @p tone calls for.
-  void set_status(QLabel* status, const QString& text, StatusTone tone);
-  /// Says what @p error means and what can be done about it.
-  void report_probe_error(const MailError& error, bool imap, QLabel* status);
   /// Overwrites every staged password before releasing it.
   void wipe_pending_passwords();
-  /// Offers to trust the certificate the last test was refused over.
-  /// @param error the failure that produced the certificate, which carries it
-  void offer_certificate_pin(bool imap, QLabel* status, const MailError& error);
   /// Shows, per transport, whether a certificate is pinned.
   void refresh_pin_state();
   /// Drops the pinned certificate for one transport.
   void forget_pin(bool imap);
 
-  std::shared_ptr<Probe> probe_;
-  /// The running test-connection thread, so the destructor can stop it.
-  QThread* probe_thread_{};
-  quint64 probe_seq_{0};
+  [[nodiscard]] auto selected_index() const -> int;
+  [[nodiscard]] auto controls(bool imap) -> TransportControls&;
 
-  /// Staged passwords, as erasable secrets rather than QStrings.
-  ///
-  /// They used to be QStrings taken straight from the line edit, and the wipe
-  /// that "cleared" them called QString::fill() on a buffer the QLineEdit
-  /// still shared -- which detaches and zeroes a fresh copy while the original
-  /// lives on. See the note on EMailSecret.
+  /// Staged, not stored: the dialog's Cancel throws these away by calling
+  /// LoadSettings() again.
+  QList<MailAccountConfig> accounts_;
+  QString default_id_;
+
+  /// Passwords the user typed this session, by account id, as erasable
+  /// secrets rather than QStrings. Only written to the credential store on
+  /// Apply.
   ///
   /// This does not close the window, it narrows it: the text still passes
   /// through QLineEdit's own storage and through the QString that
-  /// EMailSecret::CopyFrom() is handed, and neither of those can be erased
-  /// from here. What it removes is this page holding its own un-erasable copy
-  /// for as long as the dialog stays open.
+  /// EMailSecret::CopyFrom() is handed. What it removes is this page holding
+  /// its own un-erasable copy for as long as the dialog stays open.
   QMap<QString, EMailSecretPtr> pending_passwords_;
   /// Accounts removed from the list but whose stored password is only
   /// forgotten on Apply, so Cancel really does put everything back.
   QStringList pending_removals_;
-  /// Whether the list that was read may be written back. False when the stored
-  /// accounts were refused -- see EMailAccountStore::LoadResult.
   /// Whether anything has been edited since the page was loaded.
   bool dirty_{false};
+  /// Whether the list that was read may be written back. False when the
+  /// stored accounts were refused -- see EMailAccountStore::LoadResult.
   bool may_store_{true};
   EMailAccountStore::LoadOutcome load_outcome_{
       EMailAccountStore::LoadOutcome::kOK};
   bool loading_{false};
 
+  EMailAccountProbe* probe_{};
+  /// The transports still to test in the current run, IMAP first.
+  QList<bool> test_queue_;
+  /// The account being tested, as it was on screen when the test started.
+  MailAccountConfig tested_;
+  EMailSecretPtr tested_password_;
+
+  QWidget* left_panel_{};
   QListWidget* account_list_{};
   QPushButton* add_button_{};
-  QPushButton* remove_button_{};
+
+  QWidget* empty_panel_{};
+  QLabel* empty_notice_{};
+  QPushButton* empty_add_button_{};
+
+  QScrollArea* editor_scroll_{};
+  QWidget* editor_{};
+  QLabel* heading_{};
+  QLabel* heading_detail_{};
+  QLabel* validation_{};
 
   QLineEdit* display_name_edit_{};
   QLineEdit* address_edit_{};
-  QLineEdit* reply_to_edit_{};
-
-  QCheckBox* imap_enabled_{};
-  QLineEdit* imap_host_{};
-  QComboBox* imap_security_{};
-  QLineEdit* imap_user_{};
-  QLabel* imap_port_hint_{};
-  QLineEdit* sent_folder_{};
-  /// Says what is wrong with the selected account, above the transports.
-  QLabel* validation_{};
-  /// Shown instead of the form when there are no accounts at all.
-  QLabel* empty_notice_{};
-  QWidget* empty_panel_{};
-  QWidget* left_panel_{};
-  QPushButton* empty_add_button_{};
-  QScrollArea* editor_scroll_{};
-  QPushButton* default_button_{};
-  QPushButton* imap_test_{};
-  QPushButton* imap_stop_{};
-  QLabel* imap_pin_{};
-  QLabel* imap_status_{};
-
-  QCheckBox* smtp_enabled_{};
-  QLineEdit* smtp_host_{};
-  QComboBox* smtp_security_{};
-  QLineEdit* smtp_user_{};
-  QLabel* smtp_port_hint_{};
-  QPushButton* smtp_test_{};
-  QPushButton* smtp_stop_{};
-  QLabel* smtp_pin_{};
-  QLabel* smtp_status_{};
-
   QLineEdit* password_edit_{};
   QLabel* oauth_notice_{};
 
-  QWidget* editor_{};
-};
+  TransportControls imap_;
+  TransportControls smtp_;
+  QPushButton* test_button_{};
+  QPushButton* stop_button_{};
 
+  QLineEdit* reply_to_edit_{};
+  QLineEdit* sent_folder_{};
+};
