@@ -498,7 +498,7 @@ class EMailPageView : public QWidget, public gf::ui::DocumentWidget {
   /// The formatted view went away or could not show the body: back to the
   /// source, and the reader is told by the banner.
   void fall_back_to_source();
-  /// Whether "Show Formatted" is offered, and what it says.
+  /// Whether "Show Preview" is offered, and what it says.
   void apply_render_toggle(bool locked);
   /// Enables Send when the message could actually go out, and says why not
   /// when it could not.

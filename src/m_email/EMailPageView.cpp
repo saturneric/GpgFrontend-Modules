@@ -2142,14 +2142,14 @@ void EMailPageView::apply_render_toggle(bool locked) {
   if (!offered) return;
   render_toggle_->setEnabled(!restart);
   if (restart) {
-    render_toggle_->setText(tr("Restart to Show Formatted"));
+    render_toggle_->setText(tr("Restart to Show Preview"));
     render_toggle_->setToolTip(
-        tr("The formatted view was just installed. Restart GpgFrontend to "
+        tr("The message preview was just installed. Restart GpgFrontend to "
            "use it."));
     return;
   }
   render_toggle_->setText(show_rendered_ ? tr("Show Source")
-                                         : tr("Show Formatted"));
+                                         : tr("Show Preview"));
   render_toggle_->setToolTip(QString());
 }
 
