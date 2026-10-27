@@ -33,7 +33,7 @@
  *
  *   gf_web_engine_probe <probe_mail.html> [seconds]   seconds 0: stay open
  *
- * Prints one "POLICY ..." line per decision, as the WKWebView probe does.
+ * Prints one "POLICY ..." line per decision.
  *
  * With GF_PROBE_CONTROL set it shows the same mail in a stock QWebEngineView
  * instead, with none of the policy: the run that MUST reach the logger, so a
