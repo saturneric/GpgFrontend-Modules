@@ -122,3 +122,12 @@ auto PGPDecodePacket(const QByteArray& wire, qint64 wire_length)
  */
 auto PGPFormatHexDump(const QByteArray& wire, const QList<PGPHexSpan>& spans,
                       qint64 wire_length) -> QString;
+
+/**
+ * @brief How many characters the widest line of PGPFormatHexDump over
+ * @p spans can take: the offset and hex columns, then the longest label, or
+ * sixteen characters of ASCII for an unlabelled range.
+ *
+ * Measured from the spans alone, so nothing is formatted.
+ */
+auto PGPHexDumpLineWidth(const QList<PGPHexSpan>& spans) -> int;

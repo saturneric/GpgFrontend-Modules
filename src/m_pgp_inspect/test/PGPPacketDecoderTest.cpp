@@ -808,6 +808,33 @@ TEST(PGPPacketDecoderTest, TheDumpUsesSqsLabelsForTheCommonFields) {
   EXPECT_TRUE(dump.startsWith("00000000  c2")) << dump.toStdString();
 }
 
+TEST(PGPPacketDecoderTest, TheDumpLineWidthBoundsEveryLine) {
+  for (const auto& base :
+       {"sig_good_detached", "enc_symmetric_v1", "key2", "rfc9580_a3_v6_cert",
+        "enc_v2seipd_ocb", "rfc9580_a12_argon2_aes128"}) {
+    for (const auto& [wire, packet] :
+         DecodeAll(QString::fromLatin1(base) + ".pgp")) {
+      const auto width = PGPHexDumpLineWidth(packet.spans);
+      for (const auto& line :
+           PGPFormatHexDump(wire, packet.spans, wire.size()).split('\n')) {
+        EXPECT_LE(line.size(), width) << base << ": " << line.toStdString();
+      }
+    }
+  }
+}
+
+TEST(PGPPacketDecoderTest, TheDumpLineWidthIsTheLongestLabelledLine) {
+  // Every range of a signature is labelled, so the longest label sets the
+  // widest line exactly.
+  const auto [wire, packet] = DecodeAll("sig_good_detached.pgp").at(0);
+  qsizetype widest = 0;
+  for (const auto& line :
+       PGPFormatHexDump(wire, packet.spans, wire.size()).split('\n')) {
+    widest = std::max(widest, line.size());
+  }
+  EXPECT_EQ(PGPHexDumpLineWidth(packet.spans), widest);
+}
+
 // -- key material: what format it is in
 // ------------------------------------------
 

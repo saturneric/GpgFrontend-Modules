@@ -1811,12 +1811,30 @@ auto PGPDecodePacket(const QByteArray& wire, qint64 wire_length)
   return out;
 }
 
+namespace {
+
+// sq's layout: an eight-digit offset, the sixteen hex columns with a gap
+// after the eighth, then the label -- or, for payload, its ASCII.
+constexpr int kColumns = 16;
+constexpr int kOffsetWidth = 8;
+constexpr int kHexWidth = (kColumns * 3) - 1 + 1;
+/// Everything before the label: the offset, two spaces, the hex, three
+/// spaces.
+constexpr int kLabelColumn = kOffsetWidth + 2 + kHexWidth + 3;
+
+}  // namespace
+
+auto PGPHexDumpLineWidth(const QList<PGPHexSpan>& spans) -> int {
+  qsizetype tail = 0;
+  for (const auto& span : spans) {
+    tail = std::max(
+        tail, span.label.isEmpty() ? qsizetype{kColumns} : span.label.size());
+  }
+  return kLabelColumn + static_cast<int>(tail);
+}
+
 auto PGPFormatHexDump(const QByteArray& wire, const QList<PGPHexSpan>& spans,
                       qint64 wire_length) -> QString {
-  // sq's layout: an eight-digit offset, the sixteen hex columns with a gap
-  // after the eighth, then the label -- or, for payload, its ASCII.
-  constexpr int kColumns = 16;
-  constexpr int kHexWidth = (kColumns * 3) - 1 + 1;
   const auto column_at = [](int column) {
     return (column * 3) + (column >= 8 ? 1 : 0);
   };
@@ -1844,7 +1862,8 @@ auto PGPFormatHexDump(const QByteArray& wire, const QList<PGPHexSpan>& spans,
 
       const auto tail =
           span.label.isEmpty() ? ascii : (first ? span.label : QString());
-      auto line = u"%1  %2   %3"_s.arg(pos, 8, 16, QChar('0')).arg(hex, tail);
+      auto line = u"%1  %2   %3"_s.arg(pos, kOffsetWidth, 16, QChar('0'))
+                      .arg(hex, tail);
       while (line.endsWith(' ')) line.chop(1);
       lines << line;
       first = false;

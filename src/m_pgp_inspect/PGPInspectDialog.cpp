@@ -37,6 +37,7 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QPlainTextEdit>
+#include <QScreen>
 #include <QSplitter>
 #include <QStyle>
 #include <QTabWidget>
@@ -45,6 +46,7 @@
 #include <QVBoxLayout>
 #include <algorithm>
 #include <array>
+#include <functional>
 
 #include "GFModuleTr.h"
 #include "PGPPacketNames.h"
@@ -224,12 +226,12 @@ PGPInspectDialog::PGPInspectDialog(const PGPInspectDocument& document,
     : QDialog(parent), document_(document), size_(size) {
   setWindowTitle(GTrC::tr("OpenPGP Structure"));
   setAttribute(Qt::WA_DeleteOnClose);
-  resize(1200, 660);
   // The probe that enabled the menu entry only parsed; reading the packets
   // is this window's cost.
   PGPInspectDecode(document_);
   create_widgets();
   render_document();
+  fit_to_content();
 }
 
 void PGPInspectDialog::create_widgets() {
@@ -289,23 +291,21 @@ void PGPInspectDialog::create_widgets() {
   connect(tabs_, &QTabWidget::currentChanged, this,
           &PGPInspectDialog::slot_tab_chosen);
 
-  auto* splitter = new QSplitter(Qt::Horizontal, this);
-  splitter->addWidget(tree_);
-  splitter->addWidget(tabs_);
-  // The structure opens on about a quarter of the width, and keeps that
-  // share as the window grows; the tabs, the hex dump above all, need the
-  // rest. Set once: re-rendering never moves a divider the reader dragged.
-  splitter->setStretchFactor(0, 1);
-  splitter->setStretchFactor(1, 3);
-  splitter->setSizes({width() / 4, width() - (width() / 4)});
-  splitter->setChildrenCollapsible(false);
+  splitter_ = new QSplitter(Qt::Horizontal, this);
+  splitter_->addWidget(tree_);
+  splitter_->addWidget(tabs_);
+  // The panes open as wide as their content, see fit_to_content; as the
+  // window grows, the tabs, the hex dump above all, take most of it.
+  splitter_->setStretchFactor(0, 1);
+  splitter_->setStretchFactor(1, 3);
+  splitter_->setChildrenCollapsible(false);
 
   summary_label_ = new QLabel(this);
   summary_label_->setWordWrap(true);
 
   auto* layout = new QVBoxLayout();
   layout->addWidget(search_);
-  layout->addWidget(splitter, 1);
+  layout->addWidget(splitter_, 1);
   layout->addWidget(summary_label_);
   setLayout(layout);
 }
@@ -378,6 +378,7 @@ void PGPInspectDialog::measure_columns() {
                        (metrics.averageCharWidth() * 2);
   label_width_ = 0;
   index_width_ = 0;
+  headline_width_ = 0;
   size_width_ = 0;
   for (QTreeWidgetItemIterator it(tree_); *it != nullptr; ++it) {
     if (!(*it)->data(kLabelColumn, kPacketRole).isValid()) continue;
@@ -393,6 +394,9 @@ void PGPInspectDialog::measure_columns() {
     index_width_ = std::max(
         index_width_,
         indent + metrics.horizontalAdvance("#"_L1 + index + "…"_L1) + padding);
+    headline_width_ = std::max(
+        headline_width_,
+        metrics.horizontalAdvance((*it)->text(kValueColumn)) + padding);
     size_width_ =
         std::max(size_width_,
                  metrics.horizontalAdvance((*it)->text(kSizeColumn)) + padding);
@@ -414,6 +418,51 @@ void PGPInspectDialog::layout_columns() {
   tree_->setColumnWidth(kValueColumn,
                         std::max(0, viewport - label - size_width_));
   tree_->setColumnWidth(kSizeColumn, size_width_);
+}
+
+void PGPInspectDialog::fit_to_content() {
+  // The tree wants its labels and sizes in full and the headlines up to a
+  // point: one long headline should not widen the whole window.
+  const auto scroll_bar =
+      style()->pixelMetric(QStyle::PM_ScrollBarExtent, nullptr, this);
+  constexpr int kHeadlineChars = 32;
+  const auto headline =
+      std::min(headline_width_,
+               tree_->fontMetrics().averageCharWidth() * kHeadlineChars);
+  const auto tree_width = label_width_ + headline + size_width_ +
+                          (2 * tree_->frameWidth()) + scroll_bar;
+
+  // The tabs want the widest hex dump line of any packet, which is the
+  // widest thing they show.
+  int hex_chars = 0;
+  const std::function<void(const QList<PGPInspectPacket>&)> walk =
+      [&](const QList<PGPInspectPacket>& packets) {
+        for (const auto& packet : packets) {
+          hex_chars =
+              std::max(hex_chars, PGPHexDumpLineWidth(packet.decoded.spans));
+          walk(packet.children);
+        }
+      };
+  for (const auto& block : document_.blocks) walk(block.packets);
+  const auto hex_text =
+      hex_->fontMetrics().horizontalAdvance(QString(hex_chars, '0'));
+  const auto tabs_width =
+      hex_text + static_cast<int>(2 * hex_->document()->documentMargin()) +
+      (2 * hex_->frameWidth()) + scroll_bar +
+      (2 * style()->pixelMetric(QStyle::PM_DefaultFrameWidth, nullptr, tabs_));
+
+  const auto margins = layout()->contentsMargins();
+  auto wanted = QSize(tree_width + splitter_->handleWidth() + tabs_width +
+                          margins.left() + margins.right(),
+                      660);
+  // No narrower than the widgets allow, nor wider than most of the screen.
+  wanted = wanted.expandedTo(minimumSizeHint());
+  if (const auto* scr = screen(); scr != nullptr) {
+    const auto available = scr->availableGeometry().size() * 9 / 10;
+    wanted = wanted.boundedTo(available);
+  }
+  resize(wanted);
+  splitter_->setSizes({tree_width, wanted.width() - tree_width});
 }
 
 auto PGPInspectDialog::eventFilter(QObject* watched, QEvent* event) -> bool {

@@ -28,9 +28,9 @@
 
 #pragma once
 
-#include <QByteArray>
 #include <GFModule.h>
 
+#include <QByteArray>
 #include <QDialog>
 
 #include "PGPInspectModel.h"
@@ -38,6 +38,7 @@
 class QLabel;
 class QLineEdit;
 class QPlainTextEdit;
+class QSplitter;
 class QTabWidget;
 class QTreeWidget;
 class QTreeWidgetItem;
@@ -97,6 +98,9 @@ class PGPInspectDialog : public QDialog, public gf::ui::DialogWidget {
                    const QString& parent_index);
   void measure_columns();
   void layout_columns();
+  /// Size the window and its panes to the tree's rows and the widest hex
+  /// dump line, within the screen.
+  void fit_to_content();
   void show_block(const PGPInspectBlock& block);
   void show_packet(const PGPInspectPacket& packet, const QString& index);
   void fill_fields(QTreeWidget* tree, const QList<PGPInspectField>& fields);
@@ -110,12 +114,15 @@ class PGPInspectDialog : public QDialog, public gf::ui::DialogWidget {
   int label_width_ = 0;
   /// The narrowest the name column may get: its "#index" in full.
   int index_width_ = 0;
+  /// What the longest packet headline needs.
+  int headline_width_ = 0;
   int size_width_ = 0;
   /// Set while the dialog itself switches tabs, so that is not mistaken for
   /// the reader's choice.
   bool switching_tabs_ = false;
 
   QLineEdit* search_{};
+  QSplitter* splitter_{};
   QTreeWidget* tree_{};
   QTabWidget* tabs_{};
   QTreeWidget* overview_{};
