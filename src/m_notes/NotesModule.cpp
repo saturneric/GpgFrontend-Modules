@@ -52,7 +52,7 @@ using CommandMeta = gf::cmd::Meta;
 
 struct NewNote {
   static constexpr CommandMeta kMeta{GF_MODULE_ID ".new_note",
-                                     GTrC::Noop("Encrypted Note"),
+                                     GTrC::Noop("Note Editor"),
                                      GTrC::Noop("Write a new encrypted note."),
                                      "",
                                      0,
