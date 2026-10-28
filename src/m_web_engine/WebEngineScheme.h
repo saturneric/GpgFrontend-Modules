@@ -58,6 +58,12 @@ constexpr uint32_t kWebEngineEnforced =
 auto RegisterPartScheme() -> bool;
 
 /**
+ * @brief Register the web editor schemes (gfasset, gfres), under the same
+ * rule as the part scheme: before the engine starts, or not at all.
+ */
+auto RegisterEditorSchemes() -> bool;
+
+/**
  * @brief Chromium switches that keep the engine itself quiet.
  *
  * The views block every request they make; these stop the engine's own

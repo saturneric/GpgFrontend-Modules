@@ -11,6 +11,7 @@
 # than the one the Host hands it would prove nothing.
 add_executable(gf_web_engine_probe
   WebEngineProbe.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/../WebEngineLockdown.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../WebEngineView.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../WebEngineScheme.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/html/HtmlViewDocument.cpp)

@@ -48,13 +48,28 @@ auto RegisterPartScheme() -> bool {
   return QWebEngineUrlScheme::schemeByName(name).name() == name;
 }
 
+auto RegisterEditorSchemes() -> bool {
+  bool all = true;
+  for (const QByteArray& name : {QByteArray(GF_WEB_EDITOR_ASSET_SCHEME),
+                                 QByteArray(GF_WEB_EDITOR_RESOURCE_SCHEME)}) {
+    if (QWebEngineUrlScheme::schemeByName(name).name() != name) {
+      QWebEngineUrlScheme scheme(name);
+      // <scheme>://<session>/<path>: the session is the host.
+      scheme.setSyntax(QWebEngineUrlScheme::Syntax::Host);
+      scheme.setFlags(QWebEngineUrlScheme::SecureScheme);
+      QWebEngineUrlScheme::registerScheme(scheme);
+    }
+    all = all && QWebEngineUrlScheme::schemeByName(name).name() == name;
+  }
+  return all;
+}
+
 void ApplyEngineSwitches() {
   static const QByteArrayList kSwitches = {
-      "--disable-background-networking",
-      "--disable-component-update",
-      "--disable-domain-reliability",
-      "--dns-prefetch-disable",
-      "--no-pings",
+      // Compiled shaders of whatever was drawn are not worth a file.
+      "--disable-gpu-shader-disk-cache", "--disable-background-networking",
+      "--disable-component-update",      "--disable-domain-reliability",
+      "--dns-prefetch-disable",          "--no-pings",
   };
   auto flags = qgetenv("QTWEBENGINE_CHROMIUM_FLAGS");
   for (const auto& s : kSwitches) {

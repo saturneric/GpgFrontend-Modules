@@ -32,6 +32,8 @@
 #include <QPointer>
 
 #include "GFModuleIdentity.h"
+#include "GFModuleWebEditor.h"
+#include "WebEngineEditorView.h"
 #include "WebEngineScheme.h"
 #include "WebEngineView.h"
 
@@ -89,22 +91,65 @@ class Renderer : public gf::ui::HtmlViewRenderer {
   QHash<quint64, QPointer<WebEngineView>> views_;
 };
 
+class EditorEngine : public gf::ui::WebEditorEngine {
+ public:
+  auto Create(quint64 editor, const QString& session) -> QWidget* override {
+    WebEngineEditorView::Host host;
+    host.resolve = [editor](const QString& url, QByteArray* data,
+                            QString* mime) {
+      return Resolve(editor, url, data, mime);
+    };
+    host.message = [editor](const QByteArray& json) { Message(editor, json); };
+    host.link_activated = [editor](const QString& url) {
+      LinkActivated(editor, url);
+    };
+    host.ready = [editor]() { Ready(editor); };
+    auto* widget = new WebEngineEditorView(session, std::move(host));
+    editors_.insert(editor, widget);
+    return widget;
+  }
+
+  auto Post(quint64 editor, const QByteArray& json) -> bool override {
+    auto* widget = editors_.value(editor).data();
+    if (widget == nullptr) return false;
+    widget->Post(json);
+    return true;
+  }
+
+  void Destroyed(quint64 editor) override { editors_.remove(editor); }
+
+ private:
+  /// Not owned: each widget is the Host's once returned.
+  QHash<quint64, QPointer<WebEngineEditorView>> editors_;
+};
+
 auto OnActivate() -> GFResult {
   // Both before anything of WebEngine exists: the engine reads its switches
   // and locks its schemes when it starts, and ignores both afterwards.
   ApplyEngineSwitches();
   const bool scheme = RegisterPartScheme();
+  const bool editor_schemes = RegisterEditorSchemes();
   if (!scheme) {
     LOG_WARN(
         "QtWebEngine had already started, so the part scheme could not be "
         "registered; HTML views wait for a restart");
   }
+  if (!editor_schemes) {
+    LOG_WARN(
+        "QtWebEngine had already started, so the editor schemes could not be "
+        "registered; web editors wait for a restart");
+  }
   const bool ok = gf::ui::RegisterHtmlViewRenderer(
       "qtwebengine", kWebEngineEnforced,
       scheme ? 0U : GF_HTML_PROVIDER_FEATURE_RESTART_REQUIRED,
       std::make_unique<Renderer>());
-  return ok ? GFResult::Ok()
-            : GFResult::Fail("the HTML renderer was not registered");
+  const bool editor_ok = gf::ui::RegisterWebEditorEngine(
+      "qtwebengine",
+      editor_schemes ? 0U : GF_HTML_PROVIDER_FEATURE_RESTART_REQUIRED,
+      std::make_unique<EditorEngine>());
+  if (!ok) return GFResult::Fail("the HTML renderer was not registered");
+  if (!editor_ok) return GFResult::Fail("the web editor was not registered");
+  return GFResult::Ok();
 }
 
 const GFModuleHooks kHooks = {

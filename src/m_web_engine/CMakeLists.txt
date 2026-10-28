@@ -6,12 +6,14 @@
 # Built only with GPGFRONTEND_MODULES_WEB_ENGINE, and then WebEngine is
 # required: asking for the renderer and quietly getting none would leave
 # every HTML message as source with nothing to say why.
-find_package(Qt6 REQUIRED COMPONENTS WebEngineCore WebEngineWidgets)
+find_package(Qt6 REQUIRED COMPONENTS WebEngineCore WebEngineWidgets WebChannel)
 
 gf_add_module(
   NAME    web_engine
-  QT      Core Widgets WebEngineCore WebEngineWidgets
+  QT      Core Widgets WebEngineCore WebEngineWidgets WebChannel
   SOURCES WebEngineModule.cpp
+          WebEngineEditorView.cpp
+          WebEngineLockdown.cpp
           WebEngineScheme.cpp
           WebEngineView.cpp)
 

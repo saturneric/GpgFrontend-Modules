@@ -28,26 +28,18 @@
 
 #include "WebEngineView.h"
 
-#include <QBuffer>
 #include <QPointer>
 #include <QVBoxLayout>
-#include <QWebEngineDesktopMediaRequest>
-#include <QWebEngineDownloadRequest>
-#include <QWebEngineFileSystemAccessRequest>
-#include <QWebEngineFullScreenRequest>
 #include <QWebEnginePage>
-#include <QWebEnginePermission>
 #include <QWebEngineProfile>
-#include <QWebEngineRegisterProtocolHandlerRequest>
 #include <QWebEngineSettings>
-#include <QWebEngineUrlRequestInterceptor>
 #include <QWebEngineUrlRequestJob>
 #include <QWebEngineUrlSchemeHandler>
 #include <QWebEngineView>
-#include <QWebEngineWebAuthUxRequest>
 #include <memory>
 
 #include "GFSDKTypes.h"
+#include "WebEngineLockdown.h"
 
 namespace {
 
@@ -56,16 +48,10 @@ auto PartScheme() -> QLatin1StringView {
 }
 
 /// Every request, before Chromium's network stack: the part scheme passes,
-/// nothing else does. On the engine's IO thread, so it decides from the URL
-/// alone and holds no state.
-class Interceptor : public QWebEngineUrlRequestInterceptor {
- public:
-  using QWebEngineUrlRequestInterceptor::QWebEngineUrlRequestInterceptor;
-
-  void interceptRequest(QWebEngineUrlRequestInfo& info) override {
-    if (info.requestUrl().scheme() != PartScheme()) info.block(true);
-  }
-};
+/// nothing else does.
+auto IsPartScheme(const QString& scheme) -> bool {
+  return scheme == PartScheme();
+}
 
 /// gfpart://<session>/ is the document; gfpart://<session>/<cid> a part,
 /// which comes from the Host and only for the session now shown.
@@ -89,10 +75,7 @@ class PartHandler : public QWebEngineUrlSchemeHandler {
         job->fail(QWebEngineUrlRequestJob::RequestDenied);
         return;
       }
-      auto* buffer = new QBuffer(job);
-      buffer->setData(*document);
-      buffer->open(QIODevice::ReadOnly);
-      job->reply("text/html;charset=utf-8", buffer);
+      web_engine::ReplyBytes(job, "text/html;charset=utf-8", *document);
       return;
     }
 
@@ -108,10 +91,7 @@ class PartHandler : public QWebEngineUrlSchemeHandler {
             alive->fail(QWebEngineUrlRequestJob::UrlNotFound);
             return;
           }
-          auto* buffer = new QBuffer(alive.data());
-          buffer->setData(data);
-          buffer->open(QIODevice::ReadOnly);
-          alive->reply(mime.toUtf8(), buffer);
+          web_engine::ReplyBytes(alive.data(), mime.toUtf8(), data);
         });
     if (request == 0) {
       job->fail(QWebEngineUrlRequestJob::RequestDenied);
@@ -128,43 +108,6 @@ class PartHandler : public QWebEngineUrlSchemeHandler {
   WebEngineView* view_;
 };
 
-void LockDown(QWebEngineSettings* s) {
-  using A = QWebEngineSettings;
-  // Images are what parts are; everything else that could act, fetch or
-  // reach outside the page is off.
-  s->setAttribute(A::AutoLoadImages, true);
-  for (const auto off : {
-           A::JavascriptEnabled,
-           A::JavascriptCanOpenWindows,
-           A::JavascriptCanAccessClipboard,
-           A::JavascriptCanPaste,
-           A::LocalStorageEnabled,
-           A::LocalContentCanAccessRemoteUrls,
-           A::LocalContentCanAccessFileUrls,
-           A::HyperlinkAuditingEnabled,
-           A::ErrorPageEnabled,
-           A::PluginsEnabled,
-           A::PdfViewerEnabled,
-           A::FullScreenSupportEnabled,
-           A::ScreenCaptureEnabled,
-           A::WebGLEnabled,
-           A::Accelerated2dCanvasEnabled,
-           A::AutoLoadIconsForPage,
-           A::TouchIconsEnabled,
-           A::FocusOnNavigationEnabled,
-           A::AllowRunningInsecureContent,
-           A::AllowGeolocationOnInsecureOrigins,
-           A::AllowWindowActivationFromJavaScript,
-           A::DnsPrefetchEnabled,
-           A::NavigateOnDropEnabled,
-           A::ReadingFromCanvasEnabled,
-       }) {
-    s->setAttribute(off, false);
-  }
-  s->setAttribute(A::PlaybackRequiresUserGesture, true);
-  s->setAttribute(A::WebRTCPublicInterfacesOnly, true);
-}
-
 /**
  * @brief What a target=_blank link opens: a page never shown, that never
  *        loads.
@@ -177,7 +120,7 @@ class LinkCatcher : public QWebEnginePage {
  public:
   LinkCatcher(QWebEngineProfile* profile, WebEngineView* owner, QObject* parent)
       : QWebEnginePage(profile, parent), owner_(owner) {
-    LockDown(settings());
+    web_engine::LockDown(settings());
   }
 
  protected:
@@ -252,37 +195,13 @@ class LockedPage : public QWebEnginePage {
 
 WebEngineView::WebEngineView(Host host, QWidget* parent)
     : QWidget(parent), host_(std::move(host)) {
-  // No storage name: off the record, nothing written to disk, and nothing
-  // shared with any other view.
-  profile_ = new QWebEngineProfile(this);
-  profile_->setHttpCacheType(QWebEngineProfile::MemoryHttpCache);
-  profile_->setPersistentCookiesPolicy(QWebEngineProfile::NoPersistentCookies);
-  profile_->setPersistentPermissionsPolicy(
-      QWebEngineProfile::PersistentPermissionsPolicy::AskEveryTime);
-  profile_->setSpellCheckEnabled(false);
-  profile_->setUrlRequestInterceptor(new Interceptor(profile_));
+  // Nothing shared with any other view.
+  profile_ = web_engine::NewLockedProfile(this, &IsPartScheme);
   profile_->installUrlSchemeHandler(GF_HTML_PART_SCHEME, new PartHandler(this));
-  connect(profile_, &QWebEngineProfile::downloadRequested, this,
-          [](QWebEngineDownloadRequest* download) { download->cancel(); });
-  LockDown(profile_->settings());
 
   page_ = new LockedPage(profile_, this);
-  LockDown(page_->settings());
-  connect(page_, &QWebEnginePage::permissionRequested, this,
-          [](QWebEnginePermission permission) { permission.deny(); });
-  connect(page_, &QWebEnginePage::fullScreenRequested, this,
-          [](QWebEngineFullScreenRequest request) { request.reject(); });
-  connect(page_, &QWebEnginePage::fileSystemAccessRequested, this,
-          [](QWebEngineFileSystemAccessRequest request) { request.reject(); });
-  connect(page_, &QWebEnginePage::registerProtocolHandlerRequested, this,
-          [](QWebEngineRegisterProtocolHandlerRequest request) {
-            request.reject();
-          });
-  connect(
-      page_, &QWebEnginePage::desktopMediaRequested, this,
-      [](const QWebEngineDesktopMediaRequest& request) { request.cancel(); });
-  connect(page_, &QWebEnginePage::webAuthUxRequested, this,
-          [](QWebEngineWebAuthUxRequest* request) { request->cancel(); });
+  web_engine::LockDown(page_->settings());
+  web_engine::RefuseUserRequests(page_);
   // The document's own load, reported once. Every refused navigation also
   // ends in loadFinished(false), and that is not the document failing.
   connect(page_, &QWebEnginePage::loadFinished, this, [this](bool ok) {
