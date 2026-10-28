@@ -105,6 +105,18 @@ TEST(EMailFuzzReplayTest, DegenerateInputsSurviveTheHarness) {
       0);
 }
 
+TEST(EMailFuzzReplayTest, Base64LeftoverLongerThanTheNextWordSurvives) {
+  // Found by the fuzz smoke. vmime carries undecoded Base64 bytes from one
+  // encoded word into the next, then measured what it had consumed against
+  // the next word alone: "5Li" + "tA" decodes to 3 bytes, i.e. 4 encoded, from
+  // a word only 2 long, and the leftover range ran backwards (length_error).
+  EXPECT_EQ(Feed(QByteArray("From: a\r\n"
+                            "Subject: =?utf-8?B?5Lit5Li?= =?utf-8?B?tA?=\r\n"
+                            "\r\n"
+                            "body\r\n")),
+            0);
+}
+
 TEST(EMailFuzzReplayTest, TruncationAtEveryOffsetSurvivesTheHarness) {
   // Every prefix of a well-formed signed message. Truncation is the cheapest
   // way to reach a parser that trusted a length it had not yet read.

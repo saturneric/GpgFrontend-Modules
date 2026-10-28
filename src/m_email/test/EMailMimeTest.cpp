@@ -211,6 +211,27 @@ TEST(EMailMimeTest, NonAsciiSubjectSurvivesARoundTrip) {
   EXPECT_EQ(out.subject, meta.subject);
 }
 
+// Some senders split one Base64 run across encoded words mid-quantum; vmime
+// carries the undecoded tail into the next word. Guards the fix that took that
+// tail from the wrong buffer (EMailFuzzReplayTest has the crashing shape).
+TEST(EMailMimeTest, Base64SplitAcrossEncodedWordsDecodesWhole) {
+  vmime::shared_ptr<vmime::message> message;
+  ASSERT_TRUE(
+      ParseLiteral("From: a@example.com\n"
+                   "To: b@example.com\n"
+                   "Subject: =?utf-8?B?5Lit5?= =?utf-8?B?paH?=\n"
+                   "MIME-Version: 1.0\n"
+                   "Content-Type: text/plain\n"
+                   "\n"
+                   "body\n",
+                   message));
+
+  EMailMetaData meta;
+  ASSERT_EQ(GetEMLMetaData(message, meta), 0);
+
+  EXPECT_EQ(meta.subject, QString::fromUtf8("中文"));
+}
+
 // --- attachments -----------------------------------------------------------
 
 namespace {
