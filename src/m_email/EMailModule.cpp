@@ -170,23 +170,8 @@ auto BuildAttachmentCard(const EMailMetaData& m) -> QJsonObject {
 // recipient card.
 // The address a key stands for, as "Name <email>".
 auto AddressOfKey(int channel, const QString& key_id) -> QString {
-  if (key_id.isEmpty()) return {};
-
-  // Three out-parameters, and only the two that are wanted. The struct this
-  // replaced handed back all three as char* members to be freed one by one,
-  // which is why the comment field used to be fetched purely to release it.
-  auto* ctx = GFModuleSdkContext();
-  GFBufferRef name_buf = nullptr;
-  GFBufferRef email_buf = nullptr;
-  if (GFGpgKeyPrimaryUid(ctx, channel, key_id.toUtf8().constData(), &name_buf,
-                         &email_buf, nullptr) != 0) {
-    return {};
-  }
-
-  const auto name = gf::sdk::TakeString(ctx, name_buf);
-  const auto email = gf::sdk::TakeString(ctx, email_buf);
-
-  return email.isEmpty() ? name : QString("%1 <%2>").arg(name, email);
+  const auto uid = gf::sdk::PrimaryUid(GFModuleSdkContext(), channel, key_id);
+  return uid.has_value() ? uid->Address() : QString();
 }
 
 // Envelope for content that is not a message yet -- text typed straight into
