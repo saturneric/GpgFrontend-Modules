@@ -117,6 +117,17 @@ TEST(EMailFuzzReplayTest, Base64LeftoverLongerThanTheNextWordSurvives) {
             0);
 }
 
+TEST(EMailFuzzReplayTest, ADayPastTheEndOfItsMonthSurvives) {
+  // Found by the fuzz smoke. vmime bounded a parsed day only to 1-31, so
+  // "31 Feb" parsed, and regenerating the header for the part view asked for
+  // its weekday, which throws std::out_of_range.
+  EXPECT_EQ(Feed(QByteArray("From: a\r\n"
+                            "Date: Tue, 31 Feb 2026 10:00:00 +0000\r\n"
+                            "\r\n"
+                            "body\r\n")),
+            0);
+}
+
 TEST(EMailFuzzReplayTest, TruncationAtEveryOffsetSurvivesTheHarness) {
   // Every prefix of a well-formed signed message. Truncation is the cheapest
   // way to reach a parser that trusted a length it had not yet read.
