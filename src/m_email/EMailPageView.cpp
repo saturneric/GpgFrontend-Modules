@@ -420,6 +420,7 @@ void EMailPageView::build_details_dialog() {
   // what the message IS, and reading that while scrolling the message is the
   // whole point.
   details_dialog_ = new QDialog(this);
+  details_dialog_->setObjectName(u"emailDetailsDialog"_s);
   details_dialog_->setWindowTitle(tr("Message Details"));
 
   auto* layout = new QVBoxLayout(details_dialog_);
@@ -810,6 +811,8 @@ auto EMailPageView::build_message_surface() -> QWidget* {
   // actions themselves rather than in a band of its own above the body. It is
   // the answer to "what do I do with this", so it belongs where the doing is.
   security_button_ = new ElidingToolButton(this);
+  // Named for the manual's screenshots, like the details window below.
+  security_button_->setObjectName(u"emailSecurityButton"_s);
   security_button_->setVisible(false);
   security_button_->setAutoRaise(true);
   security_button_->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
