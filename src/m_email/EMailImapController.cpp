@@ -108,7 +108,7 @@ class MessageRowDelegate : public QStyledItemDelegate {
 
     auto primary = selected ? option.palette.color(QPalette::HighlightedText)
                             : option.palette.color(QPalette::Text);
-    auto secondary = selected ? primary : EMailMutedColor(owner_);
+    auto secondary = selected ? primary : gf::ui::MutedColor(owner_);
     if (dimmed) {
       // Provisional rows from the cache are drawn faintly rather than
       // labelled, so nothing on screen claims to be fresher than it is.
@@ -622,7 +622,7 @@ auto EMailImapController::build_detail_pane() -> QWidget* {
   // tooltip on a column that no longer exists. A tinted strip rather than a
   // coloured label: the same convention the message workspace uses, and it
   // costs the module its last two stylesheets.
-  detail_note_frame_ = EMailTintedBanner(card, EMailMutedColor(card));
+  detail_note_frame_ = EMailTintedBanner(card, gf::ui::MutedColor(card));
   auto* note_row = new QHBoxLayout(detail_note_frame_);
   note_row->setContentsMargins(8, 6, 8, 6);
   detail_note_ = new QLabel(detail_note_frame_);
@@ -1023,7 +1023,7 @@ void EMailImapController::paint_placeholder_icon() {
 
   // Muted rather than at full strength: an empty state should read as waiting
   // for the user, not as something demanding their attention.
-  auto tint = EMailMutedColor(placeholder_icon_);
+  auto tint = gf::ui::MutedColor(placeholder_icon_);
   tint.setAlpha(120);
   painter.fillRect(pixmap.rect(), tint);
   painter.end();
@@ -1038,17 +1038,17 @@ void EMailImapController::apply_colors() {
   paint_placeholder_icon();
 
   if (placeholder_label_ != nullptr) {
-    EMailSetLabelColor(placeholder_label_, EMailMutedColor(this));
+    gf::ui::SetLabelColor(placeholder_label_, gf::ui::MutedColor(this));
   }
   if (detail_rule_ != nullptr) EMailPaintRule(detail_rule_);
   if (detail_note_frame_ != nullptr) {
-    EMailTintBanner(detail_note_frame_, EMailMutedColor(this));
+    EMailTintBanner(detail_note_frame_, gf::ui::MutedColor(this));
   }
   if (empty_notice_ != nullptr) {
-    EMailSetLabelColor(empty_notice_, EMailMutedColor(this));
+    gf::ui::SetLabelColor(empty_notice_, gf::ui::MutedColor(this));
   }
   if (loading_label_ != nullptr) {
-    EMailSetLabelColor(loading_label_, EMailMutedColor(this));
+    gf::ui::SetLabelColor(loading_label_, gf::ui::MutedColor(this));
   }
 
   // These two say what they say in a colour that depends on the message being
@@ -1058,7 +1058,7 @@ void EMailImapController::apply_colors() {
 
 void EMailImapController::changeEvent(QEvent* event) {
   QDialog::changeEvent(event);
-  if (EMailIsRestyle(event)) apply_colors();
+  if (gf::ui::IsRestyle(event)) apply_colors();
 }
 
 void EMailImapController::refresh_detail() {
@@ -1091,12 +1091,12 @@ void EMailImapController::refresh_detail() {
     detail_note_->setText(
         tr("This message is too large for this application to open, so it "
            "cannot be imported."));
-    EMailSetLabelColor(detail_note_, EMailWarningColor(detail_note_));
+    gf::ui::SetLabelColor(detail_note_, gf::ui::WarningColor(detail_note_));
     detail_note_frame_->setVisible(true);
   } else if (showing_cached_) {
     detail_note_->setText(
         tr("Shown from the previous visit to this account; refreshing."));
-    EMailSetLabelColor(detail_note_, EMailMutedColor(detail_note_));
+    gf::ui::SetLabelColor(detail_note_, gf::ui::MutedColor(detail_note_));
     detail_note_frame_->setVisible(true);
   } else {
     detail_note_frame_->setVisible(false);

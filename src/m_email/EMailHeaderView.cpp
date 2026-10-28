@@ -145,16 +145,16 @@ void EMailHeaderView::build_ui() {
 }
 
 void EMailHeaderView::apply_colors() {
-  // The single place this view's colours are decided; see EMailIsRestyle.
+  // The single place this view's colours are decided; see gf::ui::IsRestyle.
   // Fonts are set at build time and must not be touched here.
-  EMailSetLabelColor(empty_notice_, EMailMutedColor(this));
+  gf::ui::SetLabelColor(empty_notice_, gf::ui::MutedColor(this));
   EMailPaintTreeHeader(tree_);
   EMailRepaintTree(tree_);
 }
 
 void EMailHeaderView::changeEvent(QEvent* event) {
   QWidget::changeEvent(event);
-  if (EMailIsRestyle(event)) apply_colors();
+  if (gf::ui::IsRestyle(event)) apply_colors();
 }
 
 void EMailHeaderView::Clear() {

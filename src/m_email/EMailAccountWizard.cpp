@@ -57,7 +57,7 @@ auto ProblemLabel(QWidget* parent) -> QLabel* {
   auto* label = new QLabel(parent);
   label->setWordWrap(true);
   EMailMakeSecondary(label);
-  EMailSetLabelColor(label, EMailWarningColor(label));
+  gf::ui::SetLabelColor(label, gf::ui::WarningColor(label));
   return label;
 }
 
@@ -889,10 +889,10 @@ void EMailAccountWizard::show_check_row(bool imap) {
   row.status->setText(status);
   switch (state) {
     case EMailStatusState::kGOOD:
-      EMailSetLabelColor(row.status, EMailAccentColor(row.status, true));
+      gf::ui::SetLabelColor(row.status, EMailAccentColor(row.status, true));
       break;
     case EMailStatusState::kBAD:
-      EMailSetLabelColor(row.status, EMailWarningColor(row.status));
+      gf::ui::SetLabelColor(row.status, gf::ui::WarningColor(row.status));
       break;
     default:
       EMailMakeMuted(row.status);
@@ -919,7 +919,7 @@ void EMailAccountWizard::refresh_overall() {
   }
 
   QString text;
-  auto color = EMailMutedColor(overall_);
+  auto color = gf::ui::MutedColor(overall_);
   if (running) {
     text = tr("Checking the servers...");
   } else if (MailSetupChecksPassed(state())) {
@@ -929,13 +929,13 @@ void EMailAccountWizard::refresh_overall() {
     text =
         tr("The account cannot connect yet. Correct the servers and "
            "retry, or add it anyway and fix it later in Settings.");
-    color = EMailWarningColor(overall_);
+    color = gf::ui::WarningColor(overall_);
   } else if (stopped) {
     text = tr("The check was stopped, so nothing was verified.");
   }
   overall_->setText(text);
   overall_->setVisible(!text.isEmpty());
-  EMailSetLabelColor(overall_, color);
+  gf::ui::SetLabelColor(overall_, color);
 }
 
 void EMailAccountWizard::on_check_finished(bool imap,

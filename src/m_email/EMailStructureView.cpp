@@ -116,19 +116,19 @@ void EMailStructureView::build_ui() {
 }
 
 void EMailStructureView::apply_colors() {
-  // The one place this view's colours are decided; see EMailIsRestyle for why
-  // it has to be able to run again. Fonts are set at build time and must not
-  // be touched here.
-  EMailSetLabelColor(summary_, EMailMutedColor(this));
-  EMailSetLabelColor(digest_, EMailMutedColor(this));
-  EMailSetLabelColor(empty_notice_, EMailMutedColor(this));
+  // The one place this view's colours are decided; see gf::ui::IsRestyle for
+  // why it has to be able to run again. Fonts are set at build time and must
+  // not be touched here.
+  gf::ui::SetLabelColor(summary_, gf::ui::MutedColor(this));
+  gf::ui::SetLabelColor(digest_, gf::ui::MutedColor(this));
+  gf::ui::SetLabelColor(empty_notice_, gf::ui::MutedColor(this));
   EMailPaintTreeHeader(tree_);
   EMailRepaintTree(tree_);
 }
 
 void EMailStructureView::changeEvent(QEvent* event) {
   QWidget::changeEvent(event);
-  if (EMailIsRestyle(event)) apply_colors();
+  if (gf::ui::IsRestyle(event)) apply_colors();
 }
 
 void EMailStructureView::ShowNotice(const QString& text) {

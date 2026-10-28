@@ -45,6 +45,7 @@
 #include <functional>
 
 #include "GFModule.h"
+#include "GFModuleTheme.h"
 #include "GFSDKUI.h"
 
 /**
@@ -59,26 +60,8 @@
  * de-emphasised rather than red. Red belongs to irreversible acts and to
  * secrets travelling in the clear, not to "this part is unsigned".
  */
-/// One colour, by role. Five host entry points became one taking a role, so
-/// the function pointer this used to take is now an int.
-inline auto EMailThemeColor(QWidget* w, int role) -> QColor {
-  // From the application palette, by role: this module's widgets carry the
-  // same palette, and no widget has to cross to the Host to ask.
-  const auto rgba = GFUIThemeColorForRole(GFModuleSdkContext(), role);
-  return rgba == 0 ? w->palette().color(QPalette::WindowText)
-                   : QColor::fromRgba(rgba);
-}
-
-inline auto EMailMutedColor(QWidget* w) -> QColor {
-  return EMailThemeColor(w, GF_UI_COLOR_MUTED_TEXT);
-}
-
-inline auto EMailWarningColor(QWidget* w) -> QColor {
-  return EMailThemeColor(w, GF_UI_COLOR_WARNING);
-}
-
 inline auto EMailAccentColor(QWidget* w, bool positive) -> QColor {
-  return EMailThemeColor(
+  return gf::ui::ThemeColor(
       w, positive ? GF_UI_COLOR_ACCENT_POSITIVE : GF_UI_COLOR_ACCENT_NEGATIVE);
 }
 
@@ -89,22 +72,6 @@ inline auto EMailHumanSize(qint64 bytes) -> QString {
   std::array<char, 64> text{};
   const auto written = GFUIHumanSize(bytes, text.data(), text.size());
   return written < 0 ? QString() : QString::fromUtf8(text.data(), written);
-}
-
-/// The application's own border colour, for the one-pixel rules around cards.
-inline auto EMailBorderColor(QWidget* w) -> QColor {
-  return EMailThemeColor(w, GF_UI_COLOR_BORDER);
-}
-
-/// @p a mixed with @p b, @p t of the way towards @p b.
-///
-/// Mixed rather than given an alpha: these colours are painted onto widgets
-/// that fill their own background, where a translucent brush composites
-/// against whatever Qt last drew there instead of against the page.
-inline auto EMailBlend(const QColor& a, const QColor& b, double t) -> QColor {
-  return QColor::fromRgbF(a.redF() * (1 - t) + b.redF() * t,
-                          a.greenF() * (1 - t) + b.greenF() * t,
-                          a.blueF() * (1 - t) + b.blueF() * t);
 }
 
 /**
@@ -130,43 +97,6 @@ class EMailBusyCursor {
   auto operator=(EMailBusyCursor&&) -> EMailBusyCursor& = delete;
 };
 
-/**
- * @brief Whether @p event means the colours this module mixed have gone stale.
- *
- * Every colour here is derived from the live palette ONCE, when the widget is
- * built, and then baked into a child's palette or an item's foreground brush.
- * A theme change replaces the palette underneath those widgets and repaints
- * them, but the baked colours are no longer palette lookups, so the view keeps
- * the old theme's greys on the new theme's background. Qt announces the
- * change; the only discipline needed is to listen for it.
- *
- * ApplicationPaletteChange is included because a palette set on the
- * application never reaches a widget carrying an explicit palette of its own
- * as a PaletteChange -- and after this module has coloured them, that is most
- * of them. ThemeChange because the platforms with a system-wide light/dark
- * switch deliver that instead.
- *
- * Whatever this triggers must be safe to run twice. In practice that means it
- * may set colours and may not touch fonts: see EMailMakeSecondary.
- */
-inline auto EMailIsRestyle(QEvent* event) -> bool {
-  const auto type = event->type();
-  return type == QEvent::PaletteChange || type == QEvent::ThemeChange ||
-         type == QEvent::ApplicationPaletteChange;
-}
-
-/// Paints @p label in @p color without a stylesheet.
-///
-/// Through the palette rather than QSS, which is the convention everywhere
-/// else in this module: a stylesheet on one label silently opts that widget
-/// out of the host's theme for every other property too.
-inline void EMailSetLabelColor(QLabel* label, const QColor& color) {
-  auto palette = label->palette();
-  palette.setColor(QPalette::WindowText, color);
-  palette.setColor(QPalette::Text, color);
-  label->setPalette(palette);
-}
-
 /// Recolours @p rule to the application's border colour.
 ///
 /// Split out from EMailRule because this is the half a theme change has to run
@@ -175,7 +105,7 @@ inline void EMailSetLabelColor(QLabel* label, const QColor& color) {
 /// like a mistake.
 inline void EMailPaintRule(QFrame* rule) {
   auto palette = rule->palette();
-  palette.setColor(QPalette::WindowText, EMailBorderColor(rule));
+  palette.setColor(QPalette::WindowText, gf::ui::BorderColor(rule));
   rule->setPalette(palette);
 }
 
@@ -203,13 +133,13 @@ inline auto EMailRule(QWidget* parent,
 ///
 /// Colour only, so it is safe to call again from a re-apply path.
 inline void EMailMakeMuted(QLabel* label) {
-  EMailSetLabelColor(label, EMailMutedColor(label));
+  gf::ui::SetLabelColor(label, gf::ui::MutedColor(label));
 }
 
 /// Muted, and a shade smaller. The secondary line under a primary one.
 ///
 /// Call it once, when the widget is built: it scales the font it is given, so
-/// a second call scales an already-scaled font. See EMailIsRestyle.
+/// a second call scales an already-scaled font. See gf::ui::IsRestyle.
 inline void EMailMakeSecondary(QLabel* label) {
   auto font = label->font();
   font.setPointSizeF(font.pointSizeF() * 0.92);
@@ -267,10 +197,10 @@ class EMailCardFrame : public QFrame {
 
     // Far enough from the page to read as a separate material, not far enough
     // to compete with the text sitting on it.
-    const auto fill = EMailBlend(palette().color(QPalette::Window),
-                                 palette().color(QPalette::Base), 0.35);
+    const auto fill = gf::ui::Blend(palette().color(QPalette::Window),
+                                    palette().color(QPalette::Base), 0.35);
     painter.setBrush(fill);
-    painter.setPen(QPen(EMailBorderColor(this), 1));
+    painter.setPen(QPen(gf::ui::BorderColor(this), 1));
 
     // Inset by half the pen so the stroke lands inside the widget instead of
     // being clipped in half by its own edge.
@@ -320,7 +250,7 @@ inline void EMailTintBanner(QFrame* banner, const QColor& tint,
           : QApplication::palette().color(QPalette::Window);
 
   auto palette = banner->palette();
-  palette.setColor(QPalette::Window, EMailBlend(base, tint, strength));
+  palette.setColor(QPalette::Window, gf::ui::Blend(base, tint, strength));
   banner->setPalette(palette);
 }
 
@@ -373,13 +303,13 @@ constexpr int kEMailToneRole = Qt::UserRole + 100;
 inline auto EMailToneColor(QWidget* owner, EMailTone tone) -> QColor {
   switch (tone) {
     case EMailTone::kMUTED:
-      return EMailMutedColor(owner);
+      return gf::ui::MutedColor(owner);
     case EMailTone::kGOOD:
       return EMailAccentColor(owner, true);
     case EMailTone::kWARN:
-      return EMailWarningColor(owner);
+      return gf::ui::WarningColor(owner);
     case EMailTone::kDANGER:
-      return EMailThemeColor(owner, GF_UI_COLOR_DANGER);
+      return gf::ui::ThemeColor(owner, GF_UI_COLOR_DANGER);
     case EMailTone::kDEFAULT:
       break;
   }
@@ -427,7 +357,7 @@ inline void EMailRepaintTree(QTreeWidget* tree) {
 /// scaled already.
 inline void EMailPaintTreeHeader(QTreeWidget* tree) {
   auto* header = tree->header();
-  const auto muted = EMailMutedColor(tree);
+  const auto muted = gf::ui::MutedColor(tree);
 
   auto palette = header->palette();
   palette.setColor(QPalette::ButtonText, muted);
@@ -494,12 +424,12 @@ class EMailStatusDot : public QWidget {
         case EMailStatusState::kGOOD:
           return EMailAccentColor(this, true);
         case EMailStatusState::kBAD:
-          return EMailWarningColor(this);
+          return gf::ui::WarningColor(this);
         case EMailStatusState::kPENDING:
         case EMailStatusState::kUNKNOWN:
           break;
       }
-      return EMailMutedColor(this);
+      return gf::ui::MutedColor(this);
     }();
 
     painter.setPen(Qt::NoPen);

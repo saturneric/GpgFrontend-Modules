@@ -240,11 +240,11 @@ void InstallAddressCompleter(QLineEdit* edit, const QStringList& options,
 }
 
 // Shared with the other views in this module; see EMailViewStyle.h.
-const auto& ThemeColor = EMailThemeColor;
-const auto& MutedColor = EMailMutedColor;
+using gf::ui::Blend;
+using gf::ui::MutedColor;
+using gf::ui::ThemeColor;
 const auto& AccentColor = EMailAccentColor;
 const auto& HumanSize = EMailHumanSize;
-const auto& Blend = EMailBlend;
 
 /**
  * @brief A tool button sized by its full text, drawn with as much of it as
@@ -500,17 +500,18 @@ void EMailPageView::apply_colors() {
     EMailTintBanner(locked_banner_, MutedColor(this), kLockedTint);
   }
   if (locked_notice_ != nullptr) {
-    EMailSetLabelColor(locked_notice_, MutedColor(this));
+    gf::ui::SetLabelColor(locked_notice_, MutedColor(this));
   }
   if (locked_recipients_ != nullptr) {
-    EMailSetLabelColor(locked_recipients_, MutedColor(this));
+    gf::ui::SetLabelColor(locked_recipients_, MutedColor(this));
   }
   if (attachment_heading_ != nullptr) {
-    EMailSetLabelColor(attachment_heading_, MutedColor(this));
+    gf::ui::SetLabelColor(attachment_heading_, MutedColor(this));
   }
   if (attachment_toggle_ != nullptr) apply_attachment_bar();
   if (unsigned_notice_ != nullptr) {
-    EMailSetLabelColor(unsigned_notice_, ThemeColor(this, GF_UI_COLOR_WARNING));
+    gf::ui::SetLabelColor(unsigned_notice_,
+                          ThemeColor(this, GF_UI_COLOR_WARNING));
   }
 
   if (attachment_list_ != nullptr) {
@@ -528,7 +529,7 @@ void EMailPageView::apply_colors() {
 
 void EMailPageView::changeEvent(QEvent* event) {
   QWidget::changeEvent(event);
-  if (EMailIsRestyle(event)) apply_colors();
+  if (gf::ui::IsRestyle(event)) apply_colors();
 }
 
 auto EMailPageView::build_message_surface() -> QWidget* {
@@ -1849,7 +1850,7 @@ void EMailPageView::show_decrypt_capability(
 
   switch (capability.verdict) {
     case EMailDecryptVerdict::kCAN_OPEN:
-      EMailSetLabelColor(locked_capability_, AccentColor(this, true));
+      gf::ui::SetLabelColor(locked_capability_, AccentColor(this, true));
       locked_capability_->setText(
           capability.holding.size() == 1
               ? tr("You hold the private key for %1, so this message can be "
@@ -1861,15 +1862,15 @@ void EMailPageView::show_decrypt_capability(
       return;
 
     case EMailDecryptVerdict::kCANNOT_OPEN:
-      EMailSetLabelColor(locked_capability_,
-                         ThemeColor(this, GF_UI_COLOR_WARNING));
+      gf::ui::SetLabelColor(locked_capability_,
+                            ThemeColor(this, GF_UI_COLOR_WARNING));
       locked_capability_->setText(
           tr("This message is encrypted to keys you do not hold the private "
              "half of, so it cannot be opened on this computer."));
       return;
 
     case EMailDecryptVerdict::kUNKNOWN:
-      EMailSetLabelColor(locked_capability_, MutedColor(this));
+      gf::ui::SetLabelColor(locked_capability_, MutedColor(this));
       locked_capability_->setText(
           capability.has_hidden
               ? tr("Some recipients of this message were deliberately not "
@@ -1911,7 +1912,7 @@ void EMailPageView::refresh_locked_capability_by_address(
   if (named.isEmpty() || mine.isEmpty()) {
     locked_capability_->setVisible(!mine.isEmpty());
     if (!mine.isEmpty()) {
-      EMailSetLabelColor(locked_capability_, MutedColor(this));
+      gf::ui::SetLabelColor(locked_capability_, MutedColor(this));
       locked_capability_->setText(
           tr("The recipients are not named, so there is no way to tell "
              "whether you can open this until you try."));
@@ -1927,8 +1928,8 @@ void EMailPageView::refresh_locked_capability_by_address(
 
   locked_capability_->setVisible(true);
   if (matched.isEmpty()) {
-    EMailSetLabelColor(locked_capability_,
-                       ThemeColor(this, GF_UI_COLOR_WARNING));
+    gf::ui::SetLabelColor(locked_capability_,
+                          ThemeColor(this, GF_UI_COLOR_WARNING));
     locked_capability_->setText(
         tr("You do not hold a private key for any of these addresses. Unless "
            "the message was also encrypted to a key that is not named here, "
@@ -1936,7 +1937,7 @@ void EMailPageView::refresh_locked_capability_by_address(
     return;
   }
 
-  EMailSetLabelColor(locked_capability_, AccentColor(this, true));
+  gf::ui::SetLabelColor(locked_capability_, AccentColor(this, true));
   locked_capability_->setText(
       matched.size() == 1
           ? tr("You hold the private key for %1.").arg(matched.front())
@@ -2357,7 +2358,7 @@ void EMailPageView::paint_security_button() {
       colour = AccentColor(this, true);
       break;
     case EMailBadgeTone::kWARN:
-      colour = EMailWarningColor(this);
+      colour = gf::ui::WarningColor(this);
       break;
     case EMailBadgeTone::kDANGER:
       colour = EMailToneColor(this, EMailTone::kDANGER);

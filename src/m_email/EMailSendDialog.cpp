@@ -357,7 +357,7 @@ void EMailSendDialog::build_ui() {
   // sending, and a footnote is not where that belongs.
   if (!message_.blind_rcpt.isEmpty()) {
     auto* blind_banner =
-        EMailTintedBanner(this, EMailWarningColor(this), kBannerTint);
+        EMailTintedBanner(this, gf::ui::WarningColor(this), kBannerTint);
     auto* banner_row = new QHBoxLayout(blind_banner);
     banner_row->setContentsMargins(10, 8, 10, 8);
 
@@ -450,8 +450,8 @@ void EMailSendDialog::refresh_account_state() {
   const auto index = account_combo_->currentIndex();
   if (index < 0 || index >= accounts_.size()) {
     account_detail_label_->setText(tr("No outgoing account is configured."));
-    EMailSetLabelColor(account_detail_label_,
-                       EMailWarningColor(account_detail_label_));
+    gf::ui::SetLabelColor(account_detail_label_,
+                          gf::ui::WarningColor(account_detail_label_));
     send_button_->setEnabled(false);
     return;
   }
@@ -470,8 +470,8 @@ void EMailSendDialog::refresh_account_state() {
         tr("No password is stored for this account, so nothing can be sent "
            "through it. Set the password in Settings, under Mail Accounts, "
            "and turn on the option to remember it."));
-    EMailSetLabelColor(account_detail_label_,
-                       EMailWarningColor(account_detail_label_));
+    gf::ui::SetLabelColor(account_detail_label_,
+                          gf::ui::WarningColor(account_detail_label_));
     send_button_->setEnabled(false);
     return;
   }

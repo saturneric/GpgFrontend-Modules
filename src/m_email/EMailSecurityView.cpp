@@ -213,17 +213,17 @@ void EMailSecurityView::apply_colors() {
   // is kept: SetMessage's arguments are gone by the time a theme change
   // arrives, and a headline that had turned warning-coloured must not come
   // back muted.
-  EMailSetLabelColor(headline_, state_ == EMailSecurityState::kMALFORMED_PGP
-                                    ? EMailWarningColor(this)
-                                    : EMailMutedColor(this));
-  EMailSetLabelColor(empty_notice_, EMailMutedColor(this));
+  gf::ui::SetLabelColor(headline_, state_ == EMailSecurityState::kMALFORMED_PGP
+                                       ? gf::ui::WarningColor(this)
+                                       : gf::ui::MutedColor(this));
+  gf::ui::SetLabelColor(empty_notice_, gf::ui::MutedColor(this));
   EMailPaintTreeHeader(tree_);
   EMailRepaintTree(tree_);
 }
 
 void EMailSecurityView::changeEvent(QEvent* event) {
   QWidget::changeEvent(event);
-  if (EMailIsRestyle(event)) apply_colors();
+  if (gf::ui::IsRestyle(event)) apply_colors();
 }
 
 void EMailSecurityView::Clear() {

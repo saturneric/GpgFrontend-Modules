@@ -131,8 +131,8 @@ void EMailStepIndicator::paintEvent(QPaintEvent*) {
   if (count == 0) return;
 
   const auto accent = palette().color(QPalette::Highlight);
-  const auto border = EMailBorderColor(this);
-  const auto muted = EMailMutedColor(this);
+  const auto border = gf::ui::BorderColor(this);
+  const auto muted = gf::ui::MutedColor(this);
   const auto text = palette().color(QPalette::WindowText);
   const auto slot = width() / count;
   const auto mid = height() / 2.0;
@@ -242,11 +242,11 @@ void EMailStatusIcon::paintEvent(QPaintEvent*) {
       color = EMailAccentColor(this, true);
       break;
     case EMailStatusState::kBAD:
-      color = EMailWarningColor(this);
+      color = gf::ui::WarningColor(this);
       break;
     case EMailStatusState::kPENDING:
     case EMailStatusState::kUNKNOWN:
-      color = EMailMutedColor(this);
+      color = gf::ui::MutedColor(this);
       break;
   }
 
@@ -462,7 +462,8 @@ void EMailToggleSwitch::paintEvent(QPaintEvent*) {
   const auto enabled = isEnabled();
 
   // The label, left; muted when the switch cannot be used.
-  p.setPen(enabled ? pal.color(QPalette::WindowText) : EMailMutedColor(this));
+  p.setPen(enabled ? pal.color(QPalette::WindowText)
+                   : gf::ui::MutedColor(this));
   p.drawText(QRect(0, 0, width() - kTrackWidth - kSwitchGap, height()),
              Qt::AlignLeft | Qt::AlignVCenter, text());
 
@@ -470,8 +471,8 @@ void EMailToggleSwitch::paintEvent(QPaintEvent*) {
   // so the change reads as one motion.
   const auto track = track_rect();
   const auto on_color = pal.color(QPalette::Highlight);
-  auto track_color = EMailBlend(EMailBorderColor(this), on_color,
-                                std::clamp(position_, 0.0, 1.0));
+  auto track_color = gf::ui::Blend(gf::ui::BorderColor(this), on_color,
+                                   std::clamp(position_, 0.0, 1.0));
   if (!enabled) track_color.setAlphaF(0.4F);
   if (hovered_ && enabled) track_color = track_color.lighter(108);
 

@@ -312,7 +312,7 @@ auto EMailAccountSettingsPage::build_editor() -> QWidget* {
   validation_ = new QLabel(editor_);
   validation_->setWordWrap(true);
   validation_->setVisible(false);
-  EMailSetLabelColor(validation_, EMailWarningColor(validation_));
+  gf::ui::SetLabelColor(validation_, gf::ui::WarningColor(validation_));
   layout->addWidget(validation_);
 
   auto* account_card = new QGroupBox(tr("Account"), editor_);
@@ -732,7 +732,7 @@ void EMailAccountSettingsPage::apply_colors() {
     if (hint != nullptr) EMailMakeMuted(hint);
   }
   if (validation_ != nullptr) {
-    EMailSetLabelColor(validation_, EMailWarningColor(validation_));
+    gf::ui::SetLabelColor(validation_, gf::ui::WarningColor(validation_));
   }
 
   refresh_pin_state();
@@ -740,7 +740,7 @@ void EMailAccountSettingsPage::apply_colors() {
 
 void EMailAccountSettingsPage::changeEvent(QEvent* event) {
   QWidget::changeEvent(event);
-  if (EMailIsRestyle(event)) apply_colors();
+  if (gf::ui::IsRestyle(event)) apply_colors();
 }
 
 void EMailAccountSettingsPage::refresh_validation() {

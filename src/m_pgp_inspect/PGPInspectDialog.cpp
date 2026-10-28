@@ -29,6 +29,7 @@
 #include "PGPInspectDialog.h"
 
 #include <GFModule.h>
+#include <GFModuleTheme.h>
 #include <GFSDKPgp.h>
 #include <GFSDKUI.h>
 
@@ -76,7 +77,7 @@ constexpr int kBlockRole = Qt::UserRole + 3;
 constexpr int kIndexRole = Qt::UserRole + 4;
 
 auto ThemeBrush(int role) -> QBrush {
-  return QBrush(QColor(GFUIThemeColorForRole(GFModuleSdkContext(), role)));
+  return QBrush(gf::ui::ThemeColor(nullptr, role));
 }
 
 auto MakeFieldTree(QWidget* parent) -> QTreeWidget* {

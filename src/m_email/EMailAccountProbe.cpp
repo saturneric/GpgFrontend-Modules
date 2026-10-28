@@ -353,20 +353,20 @@ void EMailProbeStatus::SetOutcome(EMailAccountProbe::Outcome outcome,
 
 void EMailProbeStatus::changeEvent(QEvent* event) {
   QWidget::changeEvent(event);
-  if (EMailIsRestyle(event)) recolor();
+  if (gf::ui::IsRestyle(event)) recolor();
 }
 
 void EMailProbeStatus::recolor() {
   switch (state_) {
     case EMailStatusState::kGOOD:
-      EMailSetLabelColor(label_, EMailAccentColor(this, true));
+      gf::ui::SetLabelColor(label_, EMailAccentColor(this, true));
       break;
     case EMailStatusState::kBAD:
-      EMailSetLabelColor(label_, EMailWarningColor(this));
+      gf::ui::SetLabelColor(label_, gf::ui::WarningColor(this));
       break;
     case EMailStatusState::kPENDING:
     case EMailStatusState::kUNKNOWN:
-      EMailSetLabelColor(label_, EMailMutedColor(this));
+      gf::ui::SetLabelColor(label_, gf::ui::MutedColor(this));
       break;
   }
 }
@@ -424,6 +424,6 @@ auto EMailSummaryRows::AddRow(const QString& label, const QString& value)
 
 void EMailSummaryRows::changeEvent(QEvent* event) {
   QWidget::changeEvent(event);
-  if (!EMailIsRestyle(event)) return;
+  if (!gf::ui::IsRestyle(event)) return;
   for (auto* label : labels_) EMailMakeMuted(label);
 }
