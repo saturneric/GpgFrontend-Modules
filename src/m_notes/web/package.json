@@ -1,0 +1,24 @@
+{
+  "name": "gf-notes-editor",
+  "private": true,
+  "description": "The m_notes editor page: Tiptap over the m_notes Markdown subset. Built into dist/ by scripts/build_note_editor.sh; dist/ is what the module embeds.",
+  "license": "GPL-3.0-or-later",
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node --test test/roundtrip.test.mjs test/page.test.mjs"
+  },
+  "dependencies": {
+    "@tiptap/core": "3.32.0",
+    "@tiptap/extension-image": "3.32.0",
+    "@tiptap/extension-list": "3.32.0",
+    "@tiptap/extension-table": "3.32.0",
+    "@tiptap/markdown": "3.32.0",
+    "@tiptap/pm": "3.32.0",
+    "@tiptap/starter-kit": "3.32.0",
+    "marked": "17.0.6"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.10",
+    "jsdom": "26.1.0"
+  }
+}

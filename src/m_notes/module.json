@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "id": "com.bktus.gpgfrontend.module.notes",
+  "name": "EncryptedNotes",
+  "description": "Rich-text notes kept as TextPack files encrypted with OpenPGP. Nothing is written unencrypted unless saved as plain text on request.",
+  "author": "Saturneric",
+  "capabilities": [
+    "gpg",
+    "pgp",
+    "storage",
+    "ui",
+    "ui.custom",
+    "web.editor"
+  ],
+  "events": [],
+  "commands": [
+    "com.bktus.gpgfrontend.module.notes.new_note"
+  ],
+  "translation_context": "ModuleNotes"
+}

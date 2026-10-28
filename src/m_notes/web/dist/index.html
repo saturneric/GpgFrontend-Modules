@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Note</title>
+<link rel="stylesheet" href="editor.css">
+</head>
+<body>
+<header id="toolbar" role="toolbar"></header>
+<div id="find" class="popover find" role="search" hidden>
+  <span id="find-icon" class="lead"></span>
+  <input id="find-input" type="text" autocomplete="off" spellcheck="false">
+  <span id="find-count" aria-live="polite"></span>
+  <span class="divider"></span>
+  <button id="find-prev" class="icon" type="button"></button>
+  <button id="find-next" class="icon" type="button"></button>
+  <button id="find-close" class="icon" type="button"></button>
+</div>
+<div id="link" class="popover link" role="dialog" hidden>
+  <span id="link-icon" class="lead"></span>
+  <input id="link-input" type="text" autocomplete="off" spellcheck="false">
+  <button id="link-remove" class="icon" type="button" hidden></button>
+  <button id="link-apply" class="primary" type="button"></button>
+</div>
+<div id="block-menu" class="menu" role="menu" hidden></div>
+<div id="more-menu" class="menu" role="menu" hidden></div>
+<main id="editor"></main>
+<script src="editor.js"></script>
+</body>
+</html>

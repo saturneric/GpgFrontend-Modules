@@ -49,6 +49,7 @@ here as `…`.
 | `m_email`           | `…module.email`                | E-mail helpers built on vmime.                   |
 | `m_pgp_inspect`     | `…module.pgp_inspect`          | Shows the packet structure of OpenPGP data.      |
 | `m_im`              | `…module.im`                   | OpenPGP messages as single-line chat tokens.     |
+| `m_notes`           | `…module.notes`                | Rich-text notes, kept as OpenPGP-encrypted TextPacks. |
 
 ```
 modules/
@@ -59,6 +60,7 @@ modules/
 │   ├── m_email/
 │   ├── m_pgp_inspect/
 │   ├── m_im/
+│   ├── m_notes/
 │   └── CMakeLists.txt      <- lists every module folder
 └── CMakeLists.txt
 ```

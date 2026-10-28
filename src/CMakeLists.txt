@@ -30,6 +30,7 @@ add_subdirectory(m_email)
 # No network and no GnuPG: an inspector reads bytes and nothing else, so it is
 # fine in the sandboxed build too.
 add_subdirectory(m_pgp_inspect)
+add_subdirectory(m_notes)
 
 # Local only: tokens are made and read in memory, so the sandbox keeps it.
 add_subdirectory(m_im)
