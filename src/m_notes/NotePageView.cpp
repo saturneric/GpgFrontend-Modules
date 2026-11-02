@@ -1165,7 +1165,13 @@ auto NotePageView::choose_destination(bool save_as, bool encrypted) -> QString {
   if (save_as || destination.isEmpty() || !fits) {
     const auto dir =
         QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
+    // Windows appends the filter's extension itself, and takes ".gpg" alone
+    // for the extension of a name already ending in ".textpack.gpg".
+#ifdef Q_OS_WIN
+    const auto name = BundleNameFor(QFileInfo(path_).fileName());
+#else
     const auto name = BundleNameFor(QFileInfo(path_).fileName()) + suffix;
+#endif
     const auto offered = path_.isEmpty()
                              ? QDir(dir).filePath(name)
                              : QFileInfo(path_).dir().filePath(name);
@@ -1177,9 +1183,7 @@ auto NotePageView::choose_destination(bool save_as, bool encrypted) -> QString {
         encrypted ? GTrC::tr("Encrypted Note (*.textpack.gpg)")
                   : GTrC::tr("TextPack (*.textpack)"));
     if (destination.isEmpty()) return {};
-    if (!destination.endsWith(suffix, Qt::CaseInsensitive)) {
-      destination += suffix;
-    }
+    destination = WithNoteSuffix(destination, suffix);
   }
   return destination;
 }

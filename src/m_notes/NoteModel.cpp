@@ -205,6 +205,20 @@ auto BundleNameFor(const QString& title) -> QString {
   return name.isEmpty() ? u"Note"_s : name.left(100);
 }
 
+auto WithNoteSuffix(const QString& path, const QString& suffix) -> QString {
+  auto result = path;
+  for (bool chopped = true; chopped;) {
+    chopped = false;
+    for (const auto& s : {u".textpack.gpg"_s, u".textpack"_s}) {
+      if (result.size() > s.size() && result.endsWith(s, Qt::CaseInsensitive)) {
+        result.chop(s.size());
+        chopped = true;
+      }
+    }
+  }
+  return result + suffix;
+}
+
 auto FrontMatterLength(const QByteArray& markdown) -> qsizetype {
   static const QRegularExpression kFront(
       u"\\A---\\r?\\n[\\s\\S]*?\\r?\\n(---|\\.\\.\\.)\\r?\\n?"_s);

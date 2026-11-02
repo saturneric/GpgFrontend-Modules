@@ -104,6 +104,12 @@ auto CheckBudgets(const QList<PackEntry>& entries, const Budgets& budgets)
 /// A file name safe as a bundle folder: no separators, never empty.
 auto BundleNameFor(const QString& title) -> QString;
 
+/// @p path ending in @p suffix exactly once: any run of note suffixes already
+/// there (".textpack.gpg", ".textpack") is dropped first. Windows' save dialog
+/// judges an extension by its last dot, so it can append ".textpack.gpg" to a
+/// name that already has it.
+auto WithNoteSuffix(const QString& path, const QString& suffix) -> QString;
+
 /// The bytes of the YAML front matter that opens @p markdown, or 0.
 auto FrontMatterLength(const QByteArray& markdown) -> qsizetype;
 

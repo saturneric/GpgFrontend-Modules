@@ -174,6 +174,29 @@ TEST(NoteModelTest, BundleNamesAreSafe) {
   EXPECT_EQ(BundleNameFor(QString()), u"Note"_s);
 }
 
+TEST(NoteModelTest, NoteSuffixIsAppliedOnce) {
+  const auto enc = u".textpack.gpg"_s;
+  const auto plain = u".textpack"_s;
+  EXPECT_EQ(WithNoteSuffix(u"/d/a"_s, enc), u"/d/a.textpack.gpg"_s);
+  EXPECT_EQ(WithNoteSuffix(u"/d/a.textpack.gpg"_s, enc),
+            u"/d/a.textpack.gpg"_s);
+  // What Windows' save dialog hands back when offered a compound extension.
+  EXPECT_EQ(WithNoteSuffix(u"/d/a.textpack.gpg.textpack.gpg"_s, enc),
+            u"/d/a.textpack.gpg"_s);
+  EXPECT_EQ(WithNoteSuffix(u"/d/a.textpack.textpack.gpg"_s, enc),
+            u"/d/a.textpack.gpg"_s);
+  EXPECT_EQ(WithNoteSuffix(u"/d/a.TextPack.GPG.textpack.gpg"_s, enc),
+            u"/d/a.textpack.gpg"_s);
+  EXPECT_EQ(WithNoteSuffix(u"/d/a.textpack"_s, enc), u"/d/a.textpack.gpg"_s);
+  EXPECT_EQ(WithNoteSuffix(u"/d/a.textpack.gpg"_s, plain), u"/d/a.textpack"_s);
+  EXPECT_EQ(WithNoteSuffix(u"/d/a.textpack.textpack"_s, plain),
+            u"/d/a.textpack"_s);
+  // Other dots, in the name or the folder, are the user's.
+  EXPECT_EQ(WithNoteSuffix(u"/d.textpack/a.v2"_s, enc),
+            u"/d.textpack/a.v2.textpack.gpg"_s);
+  EXPECT_EQ(WithNoteSuffix(u"/d/a.gpg"_s, enc), u"/d/a.gpg.textpack.gpg"_s);
+}
+
 TEST(NoteModelTest, TheRecoveryRecordComesBackWhole) {
   RecoveryRecord r;
   r.note.root = u"N.textbundle/"_s;
