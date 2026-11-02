@@ -156,4 +156,11 @@ auto Assess(const std::optional<ProtectionConfig>& recorded,
   return a;
 }
 
+auto DisplayRank(const DetectedPacket& packet) -> int {
+  if (!packet.pkesk) return 4;
+  if (packet.hidden) return 3;
+  if (!packet.key_found) return 2;
+  return packet.has_secret ? 0 : 1;
+}
+
 }  // namespace gf::notes

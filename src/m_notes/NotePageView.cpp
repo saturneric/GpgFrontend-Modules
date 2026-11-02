@@ -60,6 +60,7 @@
 #include <QUuid>
 #include <QVBoxLayout>
 #include <QtConcurrent/QtConcurrentRun>
+#include <algorithm>
 #include <array>
 
 #include "GFModuleTr.h"
@@ -330,9 +331,21 @@ void NotePageView::build_ui() {
   column->addWidget(recipients_heading_);
   column->addSpacing(8);
   auto* card = new NoteCard();
-  recipients_ = new QVBoxLayout(card);
-  recipients_->setContentsMargins(1, 1, 1, 1);
+  auto* card_layout = new QVBoxLayout(card);
+  card_layout->setContentsMargins(1, 1, 1, 1);
+  recipients_scroll_ = new QScrollArea();
+  recipients_scroll_->setFrameShape(QFrame::NoFrame);
+  recipients_scroll_->setWidgetResizable(true);
+  recipients_scroll_->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+  auto* rows = new QWidget();
+  recipients_ = new QVBoxLayout(rows);
+  recipients_->setContentsMargins(0, 0, 0, 0);
   recipients_->setSpacing(0);
+  recipients_scroll_->setWidget(rows);
+  // The card paints the background; setWidget() turned filling on.
+  rows->setAutoFillBackground(false);
+  recipients_scroll_->viewport()->setAutoFillBackground(false);
+  card_layout->addWidget(recipients_scroll_);
   column->addWidget(card);
   column->addSpacing(8);
   recipients_note_ = new QLabel(GTrC::tr(
@@ -453,6 +466,8 @@ void NotePageView::restyle() {
   lock_->setIcon(NoteGlyph::Icon(NoteGlyph::Kind::kLOCK,
                                  palette().color(QPalette::WindowText), 16));
   restyling_ = false;
+  // A new font changes how tall five rows are.
+  fit_recipients();
   if (state_ == State::kOPEN) {
     refresh_strip();
     post_ui();
@@ -462,6 +477,27 @@ void NotePageView::restyle() {
 void NotePageView::changeEvent(QEvent* event) {
   QWidget::changeEvent(event);
   if (gf::ui::IsRestyle(event) && stack_ != nullptr) restyle();
+}
+
+void NotePageView::fit_recipients() {
+  auto* rows = recipients_scroll_->widget();
+  rows->layout()->activate();
+  int cap = 0;
+  int seen = 0;
+  for (int i = 0; i < recipients_->count(); ++i) {
+    const int h = recipients_->itemAt(i)->widget()->sizeHint().height();
+    if (i % 2 == 1) {  // the rule between two rows
+      cap += h;
+      continue;
+    }
+    if (seen == 5) {
+      cap += h / 2;
+      break;
+    }
+    cap += h;
+    ++seen;
+  }
+  recipients_scroll_->setFixedHeight(std::min(rows->sizeHint().height(), cap));
 }
 
 void NotePageView::show_locked(const QString& status) {
@@ -482,18 +518,35 @@ void NotePageView::show_locked(const QString& status) {
   }
   int passphrases = 0;
   bool first = true;
-  auto add = [this, &first](NoteGlyph::Kind kind, const QString& title,
-                            const QString& detail, const QString& badge) {
+  auto add_widget = [this, &first](QWidget* row) {
     if (!first) recipients_->addWidget(Rule(nullptr));
     first = false;
-    recipients_->addWidget(
-        Row(new NoteGlyph(kind, 32, true), title, detail, badge));
+    recipients_->addWidget(row);
   };
-  for (const auto& p : packets_) {
+  auto add = [&add_widget](NoteGlyph::Kind kind, const QString& title,
+                           const QString& detail, const QString& badge) {
+    add_widget(Row(new NoteGlyph(kind, 32, true), title, detail, badge));
+  };
+  // A note for a thousand readers lists the ones who matter here first, and
+  // only so many rows: past that, a count.
+  constexpr int kMaxRows = 100;
+  auto packets = packets_;
+  std::stable_sort(packets.begin(), packets.end(),
+                   [](const DetectedPacket& a, const DetectedPacket& b) {
+                     return DisplayRank(a) < DisplayRank(b);
+                   });
+  int rows = 0;
+  int left_out = 0;
+  for (const auto& p : packets) {
     if (!p.pkesk) {
       ++passphrases;
       continue;
     }
+    if (rows >= kMaxRows) {
+      ++left_out;
+      continue;
+    }
+    ++rows;
     if (p.hidden) {
       add(NoteGlyph::Kind::kHIDDEN, GTrC::tr("Hidden recipient"),
           GTrC::tr("The file does not say whose key this is."), {});
@@ -512,10 +565,23 @@ void NotePageView::show_locked(const QString& status) {
     add(NoteGlyph::Kind::kPASSPHRASE, GTrC::tr("Passphrase"),
         GTrC::tr("Anyone who knows the note's passphrase"), {});
   }
+  if (left_out > 0) {
+    auto* more = new QLabel(GTrC::tr("and %n more recipients", "", left_out));
+    more->setObjectName(u"muted"_s);
+    more->setAlignment(Qt::AlignHCenter);
+    more->setContentsMargins(14, 10, 14, 10);
+    gf::ui::SetLabelColor(more, gf::ui::MutedColor(this));
+    add_widget(more);
+  }
   if (first) {
     add(NoteGlyph::Kind::kWARNING, GTrC::tr("Nothing readable"),
         GTrC::tr("The file names no recipients."), {});
   }
+  const int readers = rows + left_out + (passphrases > 0 ? 1 : 0);
+  recipients_heading_->setText(readers > 5
+                                   ? GTrC::tr("ENCRYPTED FOR (%n)", "", readers)
+                                   : GTrC::tr("ENCRYPTED FOR"));
+  fit_recipients();
 
   const bool by_passphrase =
       std::none_of(packets_.cbegin(), packets_.cend(),
@@ -581,6 +647,13 @@ void NotePageView::refresh_strip() {
     const auto k = facts.value(f);
     names << (k.label.isEmpty() ? GroupedId(f) : ShortName(k.label));
     lines << u"%1  (%2)"_s.arg(k.DisplayName(), GroupedId(f));
+  }
+  // A tooltip a thousand lines tall would not fit on any screen.
+  constexpr int kMaxLines = 10;
+  if (const int left_out = static_cast<int>(lines.size()) - kMaxLines;
+      left_out > 0) {
+    lines = lines.first(kMaxLines);
+    lines << GTrC::tr("and %n more", "", left_out);
   }
   if (protection_.passphrase) {
     names << GTrC::tr("passphrase");

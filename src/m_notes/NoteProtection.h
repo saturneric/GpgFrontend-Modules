@@ -99,6 +99,11 @@ struct DetectedPacket {
   bool has_secret = false;
 };
 
+/// Where @p packet goes in the list of who a note is encrypted for: the keys
+/// that can open it here first, then other known keys, then the ones nobody
+/// can name, then the passphrase. Lower comes first.
+auto DisplayRank(const DetectedPacket& packet) -> int;
+
 /// What is known of a key here (GFGpgKeyPrimaryUid).
 struct KeyFacts {
   QString fingerprint;

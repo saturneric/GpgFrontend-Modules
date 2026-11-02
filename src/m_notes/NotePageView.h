@@ -45,6 +45,7 @@
 class QLabel;
 class QLockFile;
 class QPushButton;
+class QScrollArea;
 class QStackedWidget;
 class QTimer;
 class QToolButton;
@@ -101,6 +102,9 @@ class NotePageView : public QWidget, public gf::ui::DocumentWidget {
 
   void build_ui();
   void show_locked(const QString& status = {});
+  /// Sizes the recipient list to its rows, or to five and a half of them
+  /// when there are more: the half row says the list scrolls.
+  void fit_recipients();
   void show_open();
   void show_unavailable(const QString& why);
   void refresh_strip();
@@ -209,6 +213,7 @@ class NotePageView : public QWidget, public gf::ui::DocumentWidget {
 
   QLabel* locked_status_ = nullptr;
   QLabel* recipients_heading_ = nullptr;
+  QScrollArea* recipients_scroll_ = nullptr;  ///< a few rows tall at most
   QVBoxLayout* recipients_ = nullptr;
   QLabel* recipients_note_ = nullptr;
   // Open

@@ -192,3 +192,27 @@ TEST(NoteProtectionTest, EveryLostReaderIsNamed) {
   EXPECT_EQ(lost.recipients.size(), 2) << "and the other way round, every key";
   EXPECT_TRUE(LostBetween(to, to).IsEmpty());
 }
+
+TEST(NoteProtectionTest, ReadersThatOpenTheNoteHereAreListedFirst) {
+  DetectedPacket mine;
+  mine.key_found = true;
+  mine.has_secret = true;
+  DetectedPacket known;
+  known.key_found = true;
+  DetectedPacket unknown;
+  DetectedPacket hidden;
+  hidden.hidden = true;
+  DetectedPacket passphrase;
+  passphrase.pkesk = false;
+
+  QList<DetectedPacket> packets{passphrase, hidden, unknown, known, mine};
+  std::stable_sort(packets.begin(), packets.end(),
+                   [](const DetectedPacket& a, const DetectedPacket& b) {
+                     return DisplayRank(a) < DisplayRank(b);
+                   });
+  QList<int> ranks;
+  for (const auto& p : packets) ranks << DisplayRank(p);
+  EXPECT_EQ(ranks, (QList<int>{0, 1, 2, 3, 4}));
+  EXPECT_TRUE(packets.front().has_secret);
+  EXPECT_FALSE(packets.back().pkesk);
+}
