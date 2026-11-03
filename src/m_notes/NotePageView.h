@@ -92,6 +92,7 @@ class NotePageView : public QWidget, public gf::ui::DocumentWidget {
   auto OpenPath(const QString& path) -> bool override;
   auto SaveRequested(bool save_as) -> bool override;
   auto CloseRequested() -> bool override;
+  auto CloseDecided(bool save) -> std::optional<bool> override;
   void FindRequested() override;
   auto EncryptRequested() -> bool override;
   auto DecryptRequested() -> bool override;
@@ -183,6 +184,8 @@ class NotePageView : public QWidget, public gf::ui::DocumentWidget {
   /// Wait, keeping the application responsive, until @p ready or a minute.
   void wait_until(const std::function<bool()>& ready);
   auto ask_and_close() -> bool;
+  /// Save (@p save) or discard, as already decided; true: it may close.
+  auto close_as_decided(bool save) -> bool;
   void forget();
 
   State state_ = State::kNEW;

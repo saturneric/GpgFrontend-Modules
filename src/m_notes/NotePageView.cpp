@@ -1522,11 +1522,21 @@ auto NotePageView::ask_and_close() -> bool {
       QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel,
       QMessageBox::Save);
   if (answer == QMessageBox::Cancel) return false;
-  if (answer == QMessageBox::Save) {
+  return close_as_decided(answer == QMessageBox::Save);
+}
+
+auto NotePageView::close_as_decided(bool save) -> bool {
+  if (state_ != State::kOPEN || persistence_.IsClean()) {
+    wait_until([this] { return !persistence_.Busy(); });
+    return true;
+  }
+  if (save) {
     if (!SaveRequested(false)) return false;
     wait_until([this] {
       return !encrypting_ && !snapshot_in_progress_ && !persistence_.Busy();
     });
+    // An encrypted snapshot older than the text saves only what it holds:
+    // the newer edits are still unsaved, so the note stays open.
     return persistence_.IsClean();
   }
   // Discard: nothing queued runs, and what runs finishes.
@@ -1536,6 +1546,10 @@ auto NotePageView::ask_and_close() -> bool {
 }
 
 auto NotePageView::CloseRequested() -> bool { return ask_and_close(); }
+
+auto NotePageView::CloseDecided(bool save) -> std::optional<bool> {
+  return close_as_decided(save);
+}
 
 void NotePageView::FindRequested() {
   if (state_ != State::kOPEN) return;
