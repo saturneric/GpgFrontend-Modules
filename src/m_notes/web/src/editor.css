@@ -82,6 +82,11 @@ button { font: inherit; color: inherit; }
 .preview-heading1 .text { font-size: 20px; font-weight: 650; }
 .preview-heading2 .text { font-size: 17px; font-weight: 650; }
 .preview-heading3 .text { font-size: 15px; font-weight: 650; }
+.preview-heading4 .text { font-weight: 650; }
+.preview-heading5 .text { font-size: 13px; font-weight: 650; }
+.preview-heading6 .text { font-size: 12px; font-weight: 650; color: var(--muted); }
+.preview-codeBlock .text { font-family: ui-monospace, "SFMono-Regular", "JetBrains Mono", Menlo,
+  Consolas, monospace; }
 
 /* --- find and link --------------------------------------------------------- */
 
@@ -116,12 +121,15 @@ button { font: inherit; color: inherit; }
 .ProseMirror > :first-child { margin-top: 0; }
 .ProseMirror p.is-empty::before { content: attr(data-placeholder); float: left; height: 0;
   color: var(--muted); pointer-events: none; }
-.ProseMirror h1, .ProseMirror h2, .ProseMirror h3, .ProseMirror h4 { line-height: 1.25;
+.ProseMirror h1, .ProseMirror h2, .ProseMirror h3, .ProseMirror h4,
+.ProseMirror h5, .ProseMirror h6 { line-height: 1.25;
   font-weight: 650; letter-spacing: -0.01em; }
 .ProseMirror h1 { font-size: 2em; margin: 1.1em 0 0.45em; }
 .ProseMirror h2 { font-size: 1.5em; margin: 1.1em 0 0.4em; }
 .ProseMirror h3 { font-size: 1.22em; margin: 1em 0 0.35em; }
 .ProseMirror h4 { font-size: 1.05em; margin: 1em 0 0.3em; }
+.ProseMirror h5 { font-size: 0.95em; margin: 1em 0 0.3em; }
+.ProseMirror h6 { font-size: 0.88em; margin: 1em 0 0.3em; color: var(--muted); }
 .ProseMirror p { margin: 0.55em 0; }
 .ProseMirror ul, .ProseMirror ol { padding-left: 1.6em; margin: 0.5em 0; }
 .ProseMirror li > p { margin: 0.2em 0; }

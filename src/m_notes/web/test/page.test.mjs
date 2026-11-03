@@ -112,6 +112,29 @@ test("the text style menu shows the current block", () => {
   assert.equal($("block-style").textContent, "Normal text");
 });
 
+test("the text style menu offers every heading and a code block", () => {
+  load("#### Four\n\n###### Six\n\n```\ncode\n```");
+  const ed = document.querySelector(".ProseMirror").editor;
+  ed.commands.setTextSelection(2);
+  assert.equal($("block-style").textContent, "Heading 4");
+  ed.commands.setTextSelection(9);
+  assert.equal($("block-style").textContent, "Heading 6");
+  let code = 0;
+  ed.state.doc.descendants((n, pos) => { if (n.type.name === "codeBlock") code = pos + 2; });
+  ed.commands.setTextSelection(code);
+  assert.equal($("block-style").textContent, "Code block");
+
+  $("block-style").click();
+  const items = [...$("block-menu").querySelectorAll(".menu-item .text")].map((t) => t.textContent);
+  assert.deepEqual(items, ["Normal text", "Heading 1", "Heading 2", "Heading 3", "Heading 4",
+                           "Heading 5", "Heading 6", "Code block"]);
+  const five = [...$("block-menu").querySelectorAll(".menu-item")]
+    .find((b) => b.textContent.startsWith("Heading 5"));
+  ed.commands.setTextSelection(2);
+  five.click();
+  assert.equal(ed.getMarkdown().split("\n")[0], "##### Four");
+});
+
 test("find counts matches and says when there are none", () => {
   load("apple pie, apple tart");
   deliver({ type: "find.open" });

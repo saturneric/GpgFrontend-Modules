@@ -49,6 +49,9 @@ const S = {
   heading1: "Heading 1",
   heading2: "Heading 2",
   heading3: "Heading 3",
+  heading4: "Heading 4",
+  heading5: "Heading 5",
+  heading6: "Heading 6",
   textStyle: "Text style",
   bold: "Bold",
   italic: "Italic",
@@ -320,6 +323,14 @@ const kBlocks = [
     active: (e) => e.isActive("heading", { level: 2 }) },
   { id: "heading3", keys: "Mod+Alt+3", run: (c) => c.toggleHeading({ level: 3 }),
     active: (e) => e.isActive("heading", { level: 3 }) },
+  { id: "heading4", keys: "Mod+Alt+4", run: (c) => c.toggleHeading({ level: 4 }),
+    active: (e) => e.isActive("heading", { level: 4 }) },
+  { id: "heading5", keys: "Mod+Alt+5", run: (c) => c.toggleHeading({ level: 5 }),
+    active: (e) => e.isActive("heading", { level: 5 }) },
+  { id: "heading6", keys: "Mod+Alt+6", run: (c) => c.toggleHeading({ level: 6 }),
+    active: (e) => e.isActive("heading", { level: 6 }) },
+  { id: "codeBlock", keys: "Mod+Alt+C", run: (c) => c.setCodeBlock(),
+    active: (e) => e.isActive("codeBlock") },
 ];
 
 const kGroups = [
@@ -490,8 +501,7 @@ function refreshToolbar() {
   }
   const style = $("block-style");
   const current = editor && kBlocks.find((b) => b.active(editor));
-  const inCode = !current && !!editor && editor.isActive("codeBlock");
-  style.querySelector(".label").textContent = current ? S[current.id] : (inCode ? S.codeBlock : S.paragraph);
+  style.querySelector(".label").textContent = current ? S[current.id] : S.paragraph;
   style.disabled = !editor || !editor.isEditable;
   bar.querySelector('[data-tool="find"]').disabled = !editor;
   if (!$("find").hidden) setPressed("find", true);
