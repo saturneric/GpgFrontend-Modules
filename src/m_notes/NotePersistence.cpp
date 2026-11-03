@@ -42,14 +42,12 @@ void NotePersistence::Edited(quint64 gen, qint64 now) {
   if (uncaptured_since_ < 0) uncaptured_since_ = now;
 }
 
-void NotePersistence::ProtectionChanged(quint64 rev) { rev_ = rev; }
-
-void NotePersistence::Opened(quint64 gen, quint64 rev) {
+void NotePersistence::Opened(quint64 gen, bool plain_file) {
   edit_gen_ = gen;
-  rev_ = rev;
   has_saved_ = true;
   saved_gen_ = gen;
-  saved_rev_ = rev;
+  written_plain_ = plain_file;
+  written_revision_.clear();
   captured_gen_ = gen;
   uncaptured_since_ = -1;
 }
@@ -66,6 +64,7 @@ auto NotePersistence::Revise(Snapshot snapshot, const QString& path)
   job.kind = JobKind::kREVISION;
   job.snapshot = std::move(snapshot);
   job.destination = path;
+  job.epoch = epoch_;
   enqueue(job);
   return job.id;
 }
@@ -90,6 +89,20 @@ auto NotePersistence::SavePlain(Snapshot snapshot, const QString& destination)
   return job.id;
 }
 
+auto NotePersistence::DropRevision() -> QString {
+  ++epoch_;
+  const auto path = revision_.exists ? revision_.path : QString();
+  revision_ = {};
+  // A save not started yet would find nothing to move; it is dropped too.
+  queue_.erase(std::remove_if(queue_.begin(), queue_.end(),
+                              [](const Job& j) {
+                                return j.kind == JobKind::kREVISION ||
+                                       j.kind == JobKind::kSAVE;
+                              }),
+               queue_.end());
+  return path;
+}
+
 void NotePersistence::CancelQueued() { queue_.clear(); }
 
 void NotePersistence::enqueue(Job job) {
@@ -108,7 +121,7 @@ void NotePersistence::pump() {
         continue;
       }
       job.source = revision_.path;
-      job.snapshot = {revision_.edit_gen, revision_.protection_rev, nullptr};
+      job.snapshot = {revision_.edit_gen, revision_.readers, nullptr};
     }
     running_ = job;
     run_(job);
@@ -123,16 +136,16 @@ void NotePersistence::Finished(quint64 id, bool ok, const QString& why) {
 
   if (ok) {
     if (job.kind == JobKind::kREVISION) {
-      revision_ = {true, job.snapshot.edit_gen, job.snapshot.protection_rev,
-                   job.destination};
-    } else {
-      // Moved: the temporary file is gone.
-      if (job.kind == JobKind::kSAVE && revision_.path == job.source) {
-        revision_ = {};
+      // Made before the encryption was taken off: it is not wanted.
+      if (job.epoch == epoch_) {
+        revision_ = {true, job.snapshot.edit_gen, job.snapshot.readers,
+                     job.destination};
       }
+    } else {
       has_saved_ = true;
       saved_gen_ = job.snapshot.edit_gen;
-      saved_rev_ = job.snapshot.protection_rev;
+      written_plain_ = job.kind == JobKind::kSAVE_PLAIN;
+      written_revision_ = job.kind == JobKind::kSAVE ? job.source : QString();
     }
   }
   if (done_) done_(job, ok, why);

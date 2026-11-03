@@ -36,6 +36,8 @@
 #include <QPainter>
 #include <QPainterPath>
 #include <QPixmap>
+#include <QStyle>
+#include <algorithm>
 
 namespace gf::notes {
 
@@ -203,16 +205,55 @@ void NoteGlyph::Paint(QPainter& p, const QRectF& r, Kind kind,
   p.restore();
 }
 
-// --- the card ----------------------------------------------------------------
+// --- the status button -------------------------------------------------------
 
-NoteCard::NoteCard(QWidget* parent) : QWidget(parent) {}
+NoteStatusButton::NoteStatusButton(QWidget* parent) : QToolButton(parent) {
+  setAutoRaise(true);
+  setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+  setIconSize(QSize(16, 16));
+  setCursor(Qt::PointingHandCursor);
+  setFocusPolicy(Qt::TabFocus);
+  // The whole button opens the menu: what the note is and what can be done
+  // about it are the same question.
+  setPopupMode(QToolButton::InstantPopup);
+  NoteScaleFont(this, 0.92);
+  // As wide as its wording and no wider; it gives way on a narrow tab.
+  setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Preferred);
+}
 
-void NoteCard::paintEvent(QPaintEvent* /*event*/) {
-  QPainter p(this);
-  p.setRenderHint(QPainter::Antialiasing);
-  p.setPen(QPen(gf::ui::BorderColor(this), 1));
-  p.setBrush(palette().color(QPalette::Base));
-  p.drawRoundedRect(QRectF(rect()).adjusted(0.5, 0.5, -0.5, -0.5), 8, 8);
+void NoteStatusButton::SetFullText(const QString& text) {
+  if (full_ == text) return;
+  full_ = text;
+  updateGeometry();
+  fit();
+}
+
+auto NoteStatusButton::sizeHint() const -> QSize {
+  auto hint = QToolButton::sizeHint();
+  if (full_.isEmpty()) return hint;
+  const QFontMetrics metrics(font());
+  hint.setWidth(hint.width() + metrics.horizontalAdvance(full_) -
+                metrics.horizontalAdvance(text()));
+  return hint;
+}
+
+void NoteStatusButton::resizeEvent(QResizeEvent* event) {
+  QToolButton::resizeEvent(event);
+  fit();
+}
+
+void NoteStatusButton::fit() {
+  if (full_.isEmpty()) return;
+  // The icon, its spacing and the menu arrow are not the text's to use.
+  const int reserved =
+      iconSize().width() +
+      (style()->pixelMetric(QStyle::PM_ToolBarItemSpacing, nullptr, this) * 2) +
+      style()->pixelMetric(QStyle::PM_MenuButtonIndicator, nullptr, this);
+  const QFontMetrics metrics(font());
+  const int available = std::max(0, contentsRect().width() - reserved);
+  const auto elided = metrics.elidedText(full_, Qt::ElideRight, available);
+  // Guarded: setText re-runs the layout, which can resize this button again.
+  if (elided != text()) setText(elided);
 }
 
 }  // namespace gf::notes

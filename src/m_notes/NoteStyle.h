@@ -30,6 +30,7 @@
 
 #include <QColor>
 #include <QIcon>
+#include <QToolButton>
 #include <QWidget>
 
 class QPainter;
@@ -81,13 +82,28 @@ class NoteGlyph : public QWidget {
   QColor color_;
 };
 
-/// A rounded panel on the base colour, with the application's border.
-class NoteCard : public QWidget {
+/**
+ * @brief The note's status, as the e-mail view shows a message's: a flat
+ * button in a slightly smaller font, sized by its full wording and drawing as
+ * much of it as fits, which opens a menu of what can be done next.
+ *
+ * Sized by the full text rather than by what is drawn, so a narrowed tab
+ * that is widened again gets the whole wording back.
+ */
+class NoteStatusButton : public QToolButton {
  public:
-  explicit NoteCard(QWidget* parent = nullptr);
+  explicit NoteStatusButton(QWidget* parent = nullptr);
+
+  /// The wording this button stands for, whatever it ends up drawing.
+  void SetFullText(const QString& text);
+  [[nodiscard]] auto sizeHint() const -> QSize override;
 
  protected:
-  void paintEvent(QPaintEvent* event) override;
+  void resizeEvent(QResizeEvent* event) override;
+
+ private:
+  void fit();
+  QString full_;
 };
 
 }  // namespace gf::notes

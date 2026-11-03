@@ -44,26 +44,33 @@
  * at a time, in the order asked.
  *
  *  - Encrypt makes a revision: the note as it was, encrypted, in a temporary
- *    file. Save moves the latest revision -- as it is when the save runs --
- *    to the note's file. A note never encrypted is saved as it is instead.
- *  - The tab is clean only while the current generation and protection
- *    revision are exactly what the last successful save wrote.
+ *    file, with the readers it was encrypted for. Save writes the latest
+ *    revision -- as it is when the save runs -- to the note's file, and keeps
+ *    it. A note without one is saved as it is instead.
+ *  - The tab is clean only while the current generation is exactly what the
+ *    last successful save wrote: saving an older revision leaves newer edits
+ *    unsaved.
+ *  - Removing the encryption drops the revision; one still being made is
+ *    dropped when it finishes.
  *  - Separately, it says when the in-memory recovery record (which the Host
  *    keeps with its other unsaved tabs) is due to be refreshed.
  */
+
+#include "NoteProtection.h"
 
 namespace gf::notes {
 
 struct Snapshot {
   quint64 edit_gen = 0;
-  quint64 protection_rev = 0;
-  /// What the run needs (the note, the protection); opaque here.
+  ProtectionConfig readers;  ///< kREVISION: who it is encrypted for
+  /// What the run needs (the note, the readers); opaque here.
   std::shared_ptr<const void> payload;
 };
 
 /// kREVISION: the user's Encrypt -- the note packed and encrypted into a
-/// temporary file. kSAVE: the latest revision moved to where it belongs.
-/// kSAVE_PLAIN: a note never encrypted, packed and written as it is.
+/// temporary file. kSAVE: the latest revision copied to where it belongs; it
+/// stays the note's encrypted snapshot. kSAVE_PLAIN: a note without one,
+/// packed and written as it is.
 enum class JobKind { kREVISION, kSAVE, kSAVE_PLAIN };
 
 struct Job {
@@ -72,13 +79,14 @@ struct Job {
   Snapshot snapshot;    ///< kSAVE: the revision's generation, set when it runs
   QString destination;  ///< kREVISION: the temporary file; else where to
   QString source;       ///< kSAVE: the revision file, set when it runs
+  quint64 epoch = 0;    ///< kREVISION: dropped if the revision was since
 };
 
-/// The latest Encrypt, waiting in a temporary file to be saved.
+/// The latest Encrypt, in a temporary file: what Save writes.
 struct RevisionSlot {
   bool exists = false;
   quint64 edit_gen = 0;
-  quint64 protection_rev = 0;
+  ProtectionConfig readers;
   QString path;
 };
 
@@ -99,10 +107,9 @@ class NotePersistence {
 
   /// The page's document is now at @p gen (edited at @p now, ms).
   void Edited(quint64 gen, qint64 now);
-  /// The protection changed: everything encrypted before is stale.
-  void ProtectionChanged(quint64 rev);
-  /// An existing note was opened: its state on disk.
-  void Opened(quint64 gen, quint64 rev);
+  /// An existing note was opened: its state on disk, a plain TextPack or
+  /// not (an encrypted one, decrypted to be edited).
+  void Opened(quint64 gen, bool plain_file);
   /// The recovery record now holds generation @p gen.
   void Captured(quint64 gen);
 
@@ -110,11 +117,14 @@ class NotePersistence {
 
   /// Encrypt the note as it is in @p snapshot, into @p path.
   auto Revise(Snapshot snapshot, const QString& path) -> quint64;
-  /// Move the latest revision -- as it is when this runs, so one revised
-  /// just before is the one moved -- to @p destination.
+  /// Write the latest revision -- as it is when this runs, so one revised
+  /// just before is the one written -- to @p destination. It is kept.
   auto Save(const QString& destination) -> quint64;
   /// Write the note in @p snapshot, unencrypted, to @p destination.
   auto SavePlain(Snapshot snapshot, const QString& destination) -> quint64;
+  /// The encryption is taken off: forget the revision, and drop one still
+  /// being made when it finishes. @return the revision file to remove.
+  auto DropRevision() -> QString;
   /// Drop everything not started yet.
   void CancelQueued();
   /// The run for @p id ended.
@@ -123,16 +133,21 @@ class NotePersistence {
   /* --- state --- */
 
   [[nodiscard]] auto EditGen() const -> quint64 { return edit_gen_; }
-  [[nodiscard]] auto ProtectionRev() const -> quint64 { return rev_; }
   [[nodiscard]] auto SavedGen() const -> quint64 { return saved_gen_; }
   [[nodiscard]] auto IsClean() const -> bool {
-    return has_saved_ && edit_gen_ == saved_gen_ && rev_ == saved_rev_;
+    return has_saved_ && edit_gen_ == saved_gen_;
+  }
+  /// The note's file is what Save would write now, as far as encryption
+  /// goes: the current revision, or a plain TextPack when there is none.
+  [[nodiscard]] auto WrittenIsCurrent() const -> bool {
+    if (!has_saved_) return false;
+    return revision_.exists ? written_revision_ == revision_.path
+                            : written_plain_;
   }
   [[nodiscard]] auto Revision() const -> RevisionSlot { return revision_; }
-  /// The latest revision has everything: no edit or protection change since.
+  /// The latest revision has everything: no edit since it was made.
   [[nodiscard]] auto RevisionCurrent() const -> bool {
-    return revision_.exists && revision_.edit_gen == edit_gen_ &&
-           revision_.protection_rev == rev_;
+    return revision_.exists && revision_.edit_gen == edit_gen_;
   }
   [[nodiscard]] auto Busy() const -> bool {
     return running_.has_value() || !queue_.isEmpty();
@@ -153,10 +168,11 @@ class NotePersistence {
 
   RevisionSlot revision_;
   quint64 edit_gen_ = 0;
-  quint64 rev_ = 0;
+  quint64 epoch_ = 0;  ///< bumped when the revision is dropped
   bool has_saved_ = false;
   quint64 saved_gen_ = 0;
-  quint64 saved_rev_ = 0;
+  bool written_plain_ = false;  ///< the last file written is a plain TextPack
+  QString written_revision_;    ///< or this revision, encrypted
 
   // When the edits not yet in the recovery record began, and the last edit.
   qint64 uncaptured_since_ = -1;

@@ -39,8 +39,8 @@
 
 /**
  * @file NotesModule.cpp
- * @brief Encrypted notes: rich text, kept as a TextPack encrypted with
- * OpenPGP, in tabs whose files only this module reads and writes.
+ * @brief Notes: rich text, kept as a TextPack and encrypted with OpenPGP
+ * when the user asks, in tabs whose files only this module reads and writes.
  */
 
 using namespace Qt::StringLiterals;
@@ -53,7 +53,7 @@ using CommandMeta = gf::cmd::Meta;
 struct NewNote {
   static constexpr CommandMeta kMeta{GF_MODULE_ID ".new_note",
                                      GTrC::Noop("Note Editor"),
-                                     GTrC::Noop("Write a new encrypted note."),
+                                     GTrC::Noop("Write a new note."),
                                      "",
                                      0,
                                      gf::cmd::kNeedsGuiThread};

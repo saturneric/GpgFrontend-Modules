@@ -43,8 +43,8 @@ struct Harness {
       [this](const Job& j) { started.append(j); },
       [this](const Job& j, bool ok, const QString&) { done.append({j, ok}); }};
 
-  auto Snap(quint64 gen) -> Snapshot {
-    return {gen, p.ProtectionRev(), nullptr};
+  auto Snap(quint64 gen, ProtectionConfig readers = {}) -> Snapshot {
+    return {gen, std::move(readers), nullptr};
   }
   auto Last() -> const Job& { return started.last(); }
   void Finish(bool ok = true) { p.Finished(started.last().id, ok); }
@@ -84,7 +84,7 @@ TEST(NotePersistenceTest, JobsRunInTheOrderAsked) {
 
 TEST(NotePersistenceTest, AFailedSaveChangesNothing) {
   Harness h;
-  h.p.Opened(5, 1);
+  h.p.Opened(5, false);
   h.p.Edited(6, 0);
   h.Commit(6, "a");
   h.Finish();       // revision
@@ -92,17 +92,6 @@ TEST(NotePersistenceTest, AFailedSaveChangesNothing) {
   EXPECT_FALSE(h.p.IsClean());
   EXPECT_EQ(h.p.SavedGen(), 5U);
   EXPECT_TRUE(h.p.Revision().exists) << "still there to try again";
-}
-
-TEST(NotePersistenceTest, AProtectionChangeLeavesTheTabDirty) {
-  Harness h;
-  h.p.Opened(1, 1);
-  h.p.Edited(2, 0);
-  h.Commit(2, "a");  // revision under rev 1
-  h.p.ProtectionChanged(2);
-  h.Finish();
-  h.Finish();
-  EXPECT_FALSE(h.p.IsClean()) << "saved under rev 1, now rev 2";
 }
 
 TEST(NotePersistenceTest, CompletionOrderCannotMarkNewerEditsClean) {
@@ -135,7 +124,7 @@ TEST(NotePersistenceTest, TheRecoveryRecordFollowsEditsButNotEveryKeystroke) {
   EXPECT_TRUE(busy.p.CaptureDue(10000)) << "10 s since the first edit";
 }
 
-TEST(NotePersistenceTest, SavingMovesTheLatestRevisionAndUsesItUp) {
+TEST(NotePersistenceTest, SavingWritesTheLatestRevisionAndKeepsIt) {
   Harness h;
   h.p.Edited(1, 0);
   h.p.Revise(h.Snap(1), "r1");
@@ -153,7 +142,8 @@ TEST(NotePersistenceTest, SavingMovesTheLatestRevisionAndUsesItUp) {
   EXPECT_EQ(h.Last().snapshot.edit_gen, 2U);
   h.Finish();
   EXPECT_TRUE(h.p.IsClean());
-  EXPECT_FALSE(h.p.Revision().exists) << "moved, so gone";
+  EXPECT_TRUE(h.p.Revision().exists) << "still the note's encrypted snapshot";
+  EXPECT_TRUE(h.p.RevisionCurrent());
 }
 
 TEST(NotePersistenceTest, SavingWithoutARevisionFailsAndChangesNothing) {
@@ -166,14 +156,58 @@ TEST(NotePersistenceTest, SavingWithoutARevisionFailsAndChangesNothing) {
   EXPECT_FALSE(h.p.IsClean());
 }
 
-TEST(NotePersistenceTest, AProtectionChangeMakesTheRevisionStale) {
+TEST(NotePersistenceTest, SavingAnOutdatedRevisionLeavesNewerEditsUnsaved) {
   Harness h;
-  h.p.Opened(1, 1);
-  h.p.Revise(h.Snap(1), "r");
+  h.p.Opened(1, true);
+  h.p.Edited(2, 0);
+  h.p.Revise(h.Snap(2), "r2");
   h.Finish();
-  EXPECT_TRUE(h.p.RevisionCurrent());
-  h.p.ProtectionChanged(2);
+  h.p.Edited(3, 10);
   EXPECT_FALSE(h.p.RevisionCurrent());
+  h.p.Save("a.textpack.gpg");
+  EXPECT_EQ(h.Last().snapshot.edit_gen, 2U);
+  h.Finish();
+  EXPECT_EQ(h.p.SavedGen(), 2U);
+  EXPECT_FALSE(h.p.IsClean()) << "3 is in no file";
+  EXPECT_FALSE(h.p.RevisionCurrent()) << "still outdated";
+}
+
+TEST(NotePersistenceTest, ARevisionKeepsTheReadersItWasMadeFor) {
+  Harness h;
+  auto alice = ProtectionConfig::ForCheckedKeys({u"AAAA"_s});
+  h.p.Edited(1, 0);
+  h.p.Revise(h.Snap(1, alice), "r1");
+  h.Finish();
+  EXPECT_EQ(h.p.Revision().readers, alice);
+  h.p.Save("a.textpack.gpg");
+  EXPECT_EQ(h.Last().snapshot.readers, alice);
+}
+
+TEST(NotePersistenceTest, AFailedRevisionKeepsThePreviousOne) {
+  Harness h;
+  h.p.Edited(1, 0);
+  h.p.Revise(h.Snap(1), "r1");
+  h.Finish();
+  h.p.Edited(2, 10);
+  h.p.Revise(h.Snap(2), "r2");
+  h.Finish(false);
+  EXPECT_EQ(h.p.Revision().path, u"r1"_s);
+  EXPECT_FALSE(h.p.RevisionCurrent()) << "and its freshness, outdated";
+}
+
+TEST(NotePersistenceTest, TakingOffTheEncryptionDropsEvenARevisionInFlight) {
+  Harness h;
+  h.p.Edited(1, 0);
+  h.p.Revise(h.Snap(1), "r1");
+  h.Finish();
+  h.p.Revise(h.Snap(1), "r2");  // running
+  h.p.Save("a.textpack.gpg");   // queued behind it
+  EXPECT_EQ(h.p.DropRevision(), u"r1"_s);
+  EXPECT_FALSE(h.p.Revision().exists);
+  h.Finish();  // r2 ends after the drop
+  EXPECT_FALSE(h.p.Revision().exists) << "not revived by a late result";
+  EXPECT_EQ(h.started.size(), 2) << "the save behind it was dropped";
+  EXPECT_EQ(h.p.DropRevision(), QString()) << "nothing left to remove";
 }
 
 TEST(NotePersistenceTest, ANoteNeverEncryptedIsSavedAsItIs) {
@@ -187,4 +221,32 @@ TEST(NotePersistenceTest, ANoteNeverEncryptedIsSavedAsItIs) {
   EXPECT_FALSE(h.p.IsClean()) << "edited while saving";
   EXPECT_EQ(h.p.SavedGen(), 1U);
   EXPECT_FALSE(h.p.Revision().exists);
+}
+
+TEST(NotePersistenceTest, SaveIsDueWhenTheFileIsNotInTheFormNowWanted) {
+  Harness h;
+  h.p.Opened(1, true);  // a plain TextPack
+  EXPECT_TRUE(h.p.IsClean());
+  EXPECT_TRUE(h.p.WrittenIsCurrent());
+
+  h.p.Revise(h.Snap(1), "r1");  // encrypted, not one edit since
+  h.Finish();
+  EXPECT_TRUE(h.p.IsClean()) << "the text is all in the file";
+  EXPECT_FALSE(h.p.WrittenIsCurrent()) << "but not encrypted";
+  h.p.Save("a.textpack.gpg");
+  h.Finish();
+  EXPECT_TRUE(h.p.WrittenIsCurrent());
+
+  h.p.DropRevision();
+  EXPECT_FALSE(h.p.WrittenIsCurrent()) << "the file is still encrypted";
+  h.p.SavePlain(h.Snap(1), "a.textpack");
+  h.Finish();
+  EXPECT_TRUE(h.p.WrittenIsCurrent());
+}
+
+TEST(NotePersistenceTest, ADecryptedNoteIsCleanButSavedAgainAsPlain) {
+  Harness h;
+  h.p.Opened(0, false);  // a .textpack.gpg, decrypted to be edited
+  EXPECT_TRUE(h.p.IsClean()) << "closing it loses nothing";
+  EXPECT_FALSE(h.p.WrittenIsCurrent()) << "Save writes a plain TextPack";
 }

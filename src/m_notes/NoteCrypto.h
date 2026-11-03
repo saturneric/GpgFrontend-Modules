@@ -40,7 +40,7 @@
 /**
  * @file NoteCrypto.h
  * @brief Everything the notes module asks of the Host's OpenPGP, through
- * its ordinary SDK: who a file is encrypted to, what keys are called,
+ * its ordinary SDK: whether a file is encrypted, what keys are called,
  * encrypting a pack to keys or with a passphrase (which the Host asks for),
  * and decrypting it the way the Host's own Decrypt does. And the ZIP.
  *
@@ -69,10 +69,25 @@ struct CryptoResult {
 
 auto CurrentChannel() -> int;
 
-/// Who @p file is encrypted to, and whether a passphrase opens it; nullopt
-/// when it is not an OpenPGP encrypted message at all.
-auto SniffPackets(int channel, const QByteArray& file)
-    -> std::optional<QList<DetectedPacket>>;
+/// Whether @p file is an OpenPGP encrypted message.
+auto IsEncryptedMessage(const QByteArray& file) -> bool;
+
+/// One key an encrypted file names, as far as this key database knows it.
+struct FileRecipient {
+  QString key_id;           ///< as the file gives it
+  QString uid;              ///< the key's primary UID here; empty when unknown
+  bool hidden = false;      ///< the file does not say whose key it is
+  bool found = false;       ///< the key is in this key database
+  bool has_secret = false;  ///< and can open the file here
+};
+
+/// Who an encrypted file is for: the keys it names, and whether a password
+/// opens it too. Read from the file itself, before anything is decrypted.
+struct FileReaders {
+  QList<FileRecipient> keys;
+  bool password = false;
+};
+auto ReadersOf(int channel, const QByteArray& file) -> FileReaders;
 
 /// Facts for @p fingerprints, keyed by fingerprint (upper case).
 auto DescribeKeys(int channel, const QStringList& fingerprints)

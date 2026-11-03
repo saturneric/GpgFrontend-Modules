@@ -44,27 +44,31 @@
 
 class QLabel;
 class QLockFile;
-class QPushButton;
-class QScrollArea;
+class QMenu;
 class QStackedWidget;
 class QTimer;
 class QToolButton;
+class QTreeWidget;
 class QUrl;
 class QVBoxLayout;
 
 namespace gf::notes {
 
 class NoteGlyph;
+class NoteStatusButton;
 
 /**
- * @brief One encrypted note, in a tab of its own (persistence = "module").
+ * @brief One note, in a tab of its own (persistence = "module").
  *
- * Locked: the file's ciphertext and what its packets say. Open: the
- * decrypted pack in memory and the editor page. Encrypt makes a revision,
- * Save moves it to the note's file, or writes a never-encrypted note as a
- * plain TextPack. Unsaved work is kept the way every other tab keeps it: in
- * the Host's recovery cache (Save()/Load()). Locking and closing wait for
- * anything in flight, then forget.
+ * A note is its text, open in the editor page, and optionally the last
+ * encrypted snapshot of it. Everything goes through the Host's toolbar: an
+ * encrypted file waits for Decrypt; Encrypt makes a snapshot for the keys
+ * checked in the Key ToolBox, or with a passphrase when none are; Decrypt
+ * then takes it off again; Save writes the snapshot when there is one and
+ * the text as a plain TextPack when there is not, and never encrypts.
+ * Unsaved work is kept the way every other tab keeps it: in the Host's
+ * recovery cache (Save()/Load()). Closing waits for anything in flight, then
+ * forgets.
  */
 class NotePageView : public QWidget, public gf::ui::DocumentWidget {
   Q_OBJECT
@@ -90,36 +94,50 @@ class NotePageView : public QWidget, public gf::ui::DocumentWidget {
   auto CloseRequested() -> bool override;
   void FindRequested() override;
   auto EncryptRequested() -> bool override;
+  auto DecryptRequested() -> bool override;
+  [[nodiscard]] auto CryptoOperationTip(uint32_t op) const
+      -> std::optional<QString> override;
+  [[nodiscard]] auto SaveAllowed() const -> bool override;
 
  protected:
   void changeEvent(QEvent* event) override;
 
  private:
-  enum class State : uint8_t { kNEW, kLOCKED, kUNLOCKING, kOPEN, kUNAVAILABLE };
-
-  /// How many revisions a note keeps in its temporary folder.
-  static constexpr int kKeptRevisions = 3;
+  enum class State : uint8_t {
+    kNEW,
+    kENCRYPTED,   ///< an encrypted file, waiting for Decrypt
+    kDECRYPTING,  ///< Decrypt is running
+    kOPEN,
+    kUNAVAILABLE,
+  };
 
   void build_ui();
-  void show_locked(const QString& status = {});
-  /// Sizes the recipient list to its rows, or to five and a half of them
-  /// when there are more: the half row says the list scrolls.
-  void fit_recipients();
+  /// The encrypted file, and why the last Decrypt failed, if it did.
+  void show_encrypted(const QString& status = {});
+  /// The keys the encrypted file names, and what that means for the user.
+  void fill_readers();
   void show_open();
   void show_unavailable(const QString& why);
   void refresh_strip();
   void set_status(const QString& text, const QString& detail = {});
-  /// A message above the note; @p transient ones go by themselves.
-  void show_banner(const QString& text, bool warning, bool transient = false);
+  /// Says @p text -- a few words -- on the status button for a while, with
+  /// @p detail in its tooltip; a @p sticky one (a failure) stays until the
+  /// next Encrypt, Save or Decrypt.
+  void notice(const QString& text, bool warning, bool sticky = false,
+              const QString& detail = {});
+  void clear_notice();
+  /// The status button's menu: what the state means, and what to do next.
+  void rebuild_status_menu();
   void restyle();
   /// The application's colours and words, for the editor page.
   void post_ui();
 
   /// The note file's bytes; on failure the user is told why.
   auto read_file(const QString& path, QByteArray* bytes) -> bool;
-  /// Takes @p bytes as the locked note, once they are an encrypted one.
-  auto sniff_file(const QByteArray& bytes) -> bool;
-  void unlock();
+  /// Takes @p bytes as the encrypted note, once they are an encrypted one.
+  auto take_encrypted(const QByteArray& bytes) -> bool;
+  /// Decrypt the encrypted file, as the Host's Decrypt would.
+  void decrypt_file();
   void opened(const QByteArray& zip);
   /// Show @p note; @p unsaved when it comes from the recovery cache.
   void open_note(const Note& note, bool unsaved);
@@ -134,22 +152,23 @@ class NotePageView : public QWidget, public gf::ui::DocumentWidget {
   /// Tell the page the image @p token stands for is not coming, and why.
   void reject_image(const QString& token, const QString& why);
 
-  void assess();
-  /// The protection for the next revision: the keys checked in the Key
-  /// ToolBox, or, with none checked, a passphrase. Asks before anyone loses
-  /// access. @p done gets it, or nothing when the user stopped.
-  void choose_protection(
-      std::function<void(std::optional<ProtectionConfig>)> done);
-  void adopt_protection(const ProtectionConfig& config);
-  void record_confirmation();
-  /// Encrypt into a new revision; then, when @p then_save, save it.
-  void encrypt(bool then_save, bool save_as);
-  /// Where Save puts the revision: the note's file, or one the user picks.
+  /// Encrypt the text as it is now into a new snapshot, for the keys
+  /// checked in the Key ToolBox, or with a passphrase when none are.
+  void encrypt();
+  /// Drop the snapshot; the text stays exactly as it is.
+  void remove_encryption();
+  /// Where Save writes: the note's file, or one the user picks.
   auto choose_destination(bool save_as, bool encrypted) -> QString;
-  /// Check this note's keys in the Key ToolBox (none, for a passphrase).
+  /// Check the snapshot's keys in the Key ToolBox (none, for a passphrase).
   void restore_checked_keys();
+  /// Read which keys the Key ToolBox has checked now; the strip says when
+  /// they are not the snapshot's.
+  void refresh_checked_keys();
   auto revision_dir() -> QString;
-  void prune_revisions();
+  /// Keep only @p current of this tab's revision files.
+  void keep_only_revision(const QString& current);
+  /// Names for the snapshot's readers, worked out once per snapshot.
+  void describe_readers();
 
   /// Ask the page for the document; @p done gets a snapshot, or nullopt.
   void request_snapshot(std::function<void(std::optional<Snapshot>)> done);
@@ -164,15 +183,14 @@ class NotePageView : public QWidget, public gf::ui::DocumentWidget {
   /// Wait, keeping the application responsive, until @p ready or a minute.
   void wait_until(const std::function<bool()>& ready);
   auto ask_and_close() -> bool;
-  void lock();
   void forget();
 
   State state_ = State::kNEW;
   int channel_ = 0;
   QString path_;  ///< where explicit saves go; empty until first save
 
-  QByteArray file_;  ///< the ciphertext, while locked
-  QList<DetectedPacket> packets_;
+  QByteArray file_;           ///< the ciphertext, until it is decrypted
+  FileReaders file_readers_;  ///< who file_ is encrypted for
   Note note_;
   QString front_matter_;
   QStringList managed_;  ///< assets this application added
@@ -180,10 +198,15 @@ class NotePageView : public QWidget, public gf::ui::DocumentWidget {
 
   bool plain_ = false;  ///< the file is a TextPack saved without encryption
 
-  ProtectionConfig protection_;
-  Assessment assessment_;
-  bool protection_confirmed_ = false;
-  quint64 rev_ = 0;
+  /// The keys the Key ToolBox had checked when last asked.
+  std::optional<ProtectionConfig> checked_;
+  bool checked_asked_ = false;  ///< a KeysChecked is on its way
+  int checked_tick_ = 0;
+  /// Counts Remove Encryption, so an Encrypt begun before one is dropped.
+  quint64 removals_ = 0;
+  QString described_revision_;  ///< the snapshot the names below are for
+  QString readers_text_;
+  QStringList readers_lines_;  ///< one per reader, at most ten and a count
 
   gf::ui::WebEditor editor_;
   NoteBridge bridge_;
@@ -202,30 +225,25 @@ class NotePageView : public QWidget, public gf::ui::DocumentWidget {
 
   QString revision_dir_;                      ///< this tab's revisions
   std::unique_ptr<QLockFile> revision_lock_;  ///< says they are in use
-  bool encrypting_ = false;                   ///< an Encrypt is being prepared
+  bool encrypting_ = false;                   ///< an Encrypt is under way
 
   QStackedWidget* stack_ = nullptr;
-  // Locked
-  NoteGlyph* locked_glyph_ = nullptr;
-  QLabel* locked_title_ = nullptr;
-  QLabel* locked_facts_ = nullptr;
-  QPushButton* unlock_ = nullptr;  ///< the preferred way
-
-  QLabel* locked_status_ = nullptr;
-  QLabel* recipients_heading_ = nullptr;
-  QScrollArea* recipients_scroll_ = nullptr;  ///< a few rows tall at most
-  QVBoxLayout* recipients_ = nullptr;
-  QLabel* recipients_note_ = nullptr;
+  // Encrypted
+  QLabel* encrypted_title_ = nullptr;
+  QLabel* encrypted_facts_ = nullptr;
+  QLabel* encrypted_hint_ = nullptr;
+  QTreeWidget* readers_table_ = nullptr;
+  QLabel* encrypted_status_ = nullptr;
   // Open
   QWidget* header_ = nullptr;
-  QToolButton* protection_button_ = nullptr;
+  NoteStatusButton* status_button_ = nullptr;  ///< state; menu: next steps
+  QMenu* status_menu_ = nullptr;
   QLabel* save_state_ = nullptr;
-  QToolButton* lock_ = nullptr;
-  QWidget* banner_ = nullptr;
-  NoteGlyph* banner_glyph_ = nullptr;
-  QLabel* banner_text_ = nullptr;
-  bool banner_warning_ = false;
-  QTimer* banner_timer_ = nullptr;
+  QString notice_;  ///< said on the status button instead of the state
+  QString notice_detail_;
+  bool notice_warning_ = false;
+  QTimer* notice_timer_ = nullptr;
+  QString content_note_;  ///< what the editor cannot show of this note
   QWidget* slot_ = nullptr;
   // Unavailable
   QLabel* unavailable_ = nullptr;

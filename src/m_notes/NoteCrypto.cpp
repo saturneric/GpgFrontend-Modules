@@ -42,6 +42,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <algorithm>
 
 using namespace Qt::StringLiterals;
 
@@ -78,44 +79,52 @@ constexpr int kTagAead = 20;
 
 }  // namespace
 
-auto SniffPackets(int channel, const QByteArray& file)
-    -> std::optional<QList<DetectedPacket>> {
+auto IsEncryptedMessage(const QByteArray& file) -> bool {
   const auto tags = PacketTags(file);
-  if (!tags.has_value()) return std::nullopt;
-  const bool encrypted = tags->contains(kTagSeipd) ||
-                         tags->contains(kTagAead) || tags->contains(kTagSed);
-  if (!encrypted) return std::nullopt;
-
-  QList<DetectedPacket> packets;
-  if (tags->contains(kTagPkesk)) {
-    auto in = GFBuf::Copy(GFModuleSdkContext(), file);
-    GFGpgRecipientListRef list = nullptr;
-    if (GFGpgSniffRecipients(GFModuleSdkContext(), channel, in.View(), &list) ==
-        0) {
-      const auto n = GFGpgRecipientCount(GFModuleSdkContext(), list);
-      for (size_t i = 0; i < n; ++i) {
-        const auto* row = GFGpgRecipientAt(GFModuleSdkContext(), list, i);
-        if (row == nullptr) continue;
-        DetectedPacket p;
-        p.key_id = QString::fromUtf8(row->key_id).toUpper();
-        p.hidden = row->hidden != 0;
-        p.key_found = row->key_found != 0;
-        p.primary_fingerprint = QString::fromUtf8(row->fingerprint).toUpper();
-        p.label = QString::fromUtf8(row->uid);
-        p.has_secret = row->has_secret != 0;
-        packets << p;
-      }
-      GFGpgRecipientRelease(GFModuleSdkContext(), list);
-    }
-  }
-  for (const auto tag : *tags) {
-    if (tag != kTagSkesk) continue;
-    DetectedPacket p;
-    p.pkesk = false;
-    packets << p;
-  }
-  return packets;
+  return tags.has_value() &&
+         (tags->contains(kTagSeipd) || tags->contains(kTagAead) ||
+          tags->contains(kTagSed));
 }
+
+auto ReadersOf(int channel, const QByteArray& file) -> FileReaders {
+  FileReaders readers;
+  const auto tags = PacketTags(file);
+  if (!tags.has_value()) return readers;
+  readers.password = tags->contains(kTagSkesk);
+  if (!tags->contains(kTagPkesk)) return readers;
+  auto in = GFBuf::Copy(GFModuleSdkContext(), file);
+  GFGpgRecipientListRef list = nullptr;
+  if (GFGpgSniffRecipients(GFModuleSdkContext(), channel, in.View(), &list) !=
+      0) {
+    return readers;
+  }
+  const auto n = GFGpgRecipientCount(GFModuleSdkContext(), list);
+  for (size_t i = 0; i < n; ++i) {
+    const auto* row = GFGpgRecipientAt(GFModuleSdkContext(), list, i);
+    if (row == nullptr) continue;
+    FileRecipient r;
+    r.key_id = QString::fromUtf8(row->key_id).toUpper();
+    r.uid = QString::fromUtf8(row->uid);
+    r.hidden = row->hidden != 0;
+    r.found = row->key_found != 0;
+    r.has_secret = row->has_secret != 0;
+    readers.keys << r;
+  }
+  GFGpgRecipientRelease(GFModuleSdkContext(), list);
+  return readers;
+}
+
+namespace {
+
+/// How many key packets of @p file name a key found here, by name.
+auto NamedRecipients(int channel, const QByteArray& file) -> qsizetype {
+  const auto keys = ReadersOf(channel, file).keys;
+  return std::count_if(keys.cbegin(), keys.cend(), [](const FileRecipient& r) {
+    return r.found && !r.hidden;
+  });
+}
+
+}  // namespace
 
 auto DescribeKeys(int channel, const QStringList& fingerprints)
     -> QHash<QString, KeyFacts> {
@@ -190,12 +199,7 @@ auto Encrypt(int channel, const ProtectionConfig& config,
   // And each one got a packet. A packet names the encryption subkey, so this
   // counts them rather than matching primary fingerprints.
   if (!config.recipients.isEmpty()) {
-    qsizetype named = 0;
-    for (const auto& p :
-         SniffPackets(channel, r.data).value_or(QList<DetectedPacket>{})) {
-      if (p.pkesk && p.key_found && !p.hidden) ++named;
-    }
-    if (named < config.recipients.size()) {
+    if (NamedRecipients(channel, r.data) < config.recipients.size()) {
       r.ok = false;
       r.data.clear();
       r.why = u"not every reader could be encrypted to"_s;
