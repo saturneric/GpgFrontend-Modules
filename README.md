@@ -103,7 +103,7 @@ them to your include path):
 - [`src/sdk/`](../src/sdk): the `GFSDK*` functions, plus easier C++ wrappers
   in `GFSDK.hpp` under `gf::sdk::`. The full SDK manual is
   [`src/sdk/README.md`](../src/sdk/README.md).
-- [`src/module_runtime/include/`](../src/module_runtime/include): `GFModule.h`
+- [`src/mod_rt/include/`](../src/mod_rt/include): `GFModule.h`
   and friends. This is the header you include. It gives you the event types,
   memory helpers, logging macros and the startup function.
 

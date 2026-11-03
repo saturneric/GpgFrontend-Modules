@@ -66,7 +66,7 @@ message(STATUS "GpgFrontend Modules SDK Headers Path: ${SDK_INCLUDE_PATH} ")
 message(STATUS "GpgFrontend Modules SDK Library Path: ${SDK_LIB_PATH} ")
 
 # The module author surface now lives with the runtime that implements it
-# (src/module_runtime/include), and gf_add_module() puts it on the path by
+# (src/mod_rt/include), and gf_add_module() puts it on the path by
 # linking gf_module_runtime. Only the SDK headers are still needed here.
 include_directories(
   ${SDK_INCLUDE_PATH}

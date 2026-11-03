@@ -116,7 +116,7 @@ add_executable(gf_mod_email_net_test
 target_include_directories(gf_mod_email_net_test PRIVATE
   "${CMAKE_CURRENT_SOURCE_DIR}/.."
   "${CMAKE_CURRENT_SOURCE_DIR}/../vmime/src"
-  "${CMAKE_SOURCE_DIR}/src/module_runtime/include"
+  "${CMAKE_SOURCE_DIR}/src/mod_rt/include"
   "${CMAKE_BINARY_DIR}/src/vmime"
   "${CMAKE_BINARY_DIR}/src"
   "${CMAKE_BINARY_DIR}/src/sdk")
@@ -167,7 +167,7 @@ add_executable(gf_mod_email_crypto_test
 target_include_directories(gf_mod_email_crypto_test PRIVATE
   "${CMAKE_CURRENT_SOURCE_DIR}/.."
   "${CMAKE_CURRENT_SOURCE_DIR}/../vmime/src"
-  "${CMAKE_SOURCE_DIR}/src/module_runtime/include"
+  "${CMAKE_SOURCE_DIR}/src/mod_rt/include"
   "${CMAKE_BINARY_DIR}/src/vmime"
   "${CMAKE_BINARY_DIR}/src"
   "${CMAKE_BINARY_DIR}/src/sdk")
