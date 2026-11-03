@@ -74,7 +74,7 @@ auto OnActivate() -> GFResult {
       {GTrC::Noop("Encrypted Note"), "", "textpack.gpg",
        GTrC::Noop("Encrypted Note (*.textpack.gpg);;TextPack (*.textpack);;All "
                   "Files (*)"),
-       ":/icons/lock.png", 0, 0},
+       ":/icons/note.png", 0, 0},
       [](const QCborMap&) { return new gf::notes::NotePageView(); });
   return ok ? GFResult::Ok()
             : GFResult::Fail("the note editor was not registered");

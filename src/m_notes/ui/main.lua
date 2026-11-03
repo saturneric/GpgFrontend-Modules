@@ -20,5 +20,5 @@ ui.action {
   id = "new",
   anchor = ui.anchor("main.menu.file.workspace"),
   command = new_note,
-  icon = ":/icons/lock.png",
+  icon = ":/icons/note.png",
 }
