@@ -139,7 +139,13 @@ class NotePageView : public QWidget, public gf::ui::DocumentWidget {
   auto take_encrypted(const QByteArray& bytes) -> bool;
   /// Decrypt the encrypted file, as the Host's Decrypt would.
   void decrypt_file();
-  void opened(const QByteArray& zip);
+  /// Has the Host report an OpenPGP operation run here (@p operation a
+  /// GF_GPG_ANALYSE_*) as its own are: what became of the output, and why.
+  void report_crypto(int operation, const CryptoResult& result,
+                     int output = GF_DOCUMENT_OUTPUT_NOT_PRODUCED,
+                     const QString& reason = {});
+  /// Opens the decrypted pack; why it is not a note, or empty.
+  auto opened(const QByteArray& zip) -> QString;
   /// Show @p note; @p unsaved when it comes from the recovery cache.
   void open_note(const Note& note, bool unsaved);
   void start_editor();

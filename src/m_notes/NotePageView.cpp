@@ -732,33 +732,70 @@ void NotePageView::decrypt_file() {
           if (self.isNull()) return;
           --self->jobs_in_flight_;
           if (!result.ok) {
+            self->report_crypto(GF_GPG_ANALYSE_DECRYPT, result);
             // Still encrypted, and Decrypt can be tried again.
             self->show_encrypted(DecryptFailure(result.error));
             return;
           }
-          self->opened(result.data);
+          const auto why = self->opened(result.data);
           Wipe(result.data);
+          // Decrypted, and opened in this tab -- or not a note after all.
+          self->report_crypto(GF_GPG_ANALYSE_DECRYPT, result,
+                              why.isEmpty() ? GF_DOCUMENT_OUTPUT_APPLIED
+                                            : GF_DOCUMENT_OUTPUT_APPLY_FAILED,
+                              why);
         },
         Qt::QueuedConnection);
   });
 }
 
-void NotePageView::opened(const QByteArray& zip) {
+void NotePageView::report_crypto(int operation, const CryptoResult& result,
+                                 int output, const QString& reason) {
+  CryptoReport report;
+  report.channel = channel_;
+  report.operation = operation;
+  report.err = result.error;
+  report.capsule_id = result.capsule_id;
+  report.input_hash = result.input_hash;
+  report.output = output;
+  report.reason = reason;
+  if (!result.ok) {
+    report.output = GF_DOCUMENT_OUTPUT_NOT_PRODUCED;
+    report.reason.clear();
+    if (result.capsule_id.isEmpty()) {
+      // Refused before OpenPGP ran: the note's own reason is all there is.
+      report.reason = result.why;
+    } else if (result.error == 0) {
+      // OpenPGP succeeded, but the note would not keep what it made (a
+      // reader left out, say): the output was not used.
+      report.output = GF_DOCUMENT_OUTPUT_APPLY_FAILED;
+      report.reason = result.why;
+    }
+    // Otherwise OpenPGP failed, and the Host's analysis says why.
+  }
+  NotifyResult(report);
+}
+
+auto NotePageView::opened(const QByteArray& zip) -> QString {
   QString why;
   const auto entries = ZipRead(zip, Budgets{}, &why);
   const auto note = entries.has_value() ? ReadPack(*entries, Budgets{}, &why)
                                         : std::optional<Note>{};
   if (!note.has_value()) {
     if (plain_) {
-      show_unavailable(GTrC::tr("This file is not a note: %1").arg(why));
-      return;
+      const auto text = GTrC::tr("This file is not a note: %1").arg(why);
+      show_unavailable(text);
+      return text;
     }
-    show_encrypted(GTrC::tr("The note decrypted, but its contents are not a "
-                            "note: %1")
-                       .arg(why));
-    return;
+    const auto text = GTrC::tr(
+                          "The note decrypted, but its contents are not "
+                          "a note: %1")
+                          .arg(why);
+    show_encrypted(text);
+    return text;
   }
   open_note(*note, false);
+  return {};
 }
 
 void NotePageView::open_note(const Note& note, bool unsaved) {
@@ -1284,6 +1321,7 @@ void NotePageView::run_job(const Job& job) {
   (void)QtConcurrent::run([self, id, kind, payload, target, source] {
     bool ok = false;
     QString why;
+    std::optional<CryptoResult> crypto;  ///< set once Encrypt ran
     if (kind == JobKind::kSAVE) {
       // The snapshot, copied: it stays the note's encrypted version.
       QByteArray cipher;
@@ -1311,13 +1349,16 @@ void NotePageView::run_job(const Job& job) {
             // A note without an encrypted snapshot: as it is.
             ok = WriteNoteFile(target, PlainTextPack::FromUnencryptedNote(*zip),
                                &why);
-          } else if (auto cipher =
-                         Encrypt(payload->channel, payload->config, *zip);
-                     !cipher.ok) {
-            why = cipher.why.isEmpty() ? u"encryption failed"_s : cipher.why;
           } else {
-            ok = WriteNoteFile(
-                target, EncryptedPackage::FromCiphertext(cipher.data), &why);
+            crypto = Encrypt(payload->channel, payload->config, *zip);
+            if (!crypto->ok) {
+              why =
+                  crypto->why.isEmpty() ? u"encryption failed"_s : crypto->why;
+            } else {
+              ok = WriteNoteFile(
+                  target, EncryptedPackage::FromCiphertext(crypto->data), &why);
+            }
+            Wipe(crypto->data);  // the ciphertext is on disk, or not wanted
           }
           Wipe(*zip);
         }
@@ -1325,8 +1366,16 @@ void NotePageView::run_job(const Job& job) {
     }
     QMetaObject::invokeMethod(
         QCoreApplication::instance(),
-        [self, id, ok, why] {
-          if (!self.isNull()) self->persistence_.Finished(id, ok, why);
+        [self, id, ok, why, crypto = std::move(crypto)] {
+          if (self.isNull()) return;
+          if (crypto.has_value()) {
+            // Kept as the note's encrypted version, or not written.
+            self->report_crypto(GF_GPG_ANALYSE_ENCRYPT, *crypto,
+                                ok ? GF_DOCUMENT_OUTPUT_APPLIED
+                                   : GF_DOCUMENT_OUTPUT_APPLY_FAILED,
+                                why);
+          }
+          self->persistence_.Finished(id, ok, why);
         },
         Qt::QueuedConnection);
   });

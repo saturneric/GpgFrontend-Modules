@@ -39,6 +39,7 @@
 #include <GFSDK.hpp>
 #include <GFSDKBuffer.hpp>
 #include <GFSDKGpgResult.hpp>
+#include <QCryptographicHash>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -165,9 +166,19 @@ auto DescribeKeys(int channel, const QStringList& fingerprints)
   return out;
 }
 
+namespace {
+
+auto Sha256Hex(const QByteArray& bytes) -> QString {
+  return QString::fromLatin1(
+      QCryptographicHash::hash(bytes, QCryptographicHash::Sha256).toHex());
+}
+
+}  // namespace
+
 auto Encrypt(int channel, const ProtectionConfig& config,
              const QByteArray& plain) -> CryptoResult {
   CryptoResult r;
+  r.input_hash = Sha256Hex(plain);
   auto in = GFBuf::Copy(GFModuleSdkContext(), plain);
   GFGpgResult result(GFModuleSdkContext());
   if (config.recipients.isEmpty()) {
@@ -193,6 +204,7 @@ auto Encrypt(int channel, const ProtectionConfig& config,
   r.ok = result.Ok();
   r.error = result.Error();
   r.why = result.ErrorString();
+  r.capsule_id = result.CapsuleId();
   if (!r.ok) return r;
   r.data = result.DataCopy();
 
@@ -210,12 +222,14 @@ auto Encrypt(int channel, const ProtectionConfig& config,
 
 auto Decrypt(int channel, const QByteArray& cipher) -> CryptoResult {
   CryptoResult r;
+  r.input_hash = Sha256Hex(cipher);
   auto in = GFBuf::Copy(GFModuleSdkContext(), cipher);
   GFGpgResult result(GFModuleSdkContext());
   GFGpgDecrypt(GFModuleSdkContext(), channel, in.View(), result.Out());
   r.ok = result.Ok();
   r.error = result.Error();
   r.why = result.ErrorString();
+  r.capsule_id = result.CapsuleId();
   if (r.ok) r.data = result.DataCopy();
   return r;
 }

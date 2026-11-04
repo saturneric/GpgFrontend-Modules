@@ -65,6 +65,10 @@ struct CryptoResult {
   uint32_t error = 0;  ///< gpg error code; see CryptoError
   QString why;
   QByteArray data;
+  /// For the Host's report: the result's capsule (empty when the operation
+  /// was refused before OpenPGP ran) and the SHA-256 of the input, hex.
+  QString capsule_id;
+  QString input_hash;
 };
 
 auto CurrentChannel() -> int;
