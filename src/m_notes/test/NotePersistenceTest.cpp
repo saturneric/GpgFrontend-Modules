@@ -250,3 +250,26 @@ TEST(NotePersistenceTest, ADecryptedNoteIsCleanButSavedAgainAsPlain) {
   EXPECT_TRUE(h.p.IsClean()) << "closing it loses nothing";
   EXPECT_FALSE(h.p.WrittenIsCurrent()) << "Save writes a plain TextPack";
 }
+
+TEST(NotePersistenceTest, AnUntouchedNewNoteClosesWithoutAsking) {
+  Harness h;
+  EXPECT_FALSE(h.p.IsClean()) << "it has no file yet";
+  EXPECT_FALSE(h.p.HasUnsavedWork()) << "but nothing would be lost";
+  h.p.Edited(1, 0);
+  EXPECT_TRUE(h.p.HasUnsavedWork());
+}
+
+TEST(NotePersistenceTest, ANewNoteEncryptedButNeverSavedHasUnsavedWork) {
+  Harness h;
+  h.p.Revise(h.Snap(0), u"rev-0"_s);
+  h.Finish();
+  EXPECT_TRUE(h.p.HasUnsavedWork()) << "the encrypted version is not saved";
+}
+
+TEST(NotePersistenceTest, AnOpenedNoteHasUnsavedWorkOnlyAfterAnEdit) {
+  Harness h;
+  h.p.Opened(0, true);
+  EXPECT_FALSE(h.p.HasUnsavedWork());
+  h.p.Edited(1, 0);
+  EXPECT_TRUE(h.p.HasUnsavedWork());
+}

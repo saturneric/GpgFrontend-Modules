@@ -137,6 +137,13 @@ class NotePersistence {
   [[nodiscard]] auto IsClean() const -> bool {
     return has_saved_ && edit_gen_ == saved_gen_;
   }
+  /// Closing now would lose something: edits not in the note's file, or,
+  /// for a note never saved, any edit or encryption at all. An untouched new
+  /// note has nothing to lose, though it is not "clean" (it has no file).
+  [[nodiscard]] auto HasUnsavedWork() const -> bool {
+    if (has_saved_) return edit_gen_ != saved_gen_;
+    return edit_gen_ != 0 || revision_.exists;
+  }
   /// The note's file is what Save would write now, as far as encryption
   /// goes: the current revision, or a plain TextPack when there is none.
   [[nodiscard]] auto WrittenIsCurrent() const -> bool {

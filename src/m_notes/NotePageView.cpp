@@ -1512,7 +1512,7 @@ void NotePageView::wait_until(const std::function<bool()>& ready) {
 }
 
 auto NotePageView::ask_and_close() -> bool {
-  if (state_ != State::kOPEN || persistence_.IsClean()) {
+  if (state_ != State::kOPEN || !persistence_.HasUnsavedWork()) {
     wait_until([this] { return !persistence_.Busy(); });
     return true;
   }
@@ -1526,7 +1526,7 @@ auto NotePageView::ask_and_close() -> bool {
 }
 
 auto NotePageView::close_as_decided(bool save) -> bool {
-  if (state_ != State::kOPEN || persistence_.IsClean()) {
+  if (state_ != State::kOPEN || !persistence_.HasUnsavedWork()) {
     wait_until([this] { return !persistence_.Busy(); });
     return true;
   }
