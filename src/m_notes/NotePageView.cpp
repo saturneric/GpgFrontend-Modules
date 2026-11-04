@@ -256,9 +256,10 @@ void NotePageView::build_ui() {
   page->addStretch(3);
   stack_->addWidget(encrypted);
 
-  // Open: a slim header and the editor page. The status button says
-  // whether the note is encrypted, and for whom; its menu says what that
-  // means and what to do next. Anything else worth saying goes there too.
+  // Open: a slim header and the editor page. On the left, whether the note
+  // is saved; on the right, the status button: whether the note is
+  // encrypted, and for whom, with a menu that says what that means and what
+  // to do next. Anything else worth saying goes there too.
   auto* open = new QWidget();
   auto* o = new QVBoxLayout(open);
   o->setContentsMargins(0, 0, 0, 0);
@@ -267,18 +268,18 @@ void NotePageView::build_ui() {
   auto* hl = new QHBoxLayout(header_);
   hl->setContentsMargins(8, 4, 8, 2);
   hl->setSpacing(6);
+  save_state_ = new QLabel();
+  save_state_->setObjectName(u"muted"_s);
+  save_state_->setTextFormat(Qt::PlainText);
+  NoteScaleFont(save_state_, 0.92);
+  hl->addWidget(save_state_);
+  hl->addStretch(1);
   status_button_ = new NoteStatusButton();
   status_menu_ = new QMenu(status_button_);
   status_button_->setMenu(status_menu_);
   connect(status_menu_, &QMenu::aboutToShow, this,
           [this] { rebuild_status_menu(); });
   hl->addWidget(status_button_);
-  hl->addStretch(1);
-  save_state_ = new QLabel();
-  save_state_->setObjectName(u"muted"_s);
-  save_state_->setTextFormat(Qt::PlainText);
-  NoteScaleFont(save_state_, 0.92);
-  hl->addWidget(save_state_);
   o->addWidget(header_);
   notice_timer_ = new QTimer(this);
   notice_timer_->setSingleShot(true);
