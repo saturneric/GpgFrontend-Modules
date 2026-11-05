@@ -283,6 +283,25 @@ TEST(VerifyAggregationTest, RegionsNobodyLookedAtReadAsUnchecked) {
             EMailBadgeState::kSIGNED_UNVERIFIED);
 }
 
+TEST(VerifyAggregationTest,
+     OneUncheckedSiblingKeepsGoodSignaturesFromDeciding) {
+  // The budget stopped the walk after the first sibling. Taking the worst of
+  // the verdicts that exist made one good signature vouch for a region whose
+  // signature was never looked at.
+  auto regions = RegionsFor({Verdict(0, 0, EMailBadgeState::kSIGNED_GOOD),
+                             Verdict(1, 0, EMailBadgeState::kSIGNED_GOOD)});
+  EXPECT_EQ(
+      AggregateVerification(EMailSecurityState::kSIGNED, regions,
+                            {Verdict(0, 0, EMailBadgeState::kSIGNED_GOOD)}),
+      EMailBadgeState::kSIGNED_UNVERIFIED);
+
+  // A definite problem among the checked ones is still the louder answer.
+  EXPECT_EQ(
+      AggregateVerification(EMailSecurityState::kSIGNED, regions,
+                            {Verdict(0, 0, EMailBadgeState::kSIGNED_BAD)}),
+      EMailBadgeState::kSIGNED_BAD);
+}
+
 // --- the staleness anchor ---------------------------------------------------
 
 TEST(VerifyStalenessTest, AResultDescribesOnlyTheDocumentItWasTakenOver) {

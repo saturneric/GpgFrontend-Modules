@@ -452,6 +452,9 @@ auto DeriveSecurityBadge(EMailSecurityState structure,
  * - A region whose check could not run (EMailVerifyExec other than kOK) takes
  *   part like any other verdict, as kSIGNED_ERROR. It is never dropped, which
  *   is what used to happen and what let an engine failure read as "unsigned".
+ * - A candidate region with no verdict at all (the walk stopped at
+ *   kMaxVerifiedRegions) turns an otherwise good result into
+ *   kSIGNED_UNVERIFIED. Good signatures elsewhere say nothing about it.
  *
  * Pure, and deliberately free of GPG: this is the half that can be pinned by
  * a test without an engine, a keyring or a widget.

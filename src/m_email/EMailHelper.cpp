@@ -1339,8 +1339,24 @@ auto AggregateVerification(EMailSecurityState structure,
 
   // A candidate region exists in the parse but nothing looked at it -- the
   // walk stopped on its ceiling, say. Nobody has checked, and that is the
-  // honest word for it.
-  return any ? worst : EMailBadgeState::kSIGNED_UNVERIFIED;
+  // honest word for it. The same holds when only SOME were looked at: eight
+  // good signatures say nothing about a ninth region, and taking the worst of
+  // the checked ones alone turned an unchecked forgery green. A definite
+  // problem among the checked ones still outranks "not checked".
+  if (!any) return EMailBadgeState::kSIGNED_UNVERIFIED;
+  for (const auto& region : regions) {
+    if (region.covers_ciphertext_only) continue;
+    if (region.nesting_depth != candidate_depth) continue;
+    const auto checked =
+        std::any_of(verdicts.begin(), verdicts.end(),
+                    [&region](const EMailRegionVerdict& verdict) {
+                      return verdict.region_id == region.region_id;
+                    });
+    if (!checked && worst == EMailBadgeState::kSIGNED_GOOD) {
+      return EMailBadgeState::kSIGNED_UNVERIFIED;
+    }
+  }
+  return worst;
 }
 
 auto VerificationMatchesSource(const EMailVerificationResult& result,

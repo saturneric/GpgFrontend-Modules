@@ -413,6 +413,14 @@ TEST_F(CryptoBoundaryTest, VerificationStopsAtTheRegionBudget) {
   ASSERT_GT(regions.size(), kMaxVerifiedRegions)
       << "the fixture did not produce enough regions to test the cap";
 
+  // Every region that does get checked comes back good, which is the shape
+  // that used to turn the whole message green.
+  for (int i = 0; i < regions.size(); ++i) {
+    Get().verify_info_json.append(
+        R"({"signatures":[{"fingerprint":"DEADBEEF","hashAlgo":"SHA256",)"
+        R"("uid":"Alice <alice@example.com>","validity":0}]})");
+  }
+
   EMailVerificationResult verification;
   QString error;
   ASSERT_EQ(VerifyEMLMessage(0, raw, verification, error), kSUCCESS);
@@ -420,6 +428,9 @@ TEST_F(CryptoBoundaryTest, VerificationStopsAtTheRegionBudget) {
   EXPECT_LE(verification.verdicts.size(), kMaxVerifiedRegions);
   EXPECT_LE(Get().verify.size(), kMaxVerifiedRegions)
       << "more GPG calls were made than the budget allows";
+  // The regions past the budget were never checked, so whatever the checked
+  // ones said, the message as a whole is not verified.
+  EXPECT_NE(verification.overall, EMailBadgeState::kSIGNED_GOOD);
 }
 
 TEST_F(CryptoBoundaryTest, AnOrdinaryMessageIsNotAffectedByTheBudget) {
