@@ -155,7 +155,12 @@ enum class EMailBadgeState : uint8_t {
   // weakest signature, so combining several is a maximum over this order --
   // reporting the best of them is how a second signature becomes a second
   // attempt.
-  kSIGNED_GOOD,         ///< checked, and it verified
+  kSIGNED_GOOD,  ///< checked, and it verified
+  /// Every signature checked is good, but the message also carries content
+  /// outside all of them, which anyone in the path could have added. Never
+  /// shown as good: a forwarded signed message wrapped beside new text is
+  /// exactly this shape.
+  kSIGNED_PARTIAL,
   kSIGNED_EXPIRED,      ///< verified against an expired signature or key
   kSIGNED_UNKNOWN_KEY,  ///< checked; the key is not in the keyring
   kSIGNED_MISMATCH,     ///< verified, but not by the address it comes from

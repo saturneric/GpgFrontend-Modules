@@ -696,6 +696,7 @@ auto ReportStatusFor(EMailBadgeState overall) -> int {
     case EMailBadgeState::kMALFORMED:
       return -1;
 
+    case EMailBadgeState::kSIGNED_PARTIAL:
     case EMailBadgeState::kSIGNED_EXPIRED:
     case EMailBadgeState::kSIGNED_UNKNOWN_KEY:
     case EMailBadgeState::kSIGNED_MISMATCH:
@@ -745,6 +746,14 @@ auto ReportDescriptionFor(const EMailVerificationResult& result) -> QString {
           "EMailModule",
           "The signature is valid, and the key that made it speaks for the "
           "address this message says it is from.");
+
+    case EMailBadgeState::kSIGNED_PARTIAL:
+      return QApplication::translate(
+          "EMailModule",
+          "The signatures that were checked are valid, but this message also "
+          "carries parts no signature covers. Those parts could have been "
+          "added or changed by anyone in the path, and the text shown may be "
+          "one of them. See the Security tab for which parts are signed.");
 
     case EMailBadgeState::kSIGNED_MISMATCH:
       return QApplication::translate(
@@ -806,6 +815,14 @@ auto ReportDescriptionFor(const EMailVerificationResult& result) -> QString {
           "message, but say nothing about who wrote what is inside it.");
 
     case EMailBadgeState::kSIGNED_UNVERIFIED:
+      if (!result.verdicts.isEmpty()) {
+        return QApplication::translate(
+            "EMailModule",
+            "Not every signed part of this message was checked, so it cannot "
+            "be called verified. A message with this many signatures is "
+            "unusual.");
+      }
+      break;
     case EMailBadgeState::kNOT_PROTECTED:
       break;
   }

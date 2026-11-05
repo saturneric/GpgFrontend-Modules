@@ -1359,6 +1359,17 @@ auto AggregateVerification(EMailSecurityState structure,
   return worst;
 }
 
+auto CountUnsignedParts(const QList<const EMailPart*>& flat,
+                        const QList<EMailSignatureRegion>& regions) -> int {
+  if (regions.isEmpty()) return 0;
+  int uncovered = 0;
+  for (const auto* part : flat) {
+    if (part->is_multipart || part->is_protocol_part) continue;
+    if (part->covered_by_regions.isEmpty()) ++uncovered;
+  }
+  return uncovered;
+}
+
 auto VerificationMatchesSource(const EMailVerificationResult& result,
                                const QByteArray& source) -> bool {
   // A result that recorded nothing cannot vouch for anything. Treated as a
@@ -1380,6 +1391,7 @@ auto ToneForBadge(EMailBadgeState state) -> EMailBadgeTone {
     case EMailBadgeState::kMALFORMED:
       return EMailBadgeTone::kDANGER;
 
+    case EMailBadgeState::kSIGNED_PARTIAL:
     case EMailBadgeState::kSIGNED_MISMATCH:
     case EMailBadgeState::kSIGNED_EXPIRED:
     case EMailBadgeState::kSIGNED_UNKNOWN_KEY:
@@ -2018,12 +2030,8 @@ auto InspectMessage(const EMailMetaData& meta, const EMailPart& root,
 
   // Content smuggled in beside a signature is the reason coverage is tracked
   // per part rather than per message.
-  if (!regions.isEmpty()) {
-    int uncovered = 0;
-    for (const auto* part : flat) {
-      if (part->is_multipart || part->is_protocol_part) continue;
-      if (part->covered_by_regions.isEmpty()) ++uncovered;
-    }
+  {
+    const auto uncovered = CountUnsignedParts(flat, regions);
     if (uncovered > 0) {
       findings.append(
           {EMailFindingLevel::kWARN, QObject::tr("Not everything is signed"),

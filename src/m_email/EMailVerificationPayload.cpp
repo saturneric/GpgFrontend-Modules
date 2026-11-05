@@ -75,6 +75,7 @@ const NameTable<EMailBadgeState> kBadgeNames{{
     {EMailBadgeState::kENCRYPTED_ONLY, "encrypted_only"},
     {EMailBadgeState::kSIGNED_UNVERIFIED, "signed_unverified"},
     {EMailBadgeState::kSIGNED_GOOD, "signed_good"},
+    {EMailBadgeState::kSIGNED_PARTIAL, "signed_partial"},
     {EMailBadgeState::kSIGNED_EXPIRED, "signed_expired"},
     {EMailBadgeState::kSIGNED_UNKNOWN_KEY, "signed_unknown_key"},
     {EMailBadgeState::kSIGNED_MISMATCH, "signed_mismatch"},

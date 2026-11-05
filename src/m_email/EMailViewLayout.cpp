@@ -137,6 +137,10 @@ auto EMailSecurityStatus(EMailBadgeState badge, bool encrypted)
                         : QCoreApplication::translate("EMailPageView",
                                                       "Signature verified"),
               signature};
+    case EMailBadgeState::kSIGNED_PARTIAL:
+      return {
+          QCoreApplication::translate("EMailPageView", "Only partly signed"),
+          warning};
     case EMailBadgeState::kSIGNED_MISMATCH:
       return {QCoreApplication::translate("EMailPageView",
                                           "Signed by a different address"),

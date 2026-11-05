@@ -302,6 +302,12 @@ TEST(VerifyAggregationTest,
       EMailBadgeState::kSIGNED_BAD);
 }
 
+TEST(VerifyAggregationTest, APartialSignatureIsNeverGood) {
+  EXPECT_NE(ToneForBadge(EMailBadgeState::kSIGNED_PARTIAL),
+            EMailBadgeTone::kGOOD);
+  EXPECT_GT(EMailBadgeState::kSIGNED_PARTIAL, EMailBadgeState::kSIGNED_GOOD);
+}
+
 // --- the staleness anchor ---------------------------------------------------
 
 TEST(VerifyStalenessTest, AResultDescribesOnlyTheDocumentItWasTakenOver) {
@@ -454,6 +460,43 @@ TEST_F(VerifyUnificationTest, ASignedUntouchedMessageReportsGood) {
   EXPECT_EQ(result.verdicts.first().exec, EMailVerifyExec::kOK);
   EXPECT_FALSE(result.verdicts.first().signed_bytes_non_canonical);
   EXPECT_TRUE(VerificationMatchesSource(result, raw));
+}
+
+TEST_F(VerifyUnificationTest, UnsignedTextBesideAGoodSignatureIsPartial) {
+  // A genuine signed mail from Alice, wrapped together with text of the
+  // attacker's own. Every signature checked is good, the body shown is the
+  // attacker's part, and the badge used to be the green "verified".
+  QByteArray inner;
+  inner +=
+      "Content-Type: multipart/signed; micalg=pgp-sha256; "
+      "protocol=\"application/pgp-signature\"; boundary=\"in\"\r\n\r\n";
+  inner += "--in\r\n";
+  inner += "Content-Type: text/plain\r\n\r\nthe genuine text\r\n";
+  inner += "--in\r\n";
+  inner += "Content-Type: application/pgp-signature\r\n\r\n";
+  inner += kSignatureBlock;
+  inner += "--in--\r\n";
+
+  QByteArray raw;
+  raw += "From: Alice <alice@example.com>\r\n";
+  raw += "To: Bob <bob@example.com>\r\n";
+  raw += "Subject: wrapped\r\n";
+  raw += "MIME-Version: 1.0\r\n";
+  raw += "Content-Type: multipart/mixed; boundary=\"outer\"\r\n\r\n";
+  raw += "--outer\r\n";
+  raw += "Content-Type: text/plain\r\n\r\nPay the invoice below.\r\n";
+  raw += "--outer\r\n";
+  raw += inner;
+  raw += "--outer--\r\n";
+
+  Get().verify_info_json.append(SignatureJson(0));
+
+  EMailVerificationResult result;
+  QString error;
+  ASSERT_EQ(VerifyEMLMessage(0, raw, result, error), kSUCCESS);
+  ASSERT_EQ(result.verdicts.size(), 1);
+  EXPECT_EQ(result.verdicts.first().verdict, EMailBadgeState::kSIGNED_GOOD);
+  EXPECT_EQ(result.overall, EMailBadgeState::kSIGNED_PARTIAL);
 }
 
 TEST_F(VerifyUnificationTest, TheSameMessageTwiceMeansTheSameThingTwice) {

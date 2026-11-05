@@ -2707,7 +2707,10 @@ void EMailPageView::refresh_attachments() {
       // because all three read the one verification rather than each working
       // something out for itself.
       const auto badge = security_badge();
-      if (badge == EMailBadgeState::kSIGNED_GOOD) {
+      // Under a partial signature the parts that ARE covered still carry
+      // good signatures; the warning is about the parts beside them.
+      if (badge == EMailBadgeState::kSIGNED_GOOD ||
+          badge == EMailBadgeState::kSIGNED_PARTIAL) {
         item->setText(kColSigned, tr("signed"));
         EMailSetCellTone(item, kColSigned, EMailTone::kGOOD, this);
       } else if (badge == EMailBadgeState::kSIGNED_UNVERIFIED) {

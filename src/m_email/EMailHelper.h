@@ -469,6 +469,18 @@ auto AggregateVerification(EMailSecurityState structure,
     -> EMailBadgeState;
 
 /**
+ * @brief How many content parts lie outside every signature region.
+ *
+ * Multiparts and the signature parts themselves are not content. Zero when the
+ * message has no regions at all: an unsigned message is not "partly" signed.
+ *
+ * @param flat the parsed tree, flattened
+ * @param regions every region found while parsing
+ */
+auto CountUnsignedParts(const QList<const EMailPart*>& flat,
+                        const QList<EMailSignatureRegion>& regions) -> int;
+
+/**
  * @brief Whether @p result still describes @p source.
  *
  * A verification answers for the bytes it was given and for no others. The

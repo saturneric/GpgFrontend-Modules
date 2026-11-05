@@ -1274,6 +1274,13 @@ auto VerifyEMLMessage(int channel, const QByteArray& raw,
   }
 
   out.overall = AggregateVerification(structure, regions, out.verdicts);
+  // Good signatures over part of a message do not make the message good. An
+  // unsigned part beside them is what a genuine signed mail wrapped together
+  // with an attacker's text looks like, and the body shown may be that text.
+  if (out.overall == EMailBadgeState::kSIGNED_GOOD &&
+      CountUnsignedParts(flat, regions) > 0) {
+    out.overall = EMailBadgeState::kSIGNED_PARTIAL;
+  }
   out.state = out.verdicts.isEmpty() ? EMailVerifyState::kATTEMPTED_EMPTY
                                      : EMailVerifyState::kVERIFIED;
 
