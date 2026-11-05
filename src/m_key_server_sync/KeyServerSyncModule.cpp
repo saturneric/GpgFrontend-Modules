@@ -289,15 +289,30 @@ class KeyServerBatch : public QObject {
 
   void Finish() {
     const auto total = static_cast<int>(keys_.size());
-    if (kind_ == Kind::kRefresh && !blocks_.isEmpty() &&
-        gf::sdk::ImportKeys(GFModuleSdkContext(),
-                            static_cast<int>(keys_.front().channel),
-                            KeyServerBatchLogic::JoinForImport(blocks_)) < 0) {
-      // Refused: its database is gone. What was fetched is not in any
-      // keyring, so it is not reported as refreshed.
-      failures_.append(GTrC::tr("the fetched keys could not be imported: the "
-                                "key database is no longer available"));
-      blocks_.clear();
+    if (kind_ == Kind::kRefresh && !blocks_.isEmpty()) {
+      // Only the keys that were asked for: a server answers a request with
+      // whatever it likes, and importing that verbatim let it add keys.
+      QStringList wanted;
+      for (const auto& key : keys_) wanted.append(key.fingerprint);
+      int dropped = 0;
+      const auto ret = gf::sdk::ImportKeysMatching(
+          GFModuleSdkContext(), static_cast<int>(keys_.front().channel),
+          KeyServerBatchLogic::JoinForImport(blocks_), wanted, &dropped);
+      if (dropped > 0) {
+        failures_.append(GTrC::tr("the key server also sent %1 key(s) that "
+                                  "were not asked for; they were not imported")
+                             .arg(dropped));
+      }
+      if (ret == -2) {
+        blocks_.clear();
+      } else if (ret < 0) {
+        // Refused: its database is gone. What was fetched is not in any
+        // keyring, so it is not reported as refreshed.
+        failures_.append(
+            GTrC::tr("the fetched keys could not be imported: "
+                     "the key database is no longer available"));
+        blocks_.clear();
+      }
     }
     const auto severity =
         failures_.isEmpty() ? Severity::kInfo : Severity::kWarning;
@@ -494,9 +509,16 @@ auto UpdateKeyFromKeyServer(int channel, const QString& fpr) -> int {
 
   FetchKey(
       route, fpr, true,
-      [channel, fpr](const QString& key_data) {
-        if (gf::sdk::ImportKeys(GFModuleSdkContext(), channel,
-                                key_data.toUtf8()) < 0) {
+      [channel, fpr, host](const QString& key_data) {
+        const auto ret = gf::sdk::ImportKeysMatching(
+            GFModuleSdkContext(), channel, key_data.toUtf8(), {fpr});
+        if (ret == -2) {
+          // Something came back, but not the key that was asked for.
+          Tell(Severity::kError, GTrC::tr("Key Update Failed"),
+               GTrC::tr("%1 did not return the requested key, so nothing was "
+                        "imported.\nKey ID: %2")
+                   .arg(host, fpr));
+        } else if (ret < 0) {
           // Refused: the key database was reloaded while the key was being
           // fetched, and the one it was asked for is gone.
           Tell(Severity::kError, GTrC::tr("Key Update Failed"),

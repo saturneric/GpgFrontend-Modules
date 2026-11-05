@@ -68,4 +68,5 @@ class SearchKeyDialog : public QDialog, public gf::ui::DialogWidget {
 
  private:
   std::shared_ptr<Ui_SearchKeyDialog> ui_;
+  QString pending_handle_;  ///< the key the last import asked for
 };

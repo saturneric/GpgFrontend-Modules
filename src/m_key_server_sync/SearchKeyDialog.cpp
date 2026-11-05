@@ -349,6 +349,7 @@ void SearchKeyDialog::slot_import(int row, int column) {
   auto handle = keyid_item->data(kKeyHandleRole).toString();
   if (handle.isEmpty()) handle = keyid_item->text();
   FLOG_DEBUG("importing key with handle %1", handle);
+  pending_handle_ = handle;
 
   auto* task = new PKSInterface(this);
 
@@ -375,5 +376,12 @@ void SearchKeyDialog::slot_lookup_finished_pks(
     return;
   }
 
-  gf::sdk::ImportKeys(GFModuleSdkContext(), channel, key_data);
+  // Only the key on the row that was picked. An eight-digit ID is anyone's
+  // to choose, so it is never enough to name the key to import.
+  if (gf::sdk::ImportKeysMatching(GFModuleSdkContext(), channel, key_data,
+                                  {pending_handle_}) == -2) {
+    slot_set_error_message(
+        tr("The key server did not return the key that was picked, or it "
+           "can only be named by a short key ID. Nothing was imported."));
+  }
 }
