@@ -730,6 +730,9 @@ void NotePageView::decrypt_file() {
     QMetaObject::invokeMethod(
         QCoreApplication::instance(),
         [self, result = std::move(result)]() mutable {
+          // On every way out: a tab closed before the worker returned left
+          // the decrypted note to be freed as it was.
+          const auto wipe = qScopeGuard([&result]() { Wipe(result.data); });
           if (self.isNull()) return;
           --self->jobs_in_flight_;
           if (!result.ok) {
@@ -976,7 +979,12 @@ void NotePageView::on_image(const QJsonObject& msg) {
     auto stored = PrepareImage(data, &why);
     QMetaObject::invokeMethod(
         QCoreApplication::instance(),
-        [self, stored = std::move(stored), why, token, epoch] {
+        [self, stored = std::move(stored), why, token, epoch]() mutable {
+          // The image left unused when the page is gone; one kept in the note
+          // is shared, and Wipe() only lets go of it.
+          const auto wipe = qScopeGuard([&stored]() {
+            if (stored.has_value()) Wipe(stored->data);
+          });
           if (self.isNull()) return;
           --self->jobs_in_flight_;
           // Locked or reloaded meanwhile: the page that asked is gone.
