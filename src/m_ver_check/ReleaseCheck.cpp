@@ -28,18 +28,19 @@
 
 #include "ReleaseCheck.h"
 
-#include <GFSDKApp.h>
-
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QRegularExpression>
 
+#include "SemVer.h"
+
 namespace {
 
+// SemVer precedence: "2.3.0-alpha.12" is older than "2.3.0", and the number
+// after "alpha." is a number. Plain GitHub tags ("v2.1.9") still compare.
 auto Compare(const QString& a, const QString& b) -> int {
-  return GFCompareSoftwareVersion(a.toUtf8().constData(),
-                                  b.toUtf8().constData());
+  return SemVerCompare(a, b);
 }
 
 auto ParseObject(const QByteArray& body) -> std::optional<QJsonObject> {
