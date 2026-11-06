@@ -55,6 +55,10 @@ struct UpdateSnapshot {
   /// and failed checks: seeing it once is enough.
   QString last_seen_update_version;
 
+  /// When the user last saw an update offered. A nightly's next offer waits a
+  /// day after it, so frequent pushes to main do not become nagging.
+  QDateTime last_seen_at;
+
   /// The highest serial of a signed update index this installation has
   /// accepted. An index with a lower one is a replay of an older state and is
   /// refused (anti-rollback); kept across builds, like the field above.
@@ -122,6 +126,9 @@ class UpdateChecker : public QObject {
   /// longer asks for attention. A no-op when there is none.
   void Acknowledge();
 
+  /// AttentionFor() the current state, at the checker's own clock.
+  [[nodiscard]] auto Attention() const -> UpdateAttention;
+
   /// The state as stored; FromStorage() reads it back for @p build only.
   [[nodiscard]] static auto ToStorage(const UpdateSnapshot& s) -> QByteArray;
   [[nodiscard]] static auto FromStorage(const QByteArray& data,
@@ -152,6 +159,13 @@ class UpdateChecker : public QObject {
   qint64 accepted_serial_ = 0;
 };
 
+/// How long a nightly build stays quiet after an update was seen: its channel
+/// moves with every push to main, and a badge a few times a day is noise.
+inline constexpr qint64 kNightlyQuietSeconds = 24 * 60 * 60;
+
 /// kUpdateAvailable while the last known result offers a release newer than
-/// the last one the user has seen; a failed check changes nothing.
-auto AttentionFor(const UpdateSnapshot& s) -> UpdateAttention;
+/// the last one the user has seen; a failed check changes nothing. For a
+/// nightly build, given @p now, not within kNightlyQuietSeconds of the last
+/// update the user saw.
+auto AttentionFor(const UpdateSnapshot& s, const QDateTime& now = {})
+    -> UpdateAttention;
