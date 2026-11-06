@@ -5,7 +5,7 @@
     <name>ModuleVersionChecking</name>
     <message>
         <location filename="../VersionCheckingModule.cpp" line="188"/>
-        <location filename="../VersionCheckingModule.cpp" line="238"/>
+        <location filename="../VersionCheckingModule.cpp" line="255"/>
         <source>Check for Updates</source>
         <translation>Sprawdź aktualizacje</translation>
     </message>
@@ -33,12 +33,17 @@
         <translation>Sprawdź, czy dostępna jest nowsza wersja GpgFrontend</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="242"/>
+        <location filename="../VersionCheckingModule.cpp" line="198"/>
+        <source>A newer version is available</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../VersionCheckingModule.cpp" line="259"/>
         <source>Updates</source>
         <translation>Aktualizacje</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="242"/>
+        <location filename="../VersionCheckingModule.cpp" line="259"/>
         <source>update,version,check,github</source>
         <translation>update,version,check,github,aktualizacja,wersja,sprawdź</translation>
     </message>
