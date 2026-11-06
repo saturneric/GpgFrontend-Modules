@@ -28,13 +28,14 @@
 
 #include "UpdateChecker.h"
 
-#include <GFSDKApp.h>
-
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QPointer>
+#include <QRegularExpression>
 
+#include "Minisign.h"
 #include "ReleaseCheck.h"
+#include "SemVer.h"
 
 namespace {
 
@@ -76,6 +77,12 @@ void UpdateChecker::Start(CheckMode mode) {
   fresh_ = SoftwareVersion{};
   fresh_.current_version = build_.version;
   fresh_.local_commit_hash = build_.commit;
+  accepted_serial_ = 0;
+
+  if (IsNightlyBuild(build_.version)) {
+    startIndex();
+    return;
+  }
 
   const bool ask_commit = !build_.commit.trimmed().isEmpty();
   // Counted before anything is sent: a fetcher may answer synchronously.
@@ -115,6 +122,88 @@ void UpdateChecker::Start(CheckMode mode) {
   }
 }
 
+void UpdateChecker::startIndex() {
+  // One finish() at the end of the chain, however it ends.
+  pending_ = 1;
+  state_.checking = true;
+  emit Changed();
+
+  // Not built with a channel (a build of the modules on their own): nothing
+  // can be verified, so nothing is claimed.
+  if (!build_.channel.IsConfigured()) {
+    finish();
+    return;
+  }
+  tryIndexBase(0);
+}
+
+void UpdateChecker::tryIndexBase(qsizetype i) {
+  const auto& channel = build_.channel;
+  if (i >= channel.update_bases.size()) {
+    finish();  // no base served a good index: the list stays unusable
+    return;
+  }
+
+  const QString url = channel.update_bases[i] + channel.product +
+                      QStringLiteral("/v1/index.json");
+  QPointer<UpdateChecker> self(this);
+  fetch_(QUrl(url), [self, i, url](int status, const QByteArray& body) {
+    if (self.isNull()) return;
+    if (status != 200) {
+      self->tryIndexBase(i + 1);
+      return;
+    }
+    self->fetch_(
+        QUrl(url + QStringLiteral(".minisig")),
+        [self, i, body](int sig_status, const QByteArray& signature) {
+          if (self.isNull()) return;
+          if (sig_status != 200 || !self->acceptIndex(body, signature)) {
+            self->tryIndexBase(i + 1);
+            return;
+          }
+          self->askCommitMarker();
+        });
+  });
+}
+
+auto UpdateChecker::acceptIndex(const QByteArray& body,
+                                const QByteArray& signature) -> bool {
+  const auto& channel = build_.channel;
+  const auto comment = MinisignVerify(channel.index_keys, body, signature);
+  if (!comment) return false;
+  const auto facts = ParseIndex(body, *comment, channel.product, clock_());
+  if (!facts) return false;
+  // An older index than one already accepted is a replay, from a stale
+  // mirror or an attacker: it is not believed, and another base is tried.
+  if (facts->serial < state_.max_serial) return false;
+
+  fresh_.list = NightlyList(*facts);
+  fresh_.tag_fact = WithdrawnFact(*facts, build_.version);
+  accepted_serial_ = facts->serial;
+  return true;
+}
+
+void UpdateChecker::askCommitMarker() {
+  // Asked only once an index verified: the marker's absence then means
+  // something, where a broken connection would only mean nothing.
+  static const QRegularExpression kCommit(QStringLiteral("^[0-9a-f]{40}$"));
+  const auto commit = build_.commit.trimmed().toLower();
+  const auto& channel = build_.channel;
+  if (!kCommit.match(commit).hasMatch() || channel.build_bases.isEmpty()) {
+    finish();
+    return;
+  }
+
+  QPointer<UpdateChecker> self(this);
+  fetch_(QUrl(channel.build_bases.first() + channel.product +
+              QStringLiteral("/commits/") + commit),
+         [self](int status, const QByteArray& /*body*/) {
+           if (self.isNull()) return;
+           self->fresh_.commit_fact = ParseCommitMarker(status);
+           self->finish();
+         });
+}
+
 void UpdateChecker::finish() {
   if (--pending_ > 0) return;
 
@@ -126,6 +215,7 @@ void UpdateChecker::finish() {
   state_.last_attempt = now;
   state_.last_attempt_failed = !IsUsable(fresh_);
   state_.last_good = Merge(state_.last_good, fresh_);
+  state_.max_serial = std::max(state_.max_serial, accepted_serial_);
 
   if (store_.save) store_.save(ToStorage(state_));
   emit Changed();
@@ -142,6 +232,8 @@ auto UpdateChecker::ToStorage(const UpdateSnapshot& s) -> QByteArray {
   if (!s.last_seen_update_version.isEmpty()) {
     obj["last_seen_update_version"] = s.last_seen_update_version;
   }
+  // Additive: a build that does not know the field keeps it untouched.
+  if (s.max_serial > 0) obj["max_serial"] = s.max_serial;
   return QJsonDocument(obj).toJson(QJsonDocument::Compact);
 }
 
@@ -157,6 +249,7 @@ auto UpdateChecker::FromStorage(const QByteArray& data, const Build& build)
   // Which update the user has seen is not a fact about this build: an
   // upgrade, or a rebuild, must not advertise it again.
   s.last_seen_update_version = obj.value("last_seen_update_version").toString();
+  s.max_serial = obj.value("max_serial").toInteger();
 
   auto good = SoftwareVersion::FromJson(obj.value("last_good").toObject());
   // What was learned about another build says nothing about this one, and
@@ -178,9 +271,7 @@ auto AttentionFor(const UpdateSnapshot& s) -> UpdateAttention {
   }
   const auto& latest = s.last_good->list.latest.version;
   const auto& seen = s.last_seen_update_version;
-  if (!seen.isEmpty() &&
-      GFCompareSoftwareVersion(latest.toUtf8().constData(),
-                               seen.toUtf8().constData()) <= 0) {
+  if (!seen.isEmpty() && SemVerCompare(latest, seen) <= 0) {
     return UpdateAttention::kNone;
   }
   return UpdateAttention::kUpdateAvailable;

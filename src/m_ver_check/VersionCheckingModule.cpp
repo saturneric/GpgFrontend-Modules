@@ -64,9 +64,9 @@ constexpr auto kStateKey = "update_checking_state";
 std::atomic<bool> g_stopped{false};
 QPointer<UpdateChecker> g_checker;
 
-/// A GitHub API GET through Qt. Every request answers, success or not: a
-/// transport failure is status 0, and the transfer timeout bounds a server
-/// that never replies.
+/// A GET through Qt: the GitHub API, or the update index and its mirrors. Every
+/// request answers, success or not: a transport failure is status 0, and the
+/// transfer timeout bounds a server that never replies.
 auto MakeFetcher(QNetworkAccessManager* nam) -> UpdateChecker::Fetcher {
   return [nam = QPointer<QNetworkAccessManager>(nam)](
              const QUrl& url, const UpdateChecker::Reply& reply) {
@@ -93,6 +93,24 @@ auto MakeFetcher(QNetworkAccessManager* nam) -> UpdateChecker::Fetcher {
       reply(status, body);
     });
   };
+}
+
+#ifndef GF_RELEASE_PRODUCT
+#define GF_RELEASE_PRODUCT ""
+#define GF_RELEASE_UPDATE_BASES ""
+#define GF_RELEASE_BUILDS_BASES ""
+#define GF_RELEASE_INDEX_KEYS ""
+#endif
+
+/// The update channel this build was made for (release/product.json, by way
+/// of this module's CMakeLists.txt).
+auto BuiltInChannel() -> ReleaseChannel {
+  const auto split = [](const char* joined) {
+    return QString::fromLatin1(joined).split(u'|', Qt::SkipEmptyParts);
+  };
+  return {QString::fromLatin1(GF_RELEASE_PRODUCT),
+          split(GF_RELEASE_UPDATE_BASES), split(GF_RELEASE_BUILDS_BASES),
+          split(GF_RELEASE_INDEX_KEYS)};
 }
 
 auto MakeStore() -> UpdateChecker::Store {
@@ -190,9 +208,10 @@ auto VersionChecker() -> UpdateChecker* {
   if (g_checker.isNull()) {
     auto* ctx = GFModuleSdkContext();
     auto* nam = new QNetworkAccessManager();
-    g_checker = new UpdateChecker({QString::fromUtf8(GFAppVersion(ctx)),
-                                   QString::fromUtf8(GFAppGitCommitHash(ctx))},
-                                  MakeFetcher(nam), MakeStore());
+    g_checker = new UpdateChecker(
+        {QString::fromUtf8(GFAppVersion(ctx)),
+         QString::fromUtf8(GFAppGitCommitHash(ctx)), BuiltInChannel()},
+        MakeFetcher(nam), MakeStore());
     nam->setParent(g_checker);
 
     QObject::connect(g_checker, &UpdateChecker::Changed, g_checker,

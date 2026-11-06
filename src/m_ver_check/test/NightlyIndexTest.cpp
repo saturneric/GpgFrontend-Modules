@@ -286,3 +286,222 @@ TEST(ReleaseIndexTest, CommitMarkers) {
   EXPECT_EQ(ParseCommitMarker(0), RemoteFact::kUnknown);
   EXPECT_EQ(ParseCommitMarker(503), RemoteFact::kUnknown);
 }
+
+// ----------------------------------------------------------------- checker
+
+namespace {
+
+constexpr auto kCommit = "0123456789abcdef0123456789abcdef01234567";
+constexpr auto kMirrorA = "https://a.example/";
+constexpr auto kMirrorB = "https://b.example/";
+
+/// Mirrors as a URL table, answered at once; anything absent is a 404.
+struct Mirrors {
+  std::map<QString, std::pair<int, QByteArray>> table;
+  QStringList asked;
+
+  void Serve(const QString& base, const QByteArray& index,
+             const QByteArray& signature) {
+    table[base + "gpgfrontend/v1/index.json"] = {200, index};
+    table[base + "gpgfrontend/v1/index.json.minisig"] = {200, signature};
+  }
+
+  auto Fetcher() -> UpdateChecker::Fetcher {
+    return [this](const QUrl& url, const UpdateChecker::Reply& reply) {
+      asked << url.toString();
+      const auto it = table.find(url.toString());
+      if (it == table.end()) {
+        reply(404, {});
+      } else {
+        reply(it->second.first, it->second.second);
+      }
+    };
+  }
+};
+
+struct Nightly {
+  Signer signer;
+  Mirrors mirrors;
+  QByteArray stored;
+
+  auto Channel() const -> ReleaseChannel {
+    return {
+        "gpgfrontend", {kMirrorA, kMirrorB}, {kMirrorA}, {signer.PublicKey()}};
+  }
+
+  auto Make(const QString& version = "v2.3.0-alpha.5+g0123456789ab")
+      -> std::unique_ptr<UpdateChecker> {
+    return std::make_unique<UpdateChecker>(
+        UpdateChecker::Build{version, kCommit, Channel()}, mirrors.Fetcher(),
+        UpdateChecker::Store{[this] { return stored; },
+                             [this](const QByteArray& d) { stored = d; }},
+        [] { return kNow; });
+  }
+
+  void Publish(const QString& base, qint64 serial, const QString& nightly,
+               const QStringList& withdrawn = {}) {
+    const auto index =
+        Index(serial, nightly, "gpgfrontend", kNow.addDays(14), withdrawn);
+    mirrors.Serve(base, index, signer.Sign(index, Comment(serial)));
+  }
+
+  void MarkOfficial() {
+    mirrors.table[QString(kMirrorA) + "gpgfrontend/commits/" + kCommit] = {200,
+                                                                           {}};
+  }
+
+  auto Verdict(UpdateChecker& c) -> ::Verdict {
+    return c.State().last_good ? Decide(*c.State().last_good)
+                               : Verdict::kUnknown;
+  }
+};
+
+}  // namespace
+
+TEST(NightlyCheckTest, ANewerNightlyIsAnUpdate) {
+  Nightly n;
+  n.Publish(kMirrorA, 3, "2.3.0-alpha.9+gffff");
+  n.MarkOfficial();
+  auto c = n.Make();
+  c->Start(CheckMode::kForce);
+
+  EXPECT_FALSE(c->State().checking);
+  EXPECT_EQ(n.Verdict(*c), Verdict::kUpdateAvailable);
+  EXPECT_EQ(c->State().last_good->list.latest.version, "2.3.0-alpha.9+gffff");
+  EXPECT_EQ(c->State().max_serial, 3);
+  EXPECT_TRUE(IsAuthoritative(*c->State().last_good));
+  // No GitHub question is asked by a nightly.
+  for (const auto& url : n.mirrors.asked) {
+    EXPECT_FALSE(url.contains("api.github.com")) << url.toStdString();
+  }
+}
+
+TEST(NightlyCheckTest, TheSameNightlyIsUpToDate) {
+  Nightly n;
+  n.Publish(kMirrorA, 3, "2.3.0-alpha.5+g0123456789ab");
+  n.MarkOfficial();
+  auto c = n.Make();
+  c->Start(CheckMode::kForce);
+  EXPECT_EQ(n.Verdict(*c), Verdict::kUpToDate);
+}
+
+TEST(NightlyCheckTest, AnOlderBuildOfTheSameNumberIsNotNewer) {
+  // Build metadata never orders: only the alpha number does.
+  Nightly n;
+  n.Publish(kMirrorA, 3, "2.3.0-alpha.4+gffff");
+  n.MarkOfficial();
+  auto c = n.Make();
+  c->Start(CheckMode::kForce);
+  EXPECT_EQ(n.Verdict(*c), Verdict::kUpToDate);
+}
+
+TEST(NightlyCheckTest, AMissingFirstMirrorFallsThrough) {
+  Nightly n;
+  n.Publish(kMirrorB, 3, "2.3.0-alpha.9");
+  n.MarkOfficial();
+  auto c = n.Make();
+  c->Start(CheckMode::kForce);
+  EXPECT_EQ(n.Verdict(*c), Verdict::kUpdateAvailable);
+}
+
+TEST(NightlyCheckTest, ABadSignatureOnTheFirstMirrorFallsThrough) {
+  Nightly n;
+  const auto forged = Index(4, "9.9.9");
+  n.mirrors.Serve(kMirrorA, forged, Signer().Sign(forged, Comment(4)));
+  n.Publish(kMirrorB, 3, "2.3.0-alpha.9");
+  n.MarkOfficial();
+  auto c = n.Make();
+  c->Start(CheckMode::kForce);
+  EXPECT_EQ(c->State().last_good->list.latest.version, "2.3.0-alpha.9");
+  EXPECT_EQ(c->State().max_serial, 3);
+}
+
+TEST(NightlyCheckTest, NothingVerifiedIsUnknownNeverAVerdict) {
+  Nightly n;
+  const auto forged = Index(4, "9.9.9");
+  n.mirrors.Serve(kMirrorA, forged, Signer().Sign(forged, Comment(4)));
+  auto c = n.Make();
+  c->Start(CheckMode::kForce);
+  EXPECT_TRUE(c->State().last_attempt_failed);
+  EXPECT_EQ(n.Verdict(*c), Verdict::kUnknown);
+  // The commit marker is asked only after an index verified.
+  for (const auto& url : n.mirrors.asked) {
+    EXPECT_FALSE(url.contains("/commits/")) << url.toStdString();
+  }
+}
+
+TEST(NightlyCheckTest, AnOlderIndexThanOneSeenIsAReplay) {
+  Nightly n;
+  n.Publish(kMirrorA, 10, "2.3.0-alpha.9");
+  n.MarkOfficial();
+  n.Make()->Start(CheckMode::kForce);
+
+  // Mirror A now serves a validly signed but older index; B the newest.
+  n.Publish(kMirrorA, 9, "2.3.0-alpha.7");
+  n.Publish(kMirrorB, 11, "2.3.0-alpha.12");
+  auto c = n.Make();
+  ASSERT_EQ(c->State().max_serial, 10);  // remembered across runs
+  c->Start(CheckMode::kForce);
+  EXPECT_EQ(c->State().last_good->list.latest.version, "2.3.0-alpha.12");
+  EXPECT_EQ(c->State().max_serial, 11);
+
+  // Only the replay left: refused, the last good result stands.
+  n.mirrors.table.erase(QString(kMirrorB) + "gpgfrontend/v1/index.json");
+  n.Publish(kMirrorA, 9, "2.3.0-alpha.7");
+  auto d = n.Make();
+  d->Start(CheckMode::kForce);
+  EXPECT_TRUE(d->State().last_attempt_failed);
+  EXPECT_EQ(d->State().last_good->list.latest.version, "2.3.0-alpha.12");
+}
+
+TEST(NightlyCheckTest, AnUnknownCommitIsAnUnofficialBuild) {
+  Nightly n;
+  n.Publish(kMirrorA, 3, "2.3.0-alpha.5");
+  auto c = n.Make();  // no marker for kCommit
+  c->Start(CheckMode::kForce);
+  EXPECT_EQ(n.Verdict(*c), Verdict::kUnofficialBuild);
+}
+
+TEST(NightlyCheckTest, AWithdrawnVersionSaysSo) {
+  Nightly n;
+  n.Publish(kMirrorA, 3, "2.3.0-alpha.5", {"2.3.0-alpha.5"});
+  n.MarkOfficial();
+  auto c = n.Make("v2.3.0-alpha.5");
+  c->Start(CheckMode::kForce);
+  EXPECT_EQ(n.Verdict(*c), Verdict::kWithdrawnOrUnreleased);
+}
+
+TEST(NightlyCheckTest, NoChannelNoRequestNoClaim) {
+  Nightly n;
+  auto c = std::make_unique<UpdateChecker>(
+      UpdateChecker::Build{"v2.3.0-alpha.5", kCommit, {}}, n.mirrors.Fetcher(),
+      UpdateChecker::Store{}, [] { return kNow; });
+  c->Start(CheckMode::kForce);
+  EXPECT_TRUE(n.mirrors.asked.isEmpty());
+  EXPECT_FALSE(c->State().checking);
+  EXPECT_FALSE(c->State().last_good.has_value());
+}
+
+TEST(NightlyCheckTest, AReleaseBuildStillAsksGitHub) {
+  Nightly n;
+  auto c = std::make_unique<UpdateChecker>(
+      UpdateChecker::Build{"v2.2.4", kCommit, n.Channel()}, n.mirrors.Fetcher(),
+      UpdateChecker::Store{}, [] { return kNow; });
+  c->Start(CheckMode::kForce);
+  ASSERT_FALSE(n.mirrors.asked.isEmpty());
+  for (const auto& url : n.mirrors.asked) {
+    EXPECT_TRUE(url.startsWith("https://api.github.com/")) << url.toStdString();
+  }
+}
+
+TEST(NightlyCheckTest, TheSerialSurvivesAnotherBuild) {
+  Nightly n;
+  n.Publish(kMirrorA, 7, "2.3.0-alpha.9");
+  n.MarkOfficial();
+  n.Make()->Start(CheckMode::kForce);
+  // An upgrade to another build keeps what was seen, even with no result.
+  const auto s =
+      UpdateChecker::FromStorage(n.stored, {"v2.3.0-alpha.9", "x", {}});
+  EXPECT_EQ(s.max_serial, 7);
+  EXPECT_FALSE(s.last_good.has_value());
+}
