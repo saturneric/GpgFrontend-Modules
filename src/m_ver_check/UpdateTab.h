@@ -61,7 +61,6 @@ class UpdateTab : public QWidget {
   QLabel* detail_;
   QLabel* notice_;
   QLabel* freshness_;
-  QProgressBar* busy_;
   QPushButton* check_btn_;
   QPushButton* download_btn_;
   QString download_url_;  ///< empty: the downloads page

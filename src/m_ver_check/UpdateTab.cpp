@@ -42,6 +42,12 @@ auto ToneIcon(const QStyle* style, UpdateTone tone) -> QIcon {
   switch (tone) {
     case UpdateTone::kGood:
       return style->standardIcon(QStyle::SP_DialogApplyButton);
+    case UpdateTone::kUpdate:
+      // Good news, not a warning: the theme's update icon where there is
+      // one, the information sign otherwise.
+      return QIcon::fromTheme(
+          QStringLiteral("system-software-update"),
+          style->standardIcon(QStyle::SP_MessageBoxInformation));
     case UpdateTone::kAttention:
       return style->standardIcon(QStyle::SP_MessageBoxWarning);
     case UpdateTone::kNeutral:
@@ -89,11 +95,6 @@ UpdateTab::UpdateTab(QWidget* parent)
   header->addWidget(icon_, 0, Qt::AlignTop);
   header->addLayout(text_column, 1);
 
-  busy_ = new QProgressBar(this);
-  busy_->setRange(0, 0);
-  busy_->setTextVisible(false);
-  busy_->setMaximumHeight(6);
-
   check_btn_ = new QPushButton(this);
   check_btn_->setIcon(QIcon::fromTheme("view-refresh"));
 
@@ -102,7 +103,6 @@ UpdateTab::UpdateTab(QWidget* parent)
   download_btn_->setDefault(true);
 
   auto* actions = new QHBoxLayout();
-  actions->addWidget(busy_, 1);
   actions->addStretch();
   actions->addWidget(check_btn_);
   actions->addWidget(download_btn_);
@@ -194,7 +194,6 @@ void UpdateTab::apply(const UpdateView& view) {
   freshness_->setText(view.freshness);
   freshness_->setVisible(!view.freshness.isEmpty());
 
-  busy_->setVisible(view.busy);
   check_btn_->setText(view.check_label);
   check_btn_->setEnabled(view.check_enabled);
 

@@ -38,6 +38,13 @@
 // dialog's own tr(): lupdate files them together, and a named constant would
 // hide them from it.
 
+auto DisplayVersion(const QString& version) -> QString {
+  auto v = version.trimmed();
+  if (v.startsWith(u'v') || v.startsWith(u'V')) v.remove(0, 1);
+  const auto plus = v.indexOf(u'+');
+  return plus < 0 ? v : v.left(plus);
+}
+
 auto RelativeTime(const QDateTime& then, const QDateTime& now) -> QString {
   const auto minutes = then.secsTo(now) / 60;
   if (minutes < 1) return QCoreApplication::translate("UpdateTab", "just now");
@@ -65,7 +72,7 @@ auto PresentUpdate(const UpdateSnapshot& s, const QDateTime& now)
     if (s.checking) {
       v.headline =
           QCoreApplication::translate("UpdateTab", "Checking for updates…");
-      v.check_label = QCoreApplication::translate("UpdateTab", "Check now");
+      v.check_label = QCoreApplication::translate("UpdateTab", "Checking…");
     } else if (s.last_attempt_failed) {
       v.headline = QCoreApplication::translate("UpdateTab",
                                                "Couldn't check for updates");
@@ -84,14 +91,15 @@ auto PresentUpdate(const UpdateSnapshot& s, const QDateTime& now)
   }
 
   const auto& r = *s.last_good;
-  const auto& latest = r.list.latest.version;
+  const auto latest = DisplayVersion(r.list.latest.version);
+  const auto current = DisplayVersion(r.current_version);
   // A nightly follows the signed nightly channel, not GitHub's releases, and
   // says so in every line that names where the answer came from.
   const bool nightly = r.nightly;
 
   switch (Decide(r)) {
     case Verdict::kUpdateAvailable:
-      v.tone = UpdateTone::kAttention;
+      v.tone = UpdateTone::kUpdate;
       v.headline = nightly ? QCoreApplication::translate(
                                  "UpdateTab", "Nightly build %1 is available")
                                  .arg(latest)
@@ -99,11 +107,11 @@ auto PresentUpdate(const UpdateSnapshot& s, const QDateTime& now)
                                  "UpdateTab", "GpgFrontend %1 is available")
                                  .arg(latest);
       v.detail = QCoreApplication::translate("UpdateTab", "You are using %1.")
-                     .arg(r.current_version);
+                     .arg(current);
       v.show_download = true;
-      v.download_version = latest;
-      v.download_label =
-          QCoreApplication::translate("UpdateTab", "Download %1").arg(latest);
+      v.download_version = r.list.latest.version;
+      // The version is in the headline: the button only says what it does.
+      v.download_label = QCoreApplication::translate("UpdateTab", "Download");
       // Only a link the checker made from a verified descriptor, never a page
       // a release list merely named.
       if (nightly && r.list.latest.html_url.startsWith(u"https://")) {
@@ -150,15 +158,15 @@ auto PresentUpdate(const UpdateSnapshot& s, const QDateTime& now)
       if (nightly) {
         v.detail = QCoreApplication::translate(
                        "UpdateTab", "%1 is the newest nightly build.")
-                       .arg(r.current_version);
+                       .arg(current);
       } else {
         v.detail = r.list.outcome == ListOutcome::kFound
                        ? QCoreApplication::translate(
                              "UpdateTab", "%1 is the latest release.")
-                             .arg(r.current_version)
+                             .arg(current)
                        : QCoreApplication::translate(
                              "UpdateTab", "No newer release was found for %1.")
-                             .arg(r.current_version);
+                             .arg(current);
       }
       break;
     case Verdict::kUnknown:
@@ -176,7 +184,10 @@ auto PresentUpdate(const UpdateSnapshot& s, const QDateTime& now)
                                             "Last checked %1 · GitHub Releases")
                     .arg(RelativeTime(r.checked_at, now));
 
-  if (s.last_attempt_failed && !s.checking) {
+  if (s.checking) {
+    // The button says it is busy; nothing else moves on the page.
+    v.check_label = QCoreApplication::translate("UpdateTab", "Checking…");
+  } else if (s.last_attempt_failed) {
     v.notice = QCoreApplication::translate(
         "UpdateTab",
         "Couldn't check for updates just now. Showing the last "
