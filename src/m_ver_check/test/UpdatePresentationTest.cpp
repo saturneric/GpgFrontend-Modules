@@ -75,6 +75,7 @@ TEST(UpdatePresentationTest, FirstCheckInProgress) {
   const auto v = PresentUpdate(s, kNow);
   EXPECT_TRUE(v.busy);
   EXPECT_FALSE(v.check_enabled);
+  EXPECT_EQ(v.check_label, "Checking…");
   EXPECT_FALSE(v.show_download);
 }
 
@@ -94,9 +95,9 @@ TEST(UpdatePresentationTest, UpdateAvailableOffersDownloadAndNotes) {
   UpdateSnapshot s;
   s.last_good = Update();
   const auto v = PresentUpdate(s, kNow);
-  EXPECT_EQ(v.tone, UpdateTone::kAttention);
+  EXPECT_EQ(v.tone, UpdateTone::kUpdate);  // good news, not a warning
   EXPECT_TRUE(v.show_download);
-  EXPECT_EQ(v.download_label, "Download v2.1.9");
+  EXPECT_EQ(v.download_label, "Download");
   EXPECT_TRUE(v.show_notes);
   EXPECT_EQ(v.notes, "## What's new");
   EXPECT_EQ(v.freshness, "Last checked 5 minute(s) ago · GitHub Releases");
@@ -120,7 +121,7 @@ TEST(UpdatePresentationTest, FailedRefreshKeepsKnownUpdate) {
   s.last_attempt_failed = true;
   const auto v = PresentUpdate(s, kNow);
   EXPECT_TRUE(v.show_download);
-  EXPECT_EQ(v.download_label, "Download v2.1.9");
+  EXPECT_EQ(v.download_label, "Download");
   EXPECT_FALSE(v.notice.isEmpty());
   EXPECT_EQ(v.check_label, "Try again");
   // Freshness is the last success, not the failed attempt.
@@ -135,7 +136,8 @@ TEST(UpdatePresentationTest, CheckingKeepsPreviousResultVisible) {
   EXPECT_TRUE(v.busy);
   EXPECT_FALSE(v.check_enabled);
   EXPECT_TRUE(v.show_download);
-  EXPECT_EQ(v.headline, "GpgFrontend v2.1.9 is available");
+  EXPECT_EQ(v.headline, "GpgFrontend 2.1.9 is available");
+  EXPECT_EQ(v.check_label, "Checking…");
 }
 
 TEST(UpdatePresentationTest, WithdrawnAndUnofficialAreCalmAndInDialogOnly) {
@@ -179,15 +181,15 @@ TEST(UpdatePresentationTest, ANightlyNamesItsOwnChannel) {
   s.last_good = Nightly("2.3.0-alpha.414+g739ebdc4c445");
   auto v = PresentUpdate(s, kNow);
   EXPECT_EQ(v.headline, "You're up to date");
-  EXPECT_EQ(v.detail,
-            "v2.3.0-alpha.414+g739ebdc4c445 is the newest nightly build.");
+  EXPECT_EQ(v.detail, "2.3.0-alpha.414 is the newest nightly build.");
   // The count is "5 minute(s)" with no translator loaded: match the source.
   EXPECT_TRUE(v.freshness.endsWith(" · Signed nightly channel"))
       << v.freshness.toStdString();
 
   s.last_good = Nightly("2.3.0-alpha.420+gabc");
   v = PresentUpdate(s, kNow);
-  EXPECT_EQ(v.headline, "Nightly build 2.3.0-alpha.420+gabc is available");
+  EXPECT_EQ(v.headline, "Nightly build 2.3.0-alpha.420 is available");
+  EXPECT_EQ(v.detail, "You are using 2.3.0-alpha.414.");
 
   s.last_good = Nightly("2.3.0-alpha.414", RemoteFact::kNotFound);
   v = PresentUpdate(s, kNow);
@@ -212,7 +214,7 @@ TEST(UpdatePresentationTest, AReleaseBuildStillNamesGitHub) {
   UpdateSnapshot s;
   s.last_good = Current();
   const auto v = PresentUpdate(s, kNow);
-  EXPECT_EQ(v.detail, "v2.1.8 is the latest release.");
+  EXPECT_EQ(v.detail, "2.1.8 is the latest release.");
   EXPECT_TRUE(v.freshness.endsWith(" · GitHub Releases"))
       << v.freshness.toStdString();
 }
@@ -235,4 +237,14 @@ TEST(UpdatePresentationTest, DownloadLeadsToTheVerifiedFileForANightly) {
   release.list.latest.html_url = "https://github.com/x/releases/tag/v2.1.9";
   s.last_good = release;
   EXPECT_TRUE(PresentUpdate(s, kNow).download_url.isEmpty());
+}
+
+// What a person reads: the version, not its leading "v" or build commit,
+// which make a headline wrap and say nothing.
+TEST(UpdatePresentationTest, VersionsReadCleanly) {
+  EXPECT_EQ(DisplayVersion("v2.3.0-alpha.415+gbe5ff859f457"),
+            "2.3.0-alpha.415");
+  EXPECT_EQ(DisplayVersion("v2.2.4"), "2.2.4");
+  EXPECT_EQ(DisplayVersion("2.4.0-rc.1"), "2.4.0-rc.1");
+  EXPECT_EQ(DisplayVersion("2.3.0+dirty"), "2.3.0");
 }

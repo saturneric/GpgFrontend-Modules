@@ -43,7 +43,9 @@
  * so it is not guessed.
  */
 
-enum class UpdateTone { kNeutral, kGood, kAttention };
+/// kUpdate is good news (a newer version); kAttention is something wrong
+/// with this one (withdrawn, unofficial).
+enum class UpdateTone { kNeutral, kGood, kUpdate, kAttention };
 
 struct UpdateView {
   UpdateTone tone = UpdateTone::kNeutral;
@@ -69,6 +71,11 @@ struct UpdateView {
 };
 
 auto PresentUpdate(const UpdateSnapshot& s, const QDateTime& now) -> UpdateView;
+
+/// A version as a person reads it: no leading "v", no build metadata
+/// ("v2.3.0-alpha.415+gbe5ff859f457" -> "2.3.0-alpha.415"). The commit says
+/// nothing to a user and makes a headline wrap.
+auto DisplayVersion(const QString& version) -> QString;
 
 /// "just now", "5 minutes ago", "3 hours ago", then the date.
 auto RelativeTime(const QDateTime& then, const QDateTime& now) -> QString;
