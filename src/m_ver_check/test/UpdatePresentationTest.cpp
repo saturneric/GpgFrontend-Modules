@@ -159,3 +159,59 @@ TEST(UpdatePresentationTest, RelativeTime) {
   EXPECT_EQ(RelativeTime(kNow.addSecs(-3 * 3600), kNow), "3 hour(s) ago");
   EXPECT_FALSE(RelativeTime(kNow.addDays(-3), kNow).contains("ago"));
 }
+
+namespace {
+
+auto Nightly(const QString& latest, RemoteFact tag = RemoteFact::kConfirmed,
+             RemoteFact commit = RemoteFact::kConfirmed) -> SoftwareVersion {
+  auto r = Known(ListOutcome::kFound, latest, tag, commit);
+  r.current_version = "v2.3.0-alpha.414+g739ebdc4c445";
+  return r;
+}
+
+}  // namespace
+
+// A nightly reads the signed nightly channel, never GitHub: no line may say
+// otherwise.
+TEST(UpdatePresentationTest, ANightlyNamesItsOwnChannel) {
+  UpdateSnapshot s;
+  s.last_good = Nightly("2.3.0-alpha.414+g739ebdc4c445");
+  auto v = PresentUpdate(s, kNow);
+  EXPECT_EQ(v.headline, "You're up to date");
+  EXPECT_EQ(v.detail,
+            "v2.3.0-alpha.414+g739ebdc4c445 is the newest nightly build.");
+  // The count is "5 minute(s)" with no translator loaded: match the source.
+  EXPECT_TRUE(v.freshness.endsWith(" · Signed nightly channel"))
+      << v.freshness.toStdString();
+
+  s.last_good = Nightly("2.3.0-alpha.420+gabc");
+  v = PresentUpdate(s, kNow);
+  EXPECT_EQ(v.headline, "Nightly build 2.3.0-alpha.420+gabc is available");
+
+  s.last_good = Nightly("2.3.0-alpha.414", RemoteFact::kNotFound);
+  v = PresentUpdate(s, kNow);
+  EXPECT_EQ(v.headline, "This nightly build has been withdrawn");
+
+  s.last_good =
+      Nightly("2.3.0-alpha.414", RemoteFact::kConfirmed, RemoteFact::kNotFound);
+  v = PresentUpdate(s, kNow);
+  EXPECT_TRUE(v.detail.contains("published builds"));
+
+  for (const auto& r : {Nightly("2.3.0-alpha.414"), Nightly("2.3.0-alpha.420"),
+                        Nightly("2.3.0-alpha.414", RemoteFact::kNotFound)}) {
+    s.last_good = r;
+    v = PresentUpdate(s, kNow);
+    for (const auto& text : {v.headline, v.detail, v.freshness}) {
+      EXPECT_FALSE(text.contains("GitHub")) << text.toStdString();
+    }
+  }
+}
+
+TEST(UpdatePresentationTest, AReleaseBuildStillNamesGitHub) {
+  UpdateSnapshot s;
+  s.last_good = Current();
+  const auto v = PresentUpdate(s, kNow);
+  EXPECT_EQ(v.detail, "v2.1.8 is the latest release.");
+  EXPECT_TRUE(v.freshness.endsWith(" · GitHub Releases"))
+      << v.freshness.toStdString();
+}
