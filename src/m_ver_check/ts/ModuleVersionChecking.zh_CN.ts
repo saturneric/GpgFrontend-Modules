@@ -4,8 +4,8 @@
 <context>
     <name>ModuleVersionChecking</name>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="188"/>
-        <location filename="../VersionCheckingModule.cpp" line="255"/>
+        <location filename="../VersionCheckingModule.cpp" line="207"/>
+        <location filename="../VersionCheckingModule.cpp" line="274"/>
         <source>Check for Updates</source>
         <translation>检查更新</translation>
     </message>
@@ -14,7 +14,7 @@
         <translation type="vanished">从互联网检查更新</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="157"/>
+        <location filename="../VersionCheckingModule.cpp" line="176"/>
         <source>Update Checking</source>
         <translation>更新检查</translation>
     </message>
@@ -23,27 +23,27 @@
         <translation type="vanished">当应用程序启动的时候检查更新。</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="161"/>
+        <location filename="../VersionCheckingModule.cpp" line="180"/>
         <source>Check for updates automatically, once a day.</source>
-        <translation type="unfinished"></translation>
+        <translation>每天自动检查一次更新。</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="189"/>
+        <location filename="../VersionCheckingModule.cpp" line="208"/>
         <source>See whether a newer GpgFrontend is available</source>
         <translation>查看是否有更新版本的 GpgFrontend</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="198"/>
+        <location filename="../VersionCheckingModule.cpp" line="217"/>
         <source>A newer version is available</source>
-        <translation type="unfinished"></translation>
+        <translation>有更新版本可用</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="259"/>
+        <location filename="../VersionCheckingModule.cpp" line="278"/>
         <source>Updates</source>
         <translation>更新</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="259"/>
+        <location filename="../VersionCheckingModule.cpp" line="278"/>
         <source>update,version,check,github</source>
         <translation>update,version,check,github,更新,版本,检查</translation>
     </message>
@@ -185,13 +185,13 @@
     <message>
         <location filename="../UpdatePresentation.cpp" line="68"/>
         <location filename="../UpdatePresentation.cpp" line="81"/>
-        <location filename="../UpdateTab.cpp" line="166"/>
+        <location filename="../UpdateTab.cpp" line="168"/>
         <source>Check now</source>
         <translation>立即检查</translation>
     </message>
     <message>
         <location filename="../UpdatePresentation.cpp" line="70"/>
-        <location filename="../UpdatePresentation.cpp" line="161"/>
+        <location filename="../UpdatePresentation.cpp" line="166"/>
         <source>Couldn&apos;t check for updates</source>
         <translation>无法检查更新。</translation>
     </message>
@@ -202,7 +202,7 @@
     </message>
     <message>
         <location filename="../UpdatePresentation.cpp" line="74"/>
-        <location filename="../UpdatePresentation.cpp" line="179"/>
+        <location filename="../UpdatePresentation.cpp" line="184"/>
         <source>Try again</source>
         <translation>重试</translation>
     </message>
@@ -219,7 +219,7 @@
     <message>
         <location filename="../UpdatePresentation.cpp" line="95"/>
         <source>Nightly build %1 is available</source>
-        <translation type="unfinished"></translation>
+        <translation>Nightly 构建 %1 可用</translation>
     </message>
     <message>
         <location filename="../UpdatePresentation.cpp" line="98"/>
@@ -237,77 +237,77 @@
         <translation>下载 %1</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="113"/>
+        <location filename="../UpdatePresentation.cpp" line="118"/>
         <source>This nightly build has been withdrawn</source>
-        <translation type="unfinished"></translation>
+        <translation>此 Nightly 构建已撤回</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="115"/>
+        <location filename="../UpdatePresentation.cpp" line="120"/>
         <source>Please move to the newest nightly build.</source>
-        <translation type="unfinished"></translation>
+        <translation>请改用最新的 Nightly 构建。</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="119"/>
+        <location filename="../UpdatePresentation.cpp" line="124"/>
         <source>This version isn&apos;t listed on GitHub Releases</source>
         <translation>此版本未在 GitHub Releases 中列出</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="121"/>
+        <location filename="../UpdatePresentation.cpp" line="126"/>
         <source>It may be a pre-release build or a withdrawn version. The latest official release is recommended.</source>
         <translation>此版本可能是预发布版本或已撤回版本。建议使用最新官方版本。</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="128"/>
+        <location filename="../UpdatePresentation.cpp" line="133"/>
         <source>This build isn&apos;t from the official repository</source>
         <translation>此构建并非来自官方仓库</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="131"/>
+        <location filename="../UpdatePresentation.cpp" line="136"/>
         <source>Its source commit isn&apos;t among the published builds. That is expected for self-built or modified versions.</source>
-        <translation type="unfinished"></translation>
+        <translation>其源提交不在已发布的构建中。对于自行构建或修改的版本，这是正常的。</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="136"/>
+        <location filename="../UpdatePresentation.cpp" line="141"/>
         <source>Its source commit wasn&apos;t found upstream. That is expected for self-built or modified versions.</source>
         <translation>其源代码提交未在上游找到。对于自行构建或修改过的版本，这是正常现象。</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="144"/>
+        <location filename="../UpdatePresentation.cpp" line="149"/>
         <source>You&apos;re up to date</source>
         <translation>您已是最新版本</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="146"/>
+        <location filename="../UpdatePresentation.cpp" line="151"/>
         <source>%1 is the newest nightly build.</source>
-        <translation type="unfinished"></translation>
+        <translation>%1 是最新的 Nightly 构建。</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="151"/>
+        <location filename="../UpdatePresentation.cpp" line="156"/>
         <source>%1 is the latest release.</source>
         <translation>%1 是最新版本。</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="154"/>
+        <location filename="../UpdatePresentation.cpp" line="159"/>
         <source>No newer release was found for %1.</source>
         <translation>未找到比 %1 更新的版本。</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="167"/>
+        <location filename="../UpdatePresentation.cpp" line="172"/>
         <source>Last checked %1 · Signed nightly channel</source>
-        <translation type="unfinished"></translation>
+        <translation>上次检查 %1 · 已签名的 Nightly 渠道</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="170"/>
+        <location filename="../UpdatePresentation.cpp" line="175"/>
         <source>Last checked %1 · GitHub Releases</source>
         <translation>上次检查：%1 · GitHub Releases</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="175"/>
+        <location filename="../UpdatePresentation.cpp" line="180"/>
         <source>Couldn&apos;t check for updates just now. Showing the last known result.</source>
         <translation>暂时无法检查更新，正在显示上次已知结果。</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="181"/>
+        <location filename="../UpdatePresentation.cpp" line="186"/>
         <source>Check again</source>
         <translation>重新检查</translation>
     </message>
@@ -317,7 +317,7 @@
         <translation>版本说明</translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="164"/>
+        <location filename="../UpdateTab.cpp" line="166"/>
         <source>Update checking is unavailable</source>
         <translation>无法检查更新</translation>
     </message>
