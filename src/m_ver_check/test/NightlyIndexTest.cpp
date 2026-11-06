@@ -544,3 +544,55 @@ TEST(NightlyCheckTest, HourlyTicksAskOnceADay) {
   now = now.addSecs(3600);
   EXPECT_TRUE(tick());
 }
+
+// The Help-menu badge for a nightly: one offer seen, the next waits a day.
+TEST(NightlyCheckTest, ANightlyBadgeComesAtMostOnceADay) {
+  Nightly n;
+  QDateTime now = kNow;
+  const auto make = [&] {
+    return std::make_unique<UpdateChecker>(
+        UpdateChecker::Build{"v2.3.0-alpha.5+g0123456789ab", kCommit,
+                             n.Channel()},
+        n.mirrors.Fetcher(),
+        UpdateChecker::Store{[&n] { return n.stored; },
+                             [&n](const QByteArray& d) { n.stored = d; }},
+        [&now] { return now; });
+  };
+  n.MarkOfficial();
+
+  n.Publish(kMirrorA, 3, "2.3.0-alpha.9");
+  auto c = make();
+  c->Start(CheckMode::kForce);
+  EXPECT_EQ(c->Attention(), UpdateAttention::kUpdateAvailable);
+  c->Acknowledge();  // the user opened the dialog
+  EXPECT_EQ(c->Attention(), UpdateAttention::kNone);
+
+  // Two hours on, main has moved: the dialog knows, the badge waits.
+  now = kNow.addSecs(2 * 3600);
+  n.Publish(kMirrorA, 4, "2.3.0-alpha.12");
+  c->Start(CheckMode::kForce);
+  EXPECT_EQ(c->State().last_good->list.latest.version, "2.3.0-alpha.12");
+  EXPECT_EQ(c->Attention(), UpdateAttention::kNone);
+
+  // A day after the last one was seen, it may ask again, across a restart.
+  now = kNow.addSecs(24 * 3600 + 1);
+  // The stored result of this same build is enough: no check needed first.
+  auto restarted = make();
+  EXPECT_EQ(restarted->Attention(), UpdateAttention::kUpdateAvailable);
+  restarted->Acknowledge();
+  EXPECT_EQ(restarted->Attention(), UpdateAttention::kNone);
+}
+
+TEST(NightlyCheckTest, AReleaseBuildBadgeIsNotHeldBack) {
+  UpdateSnapshot s;
+  SoftwareVersion r;
+  r.current_version = "v2.2.4";
+  r.list.outcome = ListOutcome::kFound;
+  r.list.latest.version = "v2.2.6";
+  r.tag_fact = RemoteFact::kConfirmed;
+  r.commit_fact = RemoteFact::kConfirmed;
+  s.last_good = r;
+  s.last_seen_update_version = "v2.2.5";
+  s.last_seen_at = kNow.addSecs(-3600);  // seen an hour ago
+  EXPECT_EQ(AttentionFor(s, kNow), UpdateAttention::kUpdateAvailable);
+}

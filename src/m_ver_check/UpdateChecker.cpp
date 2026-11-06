@@ -63,9 +63,14 @@ auto UpdateChecker::IsFresh() const -> bool {
          good->checked_at.secsTo(clock_()) < kFreshSeconds;
 }
 
+auto UpdateChecker::Attention() const -> UpdateAttention {
+  return AttentionFor(state_, clock_());
+}
+
 void UpdateChecker::Acknowledge() {
-  if (AttentionFor(state_) == UpdateAttention::kNone) return;
+  if (Attention() == UpdateAttention::kNone) return;
   state_.last_seen_update_version = state_.last_good->list.latest.version;
+  state_.last_seen_at = clock_();
   if (store_.save) store_.save(ToStorage(state_));
   emit Changed();
 }
@@ -234,6 +239,9 @@ auto UpdateChecker::ToStorage(const UpdateSnapshot& s) -> QByteArray {
   }
   // Additive: a build that does not know the field keeps it untouched.
   if (s.max_serial > 0) obj["max_serial"] = s.max_serial;
+  if (s.last_seen_at.isValid()) {
+    obj["last_seen_at"] = s.last_seen_at.toSecsSinceEpoch();
+  }
   return QJsonDocument(obj).toJson(QJsonDocument::Compact);
 }
 
@@ -250,6 +258,10 @@ auto UpdateChecker::FromStorage(const QByteArray& data, const Build& build)
   // upgrade, or a rebuild, must not advertise it again.
   s.last_seen_update_version = obj.value("last_seen_update_version").toString();
   s.max_serial = obj.value("max_serial").toInteger();
+  if (obj.value("last_seen_at").isDouble()) {
+    s.last_seen_at =
+        QDateTime::fromSecsSinceEpoch(obj.value("last_seen_at").toInteger());
+  }
 
   auto good = SoftwareVersion::FromJson(obj.value("last_good").toObject());
   // What was learned about another build says nothing about this one, and
@@ -265,13 +277,21 @@ auto UpdateChecker::FromStorage(const QByteArray& data, const Build& build)
   return s;
 }
 
-auto AttentionFor(const UpdateSnapshot& s) -> UpdateAttention {
+auto AttentionFor(const UpdateSnapshot& s, const QDateTime& now)
+    -> UpdateAttention {
   if (!s.last_good || Decide(*s.last_good) != Verdict::kUpdateAvailable) {
     return UpdateAttention::kNone;
   }
   const auto& latest = s.last_good->list.latest.version;
   const auto& seen = s.last_seen_update_version;
   if (!seen.isEmpty() && SemVerCompare(latest, seen) <= 0) {
+    return UpdateAttention::kNone;
+  }
+  // A nightly's channel moves with every push: after one offer was seen, the
+  // next waits a day. The dialog still shows the newest whenever opened.
+  if (now.isValid() && s.last_seen_at.isValid() &&
+      IsNightlyBuild(s.last_good->current_version) &&
+      s.last_seen_at.secsTo(now) < kNightlyQuietSeconds) {
     return UpdateAttention::kNone;
   }
   return UpdateAttention::kUpdateAvailable;

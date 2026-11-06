@@ -192,6 +192,23 @@ struct CheckForUpdates {
       gf::cmd::kNeedsGuiThread};
   using Args = gf::cmd::Unit;
   using Result = gf::cmd::Unit;
+
+  /// The badge's tooltip on every entry placed for this command.
+  static constexpr const char* kAttention =
+      GTrC::Noop("A newer version is available");
+
+  /// The badge on Help > Check for Updates: an update the user has not seen
+  /// yet (for a nightly, at most once a day). Asked when a menu opens, on the
+  /// GUI thread; it never starts a check, and with no checker yet there is
+  /// nothing to say.
+  static auto State(const gf::cmd::CommandContext& /*ctx*/) -> uint32_t {
+    uint32_t bits = GF_CMD_STATE_ENABLED | GF_CMD_STATE_VISIBLE;
+    if (!g_checker.isNull() &&
+        g_checker->Attention() == UpdateAttention::kUpdateAvailable) {
+      bits |= GF_CMD_STATE_ATTENTION;
+    }
+    return bits;
+  }
 };
 
 auto DoCheckForUpdates(const gf::cmd::CommandContext& /*ctx*/,
@@ -273,8 +290,9 @@ auto AutoCheckAllowed() -> bool {
   return prohibited.isValid() && !prohibited.toBool();
 }
 
-/// In the background, and quietly: a newer release shows in the update
-/// dialog, never as a window. Joins a running check; skips a fresh result.
+/// In the background, and quietly: a newer release shows as a badge on
+/// Help > Check for Updates (CheckForUpdates::State), never as a window.
+/// Joins a running check; skips a fresh result.
 void AutoCheck() {
   if (!AutoCheckAllowed()) return;
   if (auto* checker = VersionChecker()) checker->Start(CheckMode::kIfStale);
