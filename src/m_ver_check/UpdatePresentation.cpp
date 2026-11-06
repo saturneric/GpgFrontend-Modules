@@ -87,7 +87,7 @@ auto PresentUpdate(const UpdateSnapshot& s, const QDateTime& now)
   const auto& latest = r.list.latest.version;
   // A nightly follows the signed nightly channel, not GitHub's releases, and
   // says so in every line that names where the answer came from.
-  const bool nightly = IsNightlyBuild(r.current_version);
+  const bool nightly = r.nightly;
 
   switch (Decide(r)) {
     case Verdict::kUpdateAvailable:

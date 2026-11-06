@@ -52,6 +52,8 @@ UpdateChecker::UpdateChecker(Build build, Fetcher fetch, Store store,
       store_(std::move(store)),
       clock_(clock ? std::move(clock)
                    : [] { return QDateTime::currentDateTime(); }) {
+  nightly_ = build_.nightly >= 0 ? build_.nightly == 1
+                                 : IsNightlyBuild(build_.version);
   if (store_.load) state_ = FromStorage(store_.load(), build_);
 }
 
@@ -87,7 +89,8 @@ void UpdateChecker::Start(CheckMode mode) {
   descriptor_path_.clear();
   descriptor_sha256_.clear();
 
-  if (IsNightlyBuild(build_.version)) {
+  fresh_.nightly = nightly_;
+  if (nightly_) {
     startIndex();
     return;
   }
@@ -323,8 +326,7 @@ auto AttentionFor(const UpdateSnapshot& s, const QDateTime& now)
   }
   // A nightly's channel moves with every push: after one offer was seen, the
   // next waits a day. The dialog still shows the newest whenever opened.
-  if (now.isValid() && s.last_seen_at.isValid() &&
-      IsNightlyBuild(s.last_good->current_version) &&
+  if (now.isValid() && s.last_seen_at.isValid() && s.last_good->nightly &&
       s.last_seen_at.secsTo(now) < kNightlyQuietSeconds) {
     return UpdateAttention::kNone;
   }

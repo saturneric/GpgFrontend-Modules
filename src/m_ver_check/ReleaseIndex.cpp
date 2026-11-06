@@ -137,6 +137,30 @@ auto NormalizeArch(const QString& arch) -> QString {
 
 auto SelectDownload(const QByteArray& descriptor, const Platform& platform)
     -> QString {
+  // Install kind -> the artifact kind and flavor that replace it. An empty
+  // kind matches any kind of the installed flavor.
+  struct Want {
+    QString kind;
+    QString flavor;
+  };
+  static const QHash<QString, Want> kWants{
+      {QStringLiteral("appimage"),
+       {QStringLiteral("appimage"), QStringLiteral("installed")}},
+      {QStringLiteral("appimage-portable"),
+       {QStringLiteral("appimage"), QStringLiteral("portable")}},
+      {QStringLiteral("msi"),
+       {QStringLiteral("msi"), QStringLiteral("installed")}},
+      {QStringLiteral("portable-zip"),
+       {QStringLiteral("zip"), QStringLiteral("portable")}},
+      {QStringLiteral("dmg"),
+       {QStringLiteral("dmg"), QStringLiteral("installed")}},
+      {QStringLiteral("source"), {QString(), QStringLiteral("installed")}},
+      {QString(), {QString(), QStringLiteral("installed")}},
+  };
+  // msix, mas, flatpak, distro, android: their own updater, not a file.
+  const auto want = kWants.constFind(platform.install_kind);
+  if (want == kWants.constEnd()) return {};
+
   const auto doc = QJsonDocument::fromJson(descriptor);
   if (!doc.isObject()) return {};
 
@@ -148,7 +172,8 @@ auto SelectDownload(const QByteArray& descriptor, const Platform& platform)
     if (a.value("os").toString() != platform.os ||
         NormalizeArch(a.value("arch").toString()) !=
             NormalizeArch(platform.arch) ||
-        a.value("flavor").toString() != u"installed") {
+        a.value("flavor").toString() != want->flavor ||
+        (!want->kind.isEmpty() && a.value("kind").toString() != want->kind)) {
       continue;
     }
     const auto path = a.value("path").toString();

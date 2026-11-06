@@ -78,6 +78,11 @@ struct SoftwareVersion {
   RemoteFact commit_fact = RemoteFact::kUnknown;
   bool complete = false;
 
+  /// Whether this build is the nightly application, as the checker knew it
+  /// (the Host says; an older Host leaves it to the version's shape). What it
+  /// read, and how the dialog words it, follow from this.
+  bool nightly = false;
+
   QDateTime checked_at;
 
   /// Whether this result describes the given build.

@@ -90,6 +90,7 @@ auto SoftwareVersion::ToJson() const -> QJsonObject {
   obj["tag_fact"] = NameOf(kFactNames, tag_fact);
   obj["commit_fact"] = NameOf(kFactNames, commit_fact);
   obj["complete"] = complete;
+  if (nightly) obj["nightly"] = true;  // additive: absent reads as a release
   obj["checked_at"] = checked_at.toSecsSinceEpoch();
   return obj;
 }
@@ -113,6 +114,7 @@ auto SoftwareVersion::FromJson(const QJsonObject& obj)
   sv.tag_fact = ValueOf(kFactNames, obj.value("tag_fact").toString());
   sv.commit_fact = ValueOf(kFactNames, obj.value("commit_fact").toString());
   sv.complete = obj.value("complete").toBool();
+  sv.nightly = obj.value("nightly").toBool();
   sv.checked_at =
       QDateTime::fromSecsSinceEpoch(obj.value("checked_at").toInteger());
 

@@ -80,6 +80,9 @@ struct Platform {
   QString os;          ///< "linux", "windows", "macos"
   QString arch;        ///< "x86_64", "arm64" (aarch64 is spelled arm64)
   QString os_version;  ///< "15.3" for macOS; may be empty elsewhere
+  /// How the running build was packaged (GFAppInstallKind); empty from a
+  /// Host too old to say.
+  QString install_kind;
 };
 
 /// A path inside a product's tree that cannot reach outside it: relative, no
@@ -90,10 +93,14 @@ auto IsSafeRelativePath(const QString& path) -> bool;
  * @brief The product-relative path of the file to download on @p platform,
  * from a release descriptor, or empty when none fits.
  *
- * Only the installed flavor is offered (a portable build does not know it is
- * one yet). Among several that fit (macOS disk images built for different
- * releases), the one built for the newest macOS this machine runs; one built
- * for a newer macOS than it runs never fits.
+ * The same kind of package as the running one: an AppImage for an AppImage,
+ * the portable one for a portable build, the installer for an installed one.
+ * A build a store, a distribution or Flatpak keeps up to date is offered no
+ * file at all; one whose packaging is unknown ("source", or a Host too old to
+ * say) is offered the installed package of its platform. Among several that
+ * fit (macOS disk images built for different releases), the one built for
+ * the newest macOS this machine runs; one built for a newer macOS than it
+ * runs never fits.
  */
 auto SelectDownload(const QByteArray& descriptor, const Platform& platform)
     -> QString;
