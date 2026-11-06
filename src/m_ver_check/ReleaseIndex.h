@@ -67,7 +67,36 @@ struct IndexFacts {
   QDateTime expires;
   QString nightly_version;  ///< empty when there is no nightly
   QStringList withdrawn;    ///< versions, as published
+
+  /// The nightly's descriptor (its files), as a product-relative path, and the
+  /// sha256 the signed index states for it: fetching it is then as trusted
+  /// as the index. Empty when the index names none.
+  QString nightly_descriptor;
+  QString nightly_descriptor_sha256;
 };
+
+/// The machine a download is for.
+struct Platform {
+  QString os;          ///< "linux", "windows", "macos"
+  QString arch;        ///< "x86_64", "arm64" (aarch64 is spelled arm64)
+  QString os_version;  ///< "15.3" for macOS; may be empty elsewhere
+};
+
+/// A path inside a product's tree that cannot reach outside it: relative, no
+/// scheme, no "..", no empty, dot or percent-encoded segment.
+auto IsSafeRelativePath(const QString& path) -> bool;
+
+/**
+ * @brief The product-relative path of the file to download on @p platform,
+ * from a release descriptor, or empty when none fits.
+ *
+ * Only the installed flavor is offered (a portable build does not know it is
+ * one yet). Among several that fit (macOS disk images built for different
+ * releases), the one built for the newest macOS this machine runs; one built
+ * for a newer macOS than it runs never fits.
+ */
+auto SelectDownload(const QByteArray& descriptor, const Platform& platform)
+    -> QString;
 
 /// A build of the nightly identity follows the nightly channel and nothing
 /// else. Until the Host tells it outright, a nightly is a build whose version

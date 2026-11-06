@@ -105,6 +105,8 @@ class UpdateChecker : public QObject {
     /// Where a nightly build reads its signed update index. Other builds
     /// still ask GitHub, until the stable and beta channels move too.
     ReleaseChannel channel;
+    /// The machine, to pick the file a "Download" leads to.
+    Platform platform;
   };
 
   static constexpr qint64 kFreshSeconds = 24 * 60 * 60;
@@ -146,6 +148,7 @@ class UpdateChecker : public QObject {
   void startIndex();
   void tryIndexBase(qsizetype i);
   auto acceptIndex(const QByteArray& body, const QByteArray& signature) -> bool;
+  void askDescriptor();
   void askCommitMarker();
 
   Build build_;
@@ -157,6 +160,8 @@ class UpdateChecker : public QObject {
   SoftwareVersion fresh_;
   int pending_ = 0;
   qint64 accepted_serial_ = 0;
+  QString descriptor_path_;    ///< of the accepted index's nightly
+  QString descriptor_sha256_;  ///< what the signed index says it hashes to
 };
 
 /// How long a nightly build stays quiet after an update was seen: its channel

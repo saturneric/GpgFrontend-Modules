@@ -31,7 +31,9 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QRegularExpression>
 #include <QTimeZone>
+#include <QVersionNumber>
 
 #include "SemVer.h"
 
@@ -90,7 +92,77 @@ auto ParseIndex(const QByteArray& json, const QString& trusted_comment,
   for (const auto& w : obj.value("withdrawn").toArray()) {
     f.withdrawn << w.toObject().value("version").toString();
   }
+
+  // Where the nightly's files are listed. Optional: an index without it still
+  // says whether there is an update, only not which file to fetch.
+  static const QRegularExpression kSha256(QStringLiteral("^[0-9a-f]{64}$"));
+  const auto entry = obj.value("nightly").toObject();
+  const auto descriptor = entry.value("descriptor").toString();
+  const auto sha256 = entry.value("sha256").toString();
+  if (!f.nightly_version.isEmpty() &&
+      entry.value("version").toString() == f.nightly_version &&
+      IsSafeRelativePath(descriptor) && kSha256.match(sha256).hasMatch()) {
+    f.nightly_descriptor = descriptor;
+    f.nightly_descriptor_sha256 = sha256;
+  }
   return f;
+}
+
+auto IsSafeRelativePath(const QString& path) -> bool {
+  static const QRegularExpression kSegment(
+      QStringLiteral("^[A-Za-z0-9][A-Za-z0-9._+-]*$"));
+  if (path.isEmpty() || path.contains(u'%') || path.contains(u'\\')) {
+    return false;
+  }
+  for (const auto& part : path.split(u'/')) {
+    if (part == u"." || part == u".." || !kSegment.match(part).hasMatch()) {
+      return false;
+    }
+  }
+  return true;
+}
+
+namespace {
+
+auto NormalizeArch(const QString& arch) -> QString {
+  const auto a = arch.toLower();
+  if (a == u"amd64" || a == u"x86_64") return QStringLiteral("x86_64");
+  if (a == u"aarch64" || a == u"arm64" || a == u"arm64-v8a") {
+    return QStringLiteral("arm64");
+  }
+  return a;
+}
+
+}  // namespace
+
+auto SelectDownload(const QByteArray& descriptor, const Platform& platform)
+    -> QString {
+  const auto doc = QJsonDocument::fromJson(descriptor);
+  if (!doc.isObject()) return {};
+
+  const auto running = QVersionNumber::fromString(platform.os_version);
+  QString best;
+  QVersionNumber best_min;
+  for (const auto& value : doc.object().value("artifacts").toArray()) {
+    const auto a = value.toObject();
+    if (a.value("os").toString() != platform.os ||
+        NormalizeArch(a.value("arch").toString()) !=
+            NormalizeArch(platform.arch) ||
+        a.value("flavor").toString() != u"installed") {
+      continue;
+    }
+    const auto path = a.value("path").toString();
+    if (!IsSafeRelativePath(path)) continue;
+
+    const auto min = QVersionNumber::fromString(
+        a.value("min_os").toObject().value(platform.os).toString());
+    if (!min.isNull() && (running.isNull() || running < min)) continue;
+    if (best.isEmpty() || min > best_min) {
+      best = path;
+      best_min = min;
+    }
+  }
+  return best;
 }
 
 auto NightlyList(const IndexFacts& facts) -> ListResult {

@@ -28,6 +28,7 @@
 
 #include "UpdateChecker.h"
 
+#include <QCryptographicHash>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QPointer>
@@ -83,6 +84,8 @@ void UpdateChecker::Start(CheckMode mode) {
   fresh_.current_version = build_.version;
   fresh_.local_commit_hash = build_.commit;
   accepted_serial_ = 0;
+  descriptor_path_.clear();
+  descriptor_sha256_.clear();
 
   if (IsNightlyBuild(build_.version)) {
     startIndex();
@@ -166,7 +169,7 @@ void UpdateChecker::tryIndexBase(qsizetype i) {
             self->tryIndexBase(i + 1);
             return;
           }
-          self->askCommitMarker();
+          self->askDescriptor();
         });
   });
 }
@@ -185,7 +188,38 @@ auto UpdateChecker::acceptIndex(const QByteArray& body,
   fresh_.list = NightlyList(*facts);
   fresh_.tag_fact = WithdrawnFact(*facts, build_.version);
   accepted_serial_ = facts->serial;
+  descriptor_path_ = facts->nightly_descriptor;
+  descriptor_sha256_ = facts->nightly_descriptor_sha256;
   return true;
+}
+
+void UpdateChecker::askDescriptor() {
+  // Only for the link behind "Download": whatever goes wrong here leaves it
+  // to the downloads page, and changes no verdict.
+  const auto& channel = build_.channel;
+  if (descriptor_path_.isEmpty() || channel.build_bases.isEmpty() ||
+      fresh_.list.outcome != ListOutcome::kFound) {
+    askCommitMarker();
+    return;
+  }
+
+  const QString base = channel.build_bases.first() + channel.product + u'/';
+  QPointer<UpdateChecker> self(this);
+  fetch_(QUrl(base + descriptor_path_), [self, base](int status,
+                                                     const QByteArray& body) {
+    if (self.isNull()) return;
+    // The signed index names this exact descriptor by its hash.
+    const auto digest =
+        QCryptographicHash::hash(body, QCryptographicHash::Sha256).toHex();
+    if (status == 200 &&
+        QString::fromLatin1(digest) == self->descriptor_sha256_) {
+      const auto path = SelectDownload(body, self->build_.platform);
+      if (!path.isEmpty()) {
+        self->fresh_.list.latest.html_url = base + path;
+      }
+    }
+    self->askCommitMarker();
+  });
 }
 
 void UpdateChecker::askCommitMarker() {

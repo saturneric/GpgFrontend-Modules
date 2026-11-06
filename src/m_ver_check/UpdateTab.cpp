@@ -141,8 +141,10 @@ UpdateTab::UpdateTab(QWidget* parent)
     if (!checker_.isNull()) checker_->Start(CheckMode::kForce);
   });
 
-  connect(download_btn_, &QPushButton::clicked, this, [] {
-    QDesktopServices::openUrl(QUrl(QString::fromLatin1(kDownloadPage)));
+  connect(download_btn_, &QPushButton::clicked, this, [this] {
+    QDesktopServices::openUrl(QUrl(download_url_.isEmpty()
+                                       ? QString::fromLatin1(kDownloadPage)
+                                       : download_url_));
   });
 
   if (!checker_.isNull()) {
@@ -197,6 +199,7 @@ void UpdateTab::apply(const UpdateView& view) {
   check_btn_->setEnabled(view.check_enabled);
 
   download_btn_->setText(view.download_label);
+  download_url_ = view.download_url;
   download_btn_->setVisible(view.show_download);
 
   notes_toggle_->setVisible(view.show_notes);
