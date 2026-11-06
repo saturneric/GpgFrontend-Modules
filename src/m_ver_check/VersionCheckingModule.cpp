@@ -35,7 +35,9 @@
 #include <GFSDKHostCommands.hpp>
 #include <QCheckBox>
 #include <QGroupBox>
+#include <QOperatingSystemVersion>
 #include <QPointer>
+#include <QSysInfo>
 #include <QTimer>
 #include <QVBoxLayout>
 #include <QtNetwork>
@@ -112,6 +114,23 @@ auto BuiltInChannel() -> ReleaseChannel {
   return {QString::fromLatin1(GF_RELEASE_PRODUCT),
           split(GF_RELEASE_UPDATE_BASES), split(GF_RELEASE_BUILDS_BASES),
           split(GF_RELEASE_INDEX_KEYS)};
+}
+
+/// This machine, as release descriptors name it.
+auto ThisPlatform() -> Platform {
+  Platform p;
+#if defined(Q_OS_WIN)
+  p.os = QStringLiteral("windows");
+#elif defined(Q_OS_MACOS)
+  p.os = QStringLiteral("macos");
+  const auto v = QOperatingSystemVersion::current();
+  p.os_version =
+      QStringLiteral("%1.%2").arg(v.majorVersion()).arg(v.minorVersion());
+#elif defined(Q_OS_LINUX)
+  p.os = QStringLiteral("linux");
+#endif
+  p.arch = QSysInfo::currentCpuArchitecture();
+  return p;
 }
 
 auto MakeStore() -> UpdateChecker::Store {
@@ -225,10 +244,10 @@ auto VersionChecker() -> UpdateChecker* {
   if (g_checker.isNull()) {
     auto* ctx = GFModuleSdkContext();
     auto* nam = new QNetworkAccessManager();
-    g_checker = new UpdateChecker(
-        {QString::fromUtf8(GFAppVersion(ctx)),
-         QString::fromUtf8(GFAppGitCommitHash(ctx)), BuiltInChannel()},
-        MakeFetcher(nam), MakeStore());
+    g_checker = new UpdateChecker({QString::fromUtf8(GFAppVersion(ctx)),
+                                   QString::fromUtf8(GFAppGitCommitHash(ctx)),
+                                   BuiltInChannel(), ThisPlatform()},
+                                  MakeFetcher(nam), MakeStore());
     nam->setParent(g_checker);
 
     QObject::connect(g_checker, &UpdateChecker::Changed, g_checker,

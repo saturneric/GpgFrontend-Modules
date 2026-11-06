@@ -215,3 +215,23 @@ TEST(UpdatePresentationTest, AReleaseBuildStillNamesGitHub) {
   EXPECT_TRUE(v.freshness.endsWith(" · GitHub Releases"))
       << v.freshness.toStdString();
 }
+
+// The button leads to the file only when the checker made the link from a
+// verified descriptor (a nightly); a release keeps the downloads page.
+TEST(UpdatePresentationTest, DownloadLeadsToTheVerifiedFileForANightly) {
+  UpdateSnapshot s;
+  auto r = Nightly("2.3.0-alpha.420");
+  r.list.latest.html_url =
+      "https://builds.bktus.com/gpgfrontend/nightly/x/windows-x86_64.msi";
+  s.last_good = r;
+  EXPECT_EQ(PresentUpdate(s, kNow).download_url, r.list.latest.html_url);
+
+  r.list.latest.html_url.clear();  // no descriptor: the downloads page
+  s.last_good = r;
+  EXPECT_TRUE(PresentUpdate(s, kNow).download_url.isEmpty());
+
+  auto release = Update();
+  release.list.latest.html_url = "https://github.com/x/releases/tag/v2.1.9";
+  s.last_good = release;
+  EXPECT_TRUE(PresentUpdate(s, kNow).download_url.isEmpty());
+}

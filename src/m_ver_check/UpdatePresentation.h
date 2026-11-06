@@ -57,6 +57,9 @@ struct UpdateView {
   bool show_download = false;
   QString download_label;
   QString download_version;
+  /// The file itself, when known (a nightly, from its signed descriptor);
+  /// empty sends "Download" to the downloads page.
+  QString download_url;
 
   QString check_label;  ///< "Check again", "Try again" or "Check now"
   bool check_enabled = true;

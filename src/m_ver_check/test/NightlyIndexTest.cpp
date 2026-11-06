@@ -29,6 +29,7 @@
 #include <gtest/gtest.h>
 #include <sodium.h>
 
+#include <QCryptographicHash>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -595,4 +596,138 @@ TEST(NightlyCheckTest, AReleaseBuildBadgeIsNotHeldBack) {
   s.last_seen_update_version = "v2.2.5";
   s.last_seen_at = kNow.addSecs(-3600);  // seen an hour ago
   EXPECT_EQ(AttentionFor(s, kNow), UpdateAttention::kUpdateAvailable);
+}
+
+// ------------------------------------------------------------- downloads
+
+namespace {
+
+// The shape the signing host writes (scripts/release/gfrelease promote).
+auto Descriptor() -> QByteArray {
+  const auto art = [](const char* os, const char* arch, const char* kind,
+                      const char* flavor, const char* name,
+                      const char* macos = nullptr) {
+    QJsonObject a{
+        {"os", os},
+        {"arch", arch},
+        {"kind", kind},
+        {"flavor", flavor},
+        {"path", QStringLiteral("nightly/2.3.0-alpha.9/%1").arg(name)}};
+    if (macos != nullptr) a["min_os"] = QJsonObject{{"macos", macos}};
+    return a;
+  };
+  QJsonArray artifacts{
+      art("linux", "x86_64", "appimage", "installed", "linux-x86_64.AppImage"),
+      art("linux", "x86_64", "appimage", "portable",
+          "linux-x86_64-portable.AppImage"),
+      art("linux", "aarch64", "appimage", "installed",
+          "linux-aarch64.AppImage"),
+      art("windows", "x86_64", "msi", "installed", "windows-x86_64.msi"),
+      art("windows", "x86_64", "zip", "portable",
+          "windows-x86_64-portable.zip"),
+      art("macos", "arm64", "dmg", "installed", "macos-15.dmg", "15.0"),
+      art("macos", "arm64", "dmg", "installed", "macos-26.dmg", "26.0"),
+      art("macos", "x86_64", "dmg", "installed", "macos-15-intel.dmg", "15.0"),
+  };
+  return QJsonDocument(QJsonObject{{"artifacts", artifacts}}).toJson();
+}
+
+auto Pick(const char* os, const char* arch, const char* version = "")
+    -> QString {
+  return SelectDownload(Descriptor(), {os, arch, version}).section(u'/', -1);
+}
+
+}  // namespace
+
+TEST(DownloadTest, TheInstalledFileForThisMachine) {
+  EXPECT_EQ(Pick("linux", "x86_64"), "linux-x86_64.AppImage");
+  EXPECT_EQ(Pick("linux", "arm64"), "linux-aarch64.AppImage");  // same arch
+  EXPECT_EQ(Pick("windows", "x86_64"), "windows-x86_64.msi");
+  EXPECT_EQ(Pick("windows", "arm64"), "");  // nothing built for it
+}
+
+TEST(DownloadTest, MacOSTakesTheNewestItRuns) {
+  EXPECT_EQ(Pick("macos", "arm64", "26.1"), "macos-26.dmg");
+  EXPECT_EQ(Pick("macos", "arm64", "15.6"), "macos-15.dmg");
+  EXPECT_EQ(Pick("macos", "arm64", "14.7"), "");  // too old for any
+  EXPECT_EQ(Pick("macos", "x86_64", "26.1"), "macos-15-intel.dmg");
+}
+
+TEST(DownloadTest, AnUnsafePathIsNeverOffered) {
+  QJsonArray artifacts{QJsonObject{{"os", "linux"},
+                                   {"arch", "x86_64"},
+                                   {"flavor", "installed"},
+                                   {"path", "../other/evil.AppImage"}}};
+  EXPECT_EQ(SelectDownload(
+                QJsonDocument(QJsonObject{{"artifacts", artifacts}}).toJson(),
+                {"linux", "x86_64", ""}),
+            "");
+  for (const auto* bad :
+       {"", "a/../b", "/etc/x", "https://x/y", "a%2fb", "a//b", "./a"}) {
+    EXPECT_FALSE(IsSafeRelativePath(bad)) << bad;
+  }
+  EXPECT_TRUE(IsSafeRelativePath("nightly/2.3.0-alpha.9-gabc/release.json"));
+}
+
+namespace {
+
+auto WithDescriptor(QByteArray index, const QString& path,
+                    const QByteArray& descriptor) -> QByteArray {
+  auto obj = QJsonDocument::fromJson(index).object();
+  obj["nightly"] = QJsonObject{
+      {"version", obj["channels"].toObject()["nightly"]},
+      {"descriptor", path},
+      {"sha256", QString::fromLatin1(QCryptographicHash::hash(
+                                         descriptor, QCryptographicHash::Sha256)
+                                         .toHex())}};
+  return QJsonDocument(obj).toJson();
+}
+
+}  // namespace
+
+TEST(DownloadTest, TheIndexNamesItsNightlysDescriptor) {
+  const auto index =
+      WithDescriptor(Index(5, "2.3.0-alpha.9"),
+                     "nightly/2.3.0-alpha.9/release.json", Descriptor());
+  const auto f = ParseIndex(index, Comment(5), "gpgfrontend", kNow);
+  ASSERT_TRUE(f.has_value());
+  EXPECT_EQ(f->nightly_descriptor, "nightly/2.3.0-alpha.9/release.json");
+  EXPECT_EQ(f->nightly_descriptor_sha256.size(), 64);
+
+  // An unsafe path is dropped, and the index still stands.
+  const auto bad = WithDescriptor(Index(5, "2.3.0-alpha.9"),
+                                  "../demo/release.json", Descriptor());
+  const auto g = ParseIndex(bad, Comment(5), "gpgfrontend", kNow);
+  ASSERT_TRUE(g.has_value());
+  EXPECT_TRUE(g->nightly_descriptor.isEmpty());
+}
+
+TEST(DownloadTest, TheCheckerLinksTheVerifiedFile) {
+  Nightly n;
+  const auto descriptor = Descriptor();
+  const QString path = "nightly/2.3.0-alpha.9/release.json";
+  const auto index =
+      WithDescriptor(Index(3, "2.3.0-alpha.9", "gpgfrontend", kNow.addDays(14)),
+                     path, descriptor);
+  n.mirrors.Serve(kMirrorA, index, n.signer.Sign(index, Comment(3)));
+  n.mirrors.table[QString(kMirrorA) + "gpgfrontend/" + path] = {200,
+                                                                descriptor};
+  n.MarkOfficial();
+
+  auto c = std::make_unique<UpdateChecker>(
+      UpdateChecker::Build{"v2.3.0-alpha.5", kCommit, n.Channel(),
+                           Platform{"windows", "x86_64", ""}},
+      n.mirrors.Fetcher(), UpdateChecker::Store{}, [] { return kNow; });
+  c->Start(CheckMode::kForce);
+  EXPECT_EQ(Decide(*c->State().last_good), Verdict::kUpdateAvailable);
+  EXPECT_EQ(c->State().last_good->list.latest.html_url,
+            QString(kMirrorA) +
+                "gpgfrontend/nightly/2.3.0-alpha.9/windows-x86_64.msi");
+
+  // A descriptor that is not the one the index signed: no link, same verdict.
+  n.mirrors.table[QString(kMirrorA) + "gpgfrontend/" + path] = {
+      200, Descriptor().replace("windows-x86_64.msi", "evil.msi")};
+  c->Start(CheckMode::kForce);
+  EXPECT_EQ(Decide(*c->State().last_good), Verdict::kUpdateAvailable);
+  EXPECT_TRUE(c->State().last_good->list.latest.html_url.isEmpty());
 }

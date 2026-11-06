@@ -64,6 +64,7 @@ class UpdateTab : public QWidget {
   QProgressBar* busy_;
   QPushButton* check_btn_;
   QPushButton* download_btn_;
+  QString download_url_;  ///< empty: the downloads page
   QToolButton* notes_toggle_;
   QTextBrowser* notes_;
 };

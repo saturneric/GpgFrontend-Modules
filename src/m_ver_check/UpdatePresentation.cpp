@@ -104,6 +104,11 @@ auto PresentUpdate(const UpdateSnapshot& s, const QDateTime& now)
       v.download_version = latest;
       v.download_label =
           QCoreApplication::translate("UpdateTab", "Download %1").arg(latest);
+      // Only a link the checker made from a verified descriptor, never a page
+      // a release list merely named.
+      if (nightly && r.list.latest.html_url.startsWith(u"https://")) {
+        v.download_url = r.list.latest.html_url;
+      }
       v.notes = r.list.latest.notes.trimmed();
       v.show_notes = !v.notes.isEmpty();
       break;
