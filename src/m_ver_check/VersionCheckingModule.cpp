@@ -36,6 +36,7 @@
 #include <QCheckBox>
 #include <QGroupBox>
 #include <QPointer>
+#include <QTimer>
 #include <QVBoxLayout>
 #include <QtNetwork>
 #include <atomic>
@@ -147,8 +148,9 @@ class UpdateWidget : public QWidget, public gf::ui::DialogWidget {
   }
 };
 
-/// Settings > Updates: whether to check at startup. Nothing else is worth a
-/// setting: there is one release server, and a day is the right interval.
+/// Settings > Updates: whether to check automatically, once a day. Nothing
+/// else is worth a setting: there is one update channel per build, and a day
+/// is the right interval.
 class UpdateSettingsWidget : public QWidget, public gf::ui::SettingsWidget {
  public:
   UpdateSettingsWidget() {
@@ -156,9 +158,7 @@ class UpdateSettingsWidget : public QWidget, public gf::ui::SettingsWidget {
     auto* column = new QVBoxLayout(box);
 
     check_ = new QCheckBox(
-        GTrC::tr("Checking for version updates when the application "
-                 "starts."),
-        box);
+        GTrC::tr("Check for updates automatically, once a day."), box);
     column->addWidget(check_);
 
     auto* layout = new QVBoxLayout(this);
@@ -258,26 +258,42 @@ auto OnDeactivate() -> GFResult {
   return GFResult::Ok();
 }
 
+/// How often the automatic check looks whether a check is due. A check is due
+/// once the last good result is a day old (UpdateChecker::kFreshSeconds), so
+/// the network is asked at most once a day after a success, and a failed
+/// check is retried an hour later rather than a day.
+constexpr int kAutoCheckTickMs = 60 * 60 * 1000;
+
+/// Whether the user allows checking on their own: read anew each time, so a
+/// change in Settings applies without a restart. Absent until the setup
+/// wizard has run: no check before the user has been asked at all.
+auto AutoCheckAllowed() -> bool {
+  const auto prohibited =
+      gf::sdk::Setting(GFModuleSdkContext(), GF_SETTING_HOST, kProhibitKey);
+  return prohibited.isValid() && !prohibited.toBool();
+}
+
+/// In the background, and quietly: a newer release shows in the update
+/// dialog, never as a window. Joins a running check; skips a fresh result.
+void AutoCheck() {
+  if (!AutoCheckAllowed()) return;
+  if (auto* checker = VersionChecker()) checker->Start(CheckMode::kIfStale);
+}
+
 auto OnApplicationLoaded(const GFEvent& /*event*/) -> GFEventResult {
   LOG_DEBUG("application starting completed event: processing");
 
-  // Absent until the setup wizard has run: no check before the user has been
-  // asked whether to check at all.
-  const auto prohibited =
-      gf::sdk::Setting(GFModuleSdkContext(), GF_SETTING_HOST, kProhibitKey);
-  if (!prohibited.isValid()) {
-    LOG_DEBUG("application loaded: the setup wizard has not asked yet");
-    return GFEventResult::Ok();
-  }
-  if (prohibited.toBool()) {
-    LOG_DEBUG("application loaded: update checking is prohibited");
-    return GFEventResult::Ok();
-  }
-
-  // In the background, and quietly: a newer release shows as a badge on
-  // Help > Check for Updates, never as a window.
   OnGuiThread([] {
-    if (auto* checker = VersionChecker()) checker->Start(CheckMode::kIfStale);
+    AutoCheck();
+    // For as long as the application runs, not only at its start: a session
+    // left open for a week still learns of an update within a day. The timer
+    // lives with the checker, so deactivating the module stops it too.
+    auto* checker = VersionChecker();
+    if (checker == nullptr) return;
+    auto* timer = new QTimer(checker);
+    timer->setInterval(kAutoCheckTickMs);
+    QObject::connect(timer, &QTimer::timeout, checker, [] { AutoCheck(); });
+    timer->start();
   });
 
   // An observation, answered at once: the check runs on its own.
