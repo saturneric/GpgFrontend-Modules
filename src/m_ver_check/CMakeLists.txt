@@ -33,12 +33,16 @@ gf_add_module(
   NAME    ver_check
   QT      Core Network Widgets
   SOURCES VersionCheckingModule.cpp
+          Minisign.cpp
           ReleaseCheck.cpp
+          ReleaseIndex.cpp
+          SemVer.cpp
           SoftwareVersion.cpp
           UpdateChecker.cpp
           UpdatePresentation.cpp
           UpdateTab.cpp
           Utils.cpp
+  LINK    sodium
   UI_DIR  ui
   LUA_SCRIPTS ui/main.lua)
 

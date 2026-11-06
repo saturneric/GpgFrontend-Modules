@@ -27,8 +27,9 @@
 #
 # ReleaseCheck, UpdateChecker, UpdatePresentation and SoftwareVersion take no
 # Host call, no widget and no network: the checker is handed its transport,
-# store and clock. The one SDK symbol they use, GFCompareSoftwareVersion,
-# needs no host either, so the real module-side SDK is linked for it.
+# store and clock. The one SDK symbol they use, GFCompareSoftwareVersion
+# (for versions that are not SemVer), needs no host either, so the real
+# module-side SDK is linked for it; libsodium checks the index signatures.
 
 if(NOT TARGET GTest::gtest)
   find_package(GTest QUIET)
@@ -40,10 +41,14 @@ if(NOT TARGET GTest::gtest)
 endif()
 
 add_executable(gf_mod_ver_check_test
+  NightlyIndexTest.cpp
   ReleaseCheckTest.cpp
   UpdateCheckerTest.cpp
   UpdatePresentationTest.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/../Minisign.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../ReleaseCheck.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/../ReleaseIndex.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/../SemVer.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../SoftwareVersion.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../UpdateChecker.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../UpdatePresentation.cpp)
@@ -53,7 +58,7 @@ target_include_directories(gf_mod_ver_check_test PRIVATE
   "${CMAKE_BINARY_DIR}/src/sdk")
 
 target_link_libraries(gf_mod_ver_check_test PRIVATE
-  GTest::gtest GTest::gtest_main Qt::Core gf_sdk)
+  GTest::gtest GTest::gtest_main Qt::Core gf_sdk sodium)
 
 set_target_properties(gf_mod_ver_check_test PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY "${GPGFRONTEND_MODULE_TEST_OUTPUT_DIR}")
