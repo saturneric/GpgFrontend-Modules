@@ -505,3 +505,42 @@ TEST(NightlyCheckTest, TheSerialSurvivesAnotherBuild) {
   EXPECT_EQ(s.max_serial, 7);
   EXPECT_FALSE(s.last_good.has_value());
 }
+
+// What the module's hourly timer does: kIfStale on every tick. The network is
+// asked once a day after a success, and again within the hour after a
+// failure.
+TEST(NightlyCheckTest, HourlyTicksAskOnceADay) {
+  Nightly n;
+  n.Publish(kMirrorA, 3, "2.3.0-alpha.9");
+  n.MarkOfficial();
+  QDateTime now = kNow;
+  auto c = std::make_unique<UpdateChecker>(
+      UpdateChecker::Build{"v2.3.0-alpha.5+g0123456789ab", kCommit,
+                           n.Channel()},
+      n.mirrors.Fetcher(),
+      UpdateChecker::Store{[&n] { return n.stored; },
+                           [&n](const QByteArray& d) { n.stored = d; }},
+      [&now] { return now; });
+
+  const auto tick = [&] {
+    const auto before = n.mirrors.asked.size();
+    c->Start(CheckMode::kIfStale);
+    return n.mirrors.asked.size() > before;
+  };
+
+  EXPECT_TRUE(tick());  // startup: nothing known yet
+  for (int hour = 1; hour < 24; ++hour) {
+    now = kNow.addSecs(hour * 3600);
+    EXPECT_FALSE(tick()) << "asked again after " << hour << " h";
+  }
+  now = kNow.addSecs(24 * 3600 + 60);
+  EXPECT_TRUE(tick());  // a day on
+
+  // The mirrors fail: the next tick retries, it does not wait a day.
+  n.mirrors.table.clear();
+  now = now.addSecs(24 * 3600 + 60);
+  EXPECT_TRUE(tick());
+  EXPECT_TRUE(c->State().last_attempt_failed);
+  now = now.addSecs(3600);
+  EXPECT_TRUE(tick());
+}
