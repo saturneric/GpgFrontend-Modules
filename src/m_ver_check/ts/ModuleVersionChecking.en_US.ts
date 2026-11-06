@@ -15,7 +15,7 @@
     </message>
     <message>
         <location filename="../VersionCheckingModule.cpp" line="188"/>
-        <location filename="../VersionCheckingModule.cpp" line="238"/>
+        <location filename="../VersionCheckingModule.cpp" line="255"/>
         <source>Check for Updates</source>
         <translation type="unfinished"></translation>
     </message>
@@ -25,12 +25,17 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="242"/>
+        <location filename="../VersionCheckingModule.cpp" line="198"/>
+        <source>A newer version is available</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../VersionCheckingModule.cpp" line="259"/>
         <source>Updates</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="242"/>
+        <location filename="../VersionCheckingModule.cpp" line="259"/>
         <source>update,version,check,github</source>
         <translation type="unfinished"></translation>
     </message>
