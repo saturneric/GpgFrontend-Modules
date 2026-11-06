@@ -35,6 +35,7 @@
 #include <functional>
 #include <optional>
 
+#include "ReleaseIndex.h"
 #include "SoftwareVersion.h"
 
 /**
@@ -53,6 +54,11 @@ struct UpdateSnapshot {
   /// The newest update the user has already been shown. Kept across builds
   /// and failed checks: seeing it once is enough.
   QString last_seen_update_version;
+
+  /// The highest serial of a signed update index this installation has
+  /// accepted. An index with a lower one is a replay of an older state and is
+  /// refused (anti-rollback); kept across builds, like the field above.
+  qint64 max_serial = 0;
 };
 
 /// Whether the update entry point asks for attention. Derived from the
@@ -92,6 +98,9 @@ class UpdateChecker : public QObject {
   struct Build {
     QString version;
     QString commit;
+    /// Where a nightly build reads its signed update index. Other builds
+    /// still ask GitHub, until the stable and beta channels move too.
+    ReleaseChannel channel;
   };
 
   static constexpr qint64 kFreshSeconds = 24 * 60 * 60;
@@ -125,6 +134,13 @@ class UpdateChecker : public QObject {
  private:
   void finish();
 
+  // The signed index (nightly builds): each update base in turn, until one
+  // serves an index that verifies; then the commit marker.
+  void startIndex();
+  void tryIndexBase(qsizetype i);
+  auto acceptIndex(const QByteArray& body, const QByteArray& signature) -> bool;
+  void askCommitMarker();
+
   Build build_;
   Fetcher fetch_;
   Store store_;
@@ -133,6 +149,7 @@ class UpdateChecker : public QObject {
   UpdateSnapshot state_;
   SoftwareVersion fresh_;
   int pending_ = 0;
+  qint64 accepted_serial_ = 0;
 };
 
 /// kUpdateAvailable while the last known result offers a release newer than

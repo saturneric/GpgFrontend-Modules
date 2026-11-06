@@ -46,6 +46,71 @@ gf_add_module(
   UI_DIR  ui
   LUA_SCRIPTS ui/main.lua)
 
+# Where a nightly reads its signed update index, and which keys may sign it:
+# release/product.json of the Host tree, the one place the product names
+# them. They reach the code as definitions read by VersionCheckingModule.cpp,
+# "|"-joined. A build of the modules without that file has no channel, and
+# its nightlies then report "unknown" rather than trust anything.
+#
+# GF_RELEASE_*_OVERRIDE replace them for a rehearsal against a local mirror
+# with throwaway keys (scripts/release/rehearse.sh); a build made so must
+# never be distributed, which is why configuring one says so loudly.
+set(_gf_product_json "${CMAKE_SOURCE_DIR}/release/product.json")
+set(_gf_release_product "")
+set(_gf_release_update "")
+set(_gf_release_builds "")
+set(_gf_release_keys "")
+if(EXISTS "${_gf_product_json}")
+  file(READ "${_gf_product_json}" _gf_product)
+  string(JSON _gf_release_product GET "${_gf_product}" slug)
+  foreach(_gf_role update builds)
+    string(JSON _gf_n LENGTH "${_gf_product}" bases ${_gf_role})
+    set(_gf_list "")
+    if(_gf_n GREATER 0)
+      math(EXPR _gf_last "${_gf_n} - 1")
+      foreach(_gf_i RANGE ${_gf_last})
+        string(JSON _gf_base GET "${_gf_product}" bases ${_gf_role} ${_gf_i})
+        list(APPEND _gf_list "${_gf_base}")
+      endforeach()
+    endif()
+    set(_gf_release_${_gf_role} "${_gf_list}")
+  endforeach()
+  string(JSON _gf_n LENGTH "${_gf_product}" signing index_keys)
+  if(_gf_n GREATER 0)
+    math(EXPR _gf_last "${_gf_n} - 1")
+    foreach(_gf_i RANGE ${_gf_last})
+      string(JSON _gf_key GET "${_gf_product}" signing index_keys ${_gf_i})
+      list(APPEND _gf_release_keys "${_gf_key}")
+    endforeach()
+  endif()
+endif()
+
+foreach(_gf_what UPDATE_BASES BUILDS_BASES INDEX_KEYS)
+  if(DEFINED GF_RELEASE_${_gf_what}_OVERRIDE)
+    message(WARNING "m_ver_check: GF_RELEASE_${_gf_what}_OVERRIDE is set. "
+      "This build trusts a rehearsal update channel; never distribute it.")
+  endif()
+endforeach()
+if(DEFINED GF_RELEASE_UPDATE_BASES_OVERRIDE)
+  set(_gf_release_update "${GF_RELEASE_UPDATE_BASES_OVERRIDE}")
+endif()
+if(DEFINED GF_RELEASE_BUILDS_BASES_OVERRIDE)
+  set(_gf_release_builds "${GF_RELEASE_BUILDS_BASES_OVERRIDE}")
+endif()
+if(DEFINED GF_RELEASE_INDEX_KEYS_OVERRIDE)
+  set(_gf_release_keys "${GF_RELEASE_INDEX_KEYS_OVERRIDE}")
+endif()
+
+list(JOIN _gf_release_update "|" _gf_release_update)
+list(JOIN _gf_release_builds "|" _gf_release_builds)
+list(JOIN _gf_release_keys "|" _gf_release_keys)
+set_property(SOURCE VersionCheckingModule.cpp APPEND PROPERTY
+  COMPILE_DEFINITIONS
+    GF_RELEASE_PRODUCT="${_gf_release_product}"
+    GF_RELEASE_UPDATE_BASES="${_gf_release_update}"
+    GF_RELEASE_BUILDS_BASES="${_gf_release_builds}"
+    GF_RELEASE_INDEX_KEYS="${_gf_release_keys}")
+
 if(GPGFRONTEND_MODULES_BUILD_TESTS)
   add_subdirectory(test)
 endif()
