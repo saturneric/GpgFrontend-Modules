@@ -50,7 +50,7 @@ struct UpdateView {
   QString headline;
   QString detail;
   QString notice;     ///< a refresh failed while older results are shown
-  QString freshness;  ///< "Last checked ... · GitHub Releases"
+  QString freshness;  ///< "Last checked ... · <where the answer came from>"
 
   bool busy = false;
 

@@ -32,6 +32,7 @@
 #include <QLocale>
 
 #include "ReleaseCheck.h"
+#include "ReleaseIndex.h"
 
 // Every string here uses the literal context "UpdateTab", shared with the
 // dialog's own tr(): lupdate files them together, and a named constant would
@@ -84,13 +85,19 @@ auto PresentUpdate(const UpdateSnapshot& s, const QDateTime& now)
 
   const auto& r = *s.last_good;
   const auto& latest = r.list.latest.version;
+  // A nightly follows the signed nightly channel, not GitHub's releases, and
+  // says so in every line that names where the answer came from.
+  const bool nightly = IsNightlyBuild(r.current_version);
 
   switch (Decide(r)) {
     case Verdict::kUpdateAvailable:
       v.tone = UpdateTone::kAttention;
-      v.headline = QCoreApplication::translate("UpdateTab",
-                                               "GpgFrontend %1 is available")
-                       .arg(latest);
+      v.headline = nightly ? QCoreApplication::translate(
+                                 "UpdateTab", "Nightly build %1 is available")
+                                 .arg(latest)
+                           : QCoreApplication::translate(
+                                 "UpdateTab", "GpgFrontend %1 is available")
+                                 .arg(latest);
       v.detail = QCoreApplication::translate("UpdateTab", "You are using %1.")
                      .arg(r.current_version);
       v.show_download = true;
@@ -102,6 +109,13 @@ auto PresentUpdate(const UpdateSnapshot& s, const QDateTime& now)
       break;
     case Verdict::kWithdrawnOrUnreleased:
       v.tone = UpdateTone::kAttention;
+      if (nightly) {
+        v.headline = QCoreApplication::translate(
+            "UpdateTab", "This nightly build has been withdrawn");
+        v.detail = QCoreApplication::translate(
+            "UpdateTab", "Please move to the newest nightly build.");
+        break;
+      }
       v.headline = QCoreApplication::translate(
           "UpdateTab", "This version isn't listed on GitHub Releases");
       v.detail = QCoreApplication::translate(
@@ -113,22 +127,34 @@ auto PresentUpdate(const UpdateSnapshot& s, const QDateTime& now)
       v.tone = UpdateTone::kAttention;
       v.headline = QCoreApplication::translate(
           "UpdateTab", "This build isn't from the official repository");
-      v.detail = QCoreApplication::translate(
-          "UpdateTab",
-          "Its source commit wasn't found upstream. That is expected "
-          "for self-built or modified versions.");
+      v.detail = nightly
+                     ? QCoreApplication::translate(
+                           "UpdateTab",
+                           "Its source commit isn't among the published "
+                           "builds. That is expected for self-built or "
+                           "modified versions.")
+                     : QCoreApplication::translate(
+                           "UpdateTab",
+                           "Its source commit wasn't found upstream. That is "
+                           "expected for self-built or modified versions.");
       break;
     case Verdict::kUpToDate:
       v.tone = UpdateTone::kGood;
       v.headline =
           QCoreApplication::translate("UpdateTab", "You're up to date");
-      v.detail = r.list.outcome == ListOutcome::kFound
-                     ? QCoreApplication::translate("UpdateTab",
-                                                   "%1 is the latest release.")
-                           .arg(r.current_version)
-                     : QCoreApplication::translate(
-                           "UpdateTab", "No newer release was found for %1.")
-                           .arg(r.current_version);
+      if (nightly) {
+        v.detail = QCoreApplication::translate(
+                       "UpdateTab", "%1 is the newest nightly build.")
+                       .arg(r.current_version);
+      } else {
+        v.detail = r.list.outcome == ListOutcome::kFound
+                       ? QCoreApplication::translate(
+                             "UpdateTab", "%1 is the latest release.")
+                             .arg(r.current_version)
+                       : QCoreApplication::translate(
+                             "UpdateTab", "No newer release was found for %1.")
+                             .arg(r.current_version);
+      }
       break;
     case Verdict::kUnknown:
       // last_good is usable by construction; kept for completeness.
@@ -137,7 +163,11 @@ auto PresentUpdate(const UpdateSnapshot& s, const QDateTime& now)
       break;
   }
 
-  v.freshness = QCoreApplication::translate("UpdateTab",
+  v.freshness =
+      nightly ? QCoreApplication::translate(
+                    "UpdateTab", "Last checked %1 · Signed nightly channel")
+                    .arg(RelativeTime(r.checked_at, now))
+              : QCoreApplication::translate("UpdateTab",
                                             "Last checked %1 · GitHub Releases")
                     .arg(RelativeTime(r.checked_at, now));
 
