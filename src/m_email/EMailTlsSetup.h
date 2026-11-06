@@ -36,7 +36,7 @@
 #ifndef VMIME_STATIC
 #define VMIME_STATIC
 #endif
-#include <vmime/security/defaultAuthenticator.hpp>
+#include <vmime/security/sasl/defaultSASLAuthenticator.hpp>
 #include <vmime/vmime.hpp>
 
 #include "EMailAccountModel.h"
@@ -133,8 +133,16 @@ auto IsSecured(const vmime::shared_ptr<vmime::net::service>& service) -> bool;
  *
  * A policy failure therefore becomes a failed login rather than a leaked
  * credential.
+ *
+ * It is a SASL authenticator because vmime runs SMTP authentication only
+ * through SASL. It offers nothing but PLAIN and LOGIN: they are the two
+ * mechanisms a password is meant for, and anything else vmime knows, such as
+ * XOAUTH2, would send that password where a token belongs. It offers neither
+ * over a cleartext link, whatever allow_cleartext says: that flag only lets
+ * IMAP log in to a loopback server.
  */
-class SecureAuthenticator : public vmime::security::defaultAuthenticator {
+class SecureAuthenticator
+    : public vmime::security::sasl::defaultSASLAuthenticator {
  public:
   SecureAuthenticator(QString username, EMailSecretPtr password,
                       bool allow_cleartext);
@@ -146,6 +154,13 @@ class SecureAuthenticator : public vmime::security::defaultAuthenticator {
 
   auto getUsername() const -> const vmime::string override;
   auto getPassword() const -> const vmime::string override;
+
+  auto getAcceptableMechanisms(
+      const std::vector<
+          vmime::shared_ptr<vmime::security::sasl::SASLMechanism>>& available,
+      const vmime::shared_ptr<vmime::security::sasl::SASLMechanism>& suggested)
+      const -> const std::vector<
+          vmime::shared_ptr<vmime::security::sasl::SASLMechanism>> override;
 
  private:
   QString username_;

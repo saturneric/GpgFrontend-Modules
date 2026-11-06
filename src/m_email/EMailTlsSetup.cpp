@@ -241,6 +241,16 @@ auto Apply(const vmime::shared_ptr<vmime::net::session>& session,
   //
   // IMAP has no such property and authenticates unconditionally, which is why
   // this is asked for only on the SMTP side.
+  //
+  // IMAP logs in with its own LOGIN command instead of SASL, which every
+  // server speaks unless it forbids cleartext logins outright. vmime would
+  // try SASL first and stop there, failing servers that announce no AUTH=
+  // mechanism at all.
+  if (imap) {
+    properties.setProperty(QString("%1.options.sasl").arg(prefix).toStdString(),
+                           false);
+  }
+
   if (!imap && !config.username.isEmpty()) {
     properties.setProperty(
         QString("%1.options.need-authentication").arg(prefix).toStdString(),
@@ -309,6 +319,28 @@ auto SecureAuthenticator::getPassword() const -> const vmime::string {
   // A copy vmime owns and goes on to copy again while encoding AUTH.
   // Neither is ours to erase; see EMailSecret.
   return password_ ? password_->StdStringCopy() : std::string();
+}
+
+auto SecureAuthenticator::getAcceptableMechanisms(
+    const std::vector<vmime::shared_ptr<vmime::security::sasl::SASLMechanism>>&
+        available,
+    const vmime::shared_ptr<
+        vmime::security::sasl::SASLMechanism>& /*suggested*/) const -> const
+    std::vector<vmime::shared_ptr<vmime::security::sasl::SASLMechanism>> {
+  // SASL is used for SMTP only (IMAP keeps its LOGIN command), and SMTP never
+  // authenticates over a cleartext link, loopback included. vmime used to
+  // refuse that itself; its SASL path does not, so offer nothing to pick.
+  std::vector<vmime::shared_ptr<vmime::security::sasl::SASLMechanism>> result;
+  if (!IsSecured(getService().lock())) return result;
+
+  // PLAIN first: one round trip, and the one RFC 4954 servers are sure to
+  // have. LOGIN after it for the servers that offer nothing else.
+  for (const auto* name : {"PLAIN", "LOGIN"}) {
+    for (const auto& mech : available) {
+      if (mech && mech->getName() == name) result.push_back(mech);
+    }
+  }
+  return result;
 }
 
 }  // namespace EMailTlsSetup

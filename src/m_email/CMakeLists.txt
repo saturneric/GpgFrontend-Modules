@@ -34,7 +34,9 @@ set(VMIME_BUILD_TESTS OFF CACHE BOOL "No Unit Test" FORCE)
 set(VMIME_HAVE_TLS_SUPPORT ON CACHE BOOL "TLS for IMAP/SMTP" FORCE)
 set(VMIME_TLS_SUPPORT_LIB "openssl" CACHE STRING
     "Use OpenSSL, already a dependency" FORCE)
-set(VMIME_HAVE_SASL_SUPPORT OFF CACHE BOOL "No SASL" FORCE)
+# SASL itself is always built now, with PLAIN and LOGIN of vmime's own; GNU
+# SASL would only add mechanisms we never offer.
+set(VMIME_HAVE_GSASL OFF CACHE BOOL "No GNU SASL" FORCE)
 set(VMIME_BUILD_DOCUMENTATION OFF CACHE BOOL
     "Document IS Not Necessary HERE" FORCE)
 set(VMIME_BUILD_STATIC_LIBRARY ON CACHE BOOL "Need Static Library" FORCE)
@@ -58,6 +60,21 @@ find_package(OpenSSL REQUIRED)
 set_property(TARGET OpenSSL::SSL OpenSSL::Crypto PROPERTY SYSTEM OFF)
 include_directories(BEFORE ${OPENSSL_INCLUDE_DIR})
 
+# MLang is found under MinGW, but linking a static vmime against it leaves
+# IID_IMultiLanguage unresolved. Answer vmime's header check before it runs:
+# CHECK_INCLUDE_FILES skips a variable that is already defined, so vmime falls
+# back to its plain Windows charset handling without being patched.
+if(WIN32)
+  set(VMIME_HAVE_MLANG_H OFF CACHE INTERNAL "MLang unusable in a static vmime")
+endif()
+
+# vmime used to write config.hpp and export-static.hpp to
+# ${CMAKE_BINARY_DIR}/src/vmime; it now keeps them in its own binary dir and
+# hands that out with vmime-static. A copy left by an older configure sits on
+# the "${CMAKE_BINARY_DIR}/src" include path below and would be found first,
+# compiling the module against another build's feature macros.
+file(REMOVE_RECURSE "${CMAKE_BINARY_DIR}/src/vmime")
+
 add_subdirectory(vmime "vmime" EXCLUDE_FROM_ALL)
 
 # vmime wraps every TARGET_LINK_LIBRARIES for its TLS backend in
@@ -78,8 +95,6 @@ gf_add_module(
   LINK vmime-static
   LUA_SCRIPTS ui/main.lua
   INCLUDE_DIRS
-    "${CMAKE_CURRENT_SOURCE_DIR}/vmime/src"
-    "${CMAKE_BINARY_DIR}/src/vmime"
     "${CMAKE_BINARY_DIR}/src")
 
 # Only the module ABI leaves this shared object.

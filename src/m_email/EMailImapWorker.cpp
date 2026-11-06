@@ -35,6 +35,12 @@
 #include <string>
 #include <vmime/net/imap/IMAPFolder.hpp>
 #include <vmime/net/imap/IMAPFolderStatus.hpp>
+// <windows.h>, pulled in by Qt, defines TEXT as a macro, which mangles the
+// IMAP SEARCH key of the same name declared in this header. Nothing here uses
+// the Windows macro, so drop it.
+#ifdef TEXT
+#undef TEXT
+#endif
 #include <vmime/net/imap/IMAPSearchAttributes.hpp>
 
 #include "EMailTlsSetup.h"

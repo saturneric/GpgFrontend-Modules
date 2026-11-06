@@ -199,7 +199,7 @@ class FakeSmtpServer : public QTcpServer {
 
   /// What a bare base64 line arriving next should be read as. AUTH LOGIN is a
   /// three-round-trip conversation, so the line alone does not say.
-  enum class Expect { kCommand, kLoginUser, kLoginPassword, kBody };
+  enum class Expect { kCommand, kPlainBlob, kLoginUser, kLoginPassword, kBody };
   Expect expect_{Expect::kCommand};
   bool body_complete_{false};
 
@@ -238,7 +238,10 @@ class FakeSmtpServer : public QTcpServer {
         continue;
       }
 
-      if (expect_ == Expect::kLoginUser) {
+      if (expect_ == Expect::kPlainBlob) {
+        expect_ = Expect::kCommand;
+        out = finish_plain(line);
+      } else if (expect_ == Expect::kLoginUser) {
         seen_username = QString::fromUtf8(QByteArray::fromBase64(line.toUtf8()));
         expect_ = Expect::kLoginPassword;
         out = "334 UGFzc3dvcmQ6\r\n";
@@ -263,6 +266,15 @@ class FakeSmtpServer : public QTcpServer {
     return "535 5.7.8 Authentication credentials invalid\r\n";
   }
 
+  auto finish_plain(const QString& encoded) -> QByteArray {
+    const auto parts = QByteArray::fromBase64(encoded.toUtf8()).split('\0');
+    if (parts.size() >= 3) {
+      seen_username = QString::fromUtf8(parts.at(1));
+      seen_password = QString::fromUtf8(parts.at(2));
+    }
+    return finish_auth();
+  }
+
   auto command(const QString& line) -> QByteArray {
     const auto verb = line.section(' ', 0, 0).toUpper();
 
@@ -281,19 +293,27 @@ class FakeSmtpServer : public QTcpServer {
       if (!mechanisms.contains(mechanism)) {
         return "504 5.5.4 Unrecognized authentication type\r\n";
       }
+      // RFC 4954 lets a client send its first response on the AUTH line or
+      // wait for an empty 334 challenge; a real server takes either form.
+      const auto initial = line.section(' ', 2);
       if (mechanism == "PLAIN") {
-        const auto blob = QByteArray::fromBase64(line.section(' ', 2).toUtf8());
-        const auto parts = blob.split('\0');
-        if (parts.size() >= 3) {
-          seen_username = QString::fromUtf8(parts.at(1));
-          seen_password = QString::fromUtf8(parts.at(2));
+        if (initial.isEmpty()) {
+          expect_ = Expect::kPlainBlob;
+          return "334 \r\n";
         }
-        return finish_auth();
+        return finish_plain(initial);
       }
       if (mechanism == "LOGIN") {
+        if (!initial.isEmpty()) {
+          seen_username =
+              QString::fromUtf8(QByteArray::fromBase64(initial.toUtf8()));
+          expect_ = Expect::kLoginPassword;
+          return "334 UGFzc3dvcmQ6\r\n";
+        }
         expect_ = Expect::kLoginUser;
         return "334 VXNlcm5hbWU6\r\n";
       }
+      return "504 5.5.4 Unrecognized authentication type\r\n";
     }
 
     // Submission commands. A server that requires authentication refuses

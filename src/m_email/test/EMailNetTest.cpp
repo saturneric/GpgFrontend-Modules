@@ -260,12 +260,32 @@ TEST(EMailSmtpNetTest, APlainOnlyServerAuthenticates) {
 }
 
 TEST(EMailSmtpNetTest, ALoginOnlyServerAuthenticates) {
-  // Without SASL, vmime implements only AUTH PLAIN; LOGIN-only servers are
-  // common enough that our fork adds the fallback this covers.
+  // LOGIN-only servers are common enough that falling back to it matters.
   const auto attempt = TrySmtp({"LOGIN"}, "correct-horse");
 
   EXPECT_TRUE(attempt.accepted);
   EXPECT_EQ(attempt.seen_password, "correct-horse");
+}
+
+TEST(EMailSmtpNetTest, APasswordIsNeverOfferedAsAnOAuthToken) {
+  // vmime knows XOAUTH2 and would rank it first, but what we hold is a
+  // password, and XOAUTH2 would hand it over as a bearer token.
+  const auto attempt = TrySmtp({"XOAUTH2", "PLAIN"}, "correct-horse");
+
+  EXPECT_TRUE(attempt.accepted);
+  EXPECT_TRUE(
+      attempt.commands.filter("AUTH XOAUTH2", Qt::CaseInsensitive).isEmpty());
+  EXPECT_FALSE(
+      attempt.commands.filter("AUTH PLAIN", Qt::CaseInsensitive).isEmpty());
+}
+
+TEST(EMailSmtpNetTest, AnOAuthOnlyServerGetsNoPassword) {
+  const auto attempt = TrySmtp({"XOAUTH2"}, "correct-horse");
+
+  EXPECT_FALSE(attempt.accepted);
+  EXPECT_FALSE(SentAuthCommand(attempt.commands));
+  EXPECT_TRUE(attempt.seen_password.isEmpty());
+  EXPECT_EQ(attempt.error.category, MailErrorCategory::kAUTH);
 }
 
 TEST(EMailSmtpNetTest, NoCredentialIsSentOverACleartextLink) {
