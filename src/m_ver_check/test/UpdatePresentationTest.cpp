@@ -166,6 +166,7 @@ auto Nightly(const QString& latest, RemoteFact tag = RemoteFact::kConfirmed,
              RemoteFact commit = RemoteFact::kConfirmed) -> SoftwareVersion {
   auto r = Known(ListOutcome::kFound, latest, tag, commit);
   r.current_version = "v2.3.0-alpha.414+g739ebdc4c445";
+  r.nightly = true;  // as the checker records it
   return r;
 }
 

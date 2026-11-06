@@ -130,6 +130,7 @@ auto ThisPlatform() -> Platform {
   p.os = QStringLiteral("linux");
 #endif
   p.arch = QSysInfo::currentCpuArchitecture();
+  p.install_kind = QString::fromUtf8(GFAppInstallKind(GFModuleSdkContext()));
   return p;
 }
 
@@ -244,10 +245,11 @@ auto VersionChecker() -> UpdateChecker* {
   if (g_checker.isNull()) {
     auto* ctx = GFModuleSdkContext();
     auto* nam = new QNetworkAccessManager();
-    g_checker = new UpdateChecker({QString::fromUtf8(GFAppVersion(ctx)),
-                                   QString::fromUtf8(GFAppGitCommitHash(ctx)),
-                                   BuiltInChannel(), ThisPlatform()},
-                                  MakeFetcher(nam), MakeStore());
+    g_checker = new UpdateChecker(
+        {QString::fromUtf8(GFAppVersion(ctx)),
+         QString::fromUtf8(GFAppGitCommitHash(ctx)), BuiltInChannel(),
+         ThisPlatform(), GFAppIsNightlyIdentity(ctx)},
+        MakeFetcher(nam), MakeStore());
     nam->setParent(g_checker);
 
     QObject::connect(g_checker, &UpdateChecker::Changed, g_checker,

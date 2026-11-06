@@ -632,9 +632,10 @@ auto Descriptor() -> QByteArray {
   return QJsonDocument(QJsonObject{{"artifacts", artifacts}}).toJson();
 }
 
-auto Pick(const char* os, const char* arch, const char* version = "")
-    -> QString {
-  return SelectDownload(Descriptor(), {os, arch, version}).section(u'/', -1);
+auto Pick(const char* os, const char* arch, const char* version = "",
+          const char* kind = "") -> QString {
+  return SelectDownload(Descriptor(), {os, arch, version, kind})
+      .section(u'/', -1);
 }
 
 }  // namespace
@@ -730,4 +731,53 @@ TEST(DownloadTest, TheCheckerLinksTheVerifiedFile) {
   c->Start(CheckMode::kForce);
   EXPECT_EQ(Decide(*c->State().last_good), Verdict::kUpdateAvailable);
   EXPECT_TRUE(c->State().last_good->list.latest.html_url.isEmpty());
+}
+
+TEST(DownloadTest, TheSameKindOfPackageAsTheRunningOne) {
+  EXPECT_EQ(Pick("linux", "x86_64", "", "appimage"), "linux-x86_64.AppImage");
+  EXPECT_EQ(Pick("linux", "x86_64", "", "appimage-portable"),
+            "linux-x86_64-portable.AppImage");
+  EXPECT_EQ(Pick("windows", "x86_64", "", "msi"), "windows-x86_64.msi");
+  EXPECT_EQ(Pick("windows", "x86_64", "", "portable-zip"),
+            "windows-x86_64-portable.zip");
+  EXPECT_EQ(Pick("macos", "arm64", "26.1", "dmg"), "macos-26.dmg");
+  // Kept up to date by something else: no file to download.
+  for (const auto* kind : {"mas", "flatpak", "distro", "msix", "android"}) {
+    EXPECT_EQ(Pick("linux", "x86_64", "", kind), "") << kind;
+  }
+  // From a checkout, or a Host too old to say: the installed package.
+  EXPECT_EQ(Pick("windows", "x86_64", "", "source"), "windows-x86_64.msi");
+  EXPECT_EQ(Pick("windows", "x86_64", "", ""), "windows-x86_64.msi");
+}
+
+// The Host says which application this is; the version's shape is only the
+// fallback for a Host too old to say.
+TEST(NightlyCheckTest, TheHostsWordBeatsTheVersionsShape) {
+  Nightly n;
+  n.Publish(kMirrorA, 3, "2.3.0-alpha.9");
+  n.MarkOfficial();
+  const auto make = [&](const QString& version, int nightly) {
+    return std::make_unique<UpdateChecker>(
+        UpdateChecker::Build{version, kCommit, n.Channel(), {}, nightly},
+        n.mirrors.Fetcher(), UpdateChecker::Store{}, [] { return kNow; });
+  };
+
+  // A release whose version merely looks untagged still asks GitHub.
+  n.mirrors.asked.clear();
+  make("v2.3.0-alpha.5", 0)->Start(CheckMode::kForce);
+  ASSERT_FALSE(n.mirrors.asked.isEmpty());
+  EXPECT_TRUE(n.mirrors.asked.first().startsWith("https://api.github.com/"));
+
+  // The nightly application reads its channel whatever its version says.
+  n.mirrors.asked.clear();
+  auto c = make("v2.3.0", 1);
+  c->Start(CheckMode::kForce);
+  EXPECT_TRUE(n.mirrors.asked.first().startsWith(kMirrorA));
+  EXPECT_TRUE(c->State().last_good->nightly);
+
+  // And the record says so after a restart.
+  const auto stored = UpdateChecker::ToStorage(c->State());
+  const auto back = UpdateChecker::FromStorage(stored, {"v2.3.0", kCommit, {}});
+  ASSERT_TRUE(back.last_good.has_value());
+  EXPECT_TRUE(back.last_good->nightly);
 }

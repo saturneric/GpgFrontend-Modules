@@ -107,6 +107,9 @@ class UpdateChecker : public QObject {
     ReleaseChannel channel;
     /// The machine, to pick the file a "Download" leads to.
     Platform platform;
+    /// Whether this is the nightly application: 1 or 0 as the Host says, -1
+    /// when it is too old to say, which leaves it to the version's shape.
+    int nightly = -1;
   };
 
   static constexpr qint64 kFreshSeconds = 24 * 60 * 60;
@@ -152,6 +155,7 @@ class UpdateChecker : public QObject {
   void askCommitMarker();
 
   Build build_;
+  bool nightly_ = false;
   Fetcher fetch_;
   Store store_;
   Clock clock_;
