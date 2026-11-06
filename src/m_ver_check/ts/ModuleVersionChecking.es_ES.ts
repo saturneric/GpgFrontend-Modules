@@ -4,8 +4,8 @@
 <context>
     <name>ModuleVersionChecking</name>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="188"/>
-        <location filename="../VersionCheckingModule.cpp" line="255"/>
+        <location filename="../VersionCheckingModule.cpp" line="207"/>
+        <location filename="../VersionCheckingModule.cpp" line="274"/>
         <source>Check for Updates</source>
         <translation>Buscar actualizaciones</translation>
     </message>
@@ -14,7 +14,7 @@
         <translation type="vanished">Buscar actualizaciones en Internet.</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="157"/>
+        <location filename="../VersionCheckingModule.cpp" line="176"/>
         <source>Update Checking</source>
         <translation>Comprobación de actualizaciones</translation>
     </message>
@@ -23,27 +23,27 @@
         <translation type="vanished">Buscando actualizaciones de versión al iniciar la aplicación.</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="161"/>
+        <location filename="../VersionCheckingModule.cpp" line="180"/>
         <source>Check for updates automatically, once a day.</source>
-        <translation type="unfinished"></translation>
+        <translation>Buscar actualizaciones automáticamente, una vez al día.</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="189"/>
+        <location filename="../VersionCheckingModule.cpp" line="208"/>
         <source>See whether a newer GpgFrontend is available</source>
         <translation>Comprobar si hay una versión más reciente de GpgFrontend</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="198"/>
+        <location filename="../VersionCheckingModule.cpp" line="217"/>
         <source>A newer version is available</source>
-        <translation type="unfinished"></translation>
+        <translation>Hay una versión más reciente disponible</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="259"/>
+        <location filename="../VersionCheckingModule.cpp" line="278"/>
         <source>Updates</source>
         <translation>Actualizaciones</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="259"/>
+        <location filename="../VersionCheckingModule.cpp" line="278"/>
         <source>update,version,check,github</source>
         <translation>update,version,check,github,actualización,versión,comprobar</translation>
     </message>
@@ -173,13 +173,13 @@ hace %n horas</numerusform>
     <message>
         <location filename="../UpdatePresentation.cpp" line="68"/>
         <location filename="../UpdatePresentation.cpp" line="81"/>
-        <location filename="../UpdateTab.cpp" line="166"/>
+        <location filename="../UpdateTab.cpp" line="168"/>
         <source>Check now</source>
         <translation>Comprobar ahora</translation>
     </message>
     <message>
         <location filename="../UpdatePresentation.cpp" line="70"/>
-        <location filename="../UpdatePresentation.cpp" line="161"/>
+        <location filename="../UpdatePresentation.cpp" line="166"/>
         <source>Couldn&apos;t check for updates</source>
         <translation>No se pudo buscar actualizaciones</translation>
     </message>
@@ -190,7 +190,7 @@ hace %n horas</numerusform>
     </message>
     <message>
         <location filename="../UpdatePresentation.cpp" line="74"/>
-        <location filename="../UpdatePresentation.cpp" line="179"/>
+        <location filename="../UpdatePresentation.cpp" line="184"/>
         <source>Try again</source>
         <translation>Reintentar</translation>
     </message>
@@ -207,7 +207,7 @@ hace %n horas</numerusform>
     <message>
         <location filename="../UpdatePresentation.cpp" line="95"/>
         <source>Nightly build %1 is available</source>
-        <translation type="unfinished"></translation>
+        <translation>La compilación nocturna %1 está disponible</translation>
     </message>
     <message>
         <location filename="../UpdatePresentation.cpp" line="98"/>
@@ -225,77 +225,77 @@ hace %n horas</numerusform>
         <translation>Descargar %1</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="113"/>
+        <location filename="../UpdatePresentation.cpp" line="118"/>
         <source>This nightly build has been withdrawn</source>
-        <translation type="unfinished"></translation>
+        <translation>Esta compilación nocturna ha sido retirada</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="115"/>
+        <location filename="../UpdatePresentation.cpp" line="120"/>
         <source>Please move to the newest nightly build.</source>
-        <translation type="unfinished"></translation>
+        <translation>Cambie a la compilación nocturna más reciente.</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="119"/>
+        <location filename="../UpdatePresentation.cpp" line="124"/>
         <source>This version isn&apos;t listed on GitHub Releases</source>
         <translation>Esta versión no aparece en GitHub Releases.</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="121"/>
+        <location filename="../UpdatePresentation.cpp" line="126"/>
         <source>It may be a pre-release build or a withdrawn version. The latest official release is recommended.</source>
         <translation>Puede ser una compilación preliminar o una versión retirada. Se recomienda la última versión oficial.</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="128"/>
+        <location filename="../UpdatePresentation.cpp" line="133"/>
         <source>This build isn&apos;t from the official repository</source>
         <translation>Esta compilación no proviene del repositorio oficial.</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="131"/>
+        <location filename="../UpdatePresentation.cpp" line="136"/>
         <source>Its source commit isn&apos;t among the published builds. That is expected for self-built or modified versions.</source>
-        <translation type="unfinished"></translation>
+        <translation>Su commit de origen no figura entre las compilaciones publicadas. Es lo esperado para versiones autocompiladas o modificadas.</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="136"/>
+        <location filename="../UpdatePresentation.cpp" line="141"/>
         <source>Its source commit wasn&apos;t found upstream. That is expected for self-built or modified versions.</source>
         <translation>Su commit de origen no se encontró en el repositorio oficial. Eso es esperado en versiones auto-compiladas o modificadas.</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="144"/>
+        <location filename="../UpdatePresentation.cpp" line="149"/>
         <source>You&apos;re up to date</source>
         <translation>Está actualizado.</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="146"/>
+        <location filename="../UpdatePresentation.cpp" line="151"/>
         <source>%1 is the newest nightly build.</source>
-        <translation type="unfinished"></translation>
+        <translation>%1 es la compilación nocturna más reciente.</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="151"/>
+        <location filename="../UpdatePresentation.cpp" line="156"/>
         <source>%1 is the latest release.</source>
         <translation>%1 es la última versión.</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="154"/>
+        <location filename="../UpdatePresentation.cpp" line="159"/>
         <source>No newer release was found for %1.</source>
         <translation>No se encontró ninguna versión más reciente de %1.</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="167"/>
+        <location filename="../UpdatePresentation.cpp" line="172"/>
         <source>Last checked %1 · Signed nightly channel</source>
-        <translation type="unfinished"></translation>
+        <translation>Última comprobación: %1 · Canal nocturno firmado</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="170"/>
+        <location filename="../UpdatePresentation.cpp" line="175"/>
         <source>Last checked %1 · GitHub Releases</source>
         <translation>Última comprobación %1 · GitHub Releases</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="175"/>
+        <location filename="../UpdatePresentation.cpp" line="180"/>
         <source>Couldn&apos;t check for updates just now. Showing the last known result.</source>
         <translation>No se pudo comprobar si hay actualizaciones en este momento. Mostrando el último resultado conocido.</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="181"/>
+        <location filename="../UpdatePresentation.cpp" line="186"/>
         <source>Check again</source>
         <translation>Comprobar de nuevo</translation>
     </message>
@@ -305,7 +305,7 @@ hace %n horas</numerusform>
         <translation>Notas de la versión</translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="164"/>
+        <location filename="../UpdateTab.cpp" line="166"/>
         <source>Update checking is unavailable</source>
         <translation>La comprobación de actualizaciones no está disponible.</translation>
     </message>
