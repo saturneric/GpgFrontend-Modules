@@ -255,6 +255,11 @@ auto VersionChecker() -> UpdateChecker* {
     QObject::connect(g_checker, &UpdateChecker::Changed, g_checker,
                      [checker = g_checker.data()] {
                        FillGrtWithVersionInfo(checker->State());
+                       // The badge on Help > Check for Updates, and the one
+                       // in the main window's status strip, ask again now
+                       // rather than when a menu next opens.
+                       GFCommandStateChanged(GFModuleSdkContext(),
+                                             CheckForUpdates::kMeta.id);
                      });
     FillGrtWithVersionInfo(g_checker->State());
   }
