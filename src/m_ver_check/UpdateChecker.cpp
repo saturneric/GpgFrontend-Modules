@@ -216,9 +216,12 @@ void UpdateChecker::askDescriptor() {
         QCryptographicHash::hash(body, QCryptographicHash::Sha256).toHex();
     if (status == 200 &&
         QString::fromLatin1(digest) == self->descriptor_sha256_) {
-      const auto path = SelectDownload(body, self->build_.platform);
-      if (!path.isEmpty()) {
-        self->fresh_.list.latest.html_url = base + path;
+      const auto choice = SelectArtifact(body, self->build_.platform);
+      if (!choice.path.isEmpty()) {
+        auto& latest = self->fresh_.list.latest;
+        latest.html_url = base + choice.path;
+        latest.download_sha256 = choice.sha256;
+        latest.download_size = choice.size;
       }
     }
     self->askCommitMarker();

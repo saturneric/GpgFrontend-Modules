@@ -137,6 +137,11 @@ auto NormalizeArch(const QString& arch) -> QString {
 
 auto SelectDownload(const QByteArray& descriptor, const Platform& platform)
     -> QString {
+  return SelectArtifact(descriptor, platform).path;
+}
+
+auto SelectArtifact(const QByteArray& descriptor, const Platform& platform)
+    -> DownloadChoice {
   // Install kind -> the artifact kind and flavor that replace it. An empty
   // kind matches any kind of the installed flavor.
   struct Want {
@@ -160,12 +165,13 @@ auto SelectDownload(const QByteArray& descriptor, const Platform& platform)
   // msix, mas, flatpak, distro, android: their own updater, not a file.
   const auto want = kWants.constFind(platform.install_kind);
   if (want == kWants.constEnd()) return {};
+  static const QRegularExpression kHash(QStringLiteral("^[0-9a-f]{64}$"));
 
   const auto doc = QJsonDocument::fromJson(descriptor);
   if (!doc.isObject()) return {};
 
   const auto running = QVersionNumber::fromString(platform.os_version);
-  QString best;
+  DownloadChoice best;
   QVersionNumber best_min;
   for (const auto& value : doc.object().value("artifacts").toArray()) {
     const auto a = value.toObject();
@@ -182,8 +188,11 @@ auto SelectDownload(const QByteArray& descriptor, const Platform& platform)
     const auto min = QVersionNumber::fromString(
         a.value("min_os").toObject().value(platform.os).toString());
     if (!min.isNull() && (running.isNull() || running < min)) continue;
-    if (best.isEmpty() || min > best_min) {
-      best = path;
+    if (best.path.isEmpty() || min > best_min) {
+      const auto sha256 = a.value("sha256").toString();
+      const auto size = a.value("size").toInteger();
+      best = {path, kHash.match(sha256).hasMatch() ? sha256 : QString(),
+              size > 0 ? size : 0};
       best_min = min;
     }
   }

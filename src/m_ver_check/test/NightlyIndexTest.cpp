@@ -670,6 +670,36 @@ TEST(DownloadTest, AnUnsafePathIsNeverOffered) {
   EXPECT_TRUE(IsSafeRelativePath("nightly/2.3.0-alpha.9-gabc/release.json"));
 }
 
+// What an in-place update checks its download against comes with the path,
+// and only in the shape the signing host writes.
+TEST(DownloadTest, TheChosenFileComesWithItsHashAndSize) {
+  const auto digest = QString(64, u'0');
+  QJsonArray artifacts{QJsonObject{{"os", "linux"},
+                                   {"arch", "x86_64"},
+                                   {"kind", "appimage"},
+                                   {"flavor", "installed"},
+                                   {"path", "nightly/x/linux.AppImage"},
+                                   {"sha256", digest},
+                                   {"size", 123456}}};
+  const auto doc =
+      QJsonDocument(QJsonObject{{"artifacts", artifacts}}).toJson();
+  auto c = SelectArtifact(doc, {"linux", "x86_64", "", "appimage"});
+  EXPECT_EQ(c.path, "nightly/x/linux.AppImage");
+  EXPECT_EQ(c.sha256, digest);
+  EXPECT_EQ(c.size, 123456);
+
+  // A hash that is not one, or no size: the path stays a link, nothing more.
+  auto a = artifacts[0].toObject();
+  a["sha256"] = "ABC";
+  a.remove("size");
+  c = SelectArtifact(
+      QJsonDocument(QJsonObject{{"artifacts", QJsonArray{a}}}).toJson(),
+      {"linux", "x86_64", "", "appimage"});
+  EXPECT_EQ(c.path, "nightly/x/linux.AppImage");
+  EXPECT_TRUE(c.sha256.isEmpty());
+  EXPECT_EQ(c.size, 0);
+}
+
 namespace {
 
 auto WithDescriptor(QByteArray index, const QString& path,

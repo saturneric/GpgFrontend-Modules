@@ -105,6 +105,18 @@ auto IsSafeRelativePath(const QString& path) -> bool;
 auto SelectDownload(const QByteArray& descriptor, const Platform& platform)
     -> QString;
 
+/// The file SelectDownload() picks, with what the descriptor says of it.
+struct DownloadChoice {
+  QString path;     ///< product-relative; empty when no file fits
+  QString sha256;   ///< lowercase hex, or empty when the descriptor gives none
+  qint64 size = 0;  ///< bytes, or 0 when the descriptor gives none
+};
+
+/// SelectDownload(), with the file's sha256 and size: what an in-place update
+/// checks the download against.
+auto SelectArtifact(const QByteArray& descriptor, const Platform& platform)
+    -> DownloadChoice;
+
 /// A build of the nightly identity follows the nightly channel and nothing
 /// else. Until the Host tells it outright, a nightly is a build whose version
 /// is an untagged one: "X.Y.Z-alpha.N" or "...-beta.K.dev.N".
