@@ -41,10 +41,12 @@ if(NOT TARGET GTest::gtest)
 endif()
 
 add_executable(gf_mod_ver_check_test
+  AppImageUpdateTest.cpp
   NightlyIndexTest.cpp
   ReleaseCheckTest.cpp
   UpdateCheckerTest.cpp
   UpdatePresentationTest.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/../AppImageUpdate.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../Minisign.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../ReleaseCheck.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../ReleaseIndex.cpp

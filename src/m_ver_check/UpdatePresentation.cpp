@@ -30,6 +30,7 @@
 
 #include <QCoreApplication>
 #include <QLocale>
+#include <algorithm>
 
 #include "ReleaseCheck.h"
 #include "ReleaseIndex.h"
@@ -37,6 +38,60 @@
 // Every string here uses the literal context "UpdateTab", shared with the
 // dialog's own tr(): lupdate files them together, and a named constant would
 // hide them from it.
+
+auto PresentInstall(UpdateView view, const InstallState& install)
+    -> UpdateView {
+  if (!view.installable) return view;
+  using Stage = InstallState::Stage;
+  view.show_download = true;
+  view.download_enabled = true;
+  view.action = UpdateView::Action::kInstall;
+
+  switch (install.stage) {
+    case Stage::kIdle:
+      view.download_label =
+          QCoreApplication::translate("UpdateTab", "Install update");
+      break;
+    case Stage::kDownloading: {
+      const auto total = install.total > 0 ? install.total : view.download_size;
+      const int percent = total > 0
+                              ? static_cast<int>(std::clamp<qint64>(
+                                    install.received * 100 / total, 0, 100))
+                              : 0;
+      view.download_label =
+          QCoreApplication::translate("UpdateTab", "Downloading… %1%")
+              .arg(percent);
+      view.download_enabled = false;
+      view.check_enabled = false;
+      break;
+    }
+    case Stage::kInstalled:
+      view.tone = UpdateTone::kGood;
+      view.headline = QCoreApplication::translate(
+                          "UpdateTab", "Nightly build %1 is installed")
+                          .arg(DisplayVersion(view.download_version));
+      view.detail =
+          install.can_restart
+              ? QCoreApplication::translate(
+                    "UpdateTab", "Restart GpgFrontend to start using it.")
+              : QCoreApplication::translate(
+                    "UpdateTab",
+                    "Close and reopen GpgFrontend to start using it.");
+      view.notice.clear();
+      view.action = UpdateView::Action::kRestart;
+      view.download_label =
+          QCoreApplication::translate("UpdateTab", "Restart now");
+      view.show_download = install.can_restart;
+      view.check_enabled = false;
+      break;
+    case Stage::kFailed:
+      view.notice = install.error;
+      view.download_label =
+          QCoreApplication::translate("UpdateTab", "Try again");
+      break;
+  }
+  return view;
+}
 
 auto DisplayVersion(const QString& version) -> QString {
   auto v = version.trimmed();
@@ -116,6 +171,9 @@ auto PresentUpdate(const UpdateSnapshot& s, const QDateTime& now)
       // a release list merely named.
       if (nightly && r.list.latest.html_url.startsWith(u"https://")) {
         v.download_url = r.list.latest.html_url;
+        v.download_sha256 = r.list.latest.download_sha256;
+        v.download_size = r.list.latest.download_size;
+        v.installable = v.download_sha256.size() == 64 && v.download_size > 0;
       }
       v.notes = r.list.latest.notes.trimmed();
       v.show_notes = !v.notes.isEmpty();

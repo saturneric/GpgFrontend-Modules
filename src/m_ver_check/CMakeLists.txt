@@ -28,11 +28,12 @@
 #
 # SOURCES is spelled out rather than left to aux_source_directory: the test
 # directory below compiles the Host-free half (ReleaseCheck, UpdateChecker,
-# UpdatePresentation, SoftwareVersion) on its own.
+# UpdatePresentation, SoftwareVersion, AppImageUpdate) on its own.
 gf_add_module(
   NAME    ver_check
   QT      Core Network Widgets
   SOURCES VersionCheckingModule.cpp
+          AppImageUpdate.cpp
           Minisign.cpp
           ReleaseCheck.cpp
           ReleaseIndex.cpp
