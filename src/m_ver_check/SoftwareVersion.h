@@ -52,6 +52,10 @@ struct LatestRelease {
   QString published_at;  ///< as the server wrote it
   QString notes;         ///< markdown
   QString html_url;      ///< the release page
+  /// The file behind html_url, as the verified descriptor states it: what an
+  /// in-place update checks its download against. Empty and 0 otherwise.
+  QString download_sha256;
+  qint64 download_size = 0;
 };
 
 struct ListResult {

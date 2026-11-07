@@ -80,6 +80,10 @@ auto SoftwareVersion::ToJson() const -> QJsonObject {
   latest["published_at"] = list.latest.published_at;
   latest["notes"] = list.latest.notes;
   latest["html_url"] = list.latest.html_url;
+  if (!list.latest.download_sha256.isEmpty()) {  // additive
+    latest["download_sha256"] = list.latest.download_sha256;
+    latest["download_size"] = list.latest.download_size;
+  }
 
   QJsonObject obj;
   obj["schema"] = kSchema;
@@ -110,6 +114,8 @@ auto SoftwareVersion::FromJson(const QJsonObject& obj)
   sv.list.latest.published_at = latest.value("published_at").toString();
   sv.list.latest.notes = latest.value("notes").toString();
   sv.list.latest.html_url = latest.value("html_url").toString();
+  sv.list.latest.download_sha256 = latest.value("download_sha256").toString();
+  sv.list.latest.download_size = latest.value("download_size").toInteger();
 
   sv.tag_fact = ValueOf(kFactNames, obj.value("tag_fact").toString());
   sv.commit_fact = ValueOf(kFactNames, obj.value("commit_fact").toString());
