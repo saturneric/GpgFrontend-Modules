@@ -1609,6 +1609,26 @@ auto NotePageView::CloseDecided(bool save) -> std::optional<bool> {
   return close_as_decided(save);
 }
 
+auto NotePageView::PrepareRecovery() -> bool {
+  if (state_ != State::kOPEN || !persistence_.HasUnsavedWork()) return true;
+  // The capture autosave_tick() would make a few seconds from now, made and
+  // waited for here: the application is about to go, and the Host's copy
+  // must hold the last keystroke, not the last tick.
+  // Shared: a reply arriving after the wait gave up must not write here.
+  auto captured = std::make_shared<bool>(false);
+  QPointer<NotePageView> self(this);
+  request_snapshot([self, captured](std::optional<Snapshot> s) {
+    if (self.isNull() || !s.has_value()) return;
+    self->recovery_ = s->payload;
+    self->recovery_gen_ = s->edit_gen;
+    self->persistence_.Captured(s->edit_gen);
+    *captured = true;
+  });
+  wait_until([this] { return !snapshot_in_progress_; });
+  // Not answered in time, or an image still being stored: the user decides.
+  return *captured && recovery_ != nullptr;
+}
+
 void NotePageView::FindRequested() {
   if (state_ != State::kOPEN) return;
   editor_.Post(R"({"type":"find.open"})");

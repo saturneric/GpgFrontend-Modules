@@ -93,6 +93,7 @@ class NotePageView : public QWidget, public gf::ui::DocumentWidget {
   auto SaveRequested(bool save_as) -> bool override;
   auto CloseRequested() -> bool override;
   auto CloseDecided(bool save) -> std::optional<bool> override;
+  auto PrepareRecovery() -> bool override;
   void FindRequested() override;
   auto EncryptRequested() -> bool override;
   auto DecryptRequested() -> bool override;
