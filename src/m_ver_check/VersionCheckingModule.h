@@ -30,7 +30,10 @@
 
 #include "GFModule.h"
 
+class AppImageInstaller;
+class QObject;
 class UpdateChecker;
+struct UpdateFile;
 
 /**
  * @brief The module's one update checker, created on first use.
@@ -38,3 +41,22 @@ class UpdateChecker;
  * GUI thread only. Null once the module is deactivating.
  */
 auto VersionChecker() -> UpdateChecker*;
+
+/**
+ * @brief The AppImage an update may replace in place, or empty.
+ *
+ * Only the nightly application packaged as an AppImage, whose file sits where
+ * this user can write. A stable AppImage waits for the client-side OpenPGP
+ * check of its release; everything else is updated by its own installer, its
+ * store or its distribution.
+ */
+auto SelfUpdateImage() -> QString;
+
+/// An installer for @p image, downloading through the module's network
+/// access. GUI thread.
+auto MakeAppImageInstaller(const QString& image, const UpdateFile& file,
+                           QObject* parent) -> AppImageInstaller*;
+
+/// Asks the Host to restart the application; false when it cannot (a Host
+/// too old) or refuses.
+auto RequestRestart() -> bool;

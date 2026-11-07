@@ -62,6 +62,17 @@ struct UpdateView {
   /// The file itself, when known (a nightly, from its signed descriptor);
   /// empty sends "Download" to the downloads page.
   QString download_url;
+  /// What the descriptor says of that file, for an in-place update.
+  QString download_sha256;
+  qint64 download_size = 0;
+  /// The update can replace this build in place: a nightly whose file the
+  /// signed descriptor states by hash and size. Whether this machine allows
+  /// it (an AppImage in a place the user can write) is the dialog's to add.
+  bool installable = false;
+  /// What the main button does: open download_url (or the downloads page),
+  /// install the update in place, or restart into the installed one.
+  enum class Action { kOpen, kInstall, kRestart } action = Action::kOpen;
+  bool download_enabled = true;
 
   QString check_label;  ///< "Check again", "Try again" or "Check now"
   bool check_enabled = true;
@@ -71,6 +82,20 @@ struct UpdateView {
 };
 
 auto PresentUpdate(const UpdateSnapshot& s, const QDateTime& now) -> UpdateView;
+
+/// Where an in-place update of the running AppImage stands.
+struct InstallState {
+  enum class Stage { kIdle, kDownloading, kInstalled, kFailed };
+  Stage stage = Stage::kIdle;
+  qint64 received = 0;
+  qint64 total = 0;         ///< 0 when the server did not say
+  QString error;            ///< kFailed: why, as AppImageInstaller put it
+  bool can_restart = true;  ///< false once the Host could not restart
+};
+
+/// @p view with the in-place update laid over it: "Install update", its
+/// progress, then "Restart now". Unchanged unless @p view is installable.
+auto PresentInstall(UpdateView view, const InstallState& install) -> UpdateView;
 
 /// A version as a person reads it: no leading "v", no build metadata
 /// ("v2.3.0-alpha.415+gbe5ff859f457" -> "2.3.0-alpha.415"). The commit says

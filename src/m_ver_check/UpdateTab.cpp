@@ -28,6 +28,7 @@
 
 #include "UpdateTab.h"
 
+#include "AppImageUpdate.h"
 #include "GFModule.h"
 #include "UpdateChecker.h"
 #include "UpdatePresentation.h"
@@ -37,6 +38,10 @@ namespace {
 
 constexpr auto kDownloadPage =
     "https://www.gpgfrontend.bktus.com/overview/downloads/";
+
+/// The update this process has put on disk, by its sha256: a dialog opened
+/// again offers the restart, not the same download a second time.
+QString g_installed_sha256;  // NOLINT(*-avoid-non-const-global-variables)
 
 auto ToneIcon(const QStyle* style, UpdateTone tone) -> QIcon {
   switch (tone) {
@@ -99,7 +104,6 @@ UpdateTab::UpdateTab(QWidget* parent)
   check_btn_->setIcon(QIcon::fromTheme("view-refresh"));
 
   download_btn_ = new QPushButton(this);
-  download_btn_->setIcon(QIcon::fromTheme("download"));
   download_btn_->setDefault(true);
 
   auto* actions = new QHBoxLayout();
@@ -141,11 +145,8 @@ UpdateTab::UpdateTab(QWidget* parent)
     if (!checker_.isNull()) checker_->Start(CheckMode::kForce);
   });
 
-  connect(download_btn_, &QPushButton::clicked, this, [this] {
-    QDesktopServices::openUrl(QUrl(download_url_.isEmpty()
-                                       ? QString::fromLatin1(kDownloadPage)
-                                       : download_url_));
-  });
+  connect(download_btn_, &QPushButton::clicked, this,
+          &UpdateTab::on_main_button);
 
   if (!checker_.isNull()) {
     connect(checker_, &UpdateChecker::Changed, this, [this] {
@@ -169,7 +170,68 @@ void UpdateTab::render() {
     apply(view);
     return;
   }
-  apply(PresentUpdate(checker_->State(), QDateTime::currentDateTime()));
+  auto view = PresentUpdate(checker_->State(), QDateTime::currentDateTime());
+  // In place only where this machine allows it: an AppImage of the nightly
+  // application, in a place the user can write.
+  view.installable = view.installable && !SelfUpdateImage().isEmpty();
+  if (install_.stage == InstallState::Stage::kIdle && view.installable &&
+      view.download_sha256 == g_installed_sha256) {
+    install_.stage = InstallState::Stage::kInstalled;
+  }
+  apply(PresentInstall(view, install_));
+}
+
+void UpdateTab::on_main_button() {
+  switch (view_.action) {
+    case UpdateView::Action::kOpen:
+      QDesktopServices::openUrl(QUrl(view_.download_url.isEmpty()
+                                         ? QString::fromLatin1(kDownloadPage)
+                                         : view_.download_url));
+      break;
+    case UpdateView::Action::kInstall:
+      install();
+      break;
+    case UpdateView::Action::kRestart:
+      if (!RequestRestart()) {
+        install_.can_restart = false;
+        render();
+      }
+      break;
+  }
+}
+
+void UpdateTab::install() {
+  if (!installer_.isNull()) return;
+  const auto image = SelfUpdateImage();
+  if (image.isEmpty()) return;
+
+  install_ = {};
+  install_.stage = InstallState::Stage::kDownloading;
+  installer_ = MakeAppImageInstaller(
+      image,
+      {QUrl(view_.download_url), view_.download_sha256, view_.download_size},
+      this);
+  connect(installer_, &AppImageInstaller::Progress, this,
+          [this](qint64 received, qint64 total) {
+            install_.received = received;
+            install_.total = total;
+            render();
+          });
+  const auto sha256 = view_.download_sha256;
+  connect(installer_, &AppImageInstaller::Finished, this,
+          [this, sha256](bool ok, const QString& error) {
+            install_.stage = ok ? InstallState::Stage::kInstalled
+                                : InstallState::Stage::kFailed;
+            install_.error = error;
+            if (ok) g_installed_sha256 = sha256;
+            if (auto* done = installer_.data(); done != nullptr) {
+              installer_.clear();  // "Try again" may start another at once
+              done->deleteLater();
+            }
+            render();
+          });
+  render();
+  installer_->Start();
 }
 
 void UpdateTab::fit_window() {
@@ -196,10 +258,17 @@ void UpdateTab::apply(const UpdateView& view) {
 
   check_btn_->setText(view.check_label);
   check_btn_->setEnabled(view.check_enabled);
+  // Once installed, checking again has nothing to add before the restart.
+  check_btn_->setVisible(view.action != UpdateView::Action::kRestart);
 
+  view_ = view;
   download_btn_->setText(view.download_label);
-  download_url_ = view.download_url;
+  download_btn_->setEnabled(view.download_enabled);
   download_btn_->setVisible(view.show_download);
+  download_btn_->setIcon(QIcon::fromTheme(
+      view.action == UpdateView::Action::kRestart   ? "view-refresh"
+      : view.action == UpdateView::Action::kInstall ? "system-software-update"
+                                                    : "download"));
 
   notes_toggle_->setVisible(view.show_notes);
   if (view.show_notes) {

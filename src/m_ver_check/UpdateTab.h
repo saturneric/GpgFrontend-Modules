@@ -31,14 +31,18 @@
 #include <QPointer>
 #include <QtWidgets/QtWidgets>
 
+#include "UpdatePresentation.h"
+
+class AppImageInstaller;
 class UpdateChecker;
-struct UpdateView;
 
 /**
  * @brief The update dialog's content: renders UpdateView, offers the actions.
  *
  * It decides nothing itself. The checker holds the state and PresentUpdate()
- * turns it into text; this only draws it and forwards the two buttons.
+ * turns it into text; this only draws it and forwards the two buttons. An
+ * in-place update of an AppImage (PresentInstall()) is the one thing it runs:
+ * the installer lives as long as the page, so closing it cancels a download.
  */
 class UpdateTab : public QWidget {
   Q_OBJECT
@@ -53,6 +57,8 @@ class UpdateTab : public QWidget {
   void render();
   void apply(const UpdateView& view);
   void fit_window();
+  void on_main_button();
+  void install();
 
   QPointer<UpdateChecker> checker_;
 
@@ -63,7 +69,9 @@ class UpdateTab : public QWidget {
   QLabel* freshness_;
   QPushButton* check_btn_;
   QPushButton* download_btn_;
-  QString download_url_;  ///< empty: the downloads page
+  UpdateView view_;  ///< as last drawn: what the main button acts on
+  InstallState install_;
+  QPointer<AppImageInstaller> installer_;
   QToolButton* notes_toggle_;
   QTextBrowser* notes_;
 };

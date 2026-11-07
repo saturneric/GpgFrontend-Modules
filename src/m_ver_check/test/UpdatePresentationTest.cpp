@@ -248,3 +248,76 @@ TEST(UpdatePresentationTest, VersionsReadCleanly) {
   EXPECT_EQ(DisplayVersion("2.4.0-rc.1"), "2.4.0-rc.1");
   EXPECT_EQ(DisplayVersion("2.3.0+dirty"), "2.3.0");
 }
+
+// An update the signed descriptor states by hash and size can be installed in
+// place; the dialog adds whether this machine allows it.
+TEST(UpdatePresentationTest, AnInstallableNightlyGoesFromInstallToRestart) {
+  UpdateSnapshot s;
+  auto r = Nightly("2.3.0-alpha.420+gabc");
+  r.list.latest.html_url =
+      "https://builds.bktus.com/gpgfrontend/nightly/x/linux-x86_64.AppImage";
+  r.list.latest.download_sha256 = QString(64, u'a');
+  r.list.latest.download_size = 1000;
+  s.last_good = r;
+  const auto base = PresentUpdate(s, kNow);
+  ASSERT_TRUE(base.installable);
+
+  using Stage = InstallState::Stage;
+  auto v = PresentInstall(base, {});
+  EXPECT_EQ(v.action, UpdateView::Action::kInstall);
+  EXPECT_EQ(v.download_label, "Install update");
+
+  InstallState progress;
+  progress.stage = Stage::kDownloading;
+  progress.received = 420;  // no total from the server: the descriptor's
+  v = PresentInstall(base, progress);
+  EXPECT_EQ(v.download_label, "Downloading… 42%");
+  EXPECT_FALSE(v.download_enabled);
+  EXPECT_FALSE(v.check_enabled);
+
+  InstallState installed;
+  installed.stage = Stage::kInstalled;
+  v = PresentInstall(base, installed);
+  EXPECT_EQ(v.tone, UpdateTone::kGood);
+  EXPECT_EQ(v.headline, "Nightly build 2.3.0-alpha.420 is installed");
+  EXPECT_EQ(v.detail, "Restart GpgFrontend to start using it.");
+  EXPECT_EQ(v.action, UpdateView::Action::kRestart);
+  EXPECT_EQ(v.download_label, "Restart now");
+  EXPECT_TRUE(v.show_download);
+
+  // A Host that cannot restart: the user does it.
+  installed.can_restart = false;
+  v = PresentInstall(base, installed);
+  EXPECT_EQ(v.detail, "Close and reopen GpgFrontend to start using it.");
+  EXPECT_FALSE(v.show_download);
+
+  InstallState failed;
+  failed.stage = Stage::kFailed;
+  failed.error = "The download failed: HTTP 404";
+  v = PresentInstall(base, failed);
+  EXPECT_EQ(v.notice, failed.error);
+  EXPECT_EQ(v.action, UpdateView::Action::kInstall);
+  EXPECT_EQ(v.download_label, "Try again");
+}
+
+TEST(UpdatePresentationTest, OnlyAFileTheDescriptorStatesIsInstallable) {
+  UpdateSnapshot s;
+  auto r = Nightly("2.3.0-alpha.420");
+  r.list.latest.html_url = "https://builds.bktus.com/gpgfrontend/x.AppImage";
+  r.list.latest.download_sha256 = QString(64, u'a');
+  r.list.latest.download_size = 0;  // no size: no install
+  s.last_good = r;
+  auto v = PresentUpdate(s, kNow);
+  EXPECT_FALSE(v.installable);
+  // Not installable: the view is left exactly as it was.
+  EXPECT_EQ(PresentInstall(v, {}).download_label, "Download");
+  EXPECT_EQ(PresentInstall(v, {}).action, UpdateView::Action::kOpen);
+
+  // A release, whatever its link says, is never installed in place here.
+  auto release = Update();
+  release.list.latest.html_url = "https://builds.bktus.com/x.AppImage";
+  release.list.latest.download_sha256 = QString(64, u'a');
+  release.list.latest.download_size = 10;
+  s.last_good = release;
+  EXPECT_FALSE(PresentUpdate(s, kNow).installable);
+}

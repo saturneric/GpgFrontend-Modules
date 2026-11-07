@@ -43,6 +43,7 @@
 #include <QtNetwork>
 #include <atomic>
 
+#include "AppImageUpdate.h"
 #include "GFModule.h"
 #include "GFModuleIdentity.h"
 #include "GFModuleTr.h"
@@ -94,6 +95,50 @@ auto MakeFetcher(QNetworkAccessManager* nam) -> UpdateChecker::Fetcher {
       const auto body = r->readAll();
       r->deleteLater();
       reply(status, body);
+    });
+  };
+}
+
+/// A large GET streamed into @p sink, for an in-place update. Every request
+/// answers once: a transport failure, a status other than 200, or a write the
+/// sink refuses (which aborts the transfer) is a failure.
+auto MakeDownload(QNetworkAccessManager* nam) -> AppImageInstaller::Download {
+  return [nam = QPointer<QNetworkAccessManager>(nam)](
+             const QUrl& url, QIODevice* sink,
+             const std::function<void(qint64, qint64)>& progress,
+             const std::function<void(bool, const QString&)>& done) {
+    if (nam.isNull()) {
+      done(false, QStringLiteral("no network access"));
+      return;
+    }
+    QNetworkRequest request(url);
+    // Between two packets, not for the whole file.
+    request.setTransferTimeout(60000);
+    request.setHeader(QNetworkRequest::UserAgentHeader,
+                      GFAppUserAgent(GFModuleSdkContext()));
+
+    auto* r = nam->get(request);
+    QPointer<QIODevice> out(sink);
+    auto take = [r, out] {
+      const auto chunk = r->readAll();
+      if (chunk.isEmpty()) return;
+      if (out.isNull() || out->write(chunk) != chunk.size()) r->abort();
+    };
+    QObject::connect(r, &QNetworkReply::readyRead, r, take);
+    QObject::connect(r, &QNetworkReply::downloadProgress, r, progress);
+    QObject::connect(r, &QNetworkReply::finished, r, [r, take, done] {
+      take();
+      const int status =
+          r->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+      const bool ok = r->error() == QNetworkReply::NoError && status == 200;
+      const auto error = ok ? QString()
+                         : status != 0 && status != 200
+                             ? QStringLiteral("HTTP %1").arg(status)
+                             : r->errorString();
+      FLOG_DEBUG("update download: %1, http status: %2, error: %3",
+                 r->url().toString(), status, error);
+      r->deleteLater();
+      done(ok, error);
     });
   };
 }
@@ -264,6 +309,32 @@ auto VersionChecker() -> UpdateChecker* {
     FillGrtWithVersionInfo(g_checker->State());
   }
   return g_checker;
+}
+
+auto SelfUpdateImage() -> QString {
+  auto* ctx = GFModuleSdkContext();
+  const auto kind = QString::fromUtf8(GFAppInstallKind(ctx));
+  if (kind != QLatin1String("appimage") &&
+      kind != QLatin1String("appimage-portable")) {
+    return {};
+  }
+  if (GFAppIsNightlyIdentity(ctx) != 1) return {};
+  return ReplaceableAppImage(qEnvironmentVariable("APPIMAGE"));
+}
+
+auto MakeAppImageInstaller(const QString& image, const UpdateFile& file,
+                           QObject* parent) -> AppImageInstaller* {
+  auto* nam = new QNetworkAccessManager();
+  auto* installer =
+      new AppImageInstaller(image, file, MakeDownload(nam), parent);
+  // The transfer goes with the installer: closing the dialog aborts it, and
+  // nothing writes into a sink that is gone.
+  nam->setParent(installer);
+  return installer;
+}
+
+auto RequestRestart() -> bool {
+  return GFAppRestart(GFModuleSdkContext()) == 0;
 }
 
 auto OnActivate() -> GFResult {
