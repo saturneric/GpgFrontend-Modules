@@ -77,6 +77,17 @@ TEST(NoteFilesTest, AFailedWriteLeavesTheOldFile) {
   // A directory that refuses new files: the temporary cannot be made.
   QFile::setPermissions(dir.path(),
                         QFileDevice::ReadOwner | QFileDevice::ExeOwner);
+  // Root (as in the CI containers) ignores directory permissions, so the
+  // write could not fail here: skip rather than test nothing.
+  QFile probe(dir.filePath(u"probe"_s));
+  if (probe.open(QIODevice::WriteOnly)) {
+    probe.close();
+    probe.remove();
+    QFile::setPermissions(dir.path(), QFileDevice::ReadOwner |
+                                          QFileDevice::WriteOwner |
+                                          QFileDevice::ExeOwner);
+    GTEST_SKIP() << "the read-only directory still accepts new files";
+  }
   QString why;
   EXPECT_FALSE(
       WriteNoteFile(path, EncryptedPackage::FromCiphertext("new"), &why));
