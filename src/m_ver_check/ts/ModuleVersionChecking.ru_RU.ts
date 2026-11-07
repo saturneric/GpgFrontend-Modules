@@ -4,8 +4,8 @@
 <context>
     <name>ModuleVersionChecking</name>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="208"/>
-        <location filename="../VersionCheckingModule.cpp" line="276"/>
+        <location filename="../VersionCheckingModule.cpp" line="253"/>
+        <location filename="../VersionCheckingModule.cpp" line="352"/>
         <source>Check for Updates</source>
         <translation>Проверить обновления</translation>
     </message>
@@ -14,7 +14,7 @@
         <translation type="vanished">Проверить обновления в интернете.</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="177"/>
+        <location filename="../VersionCheckingModule.cpp" line="222"/>
         <source>Update Checking</source>
         <translation>Проверка обновлений</translation>
     </message>
@@ -23,27 +23,27 @@
         <translation type="vanished">Проверка обновлений версии при запуске приложения.</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="181"/>
+        <location filename="../VersionCheckingModule.cpp" line="226"/>
         <source>Check for updates automatically, once a day.</source>
         <translation>Автоматически проверять обновления раз в день.</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="209"/>
+        <location filename="../VersionCheckingModule.cpp" line="254"/>
         <source>See whether a newer GpgFrontend is available</source>
         <translation>Проверить, доступна ли более новая версия GpgFrontend</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="218"/>
+        <location filename="../VersionCheckingModule.cpp" line="263"/>
         <source>A newer version is available</source>
         <translation>Доступна более новая версия</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="280"/>
+        <location filename="../VersionCheckingModule.cpp" line="356"/>
         <source>Updates</source>
         <translation>Обновления</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="280"/>
+        <location filename="../VersionCheckingModule.cpp" line="356"/>
         <source>update,version,check,github</source>
         <translation>update,version,check,github,обновление,версия,проверить</translation>
     </message>
@@ -143,12 +143,12 @@
         <translation type="vanished">Вы используете последнюю версию. Никаких действий не требуется.</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="50"/>
+        <location filename="../UpdatePresentation.cpp" line="105"/>
         <source>just now</source>
         <translation>только что</translation>
     </message>
     <message numerus="yes">
-        <location filename="../UpdatePresentation.cpp" line="54"/>
+        <location filename="../UpdatePresentation.cpp" line="109"/>
         <source>%n minute(s) ago</source>
         <translation>
             <numerusform>%n минуту назад
@@ -159,7 +159,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../UpdatePresentation.cpp" line="59"/>
+        <location filename="../UpdatePresentation.cpp" line="114"/>
         <source>%n hour(s) ago</source>
         <translation>
             <numerusform>%n час назад
@@ -170,61 +170,92 @@
         </translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="74"/>
+        <location filename="../UpdatePresentation.cpp" line="129"/>
         <source>Checking for updates…</source>
         <translation>Проверка обновлений…</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="88"/>
-        <location filename="../UpdateTab.cpp" line="168"/>
+        <location filename="../UpdatePresentation.cpp" line="143"/>
+        <location filename="../UpdateTab.cpp" line="169"/>
         <source>Check now</source>
         <translation>Проверить сейчас</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="77"/>
-        <location filename="../UpdatePresentation.cpp" line="174"/>
+        <location filename="../UpdatePresentation.cpp" line="132"/>
+        <location filename="../UpdatePresentation.cpp" line="232"/>
         <source>Couldn&apos;t check for updates</source>
         <translation>Не удалось проверить наличие обновлений.</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="75"/>
-        <location filename="../UpdatePresentation.cpp" line="189"/>
+        <location filename="../UpdatePresentation.cpp" line="130"/>
+        <location filename="../UpdatePresentation.cpp" line="247"/>
         <source>Checking…</source>
         <translation>Проверка…</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="80"/>
+        <location filename="../UpdatePresentation.cpp" line="135"/>
         <source>Please try again later.</source>
         <translation>Пожалуйста, повторите попытку позже.</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="81"/>
-        <location filename="../UpdatePresentation.cpp" line="195"/>
+        <location filename="../UpdatePresentation.cpp" line="90"/>
+        <location filename="../UpdatePresentation.cpp" line="136"/>
+        <location filename="../UpdatePresentation.cpp" line="253"/>
         <source>Try again</source>
         <translation>Попробовать снова</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="84"/>
+        <location filename="../UpdatePresentation.cpp" line="53"/>
+        <source>Install update</source>
+        <translation>Установить обновление</translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="63"/>
+        <source>Downloading… %1%</source>
+        <translation>Загрузка… %1%</translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="72"/>
+        <source>Nightly build %1 is installed</source>
+        <translation>Ночная сборка %1 установлена</translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="76"/>
+        <source>Restart GpgFrontend to start using it.</source>
+        <translation>Перезапустите GpgFrontend, чтобы начать использовать обновление.</translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="78"/>
+        <source>Close and reopen GpgFrontend to start using it.</source>
+        <translation>Закройте и снова откройте GpgFrontend, чтобы начать использовать обновление.</translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="83"/>
+        <source>Restart now</source>
+        <translation>Перезапустить сейчас</translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="139"/>
         <source>No update information yet</source>
         <translation>Информации об обновлениях пока нет.</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="85"/>
+        <location filename="../UpdatePresentation.cpp" line="140"/>
         <source>Check now to see whether a newer GpgFrontend is available.</source>
         <translation>Проверьте сейчас, чтобы узнать, доступна ли более новая версия GpgFrontend.</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="103"/>
+        <location filename="../UpdatePresentation.cpp" line="158"/>
         <source>Nightly build %1 is available</source>
         <translation>Доступна ночная сборка %1</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="106"/>
+        <location filename="../UpdatePresentation.cpp" line="161"/>
         <source>GpgFrontend %1 is available</source>
         <translation>GpgFrontend %1 доступна</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="109"/>
+        <location filename="../UpdatePresentation.cpp" line="164"/>
         <source>You are using %1.</source>
         <translation>Вы используете %1.</translation>
     </message>
@@ -233,94 +264,116 @@
         <translation type="vanished">Скачать %1</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="114"/>
+        <location filename="../UpdatePresentation.cpp" line="169"/>
         <source>Download</source>
         <translation>Скачать</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="126"/>
+        <location filename="../UpdatePresentation.cpp" line="184"/>
         <source>This nightly build has been withdrawn</source>
         <translation>Эта ночная сборка отозвана</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="128"/>
+        <location filename="../UpdatePresentation.cpp" line="186"/>
         <source>Please move to the newest nightly build.</source>
         <translation>Пожалуйста, перейдите на новейшую ночную сборку.</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="132"/>
+        <location filename="../UpdatePresentation.cpp" line="190"/>
         <source>This version isn&apos;t listed on GitHub Releases</source>
         <translation>Эта версия не указана в релизах GitHub</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="134"/>
+        <location filename="../UpdatePresentation.cpp" line="192"/>
         <source>It may be a pre-release build or a withdrawn version. The latest official release is recommended.</source>
         <translation>Это может быть предварительная сборка или отозванная версия. Рекомендуется использовать последний официальный выпуск.</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="141"/>
+        <location filename="../UpdatePresentation.cpp" line="199"/>
         <source>This build isn&apos;t from the official repository</source>
         <translation>Эта сборка не из официального репозитория</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="144"/>
+        <location filename="../UpdatePresentation.cpp" line="202"/>
         <source>Its source commit isn&apos;t among the published builds. That is expected for self-built or modified versions.</source>
         <translation>Исходный коммит отсутствует среди опубликованных сборок. Это ожидаемо для самостоятельно собранных или изменённых версий.</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="149"/>
+        <location filename="../UpdatePresentation.cpp" line="207"/>
         <source>Its source commit wasn&apos;t found upstream. That is expected for self-built or modified versions.</source>
         <translation>Её коммит исходного кода не найден в вышестоящем репозитории. Это ожидаемо для самостоятельно собранных или изменённых версий.</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="157"/>
+        <location filename="../UpdatePresentation.cpp" line="215"/>
         <source>You&apos;re up to date</source>
         <translation>У вас актуальная версия</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="159"/>
+        <location filename="../UpdatePresentation.cpp" line="217"/>
         <source>%1 is the newest nightly build.</source>
         <translation>%1 — новейшая ночная сборка.</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="164"/>
+        <location filename="../UpdatePresentation.cpp" line="222"/>
         <source>%1 is the latest release.</source>
         <translation>%1 — последний выпуск.</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="167"/>
+        <location filename="../UpdatePresentation.cpp" line="225"/>
         <source>No newer release was found for %1.</source>
         <translation>Не найдено более новых выпусков для %1.</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="180"/>
+        <location filename="../UpdatePresentation.cpp" line="238"/>
         <source>Last checked %1 · Signed nightly channel</source>
         <translation>Последняя проверка: %1 · Подписанный канал ночных сборок</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="183"/>
+        <location filename="../UpdatePresentation.cpp" line="241"/>
         <source>Last checked %1 · GitHub Releases</source>
         <translation>Последняя проверка: %1 · GitHub Releases</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="191"/>
+        <location filename="../UpdatePresentation.cpp" line="249"/>
         <source>Couldn&apos;t check for updates just now. Showing the last known result.</source>
         <translation>Не удалось проверить наличие обновлений прямо сейчас. Отображается последний известный результат.</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="197"/>
+        <location filename="../UpdatePresentation.cpp" line="255"/>
         <source>Check again</source>
         <translation>Проверить снова</translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="111"/>
+        <location filename="../UpdateTab.cpp" line="115"/>
         <source>Release notes</source>
         <translation>Примечания к выпуску</translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="166"/>
+        <location filename="../UpdateTab.cpp" line="167"/>
         <source>Update checking is unavailable</source>
         <translation>Проверка обновлений недоступна.</translation>
+    </message>
+    <message>
+        <location filename="../AppImageUpdate.cpp" line="107"/>
+        <source>The update does not describe its file.</source>
+        <translation>Обновление не содержит сведений о своём файле.</translation>
+    </message>
+    <message>
+        <location filename="../AppImageUpdate.cpp" line="117"/>
+        <location filename="../AppImageUpdate.cpp" line="181"/>
+        <source>The update could not be written next to the application: %1</source>
+        <translation>Не удалось записать обновление рядом с приложением: %1</translation>
+    </message>
+    <message>
+        <location filename="../AppImageUpdate.cpp" line="154"/>
+        <location filename="../AppImageUpdate.cpp" line="167"/>
+        <source>The download is not the file the signed update describes.</source>
+        <translation>Загруженный файл не соответствует файлу, указанному в подписанном обновлении.</translation>
+    </message>
+    <message>
+        <location filename="../AppImageUpdate.cpp" line="160"/>
+        <source>The download failed: %1</source>
+        <translation>Не удалось загрузить: %1</translation>
     </message>
 </context>
 </TS>
