@@ -4,8 +4,8 @@
 <context>
     <name>ModuleVersionChecking</name>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="275"/>
-        <location filename="../VersionCheckingModule.cpp" line="379"/>
+        <location filename="../VersionCheckingModule.cpp" line="278"/>
+        <location filename="../VersionCheckingModule.cpp" line="394"/>
         <source>Check for Updates</source>
         <translation>检查更新</translation>
     </message>
@@ -14,7 +14,7 @@
         <translation type="vanished">从互联网检查更新</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="244"/>
+        <location filename="../VersionCheckingModule.cpp" line="247"/>
         <source>Update Checking</source>
         <translation>更新检查</translation>
     </message>
@@ -23,27 +23,27 @@
         <translation type="vanished">当应用程序启动的时候检查更新。</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="248"/>
+        <location filename="../VersionCheckingModule.cpp" line="251"/>
         <source>Check for updates automatically, once a day.</source>
         <translation>每天自动检查一次更新。</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="276"/>
+        <location filename="../VersionCheckingModule.cpp" line="279"/>
         <source>See whether a newer GpgFrontend is available</source>
         <translation>查看是否有更新版本的 GpgFrontend</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="285"/>
+        <location filename="../VersionCheckingModule.cpp" line="288"/>
         <source>A newer version is available</source>
         <translation>有更新版本可用</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="383"/>
+        <location filename="../VersionCheckingModule.cpp" line="398"/>
         <source>Updates</source>
         <translation>更新</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="383"/>
+        <location filename="../VersionCheckingModule.cpp" line="398"/>
         <source>update,version,check,github</source>
         <translation>update,version,check,github,更新,版本,检查</translation>
     </message>
@@ -184,7 +184,7 @@
     </message>
     <message>
         <location filename="../UpdatePresentation.cpp" line="198"/>
-        <location filename="../UpdateTab.cpp" line="178"/>
+        <location filename="../UpdateTab.cpp" line="207"/>
         <source>Check now</source>
         <translation>立即检查</translation>
     </message>
@@ -394,12 +394,22 @@
         <translation>重新检查</translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="115"/>
+        <location filename="../UpdateTab.cpp" line="126"/>
+        <source>Also offer beta versions</source>
+        <translation>同时提供 Beta 版本</translation>
+    </message>
+    <message>
+        <location filename="../UpdateTab.cpp" line="128"/>
+        <source>Test builds of the next fix release, before it is out. They are less tested than releases.</source>
+        <translation>下一个修复版本发布前的测试构建，测试程度低于正式版本。</translation>
+    </message>
+    <message>
+        <location filename="../UpdateTab.cpp" line="134"/>
         <source>Release notes</source>
         <translation>版本说明</translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="176"/>
+        <location filename="../UpdateTab.cpp" line="205"/>
         <source>Update checking is unavailable</source>
         <translation>无法检查更新</translation>
     </message>

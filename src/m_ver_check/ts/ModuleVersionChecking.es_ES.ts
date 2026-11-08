@@ -4,8 +4,8 @@
 <context>
     <name>ModuleVersionChecking</name>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="275"/>
-        <location filename="../VersionCheckingModule.cpp" line="379"/>
+        <location filename="../VersionCheckingModule.cpp" line="278"/>
+        <location filename="../VersionCheckingModule.cpp" line="394"/>
         <source>Check for Updates</source>
         <translation>Buscar actualizaciones</translation>
     </message>
@@ -14,7 +14,7 @@
         <translation type="vanished">Buscar actualizaciones en Internet.</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="244"/>
+        <location filename="../VersionCheckingModule.cpp" line="247"/>
         <source>Update Checking</source>
         <translation>Comprobación de actualizaciones</translation>
     </message>
@@ -23,27 +23,27 @@
         <translation type="vanished">Buscando actualizaciones de versión al iniciar la aplicación.</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="248"/>
+        <location filename="../VersionCheckingModule.cpp" line="251"/>
         <source>Check for updates automatically, once a day.</source>
         <translation>Buscar actualizaciones automáticamente, una vez al día.</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="276"/>
+        <location filename="../VersionCheckingModule.cpp" line="279"/>
         <source>See whether a newer GpgFrontend is available</source>
         <translation>Comprobar si hay una versión más reciente de GpgFrontend</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="285"/>
+        <location filename="../VersionCheckingModule.cpp" line="288"/>
         <source>A newer version is available</source>
         <translation>Hay una versión más reciente disponible</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="383"/>
+        <location filename="../VersionCheckingModule.cpp" line="398"/>
         <source>Updates</source>
         <translation>Actualizaciones</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="383"/>
+        <location filename="../VersionCheckingModule.cpp" line="398"/>
         <source>update,version,check,github</source>
         <translation>update,version,check,github,actualización,versión,comprobar</translation>
     </message>
@@ -172,7 +172,7 @@ hace %n horas</numerusform>
     </message>
     <message>
         <location filename="../UpdatePresentation.cpp" line="198"/>
-        <location filename="../UpdateTab.cpp" line="178"/>
+        <location filename="../UpdateTab.cpp" line="207"/>
         <source>Check now</source>
         <translation>Comprobar ahora</translation>
     </message>
@@ -382,12 +382,22 @@ hace %n horas</numerusform>
         <translation>Comprobar de nuevo</translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="115"/>
+        <location filename="../UpdateTab.cpp" line="126"/>
+        <source>Also offer beta versions</source>
+        <translation>Ofrecer también versiones beta</translation>
+    </message>
+    <message>
+        <location filename="../UpdateTab.cpp" line="128"/>
+        <source>Test builds of the next fix release, before it is out. They are less tested than releases.</source>
+        <translation>Compilaciones de prueba de la próxima versión correctiva, antes de que se publique. Están menos probadas que las versiones.</translation>
+    </message>
+    <message>
+        <location filename="../UpdateTab.cpp" line="134"/>
         <source>Release notes</source>
         <translation>Notas de la versión</translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="176"/>
+        <location filename="../UpdateTab.cpp" line="205"/>
         <source>Update checking is unavailable</source>
         <translation>La comprobación de actualizaciones no está disponible.</translation>
     </message>

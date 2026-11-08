@@ -4,8 +4,8 @@
 <context>
     <name>ModuleVersionChecking</name>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="275"/>
-        <location filename="../VersionCheckingModule.cpp" line="379"/>
+        <location filename="../VersionCheckingModule.cpp" line="278"/>
+        <location filename="../VersionCheckingModule.cpp" line="394"/>
         <source>Check for Updates</source>
         <translation>Verifica aggiornamenti</translation>
     </message>
@@ -14,7 +14,7 @@
         <translation type="vanished">Verifica la presenza di aggiornamenti tramite Internet.</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="244"/>
+        <location filename="../VersionCheckingModule.cpp" line="247"/>
         <source>Update Checking</source>
         <translation>Verifica aggiornamenti</translation>
     </message>
@@ -23,27 +23,27 @@
         <translation type="vanished">Verifica aggiornamenti di versione all&apos;avvio dell&apos;applicazione.</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="248"/>
+        <location filename="../VersionCheckingModule.cpp" line="251"/>
         <source>Check for updates automatically, once a day.</source>
         <translation>Verifica automaticamente la presenza di aggiornamenti, una volta al giorno.</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="276"/>
+        <location filename="../VersionCheckingModule.cpp" line="279"/>
         <source>See whether a newer GpgFrontend is available</source>
         <translation>Verifica se è disponibile una versione più recente di GpgFrontend</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="285"/>
+        <location filename="../VersionCheckingModule.cpp" line="288"/>
         <source>A newer version is available</source>
         <translation>È disponibile una versione più recente</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="383"/>
+        <location filename="../VersionCheckingModule.cpp" line="398"/>
         <source>Updates</source>
         <translation>Aggiornamenti</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="383"/>
+        <location filename="../VersionCheckingModule.cpp" line="398"/>
         <source>update,version,check,github</source>
         <translation>update,version,check,github,aggiornamento,versione,verifica</translation>
     </message>
@@ -187,7 +187,7 @@
     </message>
     <message>
         <location filename="../UpdatePresentation.cpp" line="198"/>
-        <location filename="../UpdateTab.cpp" line="178"/>
+        <location filename="../UpdateTab.cpp" line="207"/>
         <source>Check now</source>
         <translation>Controlla ora</translation>
     </message>
@@ -397,12 +397,22 @@
         <translation>Controlla di nuovo</translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="115"/>
+        <location filename="../UpdateTab.cpp" line="126"/>
+        <source>Also offer beta versions</source>
+        <translation>Offri anche le versioni beta</translation>
+    </message>
+    <message>
+        <location filename="../UpdateTab.cpp" line="128"/>
+        <source>Test builds of the next fix release, before it is out. They are less tested than releases.</source>
+        <translation>Build di test della prossima versione di correzione, prima che sia disponibile. Sono meno testate rispetto alle release.</translation>
+    </message>
+    <message>
+        <location filename="../UpdateTab.cpp" line="134"/>
         <source>Release notes</source>
         <translation>Note di rilascio</translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="176"/>
+        <location filename="../UpdateTab.cpp" line="205"/>
         <source>Update checking is unavailable</source>
         <translation>Il controllo degli aggiornamenti non è disponibile.</translation>
     </message>

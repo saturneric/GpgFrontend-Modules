@@ -4,7 +4,7 @@
 <context>
     <name>ModuleVersionChecking</name>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="244"/>
+        <location filename="../VersionCheckingModule.cpp" line="247"/>
         <source>Update Checking</source>
         <translation>Güncelleme Kontrolü</translation>
     </message>
@@ -13,33 +13,33 @@
         <translation type="vanished">Uygulama başlatıldığında sürüm güncellemeleri kontrol edilir.</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="248"/>
+        <location filename="../VersionCheckingModule.cpp" line="251"/>
         <source>Check for updates automatically, once a day.</source>
         <translation>Güncellemeleri günde bir kez otomatik olarak kontrol et.</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="275"/>
-        <location filename="../VersionCheckingModule.cpp" line="379"/>
+        <location filename="../VersionCheckingModule.cpp" line="278"/>
+        <location filename="../VersionCheckingModule.cpp" line="394"/>
         <source>Check for Updates</source>
         <translation>Güncellemeleri Kontrol Et</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="276"/>
+        <location filename="../VersionCheckingModule.cpp" line="279"/>
         <source>See whether a newer GpgFrontend is available</source>
         <translation>Daha yeni bir GpgFrontend sürümü olup olmadığını görün</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="285"/>
+        <location filename="../VersionCheckingModule.cpp" line="288"/>
         <source>A newer version is available</source>
         <translation>Daha yeni bir sürüm mevcut</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="383"/>
+        <location filename="../VersionCheckingModule.cpp" line="398"/>
         <source>Updates</source>
         <translation>Güncellemeler</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="383"/>
+        <location filename="../VersionCheckingModule.cpp" line="398"/>
         <source>update,version,check,github</source>
         <translation>güncelleme,sürüm,kontrol,github,update,version,check</translation>
     </message>
@@ -72,7 +72,7 @@
     </message>
     <message>
         <location filename="../UpdatePresentation.cpp" line="198"/>
-        <location filename="../UpdateTab.cpp" line="178"/>
+        <location filename="../UpdateTab.cpp" line="207"/>
         <source>Check now</source>
         <translation>Şimdi kontrol et</translation>
     </message>
@@ -282,12 +282,22 @@
         <translation>Yeniden kontrol et</translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="115"/>
+        <location filename="../UpdateTab.cpp" line="126"/>
+        <source>Also offer beta versions</source>
+        <translation>Beta sürümlerini de sun</translation>
+    </message>
+    <message>
+        <location filename="../UpdateTab.cpp" line="128"/>
+        <source>Test builds of the next fix release, before it is out. They are less tested than releases.</source>
+        <translation>Bir sonraki düzeltme sürümünün yayınlanmadan önceki test derlemeleri. Sürümlere göre daha az test edilmiştir.</translation>
+    </message>
+    <message>
+        <location filename="../UpdateTab.cpp" line="134"/>
         <source>Release notes</source>
         <translation>Sürüm notları</translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="176"/>
+        <location filename="../UpdateTab.cpp" line="205"/>
         <source>Update checking is unavailable</source>
         <translation>Güncelleme kontrolü kullanılamıyor</translation>
     </message>
