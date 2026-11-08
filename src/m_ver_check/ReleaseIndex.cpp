@@ -33,6 +33,7 @@
 #include <QJsonObject>
 #include <QRegularExpression>
 #include <QTimeZone>
+#include <QUrl>
 #include <QVersionNumber>
 
 #include "SemVer.h"
@@ -89,6 +90,14 @@ auto ParseIndex(const QByteArray& json, const QString& trusted_comment,
     return std::nullopt;
   }
 
+  const auto stable = obj.value("channels").toObject().value("stable");
+  if (stable.isString()) {
+    if (!SemVer::Parse(stable.toString())) return std::nullopt;
+    f.stable_version = stable.toString();
+  } else if (!stable.isNull() && !stable.isUndefined()) {
+    return std::nullopt;
+  }
+
   for (const auto& w : obj.value("withdrawn").toArray()) {
     f.withdrawn << w.toObject().value("version").toString();
   }
@@ -96,6 +105,44 @@ auto ParseIndex(const QByteArray& json, const QString& trusted_comment,
   // Where the nightly's files are listed. Optional: an index without it still
   // says whether there is an update, only not which file to fetch.
   static const QRegularExpression kSha256(QStringLiteral("^[0-9a-f]{64}$"));
+
+  // The series and the releases: what a release build is offered. A
+  // malformed entry costs that entry only, never the rest of the index.
+  const auto series = obj.value("series").toObject();
+  for (auto it = series.begin(); it != series.end(); ++it) {
+    const auto s = it.value().toObject();
+    SeriesFacts facts;
+    facts.status = s.value("status").toString();
+    const auto latest = s.value("latest").toString();
+    if (!latest.isEmpty() && SemVer::Parse(latest)) facts.latest = latest;
+    facts.successor = s.value("successor").toString();
+    facts.eol = s.value("eol").toString();
+    const auto platforms = s.value("platforms").toObject();
+    for (auto p = platforms.begin(); p != platforms.end(); ++p) {
+      facts.platforms.insert(p.key(), p.value().isDouble()
+                                          ? QString::number(p.value().toInt())
+                                          : p.value().toString());
+    }
+    f.series.insert(it.key(), facts);
+  }
+  const auto releases = obj.value("releases").toObject();
+  for (auto it = releases.begin(); it != releases.end(); ++it) {
+    const auto r = it.value().toObject();
+    ReleaseEntry entry;
+    entry.descriptor = r.value("descriptor").toString();
+    entry.descriptor_sha256 = r.value("sha256").toString();
+    if (!SemVer::Parse(it.key()) || !IsSafeRelativePath(entry.descriptor) ||
+        !kSha256.match(entry.descriptor_sha256).hasMatch()) {
+      continue;
+    }
+    const auto notes = r.value("notes").toString();
+    const auto notes_sha256 = r.value("notes_sha256").toString();
+    if (IsSafeRelativePath(notes) && kSha256.match(notes_sha256).hasMatch()) {
+      entry.notes = notes;
+      entry.notes_sha256 = notes_sha256;
+    }
+    f.releases.insert(it.key(), entry);
+  }
   const auto entry = obj.value("nightly").toObject();
   const auto descriptor = entry.value("descriptor").toString();
   const auto sha256 = entry.value("sha256").toString();
@@ -199,16 +246,117 @@ auto SelectArtifact(const QByteArray& descriptor, const Platform& platform)
   return best;
 }
 
-auto NightlyList(const IndexFacts& facts) -> ListResult {
-  ListResult result;
-  if (facts.nightly_version.isEmpty()) {
-    result.outcome = ListOutcome::kNoMatch;
-    return result;
+auto ChooseUpdate(const IndexFacts& facts, const QString& current, bool nightly)
+    -> ChannelChoice {
+  ChannelChoice choice;
+  choice.list.outcome = ListOutcome::kNoMatch;
+  const auto found = [&](const QString& version) {
+    choice.list.outcome = ListOutcome::kFound;
+    choice.list.latest.version = version;
+    choice.list.latest.published_at = facts.generated_at.toString(Qt::ISODate);
+  };
+
+  if (nightly) {
+    if (facts.nightly_version.isEmpty()) return choice;
+    // A release branch's nightly (X.Y.Z-alpha.N, Z > 0) is a fix build of
+    // its own series; main's channel is another series' nightly.
+    const auto v = SemVer::Parse(current);
+    if (v && v->patch > 0 &&
+        !SoftwareVersion::SameSeries(current, facts.nightly_version)) {
+      choice.other_series = true;
+      return choice;
+    }
+    found(facts.nightly_version);
+    choice.descriptor = facts.nightly_descriptor;
+    choice.descriptor_sha256 = facts.nightly_descriptor_sha256;
+    return choice;
   }
-  result.outcome = ListOutcome::kFound;
-  result.latest.version = facts.nightly_version;
-  result.latest.published_at = facts.generated_at.toString(Qt::ISODate);
-  return result;
+
+  const auto series =
+      facts.series.value(SoftwareVersion::VersionSeries(current));
+  if (series.latest.isEmpty()) return choice;
+  found(series.latest);
+  const auto entry = facts.releases.value(series.latest);
+  choice.descriptor = entry.descriptor;
+  choice.descriptor_sha256 = entry.descriptor_sha256;
+  choice.notes = entry.notes;
+  choice.notes_sha256 = entry.notes_sha256;
+  return choice;
+}
+
+auto MeetsPlatform(const QHash<QString, QString>& required,
+                   const Platform& platform) -> bool {
+  const auto at_least = [](const QString& have, const QString& need) {
+    const auto h = QVersionNumber::fromString(have);
+    return !h.isNull() && h >= QVersionNumber::fromString(need);
+  };
+  if (platform.os == u"windows") {
+    return !required.contains("windows") ||
+           at_least(platform.os_version, required.value("windows"));
+  }
+  if (platform.os == u"macos") {
+    return !required.contains("macos") ||
+           at_least(platform.os_version, required.value("macos"));
+  }
+  if (platform.os == u"linux") {
+    return !required.contains("linux_glibc") ||
+           at_least(platform.glibc, required.value("linux_glibc"));
+  }
+  return false;
+}
+
+auto NoticeFor(const IndexFacts& facts, const QString& current,
+               const Platform& platform) -> SeriesNotice {
+  SeriesNotice notice;
+  const auto key = SoftwareVersion::VersionSeries(current);
+  const auto series = facts.series.value(key);
+  if (series.status != u"legacy" && series.status != u"eol") return notice;
+  notice.series = key;
+  notice.status = series.status;
+  notice.eol = series.eol;
+  notice.successor = series.successor;
+  const auto successor = facts.series.value(series.successor);
+  notice.successor_latest = successor.latest;
+  notice.successor_runs_here = !successor.latest.isEmpty() &&
+                               MeetsPlatform(successor.platforms, platform);
+  return notice;
+}
+
+auto ReleaseFact(const IndexFacts& facts, const QString& current)
+    -> RemoteFact {
+  if (WithdrawnFact(facts, current) == RemoteFact::kNotFound) {
+    return RemoteFact::kNotFound;
+  }
+  for (auto it = facts.releases.begin(); it != facts.releases.end(); ++it) {
+    if (SemVerCompare(it.key(), current) == 0) return RemoteFact::kConfirmed;
+  }
+  return RemoteFact::kUnknown;
+}
+
+auto IsAllowedNotesLink(const QUrl& url, const QStringList& hosts) -> bool {
+  if (!url.isValid() || url.scheme() != u"https" || url.host().isEmpty() ||
+      !url.userInfo().isEmpty()) {
+    return false;
+  }
+  const auto host = url.host().toLower();
+  const auto path = url.path();
+  for (const auto& entry : hosts) {
+    const auto slash = entry.indexOf(u'/');
+    const auto want = (slash < 0 ? entry : entry.left(slash)).toLower();
+    const bool host_ok =
+        want.startsWith(u"*.")
+            ? host.endsWith(want.mid(1)) && host.size() > want.size() - 1
+            : host == want;
+    if (!host_ok) continue;
+    if (slash < 0) return true;
+    // "github.com/owner/repo": that repository's pages only, whole segments.
+    const auto prefix = entry.mid(slash);
+    if (path.compare(prefix, Qt::CaseInsensitive) == 0 ||
+        path.startsWith(prefix + u'/', Qt::CaseInsensitive)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 auto WithdrawnFact(const IndexFacts& facts, const QString& current)

@@ -95,6 +95,16 @@ auto SoftwareVersion::ToJson() const -> QJsonObject {
   obj["commit_fact"] = NameOf(kFactNames, commit_fact);
   obj["complete"] = complete;
   if (nightly) obj["nightly"] = true;  // additive: absent reads as a release
+  if (other_series) obj["other_series"] = true;  // additive
+  if (!notice.series.isEmpty()) {                // additive
+    obj["notice"] =
+        QJsonObject{{"series", notice.series},
+                    {"status", notice.status},
+                    {"eol", notice.eol},
+                    {"successor", notice.successor},
+                    {"successor_latest", notice.successor_latest},
+                    {"successor_runs_here", notice.successor_runs_here}};
+  }
   obj["checked_at"] = checked_at.toSecsSinceEpoch();
   return obj;
 }
@@ -121,6 +131,14 @@ auto SoftwareVersion::FromJson(const QJsonObject& obj)
   sv.commit_fact = ValueOf(kFactNames, obj.value("commit_fact").toString());
   sv.complete = obj.value("complete").toBool();
   sv.nightly = obj.value("nightly").toBool();
+  sv.other_series = obj.value("other_series").toBool();
+  const auto notice = obj.value("notice").toObject();
+  sv.notice.series = notice.value("series").toString();
+  sv.notice.status = notice.value("status").toString();
+  sv.notice.eol = notice.value("eol").toString();
+  sv.notice.successor = notice.value("successor").toString();
+  sv.notice.successor_latest = notice.value("successor_latest").toString();
+  sv.notice.successor_runs_here = notice.value("successor_runs_here").toBool();
   sv.checked_at =
       QDateTime::fromSecsSinceEpoch(obj.value("checked_at").toInteger());
 

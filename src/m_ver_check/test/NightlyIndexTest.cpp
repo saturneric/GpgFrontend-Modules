@@ -37,6 +37,7 @@
 #include <map>
 #include <memory>
 
+#include "IndexFixture.h"
 #include "Minisign.h"
 #include "ReleaseCheck.h"
 #include "ReleaseIndex.h"
@@ -45,6 +46,11 @@
 
 // The nightly update path: SemVer order, the minisign check of the index,
 // reading it, and the checker driving them against a fake set of mirrors.
+
+using test_index::Comment;
+using test_index::Index;
+using test_index::kNow;
+using test_index::Signer;
 
 namespace {
 
@@ -74,84 +80,6 @@ constexpr auto kToolLegacySignature =
     "d1hUw/q07ZeadjbYosx21d3zPIWjmPTNIJ4xLaY0Y8/"
     "BjhlCYby3LDRHXiXvS6dxDsOoCXMp13p"
     "q6Zs0KswLCA==\n";
-
-/// Signs as minisign does (prehashed "ED"), so a test can sign any index.
-class Signer {
- public:
-  Signer() {
-    if (sodium_init() < 0) std::abort();
-    crypto_sign_keypair(pk_.data(), sk_.data());
-    randombytes_buf(id_.data(), id_.size());
-  }
-
-  [[nodiscard]] auto PublicKey() const -> QString {
-    QByteArray raw("Ed");
-    raw += Raw(id_) + Raw(pk_);
-    return QString::fromLatin1(raw.toBase64());
-  }
-
-  [[nodiscard]] auto Sign(const QByteArray& message,
-                          const QString& comment) const -> QByteArray {
-    std::array<unsigned char, crypto_generichash_BYTES_MAX> hash{};
-    crypto_generichash(hash.data(), hash.size(), U(message), message.size(),
-                       nullptr, 0);
-    std::array<unsigned char, crypto_sign_BYTES> sig{};
-    crypto_sign_detached(sig.data(), nullptr, hash.data(), hash.size(),
-                         sk_.data());
-    const auto trusted = comment.toUtf8();
-    const auto bound = Raw(sig) + trusted;
-    std::array<unsigned char, crypto_sign_BYTES> global{};
-    crypto_sign_detached(global.data(), nullptr, U(bound), bound.size(),
-                         sk_.data());
-    QByteArray line("ED");
-    line += Raw(id_) + Raw(sig);
-    return "untrusted comment: test\n" + line.toBase64() +
-           "\ntrusted comment: " + trusted + "\n" + Raw(global).toBase64() +
-           "\n";
-  }
-
- private:
-  template <std::size_t N>
-  static auto Raw(const std::array<unsigned char, N>& a) -> QByteArray {
-    return {reinterpret_cast<const char*>(a.data()), static_cast<qsizetype>(N)};
-  }
-  static auto U(const QByteArray& a) -> const unsigned char* {
-    return reinterpret_cast<const unsigned char*>(a.constData());
-  }
-
-  std::array<unsigned char, crypto_sign_PUBLICKEYBYTES> pk_{};
-  std::array<unsigned char, crypto_sign_SECRETKEYBYTES> sk_{};
-  std::array<unsigned char, 8> id_{};
-};
-
-const QDateTime kNow =
-    QDateTime::fromString("2026-11-06T12:00:00Z", Qt::ISODate);
-
-auto Index(qint64 serial, const QString& nightly,
-           const QString& product = "gpgfrontend",
-           const QDateTime& expires = kNow.addDays(14),
-           const QStringList& withdrawn = {}) -> QByteArray {
-  QJsonObject channels{
-      {"stable", QJsonValue::Null},
-      {"beta", QJsonValue::Null},
-      {"nightly",
-       nightly.isEmpty() ? QJsonValue(QJsonValue::Null) : QJsonValue(nightly)}};
-  QJsonArray w;
-  for (const auto& v : withdrawn)
-    w.append(QJsonObject{{"version", v}, {"reason", "r"}});
-  QJsonObject index{{"schema", 1},
-                    {"product", product},
-                    {"serial", serial},
-                    {"generated_at", kNow.toString(Qt::ISODate)},
-                    {"expires", expires.toUTC().toString(Qt::ISODate)},
-                    {"channels", channels},
-                    {"withdrawn", w}};
-  return QJsonDocument(index).toJson();
-}
-
-auto Comment(qint64 serial, const QString& product = "gpgfrontend") -> QString {
-  return QStringLiteral("product=%1 serial=%2").arg(product).arg(serial);
-}
 
 }  // namespace
 
@@ -249,7 +177,8 @@ TEST(ReleaseIndexTest, ReadsWhatItActsOn) {
   EXPECT_EQ(f->serial, 5);
   EXPECT_EQ(f->nightly_version, "2.3.0-alpha.9+gabc");
   EXPECT_EQ(f->withdrawn, QStringList{"2.2.3"});
-  EXPECT_EQ(NightlyList(*f).outcome, ListOutcome::kFound);
+  EXPECT_EQ(ChooseUpdate(*f, "v2.3.0-alpha.5", true).list.outcome,
+            ListOutcome::kFound);
   EXPECT_EQ(WithdrawnFact(*f, "v2.2.3"), RemoteFact::kNotFound);
   EXPECT_EQ(WithdrawnFact(*f, "v2.2.4"), RemoteFact::kConfirmed);
 }
@@ -278,7 +207,8 @@ TEST(ReleaseIndexTest, ExpiryHasADaysGrace) {
 TEST(ReleaseIndexTest, NoNightlyIsAnAnswer) {
   const auto f = ParseIndex(Index(5, ""), Comment(5), "gpgfrontend", kNow);
   ASSERT_TRUE(f.has_value());
-  EXPECT_EQ(NightlyList(*f).outcome, ListOutcome::kNoMatch);
+  EXPECT_EQ(ChooseUpdate(*f, "v2.3.0-alpha.5", true).list.outcome,
+            ListOutcome::kNoMatch);
 }
 
 TEST(ReleaseIndexTest, CommitMarkers) {
@@ -483,16 +413,20 @@ TEST(NightlyCheckTest, NoChannelNoRequestNoClaim) {
   EXPECT_FALSE(c->State().last_good.has_value());
 }
 
-TEST(NightlyCheckTest, AReleaseBuildStillAsksGitHub) {
+TEST(NightlyCheckTest, AReleaseBuildReadsTheSignedIndexToo) {
   Nightly n;
+  n.Publish(kMirrorA, 3, "2.3.0-alpha.9");
   auto c = std::make_unique<UpdateChecker>(
       UpdateChecker::Build{"v2.2.4", kCommit, n.Channel()}, n.mirrors.Fetcher(),
       UpdateChecker::Store{}, [] { return kNow; });
   c->Start(CheckMode::kForce);
   ASSERT_FALSE(n.mirrors.asked.isEmpty());
   for (const auto& url : n.mirrors.asked) {
-    EXPECT_TRUE(url.startsWith("https://api.github.com/")) << url.toStdString();
+    EXPECT_FALSE(url.contains("github.com")) << url.toStdString();
   }
+  // The index lists no 2.2 release: nothing is offered, and no nightly.
+  ASSERT_TRUE(c->State().last_good.has_value());
+  EXPECT_EQ(c->State().last_good->list.outcome, ListOutcome::kNoMatch);
 }
 
 TEST(NightlyCheckTest, TheSerialSurvivesAnotherBuild) {
@@ -792,11 +726,16 @@ TEST(NightlyCheckTest, TheHostsWordBeatsTheVersionsShape) {
         n.mirrors.Fetcher(), UpdateChecker::Store{}, [] { return kNow; });
   };
 
-  // A release whose version merely looks untagged still asks GitHub.
+  // A release whose version merely looks untagged reads its series'
+  // releases, not the nightly channel.
   n.mirrors.asked.clear();
-  make("v2.3.0-alpha.5", 0)->Start(CheckMode::kForce);
+  auto release = make("v2.3.0-alpha.5", 0);
+  release->Start(CheckMode::kForce);
   ASSERT_FALSE(n.mirrors.asked.isEmpty());
-  EXPECT_TRUE(n.mirrors.asked.first().startsWith("https://api.github.com/"));
+  EXPECT_TRUE(n.mirrors.asked.first().startsWith(kMirrorA));
+  ASSERT_TRUE(release->State().last_good);
+  EXPECT_FALSE(release->State().last_good->nightly);
+  EXPECT_EQ(release->State().last_good->list.outcome, ListOutcome::kNoMatch);
 
   // The nightly application reads its channel whatever its version says.
   n.mirrors.asked.clear();

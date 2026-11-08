@@ -100,7 +100,7 @@ TEST(UpdatePresentationTest, UpdateAvailableOffersDownloadAndNotes) {
   EXPECT_EQ(v.download_label, "Download");
   EXPECT_TRUE(v.show_notes);
   EXPECT_EQ(v.notes, "## What's new");
-  EXPECT_EQ(v.freshness, "Last checked 5 minute(s) ago · GitHub Releases");
+  EXPECT_EQ(v.freshness, "Last checked 5 minute(s) ago · Signed update index");
   EXPECT_TRUE(v.notice.isEmpty());
 }
 
@@ -210,18 +210,20 @@ TEST(UpdatePresentationTest, ANightlyNamesItsOwnChannel) {
   }
 }
 
-TEST(UpdatePresentationTest, AReleaseBuildStillNamesGitHub) {
+TEST(UpdatePresentationTest, AReleaseBuildNamesTheSignedIndex) {
   UpdateSnapshot s;
   s.last_good = Current();
   const auto v = PresentUpdate(s, kNow);
   EXPECT_EQ(v.detail, "2.1.8 is the latest release.");
-  EXPECT_TRUE(v.freshness.endsWith(" · GitHub Releases"))
+  EXPECT_TRUE(v.freshness.endsWith(" · Signed update index"))
       << v.freshness.toStdString();
+  EXPECT_FALSE(v.freshness.contains("GitHub"));
 }
 
 // The button leads to the file only when the checker made the link from a
-// verified descriptor (a nightly); a release keeps the downloads page.
-TEST(UpdatePresentationTest, DownloadLeadsToTheVerifiedFileForANightly) {
+// verified descriptor; without one, the downloads page. Only a nightly is
+// installed in place.
+TEST(UpdatePresentationTest, DownloadLeadsToTheVerifiedFile) {
   UpdateSnapshot s;
   auto r = Nightly("2.3.0-alpha.420");
   r.list.latest.html_url =
@@ -234,9 +236,14 @@ TEST(UpdatePresentationTest, DownloadLeadsToTheVerifiedFileForANightly) {
   EXPECT_TRUE(PresentUpdate(s, kNow).download_url.isEmpty());
 
   auto release = Update();
-  release.list.latest.html_url = "https://github.com/x/releases/tag/v2.1.9";
+  release.list.latest.html_url =
+      "https://builds.bktus.com/gpgfrontend/releases/2.1.9/windows-x86_64.msi";
+  release.list.latest.download_sha256 = QString(64, u'a');
+  release.list.latest.download_size = 10;
   s.last_good = release;
-  EXPECT_TRUE(PresentUpdate(s, kNow).download_url.isEmpty());
+  const auto v = PresentUpdate(s, kNow);
+  EXPECT_EQ(v.download_url, release.list.latest.html_url);
+  EXPECT_FALSE(v.installable);
 }
 
 // What a person reads: the version, not its leading "v" or build commit,

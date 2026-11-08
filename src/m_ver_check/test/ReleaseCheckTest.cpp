@@ -308,6 +308,25 @@ TEST(ReleaseCheckTest, SoftwareVersionJsonRoundTrip) {
   EXPECT_EQ(back->commit_fact, RemoteFact::kNotFound);
   EXPECT_TRUE(back->complete);
   EXPECT_EQ(back->checked_at, r.checked_at);
+  EXPECT_FALSE(back->other_series);
+  EXPECT_TRUE(back->notice.series.isEmpty());
+}
+
+TEST(ReleaseCheckTest, SeriesNoticeAndBranchBuildSurviveStorage) {
+  auto r = Result(ListOutcome::kNoMatch, RemoteFact::kConfirmed,
+                  RemoteFact::kConfirmed);
+  r.checked_at = QDateTime::fromSecsSinceEpoch(1800000000);
+  r.other_series = true;
+  r.notice = {"2.1", "legacy", "2027-12-31", "2.2", "2.2.4", true};
+  const auto back = SoftwareVersion::FromJson(r.ToJson());
+  ASSERT_TRUE(back);
+  EXPECT_TRUE(back->other_series);
+  EXPECT_EQ(back->notice.series, "2.1");
+  EXPECT_EQ(back->notice.status, "legacy");
+  EXPECT_EQ(back->notice.eol, "2027-12-31");
+  EXPECT_EQ(back->notice.successor, "2.2");
+  EXPECT_EQ(back->notice.successor_latest, "2.2.4");
+  EXPECT_TRUE(back->notice.successor_runs_here);
 }
 
 TEST(ReleaseCheckTest, OldCacheFormatIsRejected) {

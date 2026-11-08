@@ -85,52 +85,13 @@ void UpdateChecker::Start(CheckMode mode) {
   fresh_ = SoftwareVersion{};
   fresh_.current_version = build_.version;
   fresh_.local_commit_hash = build_.commit;
+  fresh_.nightly = nightly_;
   accepted_serial_ = 0;
   descriptor_path_.clear();
   descriptor_sha256_.clear();
-
-  fresh_.nightly = nightly_;
-  if (nightly_) {
-    startIndex();
-    return;
-  }
-
-  const bool ask_commit = !build_.commit.trimmed().isEmpty();
-  // Counted before anything is sent: a fetcher may answer synchronously.
-  pending_ = ask_commit ? 3 : 2;
-  state_.checking = true;
-  emit Changed();
-
-  const QString base = QString::fromLatin1(kRepoApi);
-  // Replies can outlive the checker: the module deletes it on deactivation.
-  QPointer<UpdateChecker> self(this);
-
-  // The list, not /releases/latest: with parallel stable and mainline tracks
-  // the newest release in the running build's own series is wanted, which a
-  // single global "latest" cannot express.
-  fetch_(QUrl(base + "/releases?per_page=100"), [self](int status,
-                                                       const QByteArray& body) {
-    if (self.isNull()) return;
-    self->fresh_.list = ParseReleaseList(status, body, self->build_.version);
-    self->finish();
-  });
-
-  fetch_(QUrl(base + "/releases/tags/" + build_.version),
-         [self](int status, const QByteArray& body) {
-           if (self.isNull()) return;
-           self->fresh_.tag_fact = ParseTagLookup(status, body);
-           self->finish();
-         });
-
-  if (ask_commit) {
-    fetch_(QUrl(base + "/commits/" + build_.commit.trimmed()),
-           [self](int status, const QByteArray& body) {
-             if (self.isNull()) return;
-             self->fresh_.commit_fact =
-                 ParseCommitLookup(status, body, self->build_.commit);
-             self->finish();
-           });
-  }
+  notes_path_.clear();
+  notes_sha256_.clear();
+  startIndex();
 }
 
 void UpdateChecker::startIndex() {
@@ -148,7 +109,7 @@ void UpdateChecker::startIndex() {
   tryIndexBase(0);
 }
 
-void UpdateChecker::tryIndexBase(qsizetype i) {
+void UpdateChecker::tryIndexBase(qsizetype i, bool retried) {
   const auto& channel = build_.channel;
   if (i >= channel.update_bases.size()) {
     finish();  // no base served a good index: the list stays unusable
@@ -158,7 +119,8 @@ void UpdateChecker::tryIndexBase(qsizetype i) {
   const QString url = channel.update_bases[i] + channel.product +
                       QStringLiteral("/v1/index.json");
   QPointer<UpdateChecker> self(this);
-  fetch_(QUrl(url), [self, i, url](int status, const QByteArray& body) {
+  fetch_(QUrl(url), [self, i, url, retried](int status,
+                                            const QByteArray& body) {
     if (self.isNull()) return;
     if (status != 200) {
       self->tryIndexBase(i + 1);
@@ -166,13 +128,19 @@ void UpdateChecker::tryIndexBase(qsizetype i) {
     }
     self->fetch_(
         QUrl(url + QStringLiteral(".minisig")),
-        [self, i, body](int sig_status, const QByteArray& signature) {
+        [self, i, body, retried](int sig_status, const QByteArray& signature) {
           if (self.isNull()) return;
-          if (sig_status != 200 || !self->acceptIndex(body, signature)) {
-            self->tryIndexBase(i + 1);
+          if (sig_status == 200 && self->acceptIndex(body, signature)) {
+            self->askDescriptor();
             return;
           }
-          self->askDescriptor();
+          // The server replaces the index and then its signature: read in
+          // between, the two disagree. Once more on the same base, then on.
+          if (sig_status == 200 && !retried) {
+            self->tryIndexBase(i, true);
+            return;
+          }
+          self->tryIndexBase(i + 1);
         });
   });
 }
@@ -188,44 +156,85 @@ auto UpdateChecker::acceptIndex(const QByteArray& body,
   // mirror or an attacker: it is not believed, and another base is tried.
   if (facts->serial < state_.max_serial) return false;
 
-  fresh_.list = NightlyList(*facts);
-  fresh_.tag_fact = WithdrawnFact(*facts, build_.version);
+  const auto choice = ChooseUpdate(*facts, build_.version, nightly_);
+  fresh_.list = choice.list;
+  fresh_.other_series = choice.other_series;
+  fresh_.tag_fact = nightly_ ? WithdrawnFact(*facts, build_.version)
+                             : ReleaseFact(*facts, build_.version);
+  if (!nightly_) {
+    const auto n = NoticeFor(*facts, build_.version, build_.platform);
+    fresh_.notice = {n.series,    n.status,           n.eol,
+                     n.successor, n.successor_latest, n.successor_runs_here};
+  }
   accepted_serial_ = facts->serial;
-  descriptor_path_ = facts->nightly_descriptor;
-  descriptor_sha256_ = facts->nightly_descriptor_sha256;
+  descriptor_path_ = choice.descriptor;
+  descriptor_sha256_ = choice.descriptor_sha256;
+  notes_path_ = choice.notes;
+  notes_sha256_ = choice.notes_sha256;
   return true;
 }
 
-void UpdateChecker::askDescriptor() {
+void UpdateChecker::askDescriptor(qsizetype i) {
   // Only for the link behind "Download": whatever goes wrong here leaves it
   // to the downloads page, and changes no verdict.
   const auto& channel = build_.channel;
-  if (descriptor_path_.isEmpty() || channel.build_bases.isEmpty() ||
+  if (descriptor_path_.isEmpty() || i >= channel.build_bases.size() ||
+      fresh_.list.outcome != ListOutcome::kFound) {
+    askNotes();
+    return;
+  }
+
+  const QString base = channel.build_bases[i] + channel.product + u'/';
+  QPointer<UpdateChecker> self(this);
+  fetch_(
+      QUrl(base + descriptor_path_),
+      [self, base, i](int status, const QByteArray& body) {
+        if (self.isNull()) return;
+        // The signed index names this exact descriptor by its hash.
+        const auto digest =
+            QCryptographicHash::hash(body, QCryptographicHash::Sha256).toHex();
+        if (status != 200 ||
+            QString::fromLatin1(digest) != self->descriptor_sha256_) {
+          self->askDescriptor(i + 1);
+          return;
+        }
+        const auto choice = SelectArtifact(body, self->build_.platform);
+        if (!choice.path.isEmpty()) {
+          auto& latest = self->fresh_.list.latest;
+          latest.html_url = base + choice.path;
+          latest.download_sha256 = choice.sha256;
+          latest.download_size = choice.size;
+        }
+        self->askNotes();
+      });
+}
+
+void UpdateChecker::askNotes(qsizetype i) {
+  // The offer's release notes, as reviewed and signed: kept only when they
+  // are exactly what the signed index states, otherwise the page shows the
+  // version and a link, and no verdict changes.
+  const auto& channel = build_.channel;
+  if (notes_path_.isEmpty() || i >= channel.build_bases.size() ||
       fresh_.list.outcome != ListOutcome::kFound) {
     askCommitMarker();
     return;
   }
 
-  const QString base = channel.build_bases.first() + channel.product + u'/';
   QPointer<UpdateChecker> self(this);
-  fetch_(QUrl(base + descriptor_path_), [self, base](int status,
-                                                     const QByteArray& body) {
-    if (self.isNull()) return;
-    // The signed index names this exact descriptor by its hash.
-    const auto digest =
-        QCryptographicHash::hash(body, QCryptographicHash::Sha256).toHex();
-    if (status == 200 &&
-        QString::fromLatin1(digest) == self->descriptor_sha256_) {
-      const auto choice = SelectArtifact(body, self->build_.platform);
-      if (!choice.path.isEmpty()) {
-        auto& latest = self->fresh_.list.latest;
-        latest.html_url = base + choice.path;
-        latest.download_sha256 = choice.sha256;
-        latest.download_size = choice.size;
-      }
-    }
-    self->askCommitMarker();
-  });
+  fetch_(
+      QUrl(channel.build_bases[i] + channel.product + u'/' + notes_path_),
+      [self, i](int status, const QByteArray& body) {
+        if (self.isNull()) return;
+        const auto digest =
+            QCryptographicHash::hash(body, QCryptographicHash::Sha256).toHex();
+        if (status != 200 || body.size() > kMaxNotesBytes ||
+            QString::fromLatin1(digest) != self->notes_sha256_) {
+          self->askNotes(i + 1);
+          return;
+        }
+        self->fresh_.list.latest.notes = QString::fromUtf8(body);
+        self->askCommitMarker();
+      });
 }
 
 void UpdateChecker::askCommitMarker() {

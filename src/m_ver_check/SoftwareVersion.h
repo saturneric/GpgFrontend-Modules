@@ -87,6 +87,19 @@ struct SoftwareVersion {
   /// read, and how the dialog words it, follow from this.
   bool nightly = false;
 
+  /// A release branch's nightly, offered nothing (ChooseUpdate()).
+  bool other_series = false;
+
+  /// Its series is legacy or eol (NoticeFor()); empty series otherwise.
+  struct Notice {
+    QString series;
+    QString status;
+    QString eol;
+    QString successor;
+    QString successor_latest;
+    bool successor_runs_here = false;
+  } notice;
+
   QDateTime checked_at;
 
   /// Whether this result describes the given build.

@@ -30,6 +30,10 @@
 
 #include <QCoreApplication>
 #include <QLocale>
+#include <QTextBlock>
+#include <QTextCursor>
+#include <QTextDocument>
+#include <QUrl>
 #include <algorithm>
 
 #include "ReleaseCheck.h"
@@ -117,6 +121,57 @@ auto RelativeTime(const QDateTime& then, const QDateTime& now) -> QString {
   return QLocale().toString(then, QLocale::ShortFormat);
 }
 
+auto SeriesNoticeText(const SoftwareVersion::Notice& notice) -> QString {
+  if (notice.series.isEmpty()) return {};
+  const auto latest = DisplayVersion(notice.successor_latest);
+  if (notice.status == u"legacy") {
+    return notice.successor_runs_here
+               ? QCoreApplication::translate(
+                     "UpdateTab",
+                     "The %1 series gets security fixes only, until %2. "
+                     "GpgFrontend %3 is the current release.")
+                     .arg(notice.series, notice.eol, latest)
+               : QCoreApplication::translate(
+                     "UpdateTab",
+                     "The %1 series gets security fixes only, until %2.")
+                     .arg(notice.series, notice.eol);
+  }
+  return notice.successor_runs_here
+             ? QCoreApplication::translate(
+                   "UpdateTab",
+                   "The %1 series no longer gets fixes. GpgFrontend %2 is "
+                   "the current release.")
+                   .arg(notice.series, latest)
+             : QCoreApplication::translate(
+                   "UpdateTab",
+                   "The %1 series no longer gets fixes, and the current "
+                   "release does not run on this system.")
+                   .arg(notice.series);
+}
+
+void RestrictNotesLinks(QTextDocument* document, const QStringList& hosts) {
+  for (auto block = document->begin(); block.isValid(); block = block.next()) {
+    for (auto it = block.begin(); !it.atEnd(); ++it) {
+      const auto fragment = it.fragment();
+      const auto format = fragment.charFormat();
+      if (!format.isAnchor() ||
+          IsAllowedNotesLink(QUrl(format.anchorHref()), hosts)) {
+        continue;
+      }
+      // Kept as text, in the paragraph's own look: nothing to click, and
+      // nothing that looks clickable.
+      QTextCharFormat plain = block.charFormat();
+      plain.setFontWeight(format.fontWeight());
+      plain.setFontItalic(format.fontItalic());
+      QTextCursor cursor(document);
+      cursor.setPosition(fragment.position());
+      cursor.setPosition(fragment.position() + fragment.length(),
+                         QTextCursor::KeepAnchor);
+      cursor.setCharFormat(plain);
+    }
+  }
+}
+
 auto PresentUpdate(const UpdateSnapshot& s, const QDateTime& now)
     -> UpdateView {
   UpdateView v;
@@ -148,8 +203,8 @@ auto PresentUpdate(const UpdateSnapshot& s, const QDateTime& now)
   const auto& r = *s.last_good;
   const auto latest = DisplayVersion(r.list.latest.version);
   const auto current = DisplayVersion(r.current_version);
-  // A nightly follows the signed nightly channel, not GitHub's releases, and
-  // says so in every line that names where the answer came from.
+  // A nightly follows the signed nightly channel, a release build its
+  // series' releases in the same signed index; the wording says which.
   const bool nightly = r.nightly;
 
   switch (Decide(r)) {
@@ -167,13 +222,14 @@ auto PresentUpdate(const UpdateSnapshot& s, const QDateTime& now)
       v.download_version = r.list.latest.version;
       // The version is in the headline: the button only says what it does.
       v.download_label = QCoreApplication::translate("UpdateTab", "Download");
-      // Only a link the checker made from a verified descriptor, never a page
-      // a release list merely named.
-      if (nightly && r.list.latest.html_url.startsWith(u"https://")) {
+      // Only a link the checker made from a verified descriptor. In place
+      // only for a nightly: a stable update is installed by its installer.
+      if (r.list.latest.html_url.startsWith(u"https://")) {
         v.download_url = r.list.latest.html_url;
         v.download_sha256 = r.list.latest.download_sha256;
         v.download_size = r.list.latest.download_size;
-        v.installable = v.download_sha256.size() == 64 && v.download_size > 0;
+        v.installable =
+            nightly && v.download_sha256.size() == 64 && v.download_size > 0;
       }
       v.notes = r.list.latest.notes.trimmed();
       v.show_notes = !v.notes.isEmpty();
@@ -188,11 +244,9 @@ auto PresentUpdate(const UpdateSnapshot& s, const QDateTime& now)
         break;
       }
       v.headline = QCoreApplication::translate(
-          "UpdateTab", "This version isn't listed on GitHub Releases");
+          "UpdateTab", "This version has been withdrawn");
       v.detail = QCoreApplication::translate(
-          "UpdateTab",
-          "It may be a pre-release build or a withdrawn version. "
-          "The latest official release is recommended.");
+          "UpdateTab", "Please move to the latest release of its series.");
       break;
     case Verdict::kUnofficialBuild:
       v.tone = UpdateTone::kAttention;
@@ -210,6 +264,18 @@ auto PresentUpdate(const UpdateSnapshot& s, const QDateTime& now)
                            "expected for self-built or modified versions.");
       break;
     case Verdict::kUpToDate:
+      if (r.other_series) {
+        // A release branch's nightly: main's channel is another series, and
+        // jumping there is not an update.
+        v.headline = QCoreApplication::translate(
+            "UpdateTab", "This is a release branch build");
+        v.detail = QCoreApplication::translate(
+                       "UpdateTab",
+                       "%1 is a test build of a fix release. It is not offered "
+                       "updates; install the release when it is out.")
+                       .arg(current);
+        break;
+      }
       v.tone = UpdateTone::kGood;
       v.headline =
           QCoreApplication::translate("UpdateTab", "You're up to date");
@@ -238,8 +304,8 @@ auto PresentUpdate(const UpdateSnapshot& s, const QDateTime& now)
       nightly ? QCoreApplication::translate(
                     "UpdateTab", "Last checked %1 · Signed nightly channel")
                     .arg(RelativeTime(r.checked_at, now))
-              : QCoreApplication::translate("UpdateTab",
-                                            "Last checked %1 · GitHub Releases")
+              : QCoreApplication::translate(
+                    "UpdateTab", "Last checked %1 · Signed update index")
                     .arg(RelativeTime(r.checked_at, now));
 
   if (s.checking) {
@@ -253,6 +319,12 @@ auto PresentUpdate(const UpdateSnapshot& s, const QDateTime& now)
     v.check_label = QCoreApplication::translate("UpdateTab", "Try again");
   } else {
     v.check_label = QCoreApplication::translate("UpdateTab", "Check again");
+  }
+
+  const auto series_notice = SeriesNoticeText(r.notice);
+  if (!series_notice.isEmpty()) {
+    v.notice =
+        v.notice.isEmpty() ? series_notice : v.notice + u'\n' + series_notice;
   }
   return v;
 }

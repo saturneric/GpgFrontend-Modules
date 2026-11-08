@@ -34,73 +34,110 @@
 #include <memory>
 #include <vector>
 
+#include "IndexFixture.h"
 #include "ReleaseCheck.h"
 #include "UpdateChecker.h"
 
+// The checker's state machine, driven for a release build through the signed
+// index: joining, caching, failing, acknowledging. Every request is held
+// until the test answers it, as a slow network would.
+
 namespace {
 
-const UpdateChecker::Build kBuild{"v2.1.8", "abc123"};
+constexpr auto kCommitA = "abc1230000000000000000000000000000000000";
+constexpr auto kCommitB = "def4560000000000000000000000000000000000";
+constexpr auto kBase = "https://update.example/";
 
-/// Holds every request until the test answers it.
+/// Holds every request until the test answers it, and answers as the
+/// release server's buckets would.
 struct FakeServer {
   struct Pending {
     QUrl url;
     UpdateChecker::Reply reply;
   };
+  test_index::Signer signer;
   std::vector<Pending> pending;
+  QStringList asked;
   int requests = 0;
+  qint64 serial = 0;
 
   auto Fetcher() -> UpdateChecker::Fetcher {
     return [this](const QUrl& url, const UpdateChecker::Reply& reply) {
       ++requests;
+      asked << url.toString();
       pending.push_back({url, reply});
     };
   }
 
-  /// Answer every held request as a server would, @p ok or all failing.
-  void AnswerAll(bool ok, const QString& latest = "v2.1.9") {
-    auto held = std::move(pending);
-    pending.clear();
-    for (auto& p : held) {
-      const auto path = p.url.path();
-      if (!ok) {
-        p.reply(0, {});
-      } else if (path.endsWith("/releases")) {
-        QJsonObject r;
-        r["tag_name"] = latest;
-        r["body"] = "notes";
-        p.reply(200, QJsonDocument(QJsonArray{r}).toJson());
-      } else if (path.contains("/releases/tags/")) {
-        p.reply(200, R"({"tag_name":"v2.1.8"})");
-      } else {
-        p.reply(200, R"({"sha":"abc123ffff"})");
+  /// The index of a 2.1 series whose newest release is @p latest, with
+  /// 2.1.8 (the running build) listed as well.
+  auto Signed(const QString& latest) -> std::pair<QByteArray, QByteArray> {
+    ++serial;
+    const auto entry = [](const QString& v) {
+      return QJsonObject{{"descriptor", "releases/" + v + "/release.json"},
+                         {"sha256", QString(64, u'0')}};
+    };
+    const QJsonObject extra{
+        {"series", QJsonObject{{"2.1", QJsonObject{{"status", "stable"},
+                                                   {"latest", latest}}}}},
+        {"releases",
+         QJsonObject{{"2.1.8", entry("2.1.8")}, {latest, entry(latest)}}}};
+    const auto index = test_index::Index(serial, "", "gpgfrontend",
+                                         Now().addDays(14), {}, extra);
+    return {index, signer.Sign(index, test_index::Comment(serial))};
+  }
+
+  /// Answer every held request (and those the answers lead to), @p ok as
+  /// the server would, or all failing.
+  void AnswerAll(bool ok, const QString& latest = "2.1.9",
+                 int marker_status = 200) {
+    const auto [index, signature] = Signed(latest);
+    while (!pending.empty()) {
+      auto held = std::move(pending);
+      pending.clear();
+      for (auto& p : held) {
+        const auto url = p.url.toString();
+        if (!ok) {
+          p.reply(0, {});
+        } else if (url.endsWith("/v1/index.json")) {
+          p.reply(200, index);
+        } else if (url.endsWith("/v1/index.json.minisig")) {
+          p.reply(200, signature);
+        } else if (url.contains("/commits/")) {
+          p.reply(marker_status, {});
+        } else {
+          p.reply(404, {});  // descriptors: no download link, no verdict
+        }
       }
     }
   }
 
-  /// The list answers; the lookups hit a rate limit.
-  void AnswerPartial() {
-    auto held = std::move(pending);
-    pending.clear();
-    for (auto& p : held) {
-      if (p.url.path().endsWith("/releases")) {
-        QJsonObject r;
-        r["tag_name"] = "v2.1.8";
-        p.reply(200, QJsonDocument(QJsonArray{r}).toJson());
-      } else {
-        p.reply(403, R"({"message":"API rate limit exceeded"})");
-      }
-    }
+  /// The index answers; the commit marker hits a server error.
+  void AnswerPartial() { AnswerAll(true, "2.1.8", 503); }
+
+  static auto Now() -> QDateTime {
+    return QDateTime::fromSecsSinceEpoch(1800000000);
   }
 };
+
+auto Channel(const FakeServer& server) -> ReleaseChannel {
+  return {"gpgfrontend", {kBase}, {kBase}, {server.signer.PublicKey()}};
+}
 
 struct Harness {
   FakeServer server;
   QByteArray stored;
-  QDateTime now = QDateTime::fromSecsSinceEpoch(1800000000);
+  QDateTime now = FakeServer::Now();
   int saves = 0;
 
-  auto Make(UpdateChecker::Build build = kBuild)
+  auto Build(const QString& version = "v2.1.8",
+             const QString& commit = kCommitA) const -> UpdateChecker::Build {
+    return {version, commit, Channel(server)};
+  }
+
+  auto Make() -> std::unique_ptr<UpdateChecker> { return Make(Build()); }
+
+  auto Make(const UpdateChecker::Build& build)
       -> std::unique_ptr<UpdateChecker> {
     return std::make_unique<UpdateChecker>(
         build, server.Fetcher(),
@@ -124,7 +161,7 @@ TEST(UpdateCheckerTest, StartIsVisibleSynchronously) {
   c->Start(CheckMode::kIfStale);
   EXPECT_TRUE(c->State().checking);
   EXPECT_EQ(changes, 1);
-  EXPECT_EQ(h.server.requests, 3);
+  EXPECT_EQ(h.server.requests, 1);  // the index first; the rest follows it
 
   h.server.AnswerAll(true);
   EXPECT_FALSE(c->State().checking);
@@ -141,7 +178,7 @@ TEST(UpdateCheckerTest, SecondStartJoinsTheRunningCheck) {
   c->Start(CheckMode::kIfStale);
   c->Start(CheckMode::kForce);
   c->Start(CheckMode::kIfStale);
-  EXPECT_EQ(h.server.requests, 3);
+  EXPECT_EQ(h.server.requests, 1);
 
   int changes = 0;
   QObject::connect(c.get(), &UpdateChecker::Changed, [&] { ++changes; });
@@ -169,13 +206,13 @@ TEST(UpdateCheckerTest, FailedRefreshKeepsLastKnownGood) {
   EXPECT_EQ(s.last_attempt, h.now);
   ASSERT_TRUE(s.last_good);
   EXPECT_EQ(s.last_good->checked_at, first_checked);
-  EXPECT_EQ(s.last_good->list.latest.version, "v2.1.9");
+  EXPECT_EQ(s.last_good->list.latest.version, "2.1.9");
   EXPECT_EQ(Decide(*s.last_good), Verdict::kUpdateAvailable);
 
   // And it survives a restart.
   auto restarted = h.Make();
   ASSERT_TRUE(restarted->State().last_good);
-  EXPECT_EQ(restarted->State().last_good->list.latest.version, "v2.1.9");
+  EXPECT_EQ(restarted->State().last_good->list.latest.version, "2.1.9");
   EXPECT_TRUE(restarted->State().last_attempt_failed);
 }
 
@@ -188,7 +225,7 @@ TEST(UpdateCheckerTest, SuccessfulRefreshClearsFailure) {
   EXPECT_FALSE(c->State().last_good);
 
   c->Start(CheckMode::kForce);
-  h.server.AnswerAll(true, "v2.1.8");
+  h.server.AnswerAll(true, "2.1.8");
   EXPECT_FALSE(c->State().last_attempt_failed);
   ASSERT_TRUE(c->State().last_good);
   EXPECT_EQ(Decide(*c->State().last_good), Verdict::kUpToDate);
@@ -201,13 +238,14 @@ TEST(UpdateCheckerTest, ForceBypassesFreshCache) {
   h.server.AnswerAll(true);
   EXPECT_TRUE(c->IsFresh());
 
+  const int asked = h.server.requests;
   c->Start(CheckMode::kIfStale);
   EXPECT_FALSE(c->State().checking);
-  EXPECT_EQ(h.server.requests, 3);
+  EXPECT_EQ(h.server.requests, asked);
 
   c->Start(CheckMode::kForce);
   EXPECT_TRUE(c->State().checking);
-  EXPECT_EQ(h.server.requests, 6);
+  EXPECT_EQ(h.server.requests, asked + 1);
 }
 
 TEST(UpdateCheckerTest, StaleCacheIsRechecked) {
@@ -234,8 +272,8 @@ TEST(UpdateCheckerTest, PartialResultDoesNotSuppressRetry) {
   EXPECT_FALSE(s.last_attempt_failed);
   ASSERT_TRUE(s.last_good);
   EXPECT_FALSE(s.last_good->complete);
-  EXPECT_EQ(s.last_good->tag_fact, RemoteFact::kUnknown);
-  // A rate limit is not a withdrawn version.
+  EXPECT_EQ(s.last_good->commit_fact, RemoteFact::kUnknown);
+  // A server error is not an unofficial build.
   EXPECT_EQ(Decide(*s.last_good), Verdict::kUpToDate);
   EXPECT_FALSE(c->IsFresh());
 
@@ -250,7 +288,7 @@ TEST(UpdateCheckerTest, StoredResultForAnotherBuildIsDropped) {
     c->Start(CheckMode::kForce);
     h.server.AnswerAll(true);
   }
-  auto upgraded = h.Make({"v2.1.9", "def456"});
+  auto upgraded = h.Make(h.Build("v2.1.9", kCommitB));
   EXPECT_FALSE(upgraded->State().last_good);
   EXPECT_FALSE(upgraded->IsFresh());
 
@@ -259,18 +297,21 @@ TEST(UpdateCheckerTest, StoredResultForAnotherBuildIsDropped) {
 }
 
 TEST(UpdateCheckerTest, StorageRejectsGarbageAndOldFormat) {
-  EXPECT_FALSE(UpdateChecker::FromStorage("garbage", kBuild).last_good);
+  const Harness h;
+  EXPECT_FALSE(UpdateChecker::FromStorage("garbage", h.Build()).last_good);
   EXPECT_FALSE(UpdateChecker::FromStorage(
-                   R"({"api":"GitHub","latest_version":"v2.1.9"})", kBuild)
+                   R"({"api":"GitHub","latest_version":"v2.1.9"})", h.Build())
                    .last_good);
 }
 
 TEST(UpdateCheckerTest, NoCommitHashSkipsTheCommitLookup) {
   Harness h;
-  auto c = h.Make({"v2.1.8", ""});
+  auto c = h.Make(h.Build("v2.1.8", ""));
   c->Start(CheckMode::kForce);
-  EXPECT_EQ(h.server.requests, 2);
-  h.server.AnswerAll(true, "v2.1.8");
+  h.server.AnswerAll(true, "2.1.8");
+  for (const auto& url : h.server.asked) {
+    EXPECT_FALSE(url.contains("/commits/")) << url.toStdString();
+  }
   ASSERT_TRUE(c->State().last_good);
   EXPECT_EQ(c->State().last_good->commit_fact, RemoteFact::kUnknown);
   EXPECT_FALSE(c->IsFresh());
@@ -279,8 +320,9 @@ TEST(UpdateCheckerTest, NoCommitHashSkipsTheCommitLookup) {
 TEST(UpdateCheckerTest, SynchronousFetcherStillFinishesOnce) {
   QByteArray stored;
   int changes = 0;
+  const Harness h;
   UpdateChecker c(
-      kBuild,
+      h.Build(),
       [](const QUrl&, const UpdateChecker::Reply& reply) { reply(0, {}); },
       {[&] { return stored; }, [&](const QByteArray& d) { stored = d; }});
   QObject::connect(&c, &UpdateChecker::Changed, [&] { ++changes; });
@@ -306,7 +348,7 @@ TEST(UpdateCheckerTest, DiscoveredUpdateAsksForAttention) {
 
   c->Start(CheckMode::kIfStale);
   EXPECT_EQ(AttentionFor(c->State()), UpdateAttention::kNone);  // checking
-  h.server.AnswerAll(true, "v2.1.9");
+  h.server.AnswerAll(true, "2.1.9");
   EXPECT_EQ(AttentionFor(c->State()), UpdateAttention::kUpdateAvailable);
 }
 
@@ -314,13 +356,13 @@ TEST(UpdateCheckerTest, OpeningThePageAcknowledgesTheUpdate) {
   Harness h;
   auto c = h.Make();
   c->Start(CheckMode::kForce);
-  h.server.AnswerAll(true, "v2.1.9");
+  h.server.AnswerAll(true, "2.1.9");
 
   int changes = 0;
   QObject::connect(c.get(), &UpdateChecker::Changed, [&] { ++changes; });
   c->Acknowledge();
   EXPECT_EQ(changes, 1);
-  EXPECT_EQ(c->State().last_seen_update_version, "v2.1.9");
+  EXPECT_EQ(c->State().last_seen_update_version, "2.1.9");
   EXPECT_EQ(AttentionFor(c->State()), UpdateAttention::kNone);
 
   // Nothing new to acknowledge: no change, no write.
@@ -337,11 +379,11 @@ TEST(UpdateCheckerTest, SameUpdateRediscoveredStaysQuiet) {
   Harness h;
   auto c = h.Make();
   c->Start(CheckMode::kForce);
-  h.server.AnswerAll(true, "v2.1.9");
+  h.server.AnswerAll(true, "2.1.9");
   c->Acknowledge();
 
   c->Start(CheckMode::kForce);
-  h.server.AnswerAll(true, "v2.1.9");
+  h.server.AnswerAll(true, "2.1.9");
   EXPECT_EQ(AttentionFor(c->State()), UpdateAttention::kNone);
 }
 
@@ -349,14 +391,14 @@ TEST(UpdateCheckerTest, NewerUpdateAsksAgain) {
   Harness h;
   auto c = h.Make();
   c->Start(CheckMode::kForce);
-  h.server.AnswerAll(true, "v2.1.9");
+  h.server.AnswerAll(true, "2.1.9");
   c->Acknowledge();
 
   c->Start(CheckMode::kForce);
-  h.server.AnswerAll(true, "v2.1.10");
+  h.server.AnswerAll(true, "2.1.10");
   EXPECT_EQ(AttentionFor(c->State()), UpdateAttention::kUpdateAvailable);
   c->Acknowledge();
-  EXPECT_EQ(c->State().last_seen_update_version, "v2.1.10");
+  EXPECT_EQ(c->State().last_seen_update_version, "2.1.10");
   EXPECT_EQ(AttentionFor(c->State()), UpdateAttention::kNone);
 }
 
@@ -376,13 +418,13 @@ TEST(UpdateCheckerTest, FailureAfterAcknowledgementStaysQuiet) {
   Harness h;
   auto c = h.Make();
   c->Start(CheckMode::kForce);
-  h.server.AnswerAll(true, "v2.1.9");
+  h.server.AnswerAll(true, "2.1.9");
   c->Acknowledge();
 
   c->Start(CheckMode::kForce);
   h.server.AnswerAll(false);
   EXPECT_TRUE(c->State().last_attempt_failed);
-  EXPECT_EQ(c->State().last_seen_update_version, "v2.1.9");
+  EXPECT_EQ(c->State().last_seen_update_version, "2.1.9");
   EXPECT_EQ(AttentionFor(c->State()), UpdateAttention::kNone);
 }
 
@@ -390,7 +432,7 @@ TEST(UpdateCheckerTest, FailureBeforeAcknowledgementKeepsAttention) {
   Harness h;
   auto c = h.Make();
   c->Start(CheckMode::kForce);
-  h.server.AnswerAll(true, "v2.1.9");
+  h.server.AnswerAll(true, "2.1.9");
   c->Start(CheckMode::kForce);
   h.server.AnswerAll(false);
   // A confirmed update is not unlearned by a failed refresh.
@@ -402,19 +444,19 @@ TEST(UpdateCheckerTest, AcknowledgementPersistsAcrossRestart) {
   {
     auto c = h.Make();
     c->Start(CheckMode::kForce);
-    h.server.AnswerAll(true, "v2.1.9");
+    h.server.AnswerAll(true, "2.1.9");
     c->Acknowledge();
   }
   auto restarted = h.Make();
-  EXPECT_EQ(restarted->State().last_seen_update_version, "v2.1.9");
+  EXPECT_EQ(restarted->State().last_seen_update_version, "2.1.9");
   EXPECT_EQ(AttentionFor(restarted->State()), UpdateAttention::kNone);
 
   // Also across a rebuild, whose stored result is dropped.
-  auto rebuilt = h.Make({"v2.1.8", "def456"});
+  auto rebuilt = h.Make(h.Build("v2.1.8", kCommitB));
   EXPECT_FALSE(rebuilt->State().last_good);
-  EXPECT_EQ(rebuilt->State().last_seen_update_version, "v2.1.9");
+  EXPECT_EQ(rebuilt->State().last_seen_update_version, "2.1.9");
   rebuilt->Start(CheckMode::kIfStale);
-  h.server.AnswerAll(true, "v2.1.9");
+  h.server.AnswerAll(true, "2.1.9");
   EXPECT_EQ(AttentionFor(rebuilt->State()), UpdateAttention::kNone);
 }
 
