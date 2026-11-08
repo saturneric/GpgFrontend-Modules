@@ -69,6 +69,7 @@ class UpdateTab : public QWidget {
   QLabel* freshness_;
   QPushButton* check_btn_;
   QPushButton* download_btn_;
+  QCheckBox* beta_;  ///< "Also offer beta versions"; release builds only
   UpdateView view_;  ///< as last drawn: what the main button acts on
   InstallState install_;
   QPointer<AppImageInstaller> installer_;

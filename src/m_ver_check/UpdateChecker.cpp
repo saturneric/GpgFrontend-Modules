@@ -63,7 +63,18 @@ auto UpdateChecker::IsFresh() const -> bool {
   const auto& good = state_.last_good;
   return good && IsAuthoritative(*good) &&
          good->SameBuild(build_.version, build_.commit) &&
+         good->follow_beta == followsBeta() &&
          good->checked_at.secsTo(clock_()) < kFreshSeconds;
+}
+
+auto UpdateChecker::IsNightly() const -> bool { return nightly_; }
+
+auto UpdateChecker::followsBeta() const -> bool {
+  return !nightly_ && build_.follow_beta;
+}
+
+void UpdateChecker::SetFollowBeta(bool follow_beta) {
+  build_.follow_beta = follow_beta;
 }
 
 auto UpdateChecker::Attention() const -> UpdateAttention {
@@ -86,6 +97,7 @@ void UpdateChecker::Start(CheckMode mode) {
   fresh_.current_version = build_.version;
   fresh_.local_commit_hash = build_.commit;
   fresh_.nightly = nightly_;
+  fresh_.follow_beta = followsBeta();
   accepted_serial_ = 0;
   descriptor_path_.clear();
   descriptor_sha256_.clear();
@@ -156,7 +168,8 @@ auto UpdateChecker::acceptIndex(const QByteArray& body,
   // mirror or an attacker: it is not believed, and another base is tried.
   if (facts->serial < state_.max_serial) return false;
 
-  const auto choice = ChooseUpdate(*facts, build_.version, nightly_);
+  const auto choice =
+      ChooseUpdate(*facts, build_.version, nightly_, fresh_.follow_beta);
   fresh_.list = choice.list;
   fresh_.other_series = choice.other_series;
   fresh_.tag_fact = nightly_ ? WithdrawnFact(*facts, build_.version)

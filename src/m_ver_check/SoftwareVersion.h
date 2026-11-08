@@ -90,6 +90,11 @@ struct SoftwareVersion {
   /// A release branch's nightly, offered nothing (ChooseUpdate()).
   bool other_series = false;
 
+  /// A release build that asked for the beta channel too: what it was
+  /// offered depends on it, so a result made without it is not fresh once
+  /// the user asks for it, and the other way round.
+  bool follow_beta = false;
+
   /// Its series is legacy or eol (NoticeFor()); empty series otherwise.
   struct Notice {
     QString series;

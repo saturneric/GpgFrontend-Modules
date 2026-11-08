@@ -48,8 +48,11 @@ class QUrl;
  * against a pinned key (Minisign.h); this file reads it after that, and maps
  * it onto the facts Decide() and everything downstream work from.
  *
- * Two lines, one chain of trust each the same: the nightly channel, and the
- * stable releases of each series. A release descriptor is trusted through the
+ * Three lines, one chain of trust each the same: the nightly channel (main's
+ * builds), the beta channel (a release branch's builds, offered to those who
+ * ask for it), and the stable releases of each series. The beta channel is
+ * listed exactly as the nightly one is, and read the same way. A release
+ * descriptor is trusted through the
  * hash the index states for it, its files through the hashes the descriptor
  * states. A stable release is listed only after the release server checked
  * its maintainer's OpenPGP signatures and countersigned it; the client checks
@@ -103,6 +106,13 @@ struct IndexFacts {
   /// as the index. Empty when the index names none.
   QString nightly_descriptor;
   QString nightly_descriptor_sha256;
+
+  /// channels.beta: a release branch's newest build (X.Y.Z-alpha.N, Z > 0),
+  /// newer than its series' latest release; empty when there is none. Its
+  /// descriptor is listed as the nightly's is, and verified the same way.
+  QString beta_version;
+  QString beta_descriptor;
+  QString beta_descriptor_sha256;
 
   QHash<QString, SeriesFacts> series;     ///< by "X.Y"
   QHash<QString, ReleaseEntry> releases;  ///< by version, as published
@@ -181,22 +191,25 @@ struct ChannelChoice {
   QString descriptor_sha256;
   QString notes;
   QString notes_sha256;
-  /// A nightly of a release branch (X.Y.Z-alpha.N with Z > 0), whose series
-  /// the nightly channel (main's) is not: it is offered nothing, rather than
-  /// a jump to another series.
+  /// A nightly of a release branch (X.Y.Z-alpha.N with Z > 0) for which the
+  /// beta channel has no build of its own series: it is offered nothing,
+  /// rather than a jump to another series.
   bool other_series = false;
 };
 
 /**
  * @brief What @p current is offered from the index.
  *
- * The nightly identity follows the nightly channel; main's nightlies follow
- * it across a cut (2.3.0-alpha.N to 2.4.0-alpha.M), a release branch's do
- * not. Every other build follows the newest release of its own series, as
- * the index lists it (withdrawn ones never are).
+ * The nightly identity of main (X.Y.0-alpha.N) follows the nightly channel,
+ * across a cut too (2.3.0-alpha.N to 2.4.0-alpha.M). A release branch's
+ * nightly (X.Y.Z-alpha.N with Z > 0) follows the beta channel, within its
+ * own series only. Every other build follows the newest release of its own
+ * series, as the index lists it (withdrawn ones never are); with
+ * @p follow_beta, the beta channel too when it is newer than both that
+ * release and @p current.
  */
-auto ChooseUpdate(const IndexFacts& facts, const QString& current, bool nightly)
-    -> ChannelChoice;
+auto ChooseUpdate(const IndexFacts& facts, const QString& current, bool nightly,
+                  bool follow_beta = false) -> ChannelChoice;
 
 /// Its series is no longer the one users are meant to be on: what the
 /// update page says about it.

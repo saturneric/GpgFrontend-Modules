@@ -194,6 +194,8 @@ TEST(ReleaseCheckTest, SoftwareVersionJsonRoundTrip) {
   EXPECT_TRUE(back->complete);
   EXPECT_EQ(back->checked_at, r.checked_at);
   EXPECT_FALSE(back->other_series);
+  EXPECT_FALSE(back->follow_beta);
+  EXPECT_FALSE(r.ToJson().contains("follow_beta"));  // additive
   EXPECT_TRUE(back->notice.series.isEmpty());
 }
 
@@ -202,10 +204,12 @@ TEST(ReleaseCheckTest, SeriesNoticeAndBranchBuildSurviveStorage) {
                   RemoteFact::kConfirmed);
   r.checked_at = QDateTime::fromSecsSinceEpoch(1800000000);
   r.other_series = true;
+  r.follow_beta = true;
   r.notice = {"2.1", "legacy", "2027-12-31", "2.2", "2.2.4", true};
   const auto back = SoftwareVersion::FromJson(r.ToJson());
   ASSERT_TRUE(back);
   EXPECT_TRUE(back->other_series);
+  EXPECT_TRUE(back->follow_beta);
   EXPECT_EQ(back->notice.series, "2.1");
   EXPECT_EQ(back->notice.status, "legacy");
   EXPECT_EQ(back->notice.eol, "2027-12-31");

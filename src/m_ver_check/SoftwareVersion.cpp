@@ -96,6 +96,7 @@ auto SoftwareVersion::ToJson() const -> QJsonObject {
   obj["complete"] = complete;
   if (nightly) obj["nightly"] = true;  // additive: absent reads as a release
   if (other_series) obj["other_series"] = true;  // additive
+  if (follow_beta) obj["follow_beta"] = true;    // additive
   if (!notice.series.isEmpty()) {                // additive
     obj["notice"] =
         QJsonObject{{"series", notice.series},
@@ -132,6 +133,7 @@ auto SoftwareVersion::FromJson(const QJsonObject& obj)
   sv.complete = obj.value("complete").toBool();
   sv.nightly = obj.value("nightly").toBool();
   sv.other_series = obj.value("other_series").toBool();
+  sv.follow_beta = obj.value("follow_beta").toBool();
   const auto notice = obj.value("notice").toObject();
   sv.notice.series = notice.value("series").toString();
   sv.notice.status = notice.value("status").toString();

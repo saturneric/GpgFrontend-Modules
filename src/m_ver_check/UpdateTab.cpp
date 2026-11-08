@@ -61,6 +61,16 @@ auto ToneIcon(const QStyle* style, UpdateTone tone) -> QIcon {
   return style->standardIcon(QStyle::SP_MessageBoxInformation);
 }
 
+/// The Host's own switch, the one the setup wizard and this module's
+/// settings page share. Off, the dialog still offers the button: pressing
+/// it is the user asking. Absent means the wizard has not asked yet, which
+/// is not a yes: the startup check reads it the same way.
+auto UpdateCheckProhibited() -> bool {
+  return gf::sdk::Setting(GFModuleSdkContext(), GF_SETTING_HOST,
+                          "network/prohibit_update_check", true)
+      .toBool();
+}
+
 }  // namespace
 
 UpdateTab::UpdateTab(QWidget* parent)
@@ -111,6 +121,15 @@ UpdateTab::UpdateTab(QWidget* parent)
   actions->addWidget(check_btn_);
   actions->addWidget(download_btn_);
 
+  // Only where it changes anything: the nightly identity follows its own
+  // channel (main's nightly, or a release branch's betas) either way.
+  beta_ = new QCheckBox(tr("Also offer beta versions"), this);
+  beta_->setToolTip(
+      tr("Test builds of the next fix release, before it is out. They are "
+         "less tested than releases."));
+  beta_->setChecked(FollowBetaSetting());
+  beta_->setVisible(!checker_.isNull() && !checker_->IsNightly());
+
   notes_toggle_ = new QToolButton(this);
   notes_toggle_->setText(tr("Release notes"));
   notes_toggle_->setCheckable(true);
@@ -135,6 +154,7 @@ UpdateTab::UpdateTab(QWidget* parent)
   layout->addLayout(header);
   layout->addSpacing(8);
   layout->addLayout(actions);
+  layout->addWidget(beta_, 0, Qt::AlignLeft);
   layout->addSpacing(8);
   layout->addWidget(notes_toggle_, 0, Qt::AlignLeft);
   layout->addWidget(notes_, 1);
@@ -156,6 +176,15 @@ UpdateTab::UpdateTab(QWidget* parent)
 
   connect(download_btn_, &QPushButton::clicked, this,
           &UpdateTab::on_main_button);
+
+  // Applies to the next check, and makes the last result stale: the page
+  // asks again at once where checking is allowed.
+  connect(beta_, &QCheckBox::clicked, this, [this](bool checked) {
+    SetFollowBetaSetting(checked);
+    if (!UpdateCheckProhibited() && !checker_.isNull()) {
+      checker_->Start(CheckMode::kIfStale);
+    }
+  });
 
   if (!checker_.isNull()) {
     connect(checker_, &UpdateChecker::Changed, this, [this] {
@@ -299,12 +328,7 @@ void UpdateTab::showEvent(QShowEvent* event) {
   if (!checker_.isNull()) checker_->Acknowledge();
   render();
 
-  // The Host's own switch, the one the setup wizard and this module's
-  // settings page share. Off, the dialog still offers the button: pressing
-  // it is the user asking. Absent means the wizard has not asked yet, which
-  // is not a yes: the startup check reads it the same way.
-  const auto prohibit = gf::sdk::Setting(GFModuleSdkContext(), GF_SETTING_HOST,
-                                         "network/prohibit_update_check", true)
-                            .toBool();
-  if (!prohibit && !checker_.isNull()) checker_->Start(CheckMode::kIfStale);
+  if (!UpdateCheckProhibited() && !checker_.isNull()) {
+    checker_->Start(CheckMode::kIfStale);
+  }
 }
