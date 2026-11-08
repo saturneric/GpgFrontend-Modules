@@ -30,6 +30,7 @@
 
 #include <QDateTime>
 #include <QString>
+#include <QStringList>
 
 #include "UpdateChecker.h"
 
@@ -59,7 +60,7 @@ struct UpdateView {
   bool show_download = false;
   QString download_label;
   QString download_version;
-  /// The file itself, when known (a nightly, from its signed descriptor);
+  /// The file itself, when known (from the release's signed descriptor);
   /// empty sends "Download" to the downloads page.
   QString download_url;
   /// What the descriptor says of that file, for an in-place update.
@@ -104,3 +105,13 @@ auto DisplayVersion(const QString& version) -> QString;
 
 /// "just now", "5 minutes ago", "3 hours ago", then the date.
 auto RelativeTime(const QDateTime& then, const QDateTime& now) -> QString;
+
+/// What the page says when the build's series is no longer the one to be
+/// on (SoftwareVersion::notice); empty for a supported series.
+auto SeriesNoticeText(const SoftwareVersion::Notice& notice) -> QString;
+
+class QTextDocument;
+
+/// Release notes as shown: a link is kept only when IsAllowedNotesLink()
+/// takes its target; any other reads as plain text and opens nothing.
+void RestrictNotesLinks(QTextDocument* document, const QStringList& hosts);

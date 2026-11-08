@@ -102,8 +102,9 @@ class UpdateChecker : public QObject {
   struct Build {
     QString version;
     QString commit;
-    /// Where a nightly build reads its signed update index. Other builds
-    /// still ask GitHub, until the stable and beta channels move too.
+    /// Where every build reads its signed update index: the nightly identity
+    /// for the nightly channel, a release build for its series' releases.
+    /// Without one (the modules built on their own) nothing is claimed.
     ReleaseChannel channel;
     /// The machine, to pick the file a "Download" leads to.
     Platform platform;
@@ -113,8 +114,8 @@ class UpdateChecker : public QObject {
   };
 
   static constexpr qint64 kFreshSeconds = 24 * 60 * 60;
-  static constexpr auto kRepoApi =
-      "https://api.github.com/repos/saturneric/gpgfrontend";
+  /// Release notes are a page of text; anything larger is not taken.
+  static constexpr qsizetype kMaxNotesBytes = 256 * 1024;
 
   UpdateChecker(Build build, Fetcher fetch, Store store, Clock clock = {},
                 QObject* parent = nullptr);
@@ -146,12 +147,14 @@ class UpdateChecker : public QObject {
  private:
   void finish();
 
-  // The signed index (nightly builds): each update base in turn, until one
-  // serves an index that verifies; then the commit marker.
+  // The signed index: each update base in turn, until one serves an index
+  // that verifies; then the offer's descriptor and notes, then the commit
+  // marker.
   void startIndex();
-  void tryIndexBase(qsizetype i);
+  void tryIndexBase(qsizetype i, bool retried = false);
   auto acceptIndex(const QByteArray& body, const QByteArray& signature) -> bool;
-  void askDescriptor();
+  void askDescriptor(qsizetype i = 0);
+  void askNotes(qsizetype i = 0);
   void askCommitMarker();
 
   Build build_;
@@ -164,8 +167,10 @@ class UpdateChecker : public QObject {
   SoftwareVersion fresh_;
   int pending_ = 0;
   qint64 accepted_serial_ = 0;
-  QString descriptor_path_;    ///< of the accepted index's nightly
+  QString descriptor_path_;    ///< of the release the accepted index offers
   QString descriptor_sha256_;  ///< what the signed index says it hashes to
+  QString notes_path_;         ///< that release's notes, when listed
+  QString notes_sha256_;
 };
 
 /// How long a nightly build stays quiet after an update was seen: its channel

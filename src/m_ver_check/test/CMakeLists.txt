@@ -60,7 +60,7 @@ target_include_directories(gf_mod_ver_check_test PRIVATE
   "${CMAKE_BINARY_DIR}/src/sdk")
 
 target_link_libraries(gf_mod_ver_check_test PRIVATE
-  GTest::gtest GTest::gtest_main Qt::Core gf_sdk sodium)
+  GTest::gtest GTest::gtest_main Qt::Core Qt::Gui gf_sdk sodium)
 
 set_target_properties(gf_mod_ver_check_test PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY "${GPGFRONTEND_MODULE_TEST_OUTPUT_DIR}")

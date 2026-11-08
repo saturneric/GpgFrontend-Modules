@@ -119,8 +119,17 @@ UpdateTab::UpdateTab(QWidget* parent)
   notes_toggle_->setAutoRaise(true);
 
   notes_ = new QTextBrowser(this);
-  notes_->setOpenExternalLinks(true);
+  // Notes are text the release server signed, but a link in them is still
+  // a link: it opens only to a host release/product.json allows, and never
+  // inside the browser itself.
+  notes_->setOpenLinks(false);
+  notes_->setOpenExternalLinks(false);
   notes_->hide();
+  connect(notes_, &QTextBrowser::anchorClicked, this, [](const QUrl& url) {
+    if (IsAllowedNotesLink(url, NotesLinkHosts())) {
+      QDesktopServices::openUrl(url);
+    }
+  });
 
   auto* layout = new QVBoxLayout(this);
   layout->addLayout(header);
@@ -273,6 +282,7 @@ void UpdateTab::apply(const UpdateView& view) {
   notes_toggle_->setVisible(view.show_notes);
   if (view.show_notes) {
     notes_->setMarkdown(view.notes);
+    RestrictNotesLinks(notes_->document(), NotesLinkHosts());
     notes_->setVisible(notes_toggle_->isChecked());
   } else {
     notes_->clear();

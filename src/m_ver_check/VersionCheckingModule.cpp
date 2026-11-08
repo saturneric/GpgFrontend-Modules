@@ -43,6 +43,10 @@
 #include <QtNetwork>
 #include <atomic>
 
+#if defined(__GLIBC__)
+#include <gnu/libc-version.h>
+#endif
+
 #include "AppImageUpdate.h"
 #include "GFModule.h"
 #include "GFModuleIdentity.h"
@@ -83,8 +87,13 @@ auto MakeFetcher(QNetworkAccessManager* nam) -> UpdateChecker::Fetcher {
     request.setTransferTimeout(30000);
     request.setHeader(QNetworkRequest::UserAgentHeader,
                       GFAppUserAgent(GFModuleSdkContext()));
-    request.setRawHeader("Accept", "application/vnd.github+json");
-    request.setRawHeader("X-GitHub-Api-Version", "2022-11-28");
+#ifdef GF_RELEASE_CA
+    // A rehearsal build (GF_RELEASE_CA_OVERRIDE): its mirror's CA, for
+    // these requests only. Never compiled into a build that is distributed.
+    auto tls = request.sslConfiguration();
+    tls.addCaCertificates(QStringLiteral(GF_RELEASE_CA));
+    request.setSslConfiguration(tls);
+#endif
 
     auto* r = nam->get(request);
     QObject::connect(r, &QNetworkReply::finished, r, [r, reply] {
@@ -149,6 +158,9 @@ auto MakeDownload(QNetworkAccessManager* nam) -> AppImageInstaller::Download {
 #define GF_RELEASE_BUILDS_BASES ""
 #define GF_RELEASE_INDEX_KEYS ""
 #endif
+#ifndef GF_RELEASE_NOTES_HOSTS
+#define GF_RELEASE_NOTES_HOSTS ""
+#endif
 
 /// The update channel this build was made for (release/product.json, by way
 /// of this module's CMakeLists.txt).
@@ -161,11 +173,18 @@ auto BuiltInChannel() -> ReleaseChannel {
           split(GF_RELEASE_INDEX_KEYS)};
 }
 
-/// This machine, as release descriptors name it.
+/// This machine, as release descriptors and series requirements name it.
 auto ThisPlatform() -> Platform {
   Platform p;
 #if defined(Q_OS_WIN)
   p.os = QStringLiteral("windows");
+  // The NT version and build, as release/policy.toml states requirements
+  // ("10.0.17763"): Windows 11 is NT 10.0 too, told apart by its build.
+  const auto v = QOperatingSystemVersion::current();
+  p.os_version = QStringLiteral("%1.%2.%3")
+                     .arg(v.majorVersion())
+                     .arg(v.minorVersion())
+                     .arg(v.microVersion());
 #elif defined(Q_OS_MACOS)
   p.os = QStringLiteral("macos");
   const auto v = QOperatingSystemVersion::current();
@@ -173,6 +192,9 @@ auto ThisPlatform() -> Platform {
       QStringLiteral("%1.%2").arg(v.majorVersion()).arg(v.minorVersion());
 #elif defined(Q_OS_LINUX)
   p.os = QStringLiteral("linux");
+#if defined(__GLIBC__)
+  p.glibc = QString::fromLatin1(gnu_get_libc_version());
+#endif
 #endif
   p.arch = QSysInfo::currentCpuArchitecture();
   p.install_kind = QString::fromUtf8(GFAppInstallKind(GFModuleSdkContext()));
@@ -309,6 +331,11 @@ auto VersionChecker() -> UpdateChecker* {
     FillGrtWithVersionInfo(g_checker->State());
   }
   return g_checker;
+}
+
+auto NotesLinkHosts() -> QStringList {
+  return QString::fromLatin1(GF_RELEASE_NOTES_HOSTS)
+      .split(u'|', Qt::SkipEmptyParts);
 }
 
 auto SelfUpdateImage() -> QString {

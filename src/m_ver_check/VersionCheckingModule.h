@@ -28,6 +28,8 @@
 
 #pragma once
 
+#include <QStringList>
+
 #include "GFModule.h"
 
 class AppImageInstaller;
@@ -46,11 +48,15 @@ auto VersionChecker() -> UpdateChecker*;
  * @brief The AppImage an update may replace in place, or empty.
  *
  * Only the nightly application packaged as an AppImage, whose file sits where
- * this user can write. A stable AppImage waits for the client-side OpenPGP
- * check of its release; everything else is updated by its own installer, its
- * store or its distribution.
+ * this user can write. A stable release is downloaded and installed by the
+ * user; everything else is updated by its own installer, its store or its
+ * distribution.
  */
 auto SelfUpdateImage() -> QString;
+
+/// Where release notes may link to (release/product.json's
+/// notes_link_hosts); empty for a build without that file.
+auto NotesLinkHosts() -> QStringList;
 
 /// An installer for @p image, downloading through the module's network
 /// access. GUI thread.
