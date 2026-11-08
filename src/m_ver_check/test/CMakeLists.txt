@@ -44,6 +44,7 @@ add_executable(gf_mod_ver_check_test
   AppImageUpdateTest.cpp
   NightlyIndexTest.cpp
   ReleaseCheckTest.cpp
+  StableIndexTest.cpp
   UpdateCheckerTest.cpp
   UpdatePresentationTest.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../AppImageUpdate.cpp
