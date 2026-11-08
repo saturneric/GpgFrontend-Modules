@@ -38,50 +38,19 @@
  * @file ReleaseCheck.h
  * @brief Everything an update check decides, with no network and no Host.
  *
- * Parsing the release server's answers and turning a result into a verdict
- * live here so they can be tested on their own; UpdateChecker only moves
- * bytes and keeps state.
+ * Turning a result into a verdict lives here so it can be tested on its
+ * own; ReleaseIndex reads the signed index, UpdateChecker only moves bytes
+ * and keeps state.
  */
 
 /// What a result means for the user, in precedence order (see Decide()).
 enum class Verdict {
   kUnknown,                ///< the release list could not be read
   kUpdateAvailable,        ///< a newer release exists in this build's series
-  kWithdrawnOrUnreleased,  ///< this version has no release (confirmed 404)
-  kUnofficialBuild,        ///< this commit is not in the repository (confirmed)
+  kWithdrawnOrUnreleased,  ///< the signed index says it is withdrawn
+  kUnofficialBuild,        ///< no published build is of this commit
   kUpToDate,               ///< nothing newer, and nothing known to be wrong
 };
-
-/**
- * @brief Extract a normalized "vX.Y.Z" version string from a raw release tag or
- * title. Returns an empty string when the raw text does not match.
- */
-auto ExtractVersionFromRawTag(const QString& raw_tag) -> QString;
-
-/// A version with a suffix after its numbers ("v2.2.0-rc1") is a prerelease.
-auto IsPrereleaseVersion(const QString& version) -> bool;
-
-/**
- * @brief The newest release in @p current's series from a GitHub release list.
- *
- * Drafts are skipped, and so are prereleases unless @p current is one itself.
- * @param http_status 0 when the request never got an HTTP answer
- */
-auto ParseReleaseList(int http_status, const QByteArray& body,
-                      const QString& current) -> ListResult;
-
-/// 200 with a body that says what was asked -> confirmed; 404 -> not found;
-/// anything else says nothing.
-auto ClassifyLookup(int http_status, bool body_valid) -> RemoteFact;
-
-/// `GET /releases/tags/<tag>`: is this version released?
-auto ParseTagLookup(int http_status, const QByteArray& body) -> RemoteFact;
-
-/// `GET /commits/<sha>`: is this commit in the repository? GitHub answers a
-/// well-formed but unknown SHA with 422 "No commit found", which is as
-/// definite as a 404.
-auto ParseCommitLookup(int http_status, const QByteArray& body,
-                       const QString& local_commit) -> RemoteFact;
 
 /// The release list came back: the result can be shown and kept.
 auto IsUsable(const SoftwareVersion& r) -> bool;
@@ -109,8 +78,8 @@ auto Merge(const std::optional<SoftwareVersion>& prev,
  *
  *   1. release list unusable                  -> kUnknown
  *   2. a newer release in this series         -> kUpdateAvailable
- *   3. tag lookup kNotFound                   -> kWithdrawnOrUnreleased
- *   4. commit lookup kNotFound                -> kUnofficialBuild
+ *   3. tag fact kNotFound (withdrawn)         -> kWithdrawnOrUnreleased
+ *   4. commit marker kNotFound                -> kUnofficialBuild
  *   5. otherwise                              -> kUpToDate
  *
  * An update comes first because installing it also answers 3 and 4. Only a
