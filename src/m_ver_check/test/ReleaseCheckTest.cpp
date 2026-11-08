@@ -28,30 +28,12 @@
 
 #include <gtest/gtest.h>
 
-#include <QJsonArray>
-#include <QJsonDocument>
 #include <QJsonObject>
 #include <array>
 
 #include "ReleaseCheck.h"
 
 namespace {
-
-auto Release(const QString& tag, bool draft = false, bool prerelease = false)
-    -> QJsonObject {
-  QJsonObject r;
-  r["tag_name"] = tag;
-  r["draft"] = draft;
-  r["prerelease"] = prerelease;
-  r["published_at"] = "2026-01-01T00:00:00Z";
-  r["body"] = "notes for " + tag;
-  r["html_url"] = "https://github.com/saturneric/GpgFrontend/releases/" + tag;
-  return r;
-}
-
-auto List(const QJsonArray& releases) -> QByteArray {
-  return QJsonDocument(releases).toJson();
-}
 
 auto Result(ListOutcome list, RemoteFact tag, RemoteFact commit,
             const QString& latest = "v2.1.9") -> SoftwareVersion {
@@ -69,103 +51,6 @@ constexpr std::array<RemoteFact, 3> kFacts = {
     RemoteFact::kUnknown, RemoteFact::kConfirmed, RemoteFact::kNotFound};
 
 }  // namespace
-
-TEST(ReleaseCheckTest, ExtractVersionNormalizesTags) {
-  EXPECT_EQ(ExtractVersionFromRawTag("v2.1.9"), "v2.1.9");
-  EXPECT_EQ(ExtractVersionFromRawTag("v2.1.9-rc1"), "v2.1.9");
-  EXPECT_EQ(ExtractVersionFromRawTag("2.1.9"), "");
-  EXPECT_EQ(ExtractVersionFromRawTag("release"), "");
-}
-
-TEST(ReleaseCheckTest, PrereleaseVersionDetection) {
-  EXPECT_FALSE(IsPrereleaseVersion("v2.1.9"));
-  EXPECT_FALSE(IsPrereleaseVersion("2.1"));
-  EXPECT_TRUE(IsPrereleaseVersion("v2.2.0-rc1"));
-  EXPECT_TRUE(IsPrereleaseVersion("v2.2.0beta"));
-}
-
-TEST(ReleaseCheckTest, PicksNewestReleaseInOwnSeries) {
-  const auto body = List({Release("v2.2.3"), Release("v2.1.10"),
-                          Release("v2.1.9"), Release("v2.0.7")});
-  const auto stable = ParseReleaseList(200, body, "v2.1.8");
-  ASSERT_EQ(stable.outcome, ListOutcome::kFound);
-  EXPECT_EQ(stable.latest.version, "v2.1.10");
-  EXPECT_EQ(stable.latest.notes, "notes for v2.1.10");
-  EXPECT_TRUE(stable.latest.html_url.endsWith("v2.1.10"));
-
-  const auto mainline = ParseReleaseList(200, body, "v2.2.0");
-  ASSERT_EQ(mainline.outcome, ListOutcome::kFound);
-  EXPECT_EQ(mainline.latest.version, "v2.2.3");
-}
-
-TEST(ReleaseCheckTest, SkipsDraftsAndForeignTags) {
-  const auto body =
-      List({Release("v2.1.12", true), Release("nightly"), Release("v2.1.9")});
-  const auto r = ParseReleaseList(200, body, "v2.1.8");
-  ASSERT_EQ(r.outcome, ListOutcome::kFound);
-  EXPECT_EQ(r.latest.version, "v2.1.9");
-}
-
-TEST(ReleaseCheckTest, PrereleasesOnlyForPrereleaseBuilds) {
-  const auto body = List({Release("v2.1.11", false, true), Release("v2.1.9")});
-  EXPECT_EQ(ParseReleaseList(200, body, "v2.1.8").latest.version, "v2.1.9");
-  EXPECT_EQ(ParseReleaseList(200, body, "v2.1.8-rc1").latest.version,
-            "v2.1.11");
-}
-
-TEST(ReleaseCheckTest, ValidListWithoutMatchIsNotAFailure) {
-  EXPECT_EQ(ParseReleaseList(200, List({}), "v2.1.8").outcome,
-            ListOutcome::kNoMatch);
-  EXPECT_EQ(ParseReleaseList(200, List({Release("v2.2.0")}), "v2.1.8").outcome,
-            ListOutcome::kNoMatch);
-}
-
-TEST(ReleaseCheckTest, BrokenListIsAFailure) {
-  const auto good = List({Release("v2.1.9")});
-  EXPECT_EQ(ParseReleaseList(403, good, "v2.1.8").outcome,
-            ListOutcome::kFailed);
-  EXPECT_EQ(ParseReleaseList(0, {}, "v2.1.8").outcome, ListOutcome::kFailed);
-  EXPECT_EQ(ParseReleaseList(200, "{\"message\":\"x\"}", "v2.1.8").outcome,
-            ListOutcome::kFailed);
-  EXPECT_EQ(ParseReleaseList(200, "<html>", "v2.1.8").outcome,
-            ListOutcome::kFailed);
-}
-
-TEST(ReleaseCheckTest, ClassifyLookup) {
-  EXPECT_EQ(ClassifyLookup(200, true), RemoteFact::kConfirmed);
-  EXPECT_EQ(ClassifyLookup(200, false), RemoteFact::kUnknown);
-  EXPECT_EQ(ClassifyLookup(404, false), RemoteFact::kNotFound);
-  for (const int status : {0, 301, 401, 403, 422, 429, 500, 502, 503}) {
-    EXPECT_EQ(ClassifyLookup(status, false), RemoteFact::kUnknown) << status;
-  }
-}
-
-TEST(ReleaseCheckTest, TagLookup) {
-  EXPECT_EQ(ParseTagLookup(200, R"({"tag_name":"v2.1.8"})"),
-            RemoteFact::kConfirmed);
-  EXPECT_EQ(ParseTagLookup(200, "garbage"), RemoteFact::kUnknown);
-  EXPECT_EQ(ParseTagLookup(404, R"({"message":"Not Found"})"),
-            RemoteFact::kNotFound);
-  EXPECT_EQ(ParseTagLookup(403, R"({"message":"API rate limit exceeded"})"),
-            RemoteFact::kUnknown);
-}
-
-TEST(ReleaseCheckTest, CommitLookup) {
-  EXPECT_EQ(ParseCommitLookup(200, R"({"sha":"abc123def"})", "abc123"),
-            RemoteFact::kConfirmed);
-  EXPECT_EQ(ParseCommitLookup(200, R"({"sha":"fff000"})", "abc123"),
-            RemoteFact::kUnknown);
-  EXPECT_EQ(ParseCommitLookup(404, {}, "abc123"), RemoteFact::kNotFound);
-  EXPECT_EQ(
-      ParseCommitLookup(422, R"({"message":"No commit found for SHA: abc123"})",
-                        "abc123"),
-      RemoteFact::kNotFound);
-  EXPECT_EQ(
-      ParseCommitLookup(422, R"({"message":"Validation Failed"})", "abc123"),
-      RemoteFact::kUnknown);
-  EXPECT_EQ(ParseCommitLookup(200, R"({"sha":"abc123"})", ""),
-            RemoteFact::kUnknown);
-}
 
 TEST(ReleaseCheckTest, VerdictPrecedence) {
   using F = RemoteFact;

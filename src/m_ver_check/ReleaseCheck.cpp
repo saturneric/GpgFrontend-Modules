@@ -28,112 +28,17 @@
 
 #include "ReleaseCheck.h"
 
-#include <QJsonArray>
-#include <QJsonDocument>
-#include <QJsonObject>
-#include <QRegularExpression>
-
 #include "SemVer.h"
 
 namespace {
 
 // SemVer precedence: "2.3.0-alpha.12" is older than "2.3.0", and the number
-// after "alpha." is a number. Plain GitHub tags ("v2.1.9") still compare.
+// after "alpha." is a number. A leading "v" ("v2.1.9") still compares.
 auto Compare(const QString& a, const QString& b) -> int {
   return SemVerCompare(a, b);
 }
 
-auto ParseObject(const QByteArray& body) -> std::optional<QJsonObject> {
-  const auto doc = QJsonDocument::fromJson(body);
-  if (!doc.isObject()) return std::nullopt;
-  return doc.object();
-}
-
 }  // namespace
-
-auto ExtractVersionFromRawTag(const QString& raw_tag) -> QString {
-  static const QRegularExpression kVersionRe(
-      R"(^[vV](\d+\.)?(\d+\.)?(\*|\d+))");
-  auto match = kVersionRe.match(raw_tag);
-  return match.hasMatch() ? match.captured(0) : QString{};
-}
-
-auto IsPrereleaseVersion(const QString& version) -> bool {
-  static const QRegularExpression kSuffixRe(R"(^[vV]?\d+(\.\d+)*[-+~_a-zA-Z])");
-  return kSuffixRe.match(version).hasMatch();
-}
-
-auto ParseReleaseList(int http_status, const QByteArray& body,
-                      const QString& current) -> ListResult {
-  ListResult result;
-  if (http_status != 200) return result;
-
-  const auto doc = QJsonDocument::fromJson(body);
-  if (!doc.isArray()) return result;
-
-  const bool accept_prerelease = IsPrereleaseVersion(current);
-  result.outcome = ListOutcome::kNoMatch;
-
-  for (const auto& value : doc.array()) {
-    if (!value.isObject()) continue;
-    const auto release = value.toObject();
-
-    if (release["draft"].toBool()) continue;
-    if (release["prerelease"].toBool() && !accept_prerelease) continue;
-
-    const auto version =
-        ExtractVersionFromRawTag(release["tag_name"].toString());
-    if (version.isEmpty()) continue;
-    if (!SoftwareVersion::SameSeries(version, current)) continue;
-
-    if (result.outcome == ListOutcome::kFound &&
-        Compare(version, result.latest.version) <= 0) {
-      continue;
-    }
-
-    result.outcome = ListOutcome::kFound;
-    result.latest.version = version;
-    result.latest.published_at = release["published_at"].toString();
-    result.latest.notes = release["body"].toString();
-    result.latest.html_url = release["html_url"].toString();
-  }
-
-  return result;
-}
-
-auto ClassifyLookup(int http_status, bool body_valid) -> RemoteFact {
-  if (http_status == 200) {
-    return body_valid ? RemoteFact::kConfirmed : RemoteFact::kUnknown;
-  }
-  if (http_status == 404) return RemoteFact::kNotFound;
-  return RemoteFact::kUnknown;
-}
-
-auto ParseTagLookup(int http_status, const QByteArray& body) -> RemoteFact {
-  const auto obj = http_status == 200 ? ParseObject(body) : std::nullopt;
-  const bool valid = obj && !obj->value("tag_name").toString().isEmpty();
-  return ClassifyLookup(http_status, valid);
-}
-
-auto ParseCommitLookup(int http_status, const QByteArray& body,
-                       const QString& local_commit) -> RemoteFact {
-  const auto commit = local_commit.trimmed();
-  if (commit.isEmpty()) return RemoteFact::kUnknown;
-
-  if (http_status == 422) {
-    const auto obj = ParseObject(body);
-    const bool no_commit =
-        obj && obj->value("message").toString().startsWith("No commit found");
-    return no_commit ? RemoteFact::kNotFound : RemoteFact::kUnknown;
-  }
-
-  // GitHub resolves a short SHA to the full one, so the answer must start
-  // with ours; any other SHA answers a different question.
-  const auto obj = http_status == 200 ? ParseObject(body) : std::nullopt;
-  const bool valid = obj && obj->value("sha").toString().startsWith(
-                                commit, Qt::CaseInsensitive);
-  return ClassifyLookup(http_status, valid);
-}
 
 auto IsUsable(const SoftwareVersion& r) -> bool {
   return r.list.outcome != ListOutcome::kFailed;
