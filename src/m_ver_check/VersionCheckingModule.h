@@ -54,6 +54,13 @@ auto VersionChecker() -> UpdateChecker*;
  */
 auto SelfUpdateImage() -> QString;
 
+/// Whether the user asked a release build to be offered beta versions too
+/// (this module's own setting; off until asked).
+auto FollowBetaSetting() -> bool;
+
+/// Stores that answer, and hands it to the checker for its next check.
+void SetFollowBetaSetting(bool follow_beta);
+
 /// Where release notes may link to (release/product.json's
 /// notes_link_hosts); empty for a build without that file.
 auto NotesLinkHosts() -> QStringList;

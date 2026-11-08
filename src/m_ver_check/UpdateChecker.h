@@ -111,6 +111,10 @@ class UpdateChecker : public QObject {
     /// Whether this is the nightly application: 1 or 0 as the Host says, -1
     /// when it is too old to say, which leaves it to the version's shape.
     int nightly = -1;
+    /// A release build is offered the beta channel too ("Also offer beta
+    /// versions"). The nightly identity ignores it: main's nightlies follow
+    /// the nightly channel, a release branch's the beta one, either way.
+    bool follow_beta = false;
   };
 
   static constexpr qint64 kFreshSeconds = 24 * 60 * 60;
@@ -135,6 +139,15 @@ class UpdateChecker : public QObject {
   /// AttentionFor() the current state, at the checker's own clock.
   [[nodiscard]] auto Attention() const -> UpdateAttention;
 
+  /// Whether this build follows the nightly identity's channels, where the
+  /// beta setting means nothing.
+  [[nodiscard]] auto IsNightly() const -> bool;
+
+  /// The user's "Also offer beta versions", for the next check. A result
+  /// made under the other answer is no longer fresh (IsFresh()), so the next
+  /// kIfStale check asks again.
+  void SetFollowBeta(bool follow_beta);
+
   /// The state as stored; FromStorage() reads it back for @p build only.
   [[nodiscard]] static auto ToStorage(const UpdateSnapshot& s) -> QByteArray;
   [[nodiscard]] static auto FromStorage(const QByteArray& data,
@@ -156,6 +169,8 @@ class UpdateChecker : public QObject {
   void askDescriptor(qsizetype i = 0);
   void askNotes(qsizetype i = 0);
   void askCommitMarker();
+  /// The beta setting as it applies to this build: never for a nightly.
+  [[nodiscard]] auto followsBeta() const -> bool;
 
   Build build_;
   bool nightly_ = false;

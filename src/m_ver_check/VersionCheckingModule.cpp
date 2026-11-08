@@ -69,6 +69,9 @@ constexpr auto kProhibitKey = "network/prohibit_update_check";
 /// The checker's state, last known good result included.
 constexpr auto kStateKey = "update_checking_state";
 
+/// "Also offer beta versions": this module's own setting, off when absent.
+constexpr auto kFollowBetaKey = "follow_beta";
+
 std::atomic<bool> g_stopped{false};
 QPointer<UpdateChecker> g_checker;
 
@@ -235,9 +238,9 @@ class UpdateWidget : public QWidget, public gf::ui::DialogWidget {
   }
 };
 
-/// Settings > Updates: whether to check automatically, once a day. Nothing
-/// else is worth a setting: there is one update channel per build, and a day
-/// is the right interval.
+/// Settings > Updates: whether to check automatically, once a day. A day is
+/// the right interval; the one other choice, whether a release build is also
+/// offered betas, sits on the update page beside what it changes.
 class UpdateSettingsWidget : public QWidget, public gf::ui::SettingsWidget {
  public:
   UpdateSettingsWidget() {
@@ -315,7 +318,7 @@ auto VersionChecker() -> UpdateChecker* {
     g_checker = new UpdateChecker(
         {QString::fromUtf8(GFAppVersion(ctx)),
          QString::fromUtf8(GFAppGitCommitHash(ctx)), BuiltInChannel(),
-         ThisPlatform(), GFAppIsNightlyIdentity(ctx)},
+         ThisPlatform(), GFAppIsNightlyIdentity(ctx), FollowBetaSetting()},
         MakeFetcher(nam), MakeStore());
     nam->setParent(g_checker);
 
@@ -331,6 +334,18 @@ auto VersionChecker() -> UpdateChecker* {
     FillGrtWithVersionInfo(g_checker->State());
   }
   return g_checker;
+}
+
+auto FollowBetaSetting() -> bool {
+  return gf::sdk::Setting(GFModuleSdkContext(), GF_SETTING_MODULE,
+                          kFollowBetaKey, false)
+      .toBool();
+}
+
+void SetFollowBetaSetting(bool follow_beta) {
+  gf::sdk::SetSetting(GFModuleSdkContext(), GF_SETTING_MODULE, kFollowBetaKey,
+                      follow_beta);
+  if (!g_checker.isNull()) g_checker->SetFollowBeta(follow_beta);
 }
 
 auto NotesLinkHosts() -> QStringList {

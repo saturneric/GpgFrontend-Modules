@@ -90,6 +90,14 @@ auto ParseIndex(const QByteArray& json, const QString& trusted_comment,
     return std::nullopt;
   }
 
+  // An opt-in extra: a beta that cannot be read is no beta, and never costs
+  // the stable and nightly answers of an index that is otherwise sound (as
+  // for a client that predates the field and ignores it).
+  const auto beta = obj.value("channels").toObject().value("beta");
+  if (beta.isString() && SemVer::Parse(beta.toString())) {
+    f.beta_version = beta.toString();
+  }
+
   const auto stable = obj.value("channels").toObject().value("stable");
   if (stable.isString()) {
     if (!SemVer::Parse(stable.toString())) return std::nullopt;
@@ -143,15 +151,23 @@ auto ParseIndex(const QByteArray& json, const QString& trusted_comment,
     }
     f.releases.insert(it.key(), entry);
   }
-  const auto entry = obj.value("nightly").toObject();
-  const auto descriptor = entry.value("descriptor").toString();
-  const auto sha256 = entry.value("sha256").toString();
-  if (!f.nightly_version.isEmpty() &&
-      entry.value("version").toString() == f.nightly_version &&
-      IsSafeRelativePath(descriptor) && kSha256.match(sha256).hasMatch()) {
-    f.nightly_descriptor = descriptor;
-    f.nightly_descriptor_sha256 = sha256;
-  }
+  // The nightly's and the beta's descriptors: the same shape, the same rules.
+  // Each counts only for the version its channel names.
+  const auto descriptor_of = [&](const char* key, const QString& version,
+                                 QString& descriptor, QString& sha256) {
+    const auto entry = obj.value(QLatin1StringView(key)).toObject();
+    const auto path = entry.value("descriptor").toString();
+    const auto digest = entry.value("sha256").toString();
+    if (!version.isEmpty() && entry.value("version").toString() == version &&
+        IsSafeRelativePath(path) && kSha256.match(digest).hasMatch()) {
+      descriptor = path;
+      sha256 = digest;
+    }
+  };
+  descriptor_of("nightly", f.nightly_version, f.nightly_descriptor,
+                f.nightly_descriptor_sha256);
+  descriptor_of("beta", f.beta_version, f.beta_descriptor,
+                f.beta_descriptor_sha256);
   return f;
 }
 
@@ -246,8 +262,8 @@ auto SelectArtifact(const QByteArray& descriptor, const Platform& platform)
   return best;
 }
 
-auto ChooseUpdate(const IndexFacts& facts, const QString& current, bool nightly)
-    -> ChannelChoice {
+auto ChooseUpdate(const IndexFacts& facts, const QString& current, bool nightly,
+                  bool follow_beta) -> ChannelChoice {
   ChannelChoice choice;
   choice.list.outcome = ListOutcome::kNoMatch;
   const auto found = [&](const QString& version) {
@@ -256,16 +272,27 @@ auto ChooseUpdate(const IndexFacts& facts, const QString& current, bool nightly)
     choice.list.latest.published_at = facts.generated_at.toString(Qt::ISODate);
   };
 
+  const auto offer_beta = [&] {
+    found(facts.beta_version);
+    choice.descriptor = facts.beta_descriptor;
+    choice.descriptor_sha256 = facts.beta_descriptor_sha256;
+    return choice;
+  };
+
   if (nightly) {
-    if (facts.nightly_version.isEmpty()) return choice;
     // A release branch's nightly (X.Y.Z-alpha.N, Z > 0) is a fix build of
-    // its own series; main's channel is another series' nightly.
+    // its own series: it follows that branch's builds, the beta channel, and
+    // never main's channel, which is another series' nightly.
     const auto v = SemVer::Parse(current);
-    if (v && v->patch > 0 &&
-        !SoftwareVersion::SameSeries(current, facts.nightly_version)) {
-      choice.other_series = true;
-      return choice;
+    if (v && v->patch > 0) {
+      if (facts.beta_version.isEmpty() ||
+          !SoftwareVersion::SameSeries(current, facts.beta_version)) {
+        choice.other_series = true;
+        return choice;
+      }
+      return offer_beta();
     }
+    if (facts.nightly_version.isEmpty()) return choice;
     found(facts.nightly_version);
     choice.descriptor = facts.nightly_descriptor;
     choice.descriptor_sha256 = facts.nightly_descriptor_sha256;
@@ -274,6 +301,14 @@ auto ChooseUpdate(const IndexFacts& facts, const QString& current, bool nightly)
 
   const auto series =
       facts.series.value(SoftwareVersion::VersionSeries(current));
+  // Asked for: a beta newer than what this build runs, and newer than the
+  // release it would be offered otherwise.
+  if (follow_beta && !facts.beta_version.isEmpty() &&
+      SemVerCompare(facts.beta_version, current) > 0 &&
+      (series.latest.isEmpty() ||
+       SemVerCompare(facts.beta_version, series.latest) > 0)) {
+    return offer_beta();
+  }
   if (series.latest.isEmpty()) return choice;
   found(series.latest);
   const auto entry = facts.releases.value(series.latest);
