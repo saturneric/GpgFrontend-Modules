@@ -28,19 +28,14 @@
 
 #include <gtest/gtest.h>
 
-#include <QCryptographicHash>
 #include <QDir>
 #include <QFile>
 #include <QTemporaryDir>
 
 #include "AppImageUpdate.h"
+#include "ReleaseIndex.h"
 
 namespace {
-
-auto Sha256(const QByteArray& data) -> QString {
-  return QString::fromLatin1(
-      QCryptographicHash::hash(data, QCryptographicHash::Sha256).toHex());
-}
 
 auto Read(const QString& path) -> QByteArray {
   QFile f(path);
@@ -99,8 +94,8 @@ class AppImageInstallerTest : public ::testing::Test {
   }
 
   auto File(const QByteArray& body) -> UpdateFile {
-    return {QUrl("https://builds.example/gpgfrontend/x.AppImage"), Sha256(body),
-            body.size()};
+    return {QUrl("https://builds.example/gpgfrontend/x.AppImage"),
+            Sha256Hex(body), body.size()};
   }
 
   /// Nothing beside the image: no temporary file left behind.

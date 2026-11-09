@@ -60,5 +60,5 @@ struct SemVer {
 };
 
 /// <0, 0, >0 as @p a sorts before, with or after @p b. A side that is not
-/// SemVer ("v2.1", a GitHub tag) is compared the old, numeric way.
+/// SemVer ("v2.1", a tag from before SemVer) is compared the old, numeric way.
 auto SemVerCompare(const QString& a, const QString& b) -> int;

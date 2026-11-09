@@ -81,6 +81,14 @@ struct SeriesFacts {
   /// The oldest system its builds run on: "windows" (an NT version such as
   /// "10.0.17763"), "macos", "linux_glibc", "android_api".
   QHash<QString, QString> platforms;
+
+  /// Its beta: its release branch's newest build (X.Y.Z-alpha.N, Z > 0),
+  /// newer than `latest`; empty when there is none. Only ever a build of this
+  /// series. Its descriptor is listed as the nightly's is, and verified the
+  /// same way; it may be empty when the index names none.
+  QString beta;
+  QString beta_descriptor;
+  QString beta_descriptor_sha256;
 };
 
 /// One listed release: its descriptor, and its notes, each pinned by the
@@ -98,7 +106,6 @@ struct IndexFacts {
   QDateTime generated_at;
   QDateTime expires;
   QString nightly_version;  ///< empty when there is no nightly
-  QString stable_version;   ///< channels.stable; empty when there is none
   QStringList withdrawn;    ///< versions, as published
 
   /// The nightly's descriptor (its files), as a product-relative path, and the
@@ -107,14 +114,9 @@ struct IndexFacts {
   QString nightly_descriptor;
   QString nightly_descriptor_sha256;
 
-  /// channels.beta: a release branch's newest build (X.Y.Z-alpha.N, Z > 0),
-  /// newer than its series' latest release; empty when there is none. Its
-  /// descriptor is listed as the nightly's is, and verified the same way.
-  QString beta_version;
-  QString beta_descriptor;
-  QString beta_descriptor_sha256;
-
-  QHash<QString, SeriesFacts> series;     ///< by "X.Y"
+  /// By "X.Y". Each series' beta is its own (SeriesFacts::beta): a build is
+  /// only ever offered the beta of the series it runs.
+  QHash<QString, SeriesFacts> series;
   QHash<QString, ReleaseEntry> releases;  ///< by version, as published
 };
 
@@ -135,9 +137,23 @@ struct Platform {
 /// scheme, no "..", no empty, dot or percent-encoded segment.
 auto IsSafeRelativePath(const QString& path) -> bool;
 
+/// A SHA-256 as the index and descriptors spell it: 64 lowercase hex digits.
+auto IsSha256(const QString& hex) -> bool;
+
+/// The SHA-256 of @p data, spelled as IsSha256() wants it.
+auto Sha256Hex(const QByteArray& data) -> QString;
+
+/// The file to download on @p platform, from a release descriptor, with what
+/// the descriptor says of it; an empty path when none fits.
+struct DownloadChoice {
+  QString path;     ///< product-relative; empty when no file fits
+  QString sha256;   ///< lowercase hex, or empty when the descriptor gives none
+  qint64 size = 0;  ///< bytes, or 0 when the descriptor gives none
+};
+
 /**
- * @brief The product-relative path of the file to download on @p platform,
- * from a release descriptor, or empty when none fits.
+ * @brief What to download on @p platform: the file an in-place update checks
+ * against its sha256 and size, or the one "Download" leads to.
  *
  * The same kind of package as the running one: an AppImage for an AppImage,
  * the portable one for a portable build, the installer for an installed one.
@@ -148,18 +164,6 @@ auto IsSafeRelativePath(const QString& path) -> bool;
  * the newest macOS this machine runs; one built for a newer macOS than it
  * runs never fits.
  */
-auto SelectDownload(const QByteArray& descriptor, const Platform& platform)
-    -> QString;
-
-/// The file SelectDownload() picks, with what the descriptor says of it.
-struct DownloadChoice {
-  QString path;     ///< product-relative; empty when no file fits
-  QString sha256;   ///< lowercase hex, or empty when the descriptor gives none
-  qint64 size = 0;  ///< bytes, or 0 when the descriptor gives none
-};
-
-/// SelectDownload(), with the file's sha256 and size: what an in-place update
-/// checks the download against.
 auto SelectArtifact(const QByteArray& descriptor, const Platform& platform)
     -> DownloadChoice;
 
@@ -172,13 +176,23 @@ auto IsNightlyBuild(const QString& version) -> bool;
 /// wrong must not turn a good index into "unknown".
 inline constexpr qint64 kExpirySkewSeconds = 24 * 60 * 60;
 
+/// The longest an index may say it is valid, from `generated_at` to
+/// `expires`. The host signs for 14 days; one signed for longer is refused, so
+/// no index, however obtained, can be replayed to a client for long.
+inline constexpr qint64 kMaxIndexLifetimeSeconds = 60LL * 24 * 60 * 60;
+
 /**
  * @brief The facts of an index whose signature verified, or nullopt.
  *
  * Refused: another schema, another product (in the document or in the
  * trusted comment, which must be exactly "product=<slug> serial=<n>"), a
- * serial that disagrees with the comment, and an index expired by more than
- * kExpirySkewSeconds at @p now.
+ * serial that disagrees with the comment, an index without its
+ * `generated_at`, one valid for longer than kMaxIndexLifetimeSeconds, and one
+ * expired by more than kExpirySkewSeconds at @p now.
+ *
+ * Each series' beta is its `series.<X.Y>.beta`. An index from before that
+ * entry names one beta for all (`channels.beta` and the top-level `beta`):
+ * it counts as the beta of its own series only.
  */
 auto ParseIndex(const QByteArray& json, const QString& trusted_comment,
                 const QString& product, const QDateTime& now)
@@ -191,9 +205,9 @@ struct ChannelChoice {
   QString descriptor_sha256;
   QString notes;
   QString notes_sha256;
-  /// A nightly of a release branch (X.Y.Z-alpha.N with Z > 0) for which the
-  /// beta channel has no build of its own series: it is offered nothing,
-  /// rather than a jump to another series.
+  /// A nightly of a release branch (X.Y.Z-alpha.N with Z > 0) whose series
+  /// has no beta: it is offered nothing, rather than a jump to another
+  /// series.
   bool other_series = false;
 };
 
@@ -202,27 +216,18 @@ struct ChannelChoice {
  *
  * The nightly identity of main (X.Y.0-alpha.N) follows the nightly channel,
  * across a cut too (2.3.0-alpha.N to 2.4.0-alpha.M). A release branch's
- * nightly (X.Y.Z-alpha.N with Z > 0) follows the beta channel, within its
- * own series only. Every other build follows the newest release of its own
+ * nightly (X.Y.Z-alpha.N with Z > 0; cut.sh branches at X.Y.0) follows its
+ * series' beta. Every other build follows the newest release of its own
  * series, as the index lists it (withdrawn ones never are); with
- * @p follow_beta, the beta channel too when it is newer than both that
- * release and @p current.
+ * @p follow_beta, its series' beta too when it is newer than both that
+ * release and @p current. No build is ever offered another series' beta.
  */
 auto ChooseUpdate(const IndexFacts& facts, const QString& current, bool nightly,
                   bool follow_beta = false) -> ChannelChoice;
 
 /// Its series is no longer the one users are meant to be on: what the
-/// update page says about it.
-struct SeriesNotice {
-  QString series;            ///< "2.1"; empty when there is nothing to say
-  QString status;            ///< "legacy" or "eol"
-  QString eol;               ///< legacy: its last day of fixes
-  QString successor;         ///< the series to move to
-  QString successor_latest;  ///< its newest release; empty when none
-  /// Every requirement of the successor this machine can be checked against
-  /// holds, and none is unknown: only then is it recommended by name.
-  bool successor_runs_here = false;
-};
+/// update page says about it (SoftwareVersion::Notice, which keeps it).
+using SeriesNotice = SoftwareVersion::Notice;
 
 /// The notice for a release build of a legacy or eol series; empty (no
 /// series) for a supported series, an unknown one and any nightly.

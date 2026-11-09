@@ -29,7 +29,6 @@
 #include <gtest/gtest.h>
 #include <sodium.h>
 
-#include <QCryptographicHash>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -50,6 +49,7 @@
 using test_index::Comment;
 using test_index::Index;
 using test_index::kNow;
+using test_index::Mirrors;
 using test_index::Signer;
 
 namespace {
@@ -204,6 +204,23 @@ TEST(ReleaseIndexTest, ExpiryHasADaysGrace) {
                           Comment(5), "gpgfrontend", kNow));
 }
 
+TEST(ReleaseIndexTest, AnIndexSaysWhenItWasSignedAndIsShortLived) {
+  const auto with = [](const QJsonValue& generated_at,
+                       const QDateTime& expires = kNow.addDays(14)) {
+    return ParseIndex(Index(5, "", "gpgfrontend", expires, {},
+                            {{"generated_at", generated_at}}),
+                      Comment(5), "gpgfrontend", kNow);
+  };
+  EXPECT_TRUE(with(kNow.toString(Qt::ISODate)));
+  // Without it, or not a time: refused, as anything else unreadable.
+  EXPECT_FALSE(with(QJsonValue()));
+  EXPECT_FALSE(with("yesterday"));
+  // Valid for longer than any index the host signs: whoever signed it, it is
+  // not replayed to a client for a year.
+  EXPECT_FALSE(with(kNow.toString(Qt::ISODate), kNow.addDays(365)));
+  EXPECT_TRUE(with(kNow.addDays(-1).toString(Qt::ISODate), kNow.addDays(59)));
+}
+
 TEST(ReleaseIndexTest, NoNightlyIsAnAnswer) {
   const auto f = ParseIndex(Index(5, ""), Comment(5), "gpgfrontend", kNow);
   ASSERT_TRUE(f.has_value());
@@ -225,30 +242,6 @@ namespace {
 constexpr auto kCommit = "0123456789abcdef0123456789abcdef01234567";
 constexpr auto kMirrorA = "https://a.example/";
 constexpr auto kMirrorB = "https://b.example/";
-
-/// Mirrors as a URL table, answered at once; anything absent is a 404.
-struct Mirrors {
-  std::map<QString, std::pair<int, QByteArray>> table;
-  QStringList asked;
-
-  void Serve(const QString& base, const QByteArray& index,
-             const QByteArray& signature) {
-    table[base + "gpgfrontend/v1/index.json"] = {200, index};
-    table[base + "gpgfrontend/v1/index.json.minisig"] = {200, signature};
-  }
-
-  auto Fetcher() -> UpdateChecker::Fetcher {
-    return [this](const QUrl& url, const UpdateChecker::Reply& reply) {
-      asked << url.toString();
-      const auto it = table.find(url.toString());
-      if (it == table.end()) {
-        reply(404, {});
-      } else {
-        reply(it->second.first, it->second.second);
-      }
-    };
-  }
-};
 
 struct Nightly {
   Signer signer;
@@ -568,8 +561,8 @@ auto Descriptor() -> QByteArray {
 
 auto Pick(const char* os, const char* arch, const char* version = "",
           const char* kind = "") -> QString {
-  return SelectDownload(Descriptor(), {os, arch, version, kind})
-      .section(u'/', -1);
+  return SelectArtifact(Descriptor(), {os, arch, version, kind})
+      .path.section(u'/', -1);
 }
 
 }  // namespace
@@ -593,12 +586,13 @@ TEST(DownloadTest, AnUnsafePathIsNeverOffered) {
                                    {"arch", "x86_64"},
                                    {"flavor", "installed"},
                                    {"path", "../other/evil.AppImage"}}};
-  EXPECT_EQ(SelectDownload(
+  EXPECT_EQ(SelectArtifact(
                 QJsonDocument(QJsonObject{{"artifacts", artifacts}}).toJson(),
-                {"linux", "x86_64", ""}),
+                {"linux", "x86_64", ""})
+                .path,
             "");
-  for (const auto* bad :
-       {"", "a/../b", "/etc/x", "https://x/y", "a%2fb", "a//b", "./a"}) {
+  for (const auto* bad : {"", "a/../b", "/etc/x", "https://x/y", "a%2fb",
+                          "a//b", "./a", "a/b\n", "a/b\n/c"}) {
     EXPECT_FALSE(IsSafeRelativePath(bad)) << bad;
   }
   EXPECT_TRUE(IsSafeRelativePath("nightly/2.3.0-alpha.9-gabc/release.json"));
@@ -639,12 +633,10 @@ namespace {
 auto WithDescriptor(QByteArray index, const QString& path,
                     const QByteArray& descriptor) -> QByteArray {
   auto obj = QJsonDocument::fromJson(index).object();
-  obj["nightly"] = QJsonObject{
-      {"version", obj["channels"].toObject()["nightly"]},
-      {"descriptor", path},
-      {"sha256", QString::fromLatin1(QCryptographicHash::hash(
-                                         descriptor, QCryptographicHash::Sha256)
-                                         .toHex())}};
+  obj["nightly"] =
+      QJsonObject{{"version", obj["channels"].toObject()["nightly"]},
+                  {"descriptor", path},
+                  {"sha256", Sha256Hex(descriptor)}};
   return QJsonDocument(obj).toJson();
 }
 

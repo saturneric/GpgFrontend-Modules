@@ -29,7 +29,8 @@
 #pragma once
 
 // What every index-driven test needs: a signer that signs as minisign does,
-// and the index the release server publishes, built from its parts.
+// the index the release server publishes, built from its parts, and mirrors
+// that serve it.
 
 #include <sodium.h>
 
@@ -42,6 +43,10 @@
 #include <QStringList>
 #include <array>
 #include <cstdlib>
+#include <map>
+#include <utility>
+
+#include "UpdateChecker.h"
 
 namespace test_index {
 
@@ -97,9 +102,9 @@ class Signer {
 inline const QDateTime kNow =
     QDateTime::fromString("2026-11-06T12:00:00Z", Qt::ISODate);
 
-/// The index as scripts/release/gfrelease writes it. @p extra adds or
-/// replaces top-level fields: "series", "releases", "channels" for a test
-/// about release builds.
+/// The index as scripts/release/gfrelease writes it, signed 14 days before it
+/// @p expires. @p extra adds or replaces top-level fields: "series",
+/// "releases", "channels" for a test about release builds.
 inline auto Index(qint64 serial, const QString& nightly,
                   const QString& product = "gpgfrontend",
                   const QDateTime& expires = kNow.addDays(14),
@@ -112,13 +117,14 @@ inline auto Index(qint64 serial, const QString& nightly,
   QJsonArray w;
   for (const auto& v : withdrawn)
     w.append(QJsonObject{{"version", v}, {"reason", "r"}});
-  QJsonObject index{{"schema", 1},
-                    {"product", product},
-                    {"serial", serial},
-                    {"generated_at", kNow.toString(Qt::ISODate)},
-                    {"expires", expires.toUTC().toString(Qt::ISODate)},
-                    {"channels", channels},
-                    {"withdrawn", w}};
+  QJsonObject index{
+      {"schema", 1},
+      {"product", product},
+      {"serial", serial},
+      {"generated_at", expires.addDays(-14).toUTC().toString(Qt::ISODate)},
+      {"expires", expires.toUTC().toString(Qt::ISODate)},
+      {"channels", channels},
+      {"withdrawn", w}};
   for (auto it = extra.begin(); it != extra.end(); ++it) {
     index[it.key()] = it.value();
   }
@@ -129,5 +135,36 @@ inline auto Comment(qint64 serial, const QString& product = "gpgfrontend")
     -> QString {
   return QStringLiteral("product=%1 serial=%2").arg(product).arg(serial);
 }
+
+/// The update and build mirrors as a table of URL -> (status, body), every
+/// request answered at once; anything not in it is a 404. (UpdateCheckerTest
+/// has its own server that holds each request until the test answers it.)
+struct Mirrors {
+  std::map<QString, std::pair<int, QByteArray>> table;
+  QStringList asked;
+
+  void Put(const QString& url, const QByteArray& body, int status = 200) {
+    table[url] = {status, body};
+  }
+
+  /// @p index and its @p signature, as <base>gpgfrontend/v1/ serves them.
+  void Serve(const QString& base, const QByteArray& index,
+             const QByteArray& signature) {
+    Put(base + "gpgfrontend/v1/index.json", index);
+    Put(base + "gpgfrontend/v1/index.json.minisig", signature);
+  }
+
+  auto Fetcher() -> UpdateChecker::Fetcher {
+    return [this](const QUrl& url, const UpdateChecker::Reply& reply) {
+      asked << url.toString();
+      const auto it = table.find(url.toString());
+      if (it == table.end()) {
+        reply(404, {});
+      } else {
+        reply(it->second.first, it->second.second);
+      }
+    };
+  }
+};
 
 }  // namespace test_index

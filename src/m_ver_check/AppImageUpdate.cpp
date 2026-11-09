@@ -33,6 +33,8 @@
 #include <QFileInfo>
 #include <QPointer>
 
+#include "ReleaseIndex.h"
+
 auto ReplaceableAppImage(const QString& appimage_env) -> QString {
   if (appimage_env.isEmpty()) return {};
   const QFileInfo image(appimage_env);
@@ -102,7 +104,7 @@ void AppImageInstaller::Start() {
   if (started_) return;
   started_ = true;
 
-  if (image_.isEmpty() || file_.size <= 0 || file_.sha256.size() != 64 ||
+  if (image_.isEmpty() || file_.size <= 0 || !IsSha256(file_.sha256) ||
       file_.url.scheme() != QLatin1String("https")) {
     done(false, QCoreApplication::translate(
                     "UpdateTab", "The update does not describe its file."));

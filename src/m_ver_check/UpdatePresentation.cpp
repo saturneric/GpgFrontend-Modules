@@ -175,7 +175,6 @@ void RestrictNotesLinks(QTextDocument* document, const QStringList& hosts) {
 auto PresentUpdate(const UpdateSnapshot& s, const QDateTime& now)
     -> UpdateView {
   UpdateView v;
-  v.busy = s.checking;
   v.check_enabled = !s.checking;
 
   if (!s.last_good) {
@@ -229,7 +228,7 @@ auto PresentUpdate(const UpdateSnapshot& s, const QDateTime& now)
         v.download_sha256 = r.list.latest.download_sha256;
         v.download_size = r.list.latest.download_size;
         v.installable =
-            nightly && v.download_sha256.size() == 64 && v.download_size > 0;
+            nightly && IsSha256(v.download_sha256) && v.download_size > 0;
       }
       v.notes = r.list.latest.notes.trimmed();
       v.show_notes = !v.notes.isEmpty();
