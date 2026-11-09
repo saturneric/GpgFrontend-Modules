@@ -28,11 +28,11 @@
 
 #include "UpdateChecker.h"
 
-#include <QCryptographicHash>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QPointer>
 #include <QRegularExpression>
+#include <utility>
 
 #include "Minisign.h"
 #include "ReleaseCheck.h"
@@ -61,10 +61,15 @@ auto UpdateChecker::State() const -> const UpdateSnapshot& { return state_; }
 
 auto UpdateChecker::IsFresh() const -> bool {
   const auto& good = state_.last_good;
-  return good && IsAuthoritative(*good) &&
-         good->SameBuild(build_.version, build_.commit) &&
-         good->follow_beta == followsBeta() &&
-         good->checked_at.secsTo(clock_()) < kFreshSeconds;
+  if (!good || !IsAuthoritative(*good) ||
+      !good->SameBuild(build_.version, build_.commit) ||
+      good->follow_beta != followsBeta()) {
+    return false;
+  }
+  // A result from the future is from a clock that was set back since: how
+  // old it really is cannot be told, and it is not fresh for ever.
+  const auto age = good->checked_at.secsTo(clock_());
+  return age >= 0 && age < kFreshSeconds;
 }
 
 auto UpdateChecker::IsNightly() const -> bool { return nightly_; }
@@ -75,6 +80,11 @@ auto UpdateChecker::followsBeta() const -> bool {
 
 void UpdateChecker::SetFollowBeta(bool follow_beta) {
   build_.follow_beta = follow_beta;
+  // The running check asked under the old answer: once it is done, another
+  // asks under the new one, rather than the next tick an hour later.
+  if (state_.checking && fresh_.follow_beta != followsBeta()) {
+    again_ = true;
+  }
 }
 
 auto UpdateChecker::Attention() const -> UpdateAttention {
@@ -98,6 +108,8 @@ void UpdateChecker::Start(CheckMode mode) {
   fresh_.local_commit_hash = build_.commit;
   fresh_.nightly = nightly_;
   fresh_.follow_beta = followsBeta();
+  again_ = false;
+  marker_failed_ = false;
   accepted_serial_ = 0;
   descriptor_path_.clear();
   descriptor_sha256_.clear();
@@ -107,8 +119,7 @@ void UpdateChecker::Start(CheckMode mode) {
 }
 
 void UpdateChecker::startIndex() {
-  // One finish() at the end of the chain, however it ends.
-  pending_ = 1;
+  // One finish() at the end of the chain, however it ends (finish()).
   state_.checking = true;
   emit Changed();
 
@@ -134,7 +145,7 @@ void UpdateChecker::tryIndexBase(qsizetype i, bool retried) {
   fetch_(QUrl(url), [self, i, url, retried](int status,
                                             const QByteArray& body) {
     if (self.isNull()) return;
-    if (status != 200) {
+    if (status != 200 || body.size() > kMaxFetchBytes) {
       self->tryIndexBase(i + 1);
       return;
     }
@@ -142,7 +153,8 @@ void UpdateChecker::tryIndexBase(qsizetype i, bool retried) {
         QUrl(url + QStringLiteral(".minisig")),
         [self, i, body, retried](int sig_status, const QByteArray& signature) {
           if (self.isNull()) return;
-          if (sig_status == 200 && self->acceptIndex(body, signature)) {
+          if (sig_status == 200 && signature.size() <= kMaxFetchBytes &&
+              self->acceptIndex(body, signature)) {
             self->askDescriptor();
             return;
           }
@@ -175,9 +187,7 @@ auto UpdateChecker::acceptIndex(const QByteArray& body,
   fresh_.tag_fact = nightly_ ? WithdrawnFact(*facts, build_.version)
                              : ReleaseFact(*facts, build_.version);
   if (!nightly_) {
-    const auto n = NoticeFor(*facts, build_.version, build_.platform);
-    fresh_.notice = {n.series,    n.status,           n.eol,
-                     n.successor, n.successor_latest, n.successor_runs_here};
+    fresh_.notice = NoticeFor(*facts, build_.version, build_.platform);
   }
   accepted_serial_ = facts->serial;
   descriptor_path_ = choice.descriptor;
@@ -204,10 +214,8 @@ void UpdateChecker::askDescriptor(qsizetype i) {
       [self, base, i](int status, const QByteArray& body) {
         if (self.isNull()) return;
         // The signed index names this exact descriptor by its hash.
-        const auto digest =
-            QCryptographicHash::hash(body, QCryptographicHash::Sha256).toHex();
-        if (status != 200 ||
-            QString::fromLatin1(digest) != self->descriptor_sha256_) {
+        if (status != 200 || body.size() > kMaxFetchBytes ||
+            Sha256Hex(body) != self->descriptor_sha256_) {
           self->askDescriptor(i + 1);
           return;
         }
@@ -234,20 +242,17 @@ void UpdateChecker::askNotes(qsizetype i) {
   }
 
   QPointer<UpdateChecker> self(this);
-  fetch_(
-      QUrl(channel.build_bases[i] + channel.product + u'/' + notes_path_),
-      [self, i](int status, const QByteArray& body) {
-        if (self.isNull()) return;
-        const auto digest =
-            QCryptographicHash::hash(body, QCryptographicHash::Sha256).toHex();
-        if (status != 200 || body.size() > kMaxNotesBytes ||
-            QString::fromLatin1(digest) != self->notes_sha256_) {
-          self->askNotes(i + 1);
-          return;
-        }
-        self->fresh_.list.latest.notes = QString::fromUtf8(body);
-        self->askCommitMarker();
-      });
+  fetch_(QUrl(channel.build_bases[i] + channel.product + u'/' + notes_path_),
+         [self, i](int status, const QByteArray& body) {
+           if (self.isNull()) return;
+           if (status != 200 || body.size() > kMaxNotesBytes ||
+               Sha256Hex(body) != self->notes_sha256_) {
+             self->askNotes(i + 1);
+             return;
+           }
+           self->fresh_.list.latest.notes = QString::fromUtf8(body);
+           self->askCommitMarker();
+         });
 }
 
 void UpdateChecker::askCommitMarker() {
@@ -267,16 +272,20 @@ void UpdateChecker::askCommitMarker() {
          [self](int status, const QByteArray& /*body*/) {
            if (self.isNull()) return;
            self->fresh_.commit_fact = ParseCommitMarker(status);
+           // 200 or 404 answer; anything else is a lookup that failed.
+           self->marker_failed_ =
+               self->fresh_.commit_fact == RemoteFact::kUnknown;
            self->finish();
          });
 }
 
 void UpdateChecker::finish() {
-  if (--pending_ > 0) return;
+  if (!state_.checking) return;  // finished already: a reply answered twice
 
   const auto now = clock_();
   fresh_.checked_at = now;
   fresh_.complete = IsComplete(fresh_);
+  fresh_.settled = IsUsable(fresh_) && accepted_serial_ > 0 && !marker_failed_;
 
   state_.checking = false;
   state_.last_attempt = now;
@@ -286,6 +295,7 @@ void UpdateChecker::finish() {
 
   if (store_.save) store_.save(ToStorage(state_));
   emit Changed();
+  if (std::exchange(again_, false)) Start(CheckMode::kIfStale);
 }
 
 auto UpdateChecker::ToStorage(const UpdateSnapshot& s) -> QByteArray {
@@ -319,7 +329,8 @@ auto UpdateChecker::FromStorage(const QByteArray& data, const Build& build)
   // Which update the user has seen is not a fact about this build: an
   // upgrade, or a rebuild, must not advertise it again.
   s.last_seen_update_version = obj.value("last_seen_update_version").toString();
-  s.max_serial = obj.value("max_serial").toInteger();
+  // Never below zero: a damaged store only forgets what was seen.
+  s.max_serial = std::max<qint64>(0, obj.value("max_serial").toInteger());
   if (obj.value("last_seen_at").isDouble()) {
     s.last_seen_at =
         QDateTime::fromSecsSinceEpoch(obj.value("last_seen_at").toInteger());

@@ -94,6 +94,7 @@ auto SoftwareVersion::ToJson() const -> QJsonObject {
   obj["tag_fact"] = NameOf(kFactNames, tag_fact);
   obj["commit_fact"] = NameOf(kFactNames, commit_fact);
   obj["complete"] = complete;
+  if (settled) obj["settled"] = true;  // additive: absent reads as unsettled
   if (nightly) obj["nightly"] = true;  // additive: absent reads as a release
   if (other_series) obj["other_series"] = true;  // additive
   if (follow_beta) obj["follow_beta"] = true;    // additive
@@ -131,6 +132,7 @@ auto SoftwareVersion::FromJson(const QJsonObject& obj)
   sv.tag_fact = ValueOf(kFactNames, obj.value("tag_fact").toString());
   sv.commit_fact = ValueOf(kFactNames, obj.value("commit_fact").toString());
   sv.complete = obj.value("complete").toBool();
+  sv.settled = obj.value("settled").toBool();
   sv.nightly = obj.value("nightly").toBool();
   sv.other_series = obj.value("other_series").toBool();
   sv.follow_beta = obj.value("follow_beta").toBool();
@@ -169,9 +171,4 @@ auto SoftwareVersion::VersionSeries(const QString& version) -> QString {
   if (!major_ok || !minor_ok) return {};
 
   return parts[0] + "." + parts[1];
-}
-
-auto SoftwareVersion::SameSeries(const QString& a, const QString& b) -> bool {
-  auto series_a = VersionSeries(a);
-  return !series_a.isEmpty() && series_a == VersionSeries(b);
 }

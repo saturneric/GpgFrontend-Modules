@@ -61,11 +61,6 @@ namespace {
 /// body and warns about an unknown namespace.
 using CommandMeta = gf::cmd::Meta;
 
-/// Whether to check at startup. The Host's own setting: the setup wizard
-/// asks it, and this module's settings page shows the same switch rather
-/// than a second one that could disagree.
-constexpr auto kProhibitKey = "network/prohibit_update_check";
-
 /// The checker's state, last known good result included.
 constexpr auto kStateKey = "update_checking_state";
 
@@ -75,9 +70,32 @@ constexpr auto kFollowBetaKey = "follow_beta";
 std::atomic<bool> g_stopped{false};
 QPointer<UpdateChecker> g_checker;
 
-/// A GET through Qt: the GitHub API, or the update index and its mirrors. Every
-/// request answers, success or not: a transport failure is status 0, and the
-/// transfer timeout bounds a server that never replies.
+/// A request to the update or build mirrors, as every one of them is made.
+/// @p idle_ms bounds the wait between two packets.
+auto MirrorRequest(const QUrl& url, int idle_ms) -> QNetworkRequest {
+  QNetworkRequest request(url);
+  request.setTransferTimeout(idle_ms);
+  request.setHeader(QNetworkRequest::UserAgentHeader,
+                    GFAppUserAgent(GFModuleSdkContext()));
+#ifdef GF_RELEASE_CA
+  // A rehearsal build (GF_RELEASE_CA_OVERRIDE): its mirror's CA, for these
+  // requests only. Never compiled into a build that is distributed.
+  auto tls = request.sslConfiguration();
+  tls.addCaCertificates(QStringLiteral(GF_RELEASE_CA));
+  request.setSslConfiguration(tls);
+#endif
+  return request;
+}
+
+/// The longest one answer of a check may take, start to end: a server that
+/// keeps sending slowly is cut off too, not only one that stops.
+constexpr int kFetchDeadlineMs = 2 * 60 * 1000;
+
+/// A GET of the update index, its signature, a descriptor, notes or a commit
+/// marker. Every request answers once, success or not: a transport failure,
+/// a body larger than UpdateChecker::kMaxFetchBytes (no more of it is read)
+/// and an answer cut off by the deadline are status 0, whatever the headers
+/// said before.
 auto MakeFetcher(QNetworkAccessManager* nam) -> UpdateChecker::Fetcher {
   return [nam = QPointer<QNetworkAccessManager>(nam)](
              const QUrl& url, const UpdateChecker::Reply& reply) {
@@ -86,25 +104,27 @@ auto MakeFetcher(QNetworkAccessManager* nam) -> UpdateChecker::Fetcher {
       return;
     }
 
-    QNetworkRequest request(url);
-    request.setTransferTimeout(30000);
-    request.setHeader(QNetworkRequest::UserAgentHeader,
-                      GFAppUserAgent(GFModuleSdkContext()));
-#ifdef GF_RELEASE_CA
-    // A rehearsal build (GF_RELEASE_CA_OVERRIDE): its mirror's CA, for
-    // these requests only. Never compiled into a build that is distributed.
-    auto tls = request.sslConfiguration();
-    tls.addCaCertificates(QStringLiteral(GF_RELEASE_CA));
-    request.setSslConfiguration(tls);
-#endif
-
-    auto* r = nam->get(request);
+    auto* r = nam->get(MirrorRequest(url, 30000));
+    QTimer::singleShot(kFetchDeadlineMs, r, [r] { r->abort(); });
+    QObject::connect(r, &QNetworkReply::downloadProgress, r,
+                     [r](qint64 received, qint64 /*total*/) {
+                       if (received > UpdateChecker::kMaxFetchBytes) {
+                         r->abort();
+                       }
+                     });
     QObject::connect(r, &QNetworkReply::finished, r, [r, reply] {
-      const int status =
+      int status =
           r->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+      // A success the transfer did not finish (a timeout, an abort, a reset
+      // halfway through the body) is no answer at all. An HTTP error status
+      // stays what it is: a 404 means something (ParseCommitMarker).
+      if (r->error() != QNetworkReply::NoError && status >= 200 &&
+          status < 300) {
+        status = 0;
+      }
       FLOG_DEBUG("update check reply: %1, http status: %2, error: %3",
                  r->url().toString(), status, r->errorString());
-      const auto body = r->readAll();
+      const auto body = status == 0 ? QByteArray() : r->readAll();
       r->deleteLater();
       reply(status, body);
     });
@@ -123,13 +143,8 @@ auto MakeDownload(QNetworkAccessManager* nam) -> AppImageInstaller::Download {
       done(false, QStringLiteral("no network access"));
       return;
     }
-    QNetworkRequest request(url);
-    // Between two packets, not for the whole file.
-    request.setTransferTimeout(60000);
-    request.setHeader(QNetworkRequest::UserAgentHeader,
-                      GFAppUserAgent(GFModuleSdkContext()));
-
-    auto* r = nam->get(request);
+    // 60 s between two packets, not for the whole file: an image is large.
+    auto* r = nam->get(MirrorRequest(url, 60000));
     QPointer<QIODevice> out(sink);
     auto take = [r, out] {
       const auto chunk = r->readAll();
@@ -258,13 +273,13 @@ class UpdateSettingsWidget : public QWidget, public gf::ui::SettingsWidget {
 
   void LoadSettings() override {
     check_->setChecked(!gf::sdk::Setting(GFModuleSdkContext(), GF_SETTING_HOST,
-                                         kProhibitKey, true)
+                                         kProhibitUpdateCheckKey, true)
                             .toBool());
   }
 
   auto ApplySettings() -> bool override {
     return gf::sdk::SetSetting(GFModuleSdkContext(), GF_SETTING_HOST,
-                               kProhibitKey, !check_->isChecked());
+                               kProhibitUpdateCheckKey, !check_->isChecked());
   }
 
  private:
@@ -424,8 +439,8 @@ constexpr int kAutoCheckTickMs = 60 * 60 * 1000;
 /// change in Settings applies without a restart. Absent until the setup
 /// wizard has run: no check before the user has been asked at all.
 auto AutoCheckAllowed() -> bool {
-  const auto prohibited =
-      gf::sdk::Setting(GFModuleSdkContext(), GF_SETTING_HOST, kProhibitKey);
+  const auto prohibited = gf::sdk::Setting(
+      GFModuleSdkContext(), GF_SETTING_HOST, kProhibitUpdateCheckKey);
   return prohibited.isValid() && !prohibited.toBool();
 }
 

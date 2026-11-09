@@ -50,7 +50,7 @@ auto IsComplete(const SoftwareVersion& fresh) -> bool {
 }
 
 auto IsAuthoritative(const SoftwareVersion& r) -> bool {
-  return IsUsable(r) && r.complete;
+  return IsUsable(r) && (r.complete || r.settled);
 }
 
 auto Merge(const std::optional<SoftwareVersion>& prev,

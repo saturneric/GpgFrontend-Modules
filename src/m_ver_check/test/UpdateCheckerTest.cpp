@@ -172,6 +172,114 @@ TEST(UpdateCheckerTest, StartIsVisibleSynchronously) {
   EXPECT_EQ(h.saves, 1);
 }
 
+TEST(UpdateCheckerTest, AnAnswerTooLargeIsNoAnswer) {
+  Harness h;
+  auto c = h.Make();
+  c->Start(CheckMode::kForce);
+  ASSERT_EQ(h.server.pending.size(), 1U);
+  auto held = std::move(h.server.pending);
+  h.server.pending.clear();
+  held.front().reply(200, QByteArray(UpdateChecker::kMaxFetchBytes + 1, '{'));
+  // The only base: nothing verified, nothing claimed.
+  EXPECT_FALSE(c->State().checking);
+  EXPECT_FALSE(c->State().last_good);
+  EXPECT_TRUE(c->State().last_attempt_failed);
+}
+
+TEST(UpdateCheckerTest, AReplyAnsweredTwiceFinishesOnce) {
+  Harness h;
+  auto c = h.Make();
+  c->Start(CheckMode::kForce);
+  const auto [index, signature] = h.server.Signed("2.1.9");
+  while (!h.server.pending.empty()) {
+    auto held = std::move(h.server.pending);
+    h.server.pending.clear();
+    for (auto& p : held) {
+      const auto url = p.url.toString();
+      if (url.endsWith("/v1/index.json")) {
+        p.reply(200, index);
+      } else if (url.endsWith(".minisig")) {
+        p.reply(200, signature);
+      } else if (url.contains("/commits/")) {
+        p.reply(200, {});
+        p.reply(200, {});  // a transport that calls back twice
+      } else {
+        p.reply(404, {});
+      }
+    }
+  }
+  EXPECT_EQ(h.saves, 1);
+  EXPECT_FALSE(c->State().checking);
+}
+
+TEST(UpdateCheckerTest, ABetaSettingChangedDuringACheckAsksAgain) {
+  Harness h;
+  auto c = h.Make();
+  c->Start(CheckMode::kIfStale);
+  c->SetFollowBeta(true);
+  // The running check asked without betas; once done, another asks with.
+  h.server.AnswerAll(true);
+  EXPECT_EQ(h.server.asked.filter("/v1/index.json.minisig").size(), 2);
+  ASSERT_TRUE(c->State().last_good);
+  EXPECT_TRUE(c->State().last_good->follow_beta);
+  EXPECT_TRUE(c->IsFresh());
+
+  // Set back and forth while nothing runs: no check of its own.
+  const auto before = h.server.requests;
+  c->SetFollowBeta(false);
+  c->SetFollowBeta(true);
+  EXPECT_EQ(h.server.requests, before);
+}
+
+TEST(UpdateCheckerTest, AReleaseTheIndexDoesNotListIsAskedDaily) {
+  Harness h;
+  // 2.1.7: a release from before the index lists it.
+  auto c = h.Make(h.Build("v2.1.7"));
+  c->Start(CheckMode::kIfStale);
+  h.server.AnswerAll(true);
+  ASSERT_TRUE(c->State().last_good);
+  EXPECT_EQ(c->State().last_good->tag_fact, RemoteFact::kUnknown);
+  // "Not listed" is an answer: no new check on the next hourly tick.
+  EXPECT_TRUE(c->IsFresh());
+  const auto before = h.server.requests;
+  c->Start(CheckMode::kIfStale);
+  EXPECT_EQ(h.server.requests, before);
+  // Still known after a restart.
+  EXPECT_TRUE(h.Make(h.Build("v2.1.7"))->IsFresh());
+
+  // A marker the server could not answer is a lookup that failed: asked
+  // again on the next tick.
+  Harness g;
+  auto d = g.Make(g.Build("v2.1.7"));
+  d->Start(CheckMode::kIfStale);
+  g.server.AnswerPartial();
+  EXPECT_FALSE(d->IsFresh());
+}
+
+TEST(UpdateCheckerTest, AClockSetBackIsNotFreshForEver) {
+  Harness h;
+  auto c = h.Make();
+  c->Start(CheckMode::kIfStale);
+  h.server.AnswerAll(true);
+  ASSERT_TRUE(c->IsFresh());
+  // Checked "in the future": how old the result is cannot be told.
+  h.now = h.now.addDays(-3);
+  EXPECT_FALSE(c->IsFresh());
+}
+
+TEST(UpdateCheckerTest, ADamagedStoreOnlyForgetsTheSerial) {
+  Harness h;
+  for (const auto* bad :
+       {R"({"schema":2,"max_serial":-5})", R"({"schema":2,"max_serial":"9"})",
+        R"({"schema":2,"max_serial":1.5})"}) {
+    EXPECT_EQ(UpdateChecker::FromStorage(bad, h.Build()).max_serial, 0) << bad;
+  }
+  EXPECT_EQ(
+      UpdateChecker::FromStorage(R"({"schema":2,"max_serial":7})", h.Build())
+          .max_serial,
+      7);
+}
+
 TEST(UpdateCheckerTest, SecondStartJoinsTheRunningCheck) {
   Harness h;
   auto c = h.Make();
@@ -314,7 +422,9 @@ TEST(UpdateCheckerTest, NoCommitHashSkipsTheCommitLookup) {
   }
   ASSERT_TRUE(c->State().last_good);
   EXPECT_EQ(c->State().last_good->commit_fact, RemoteFact::kUnknown);
-  EXPECT_FALSE(c->IsFresh());
+  // Nothing more could be asked: the result stands for a day, as any other.
+  EXPECT_FALSE(c->State().last_good->complete);
+  EXPECT_TRUE(c->IsFresh());
 }
 
 TEST(UpdateCheckerTest, SynchronousFetcherStillFinishesOnce) {
@@ -410,7 +520,7 @@ TEST(UpdateCheckerTest, FailedOrUnknownCheckNeverAsksForAttention) {
   EXPECT_EQ(AttentionFor(c->State()), UpdateAttention::kNone);
 
   c->Start(CheckMode::kForce);
-  h.server.AnswerPartial();  // rate-limited lookups, no newer release
+  h.server.AnswerPartial();  // a marker not answered, no newer release
   EXPECT_EQ(AttentionFor(c->State()), UpdateAttention::kNone);
 }
 

@@ -120,6 +120,11 @@ class UpdateChecker : public QObject {
   static constexpr qint64 kFreshSeconds = 24 * 60 * 60;
   /// Release notes are a page of text; anything larger is not taken.
   static constexpr qsizetype kMaxNotesBytes = 256 * 1024;
+  /// The most any answer may weigh: the index, a signature, a descriptor.
+  /// The fetcher stops reading past it (MakeFetcher); the checker refuses a
+  /// larger body whatever transport it was handed. The host refuses to
+  /// publish anything larger (gfrelease's SMALL_OBJECT_LIMIT).
+  static constexpr qsizetype kMaxFetchBytes = 8 * 1024 * 1024;
 
   UpdateChecker(Build build, Fetcher fetch, Store store, Clock clock = {},
                 QObject* parent = nullptr);
@@ -145,7 +150,8 @@ class UpdateChecker : public QObject {
 
   /// The user's "Also offer beta versions", for the next check. A result
   /// made under the other answer is no longer fresh (IsFresh()), so the next
-  /// kIfStale check asks again.
+  /// kIfStale check asks again; a check running under the other answer is
+  /// followed by one under this answer.
   void SetFollowBeta(bool follow_beta);
 
   /// The state as stored; FromStorage() reads it back for @p build only.
@@ -180,7 +186,8 @@ class UpdateChecker : public QObject {
 
   UpdateSnapshot state_;
   SoftwareVersion fresh_;
-  int pending_ = 0;
+  bool again_ = false;          ///< check again once the running check finishes
+  bool marker_failed_ = false;  ///< the commit marker was asked, not answered
   qint64 accepted_serial_ = 0;
   QString descriptor_path_;    ///< of the release the accepted index offers
   QString descriptor_sha256_;  ///< what the signed index says it hashes to

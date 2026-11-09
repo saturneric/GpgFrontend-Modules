@@ -68,8 +68,10 @@ struct ListResult {
  *
  * `complete` is set when the check that produced this result answered every
  * question itself. A result can be usable (the release list came back) while
- * incomplete (a lookup failed); only a complete one is trusted enough to skip
- * the next startup check.
+ * incomplete (a lookup failed, or had nothing to find); a complete one is
+ * trusted enough to skip the next startup check. So is a `settled` one, whose
+ * check got an answer to every question it could ask, an "unknown" among them
+ * (a release the index does not list, a build without a commit to look up).
  */
 struct SoftwareVersion {
   static constexpr int kSchema = 2;
@@ -81,6 +83,7 @@ struct SoftwareVersion {
   RemoteFact tag_fact = RemoteFact::kUnknown;
   RemoteFact commit_fact = RemoteFact::kUnknown;
   bool complete = false;
+  bool settled = false;
 
   /// Whether this build is the nightly application, as the checker knew it
   /// (the Host says; an older Host leaves it to the version's shape). What it
@@ -97,11 +100,14 @@ struct SoftwareVersion {
 
   /// Its series is legacy or eol (NoticeFor()); empty series otherwise.
   struct Notice {
-    QString series;
-    QString status;
-    QString eol;
-    QString successor;
-    QString successor_latest;
+    QString series;            ///< "2.1"; empty when there is nothing to say
+    QString status;            ///< "legacy" or "eol"
+    QString eol;               ///< legacy: its last day of fixes
+    QString successor;         ///< the series to move to
+    QString successor_latest;  ///< its newest release; empty when none
+    /// Every requirement of the successor this machine can be checked
+    /// against holds, and none is unknown: only then is it recommended by
+    /// name.
     bool successor_runs_here = false;
   } notice;
 
@@ -126,12 +132,4 @@ struct SoftwareVersion {
    * @return QString the "major.minor" series identifier.
    */
   [[nodiscard]] static auto VersionSeries(const QString& version) -> QString;
-
-  /**
-   * @brief Whether two versions belong to the same release series.
-   *
-   * @return true if both versions share a non-empty "major.minor" series.
-   */
-  [[nodiscard]] static auto SameSeries(const QString& a, const QString& b)
-      -> bool;
 };
