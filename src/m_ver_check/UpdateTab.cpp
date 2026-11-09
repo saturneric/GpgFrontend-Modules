@@ -67,7 +67,7 @@ auto ToneIcon(const QStyle* style, UpdateTone tone) -> QIcon {
 /// is not a yes: the startup check reads it the same way.
 auto UpdateCheckProhibited() -> bool {
   return gf::sdk::Setting(GFModuleSdkContext(), GF_SETTING_HOST,
-                          "network/prohibit_update_check", true)
+                          kProhibitUpdateCheckKey, true)
       .toBool();
 }
 

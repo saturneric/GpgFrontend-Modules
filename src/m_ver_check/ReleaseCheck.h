@@ -28,8 +28,6 @@
 
 #pragma once
 
-#include <QByteArray>
-#include <QString>
 #include <optional>
 
 #include "SoftwareVersion.h"
@@ -55,8 +53,10 @@ enum class Verdict {
 /// The release list came back: the result can be shown and kept.
 auto IsUsable(const SoftwareVersion& r) -> bool;
 
-/// Usable, and its own check answered every question: good enough to skip
-/// the next startup check.
+/// Usable, and its own check answered every question (complete), or got an
+/// answer to every question it could ask, "unknown" among them (settled: a
+/// release the index does not list, a build with no commit to look up): good
+/// enough to skip the next startup check, and the next hourly one.
 auto IsAuthoritative(const SoftwareVersion& r) -> bool;
 
 /// Whether a fresh check answered every question itself.

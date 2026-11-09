@@ -37,6 +37,12 @@ class QObject;
 class UpdateChecker;
 struct UpdateFile;
 
+/// Whether to check at startup: the Host's own setting. The setup wizard
+/// asks it, and this module's settings page and update dialog show the same
+/// switch rather than a second one that could disagree. Absent means the
+/// wizard has not asked yet, which is not a yes.
+inline constexpr auto kProhibitUpdateCheckKey = "network/prohibit_update_check";
+
 /**
  * @brief The module's one update checker, created on first use.
  *
