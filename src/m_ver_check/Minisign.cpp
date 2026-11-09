@@ -31,7 +31,6 @@
 #include <sodium.h>
 
 #include <array>
-#include <cstring>
 
 namespace {
 

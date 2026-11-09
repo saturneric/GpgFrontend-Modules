@@ -63,7 +63,7 @@ auto Current() -> SoftwareVersion {
 TEST(UpdatePresentationTest, NothingKnownYet) {
   const auto v = PresentUpdate({}, kNow);
   EXPECT_FALSE(v.show_download);
-  EXPECT_FALSE(v.busy);
+  EXPECT_TRUE(v.check_enabled);
   EXPECT_TRUE(v.check_enabled);
   EXPECT_EQ(v.check_label, "Check now");
   EXPECT_TRUE(v.freshness.isEmpty());
@@ -73,7 +73,7 @@ TEST(UpdatePresentationTest, FirstCheckInProgress) {
   UpdateSnapshot s;
   s.checking = true;
   const auto v = PresentUpdate(s, kNow);
-  EXPECT_TRUE(v.busy);
+  EXPECT_FALSE(v.check_enabled);
   EXPECT_FALSE(v.check_enabled);
   EXPECT_EQ(v.check_label, "Checking…");
   EXPECT_FALSE(v.show_download);
@@ -133,7 +133,7 @@ TEST(UpdatePresentationTest, CheckingKeepsPreviousResultVisible) {
   s.last_good = Update();
   s.checking = true;
   const auto v = PresentUpdate(s, kNow);
-  EXPECT_TRUE(v.busy);
+  EXPECT_FALSE(v.check_enabled);
   EXPECT_FALSE(v.check_enabled);
   EXPECT_TRUE(v.show_download);
   EXPECT_EQ(v.headline, "GpgFrontend 2.1.9 is available");

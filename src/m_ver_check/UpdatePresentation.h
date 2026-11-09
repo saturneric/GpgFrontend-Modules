@@ -40,8 +40,8 @@
  *
  * The checker keeps a precise model; the user gets a headline, a line of
  * detail and at most two buttons. Failure wording stays generic: the cause of
- * a failed request (offline, rate limit, server) is not known for certain,
- * so it is not guessed.
+ * a failed request (offline, a mirror down, a server error) is not known for
+ * certain, so it is not guessed.
  */
 
 /// kUpdate is good news (a newer version); kAttention is something wrong
@@ -54,8 +54,6 @@ struct UpdateView {
   QString detail;
   QString notice;     ///< a refresh failed while older results are shown
   QString freshness;  ///< "Last checked ... · <where the answer came from>"
-
-  bool busy = false;
 
   bool show_download = false;
   QString download_label;

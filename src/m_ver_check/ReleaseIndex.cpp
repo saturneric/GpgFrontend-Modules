@@ -28,6 +28,7 @@
 
 #include "ReleaseIndex.h"
 
+#include <QCryptographicHash>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -53,7 +54,34 @@ auto ParseTime(const QJsonValue& value) -> QDateTime {
   return t;
 }
 
+/// A build an index entry names: its version, and its descriptor pinned by
+/// hash. False, and nothing taken, unless all three are sound.
+auto ReadBuild(const QJsonValue& value, QString& version, QString& descriptor,
+               QString& sha256) -> bool {
+  const auto entry = value.toObject();
+  const auto v = entry.value("version").toString();
+  const auto path = entry.value("descriptor").toString();
+  const auto digest = entry.value("sha256").toString();
+  if (!SemVer::Parse(v) || !IsSafeRelativePath(path) || !IsSha256(digest)) {
+    return false;
+  }
+  version = v;
+  descriptor = path;
+  sha256 = digest;
+  return true;
+}
+
 }  // namespace
+
+auto IsSha256(const QString& hex) -> bool {
+  static const QRegularExpression kSha256(QStringLiteral("^[0-9a-f]{64}\\z"));
+  return kSha256.match(hex).hasMatch();
+}
+
+auto Sha256Hex(const QByteArray& data) -> QString {
+  return QString::fromLatin1(
+      QCryptographicHash::hash(data, QCryptographicHash::Sha256).toHex());
+}
 
 auto ParseIndex(const QByteArray& json, const QString& trusted_comment,
                 const QString& product, const QDateTime& now)
@@ -79,7 +107,10 @@ auto ParseIndex(const QByteArray& json, const QString& trusted_comment,
 
   f.generated_at = ParseTime(obj.value("generated_at"));
   f.expires = ParseTime(obj.value("expires"));
-  if (!f.expires.isValid()) return std::nullopt;
+  if (!f.generated_at.isValid() || !f.expires.isValid()) return std::nullopt;
+  if (f.generated_at.secsTo(f.expires) > kMaxIndexLifetimeSeconds) {
+    return std::nullopt;
+  }
   if (f.expires.secsTo(now) > kExpirySkewSeconds) return std::nullopt;
 
   const auto nightly = obj.value("channels").toObject().value("nightly");
@@ -90,19 +121,11 @@ auto ParseIndex(const QByteArray& json, const QString& trusted_comment,
     return std::nullopt;
   }
 
-  // An opt-in extra: a beta that cannot be read is no beta, and never costs
-  // the stable and nightly answers of an index that is otherwise sound (as
-  // for a client that predates the field and ignores it).
-  const auto beta = obj.value("channels").toObject().value("beta");
-  if (beta.isString() && SemVer::Parse(beta.toString())) {
-    f.beta_version = beta.toString();
-  }
-
+  // The stable channel is each series' `latest` (below); channels.stable
+  // is for people reading the index. It must still be what it says it is.
   const auto stable = obj.value("channels").toObject().value("stable");
-  if (stable.isString()) {
-    if (!SemVer::Parse(stable.toString())) return std::nullopt;
-    f.stable_version = stable.toString();
-  } else if (!stable.isNull() && !stable.isUndefined()) {
+  if (stable.isString() ? !SemVer::Parse(stable.toString())
+                        : !stable.isNull() && !stable.isUndefined()) {
     return std::nullopt;
   }
 
@@ -110,12 +133,26 @@ auto ParseIndex(const QByteArray& json, const QString& trusted_comment,
     f.withdrawn << w.toObject().value("version").toString();
   }
 
-  // Where the nightly's files are listed. Optional: an index without it still
-  // says whether there is an update, only not which file to fetch.
-  static const QRegularExpression kSha256(QStringLiteral("^[0-9a-f]{64}$"));
+  // An index from before each series named its own beta names one for all:
+  // as channels.beta, and (to fetch its files) as the top-level entry.
+  QString old_beta;
+  QString old_beta_descriptor;
+  QString old_beta_sha256;
+  const auto channel_beta = obj.value("channels").toObject().value("beta");
+  if (channel_beta.isString() && SemVer::Parse(channel_beta.toString())) {
+    old_beta = channel_beta.toString();
+    QString listed;
+    if (!ReadBuild(obj.value("beta"), listed, old_beta_descriptor,
+                   old_beta_sha256) ||
+        listed != old_beta) {
+      old_beta_descriptor.clear();
+      old_beta_sha256.clear();
+    }
+  }
 
   // The series and the releases: what a release build is offered. A
-  // malformed entry costs that entry only, never the rest of the index.
+  // malformed entry costs that entry only, never the rest of the index; a
+  // beta that cannot be read is no beta (it is an opt-in extra).
   const auto series = obj.value("series").toObject();
   for (auto it = series.begin(); it != series.end(); ++it) {
     const auto s = it.value().toObject();
@@ -131,6 +168,22 @@ auto ParseIndex(const QByteArray& json, const QString& trusted_comment,
                                           ? QString::number(p.value().toInt())
                                           : p.value().toString());
     }
+    if (s.contains("beta")) {
+      QString version;
+      QString descriptor;
+      QString sha256;
+      if (ReadBuild(s.value("beta"), version, descriptor, sha256) &&
+          SoftwareVersion::VersionSeries(version) == it.key()) {
+        facts.beta = version;
+        facts.beta_descriptor = descriptor;
+        facts.beta_descriptor_sha256 = sha256;
+      }
+    } else if (!old_beta.isEmpty() &&
+               SoftwareVersion::VersionSeries(old_beta) == it.key()) {
+      facts.beta = old_beta;
+      facts.beta_descriptor = old_beta_descriptor;
+      facts.beta_descriptor_sha256 = old_beta_sha256;
+    }
     f.series.insert(it.key(), facts);
   }
   const auto releases = obj.value("releases").toObject();
@@ -140,40 +193,35 @@ auto ParseIndex(const QByteArray& json, const QString& trusted_comment,
     entry.descriptor = r.value("descriptor").toString();
     entry.descriptor_sha256 = r.value("sha256").toString();
     if (!SemVer::Parse(it.key()) || !IsSafeRelativePath(entry.descriptor) ||
-        !kSha256.match(entry.descriptor_sha256).hasMatch()) {
+        !IsSha256(entry.descriptor_sha256)) {
       continue;
     }
     const auto notes = r.value("notes").toString();
     const auto notes_sha256 = r.value("notes_sha256").toString();
-    if (IsSafeRelativePath(notes) && kSha256.match(notes_sha256).hasMatch()) {
+    if (IsSafeRelativePath(notes) && IsSha256(notes_sha256)) {
       entry.notes = notes;
       entry.notes_sha256 = notes_sha256;
     }
     f.releases.insert(it.key(), entry);
   }
-  // The nightly's and the beta's descriptors: the same shape, the same rules.
-  // Each counts only for the version its channel names.
-  const auto descriptor_of = [&](const char* key, const QString& version,
-                                 QString& descriptor, QString& sha256) {
-    const auto entry = obj.value(QLatin1StringView(key)).toObject();
-    const auto path = entry.value("descriptor").toString();
-    const auto digest = entry.value("sha256").toString();
-    if (!version.isEmpty() && entry.value("version").toString() == version &&
-        IsSafeRelativePath(path) && kSha256.match(digest).hasMatch()) {
-      descriptor = path;
-      sha256 = digest;
-    }
-  };
-  descriptor_of("nightly", f.nightly_version, f.nightly_descriptor,
-                f.nightly_descriptor_sha256);
-  descriptor_of("beta", f.beta_version, f.beta_descriptor,
-                f.beta_descriptor_sha256);
+  // Where the nightly's files are listed. Optional: an index without it still
+  // says whether there is an update, only not which file to fetch. It counts
+  // only for the version the channel names.
+  QString listed;
+  if (!f.nightly_version.isEmpty() &&
+      ReadBuild(obj.value("nightly"), listed, f.nightly_descriptor,
+                f.nightly_descriptor_sha256) &&
+      listed != f.nightly_version) {
+    f.nightly_descriptor.clear();
+    f.nightly_descriptor_sha256.clear();
+  }
   return f;
 }
 
 auto IsSafeRelativePath(const QString& path) -> bool {
+  // \z, not $: "$" also matches before a trailing newline.
   static const QRegularExpression kSegment(
-      QStringLiteral("^[A-Za-z0-9][A-Za-z0-9._+-]*$"));
+      QStringLiteral("^[A-Za-z0-9][A-Za-z0-9._+-]*\\z"));
   if (path.isEmpty() || path.contains(u'%') || path.contains(u'\\')) {
     return false;
   }
@@ -197,11 +245,6 @@ auto NormalizeArch(const QString& arch) -> QString {
 }
 
 }  // namespace
-
-auto SelectDownload(const QByteArray& descriptor, const Platform& platform)
-    -> QString {
-  return SelectArtifact(descriptor, platform).path;
-}
 
 auto SelectArtifact(const QByteArray& descriptor, const Platform& platform)
     -> DownloadChoice {
@@ -228,7 +271,6 @@ auto SelectArtifact(const QByteArray& descriptor, const Platform& platform)
   // msix, mas, flatpak, distro, android: their own updater, not a file.
   const auto want = kWants.constFind(platform.install_kind);
   if (want == kWants.constEnd()) return {};
-  static const QRegularExpression kHash(QStringLiteral("^[0-9a-f]{64}$"));
 
   const auto doc = QJsonDocument::fromJson(descriptor);
   if (!doc.isObject()) return {};
@@ -254,8 +296,7 @@ auto SelectArtifact(const QByteArray& descriptor, const Platform& platform)
     if (best.path.isEmpty() || min > best_min) {
       const auto sha256 = a.value("sha256").toString();
       const auto size = a.value("size").toInteger();
-      best = {path, kHash.match(sha256).hasMatch() ? sha256 : QString(),
-              size > 0 ? size : 0};
+      best = {path, IsSha256(sha256) ? sha256 : QString(), size > 0 ? size : 0};
       best_min = min;
     }
   }
@@ -272,21 +313,23 @@ auto ChooseUpdate(const IndexFacts& facts, const QString& current, bool nightly,
     choice.list.latest.published_at = facts.generated_at.toString(Qt::ISODate);
   };
 
+  // The series this build is of: its beta, and its releases.
+  const auto series =
+      facts.series.value(SoftwareVersion::VersionSeries(current));
   const auto offer_beta = [&] {
-    found(facts.beta_version);
-    choice.descriptor = facts.beta_descriptor;
-    choice.descriptor_sha256 = facts.beta_descriptor_sha256;
+    found(series.beta);
+    choice.descriptor = series.beta_descriptor;
+    choice.descriptor_sha256 = series.beta_descriptor_sha256;
     return choice;
   };
 
   if (nightly) {
     // A release branch's nightly (X.Y.Z-alpha.N, Z > 0) is a fix build of
-    // its own series: it follows that branch's builds, the beta channel, and
+    // its own series: it follows that branch's builds, its series' beta, and
     // never main's channel, which is another series' nightly.
     const auto v = SemVer::Parse(current);
     if (v && v->patch > 0) {
-      if (facts.beta_version.isEmpty() ||
-          !SoftwareVersion::SameSeries(current, facts.beta_version)) {
+      if (series.beta.isEmpty()) {
         choice.other_series = true;
         return choice;
       }
@@ -299,14 +342,12 @@ auto ChooseUpdate(const IndexFacts& facts, const QString& current, bool nightly,
     return choice;
   }
 
-  const auto series =
-      facts.series.value(SoftwareVersion::VersionSeries(current));
-  // Asked for: a beta newer than what this build runs, and newer than the
-  // release it would be offered otherwise.
-  if (follow_beta && !facts.beta_version.isEmpty() &&
-      SemVerCompare(facts.beta_version, current) > 0 &&
+  // Asked for: its series' beta, when newer than what this build runs and
+  // than the release it would be offered otherwise.
+  if (follow_beta && !series.beta.isEmpty() &&
+      SemVerCompare(series.beta, current) > 0 &&
       (series.latest.isEmpty() ||
-       SemVerCompare(facts.beta_version, series.latest) > 0)) {
+       SemVerCompare(series.beta, series.latest) > 0)) {
     return offer_beta();
   }
   if (series.latest.isEmpty()) return choice;

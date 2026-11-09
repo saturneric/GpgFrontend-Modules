@@ -28,7 +28,6 @@
 
 #include <gtest/gtest.h>
 
-#include <QCryptographicHash>
 #include <QGuiApplication>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -53,6 +52,7 @@
 using test_index::Comment;
 using test_index::Index;
 using test_index::kNow;
+using test_index::Mirrors;
 using test_index::Signer;
 
 namespace {
@@ -61,10 +61,7 @@ constexpr auto kCommit = "0123456789abcdef0123456789abcdef01234567";
 constexpr auto kBase = "https://update.example/";
 constexpr auto kBuilds = "https://builds.example/";
 
-auto Sha(const QByteArray& data) -> QString {
-  return QString::fromLatin1(
-      QCryptographicHash::hash(data, QCryptographicHash::Sha256).toHex());
-}
+auto Sha(const QByteArray& data) -> QString { return Sha256Hex(data); }
 
 /// A stable release's descriptor, as the offline stage writes it.
 auto StableDescriptor(const QString& version) -> QByteArray {
@@ -90,6 +87,24 @@ auto StableDescriptor(const QString& version) -> QByteArray {
       .toJson();
 }
 
+/// A release branch's build as its kind "nightly" descriptor lists it.
+auto BetaDescriptor(const QString& version) -> QByteArray {
+  return QJsonDocument(
+             QJsonObject{{"kind", "nightly"},
+                         {"version", version},
+                         {"ref", "refs/heads/release/2.2"},
+                         {"artifacts", QJsonArray{QJsonObject{
+                                           {"os", "linux"},
+                                           {"arch", "x86_64"},
+                                           {"kind", "appimage"},
+                                           {"flavor", "installed"},
+                                           {"sha256", QString(64, u'b')},
+                                           {"size", 4321},
+                                           {"path", "nightly/" + version +
+                                                        "/beta.AppImage"}}}}})
+      .toJson();
+}
+
 /// The parts of an index that release builds read.
 struct Stable {
   QJsonObject series;
@@ -98,7 +113,23 @@ struct Stable {
   QString beta;  ///< channels.beta; left out of the index when empty
   QJsonObject beta_entry;
 
-  /// A release branch's build on the beta channel, listed as the nightly is.
+  /// A series' own beta, as the index has listed it since betas became per
+  /// series: `series.<key>.beta`, shaped as the nightly entry is. A null
+  /// @p version lists the key with no beta.
+  void SeriesBeta(const QString& key, const QString& version) {
+    auto entry = series[key].toObject();
+    entry["beta"] =
+        version.isEmpty()
+            ? QJsonValue(QJsonValue::Null)
+            : QJsonValue(QJsonObject{
+                  {"version", version},
+                  {"descriptor", "nightly/" + version + "/release.json"},
+                  {"sha256", Sha(BetaDescriptor(version))}});
+    series[key] = entry;
+  }
+
+  /// One beta for all, as the index listed it before betas became per
+  /// series: channels.beta and the top-level entry.
   void Beta(const QString& version, const QByteArray& descriptor) {
     beta = version;
     beta_entry = {{"version", version},
@@ -166,7 +197,6 @@ TEST(StableIndexTest, ReadsSeriesReleasesAndTheStableChannel) {
   s.Release("2.2.4", StableDescriptor("2.2.4"), "Notes.\n");
   s.stable = "2.2.4";
   const auto f = Parse(s);
-  EXPECT_EQ(f.stable_version, "2.2.4");
   EXPECT_EQ(f.series.value("2.2").latest, "2.2.4");
   EXPECT_EQ(f.series.value("2.2").platforms.value("linux_glibc"), "2.35");
   EXPECT_EQ(f.series.value("2.1").successor, "2.2");
@@ -243,24 +273,6 @@ TEST(StableIndexTest, MainNightliesFollowTheChannelAcrossACut) {
 
 namespace {
 
-/// A release branch's build as its kind "nightly" descriptor lists it.
-auto BetaDescriptor(const QString& version) -> QByteArray {
-  return QJsonDocument(
-             QJsonObject{{"kind", "nightly"},
-                         {"version", version},
-                         {"ref", "refs/heads/release/2.2"},
-                         {"artifacts", QJsonArray{QJsonObject{
-                                           {"os", "linux"},
-                                           {"arch", "x86_64"},
-                                           {"kind", "appimage"},
-                                           {"flavor", "installed"},
-                                           {"sha256", QString(64, u'b')},
-                                           {"size", 4321},
-                                           {"path", "nightly/" + version +
-                                                        "/beta.AppImage"}}}}})
-      .toJson();
-}
-
 constexpr auto kBeta = "2.2.5-alpha.3+g0123456789ab";
 
 /// 2.2.4 released in a stable 2.2, 2.2.5-alpha.3 on the beta channel.
@@ -287,11 +299,15 @@ TEST(StableIndexTest, ReadsTheBetaChannel) {
   entry["notes_minisig"] = "notes/2.2.4/x.md.minisig";
   s.releases["2.2.4"] = entry;
   const auto f = Parse(s);
-  EXPECT_EQ(f.beta_version, kBeta);
-  EXPECT_EQ(f.beta_descriptor, QString("nightly/") + kBeta + "/release.json");
-  EXPECT_EQ(f.beta_descriptor_sha256, Sha(BetaDescriptor(kBeta)));
+  EXPECT_EQ(f.series.value("2.2").beta, kBeta);
+  EXPECT_EQ(f.series.value("2.2").beta_descriptor,
+            QString("nightly/") + kBeta + "/release.json");
+  EXPECT_EQ(f.series.value("2.2").beta_descriptor_sha256,
+            Sha(BetaDescriptor(kBeta)));
   EXPECT_TRUE(f.releases.contains("2.2.4"));
-  EXPECT_EQ(f.stable_version, "2.2.4");
+  // From before each series named its own: the one beta is its series'.
+  EXPECT_TRUE(f.series.value("2.1").beta.isEmpty());
+  EXPECT_TRUE(f.series.value("2.3").beta.isEmpty());
   // The nightly's own fields are not the beta's.
   EXPECT_TRUE(f.nightly_version.isEmpty());
   EXPECT_TRUE(f.nightly_descriptor.isEmpty());
@@ -301,7 +317,7 @@ TEST(StableIndexTest, NoBetaIsAnAnswer) {
   // Absent, as an index from before the beta channel has it.
   Stable s;
   s.Series("2.2", "stable", "2.2.4");
-  EXPECT_TRUE(Parse(s).beta_version.isEmpty());
+  EXPECT_TRUE(Parse(s).series.value("2.2").beta.isEmpty());
 
   // null, both in the channels and at the top.
   auto extra = s.Extra();
@@ -313,8 +329,8 @@ TEST(StableIndexTest, NoBetaIsAnAnswer) {
       ParseIndex(Index(5, "", "gpgfrontend", kNow.addDays(14), {}, extra),
                  Comment(5), "gpgfrontend", kNow);
   ASSERT_TRUE(f);
-  EXPECT_TRUE(f->beta_version.isEmpty());
-  EXPECT_TRUE(f->beta_descriptor.isEmpty());
+  EXPECT_TRUE(f->series.value("2.2").beta.isEmpty());
+  EXPECT_TRUE(f->series.value("2.2").beta_descriptor.isEmpty());
   EXPECT_EQ(f->series.value("2.2").latest, "2.2.4");
 }
 
@@ -330,8 +346,8 @@ TEST(StableIndexTest, AMalformedBetaChannelIsNoBeta) {
         ParseIndex(Index(5, "", "gpgfrontend", kNow.addDays(14), {}, extra),
                    Comment(5), "gpgfrontend", kNow);
     ASSERT_TRUE(facts);
-    EXPECT_TRUE(facts->beta_version.isEmpty());
-    EXPECT_TRUE(facts->beta_descriptor.isEmpty());
+    EXPECT_TRUE(facts->series.value("2.2").beta.isEmpty());
+    EXPECT_TRUE(facts->series.value("2.2").beta_descriptor.isEmpty());
   }
 }
 
@@ -348,23 +364,25 @@ TEST(StableIndexTest, ABetaEntryNotTheChannelsIsDropped) {
   auto other = entry;
   other["version"] = "2.2.5-alpha.2+g0123456789ab";
   auto f = with_entry(other);
-  EXPECT_EQ(f.beta_version, kBeta);
-  EXPECT_TRUE(f.beta_descriptor.isEmpty());
+  EXPECT_EQ(f.series.value("2.2").beta, kBeta);
+  EXPECT_TRUE(f.series.value("2.2").beta_descriptor.isEmpty());
 
   auto unsafe = entry;
   unsafe["descriptor"] = "../demo/release.json";
-  EXPECT_TRUE(with_entry(unsafe).beta_descriptor.isEmpty());
+  EXPECT_TRUE(with_entry(unsafe).series.value("2.2").beta_descriptor.isEmpty());
 
   auto short_hash = entry;
   short_hash["sha256"] = "abc";
-  EXPECT_TRUE(with_entry(short_hash).beta_descriptor_sha256.isEmpty());
+  EXPECT_TRUE(with_entry(short_hash)
+                  .series.value("2.2")
+                  .beta_descriptor_sha256.isEmpty());
 
   // An entry with no channel to name it counts for nothing.
   auto s = WithBeta();
   s.beta.clear();
   f = Parse(s);
-  EXPECT_TRUE(f.beta_version.isEmpty());
-  EXPECT_TRUE(f.beta_descriptor.isEmpty());
+  EXPECT_TRUE(f.series.value("2.2").beta.isEmpty());
+  EXPECT_TRUE(f.series.value("2.2").beta_descriptor.isEmpty());
 }
 
 TEST(StableIndexTest, AReleaseBuildIsOfferedBetasOnlyWhenItAsks) {
@@ -381,8 +399,8 @@ TEST(StableIndexTest, AReleaseBuildIsOfferedBetasOnlyWhenItAsks) {
   const auto on = ChooseUpdate(f, "v2.2.3", false, true);
   ASSERT_EQ(on.list.outcome, ListOutcome::kFound);
   EXPECT_EQ(on.list.latest.version, kBeta);
-  EXPECT_EQ(on.descriptor, f.beta_descriptor);
-  EXPECT_EQ(on.descriptor_sha256, f.beta_descriptor_sha256);
+  EXPECT_EQ(on.descriptor, f.series.value("2.2").beta_descriptor);
+  EXPECT_EQ(on.descriptor_sha256, f.series.value("2.2").beta_descriptor_sha256);
   EXPECT_TRUE(on.notes.isEmpty());
   EXPECT_FALSE(on.other_series);
   EXPECT_EQ(ChooseUpdate(f, "v2.2.4", false, true).list.latest.version, kBeta);
@@ -431,8 +449,9 @@ TEST(StableIndexTest, AReleaseBranchNightlyFollowsTheBetaChannel) {
         ChooseUpdate(*f, "v2.2.5-alpha.1+gfedcba987654", true, follow_beta);
     ASSERT_EQ(c.list.outcome, ListOutcome::kFound);
     EXPECT_EQ(c.list.latest.version, kBeta);
-    EXPECT_EQ(c.descriptor, f->beta_descriptor);
-    EXPECT_EQ(c.descriptor_sha256, f->beta_descriptor_sha256);
+    EXPECT_EQ(c.descriptor, f->series.value("2.2").beta_descriptor);
+    EXPECT_EQ(c.descriptor_sha256,
+              f->series.value("2.2").beta_descriptor_sha256);
     EXPECT_FALSE(c.other_series);
   }
   // Newer than the beta: offered the beta, which is not an update.
@@ -455,6 +474,87 @@ TEST(StableIndexTest, AReleaseBranchNightlyFollowsTheBetaChannel) {
   const auto c = ChooseUpdate(other, "v2.2.5-alpha.1+gfedcba987654", true);
   EXPECT_EQ(c.list.outcome, ListOutcome::kNoMatch);
   EXPECT_TRUE(c.other_series);
+}
+
+// Since betas are per series: each series names its own, and a build is only
+// ever offered the beta of the series it runs.
+
+namespace {
+
+/// 2.2 stable with a beta of its own, 2.3 mainline with another.
+auto PerSeries() -> Stable {
+  Stable s;
+  s.Series("2.3", "mainline", "");
+  s.Series("2.2", "stable", "2.2.4");
+  s.Series("2.1", "legacy", "2.1.13", "2.2");
+  s.Release("2.2.4", StableDescriptor("2.2.4"), "Notes.\n");
+  s.stable = "2.2.4";
+  s.SeriesBeta("2.3", "2.3.1-alpha.4+g0123456789ab");
+  s.SeriesBeta("2.2", kBeta);
+  s.SeriesBeta("2.1", "");
+  // The newest of them, where an older client looks for it.
+  s.Beta("2.3.1-alpha.4+g0123456789ab",
+         BetaDescriptor("2.3.1-alpha.4+g0123456789ab"));
+  return s;
+}
+
+}  // namespace
+
+TEST(StableIndexTest, EachSeriesNamesItsOwnBeta) {
+  const auto f = Parse(PerSeries());
+  EXPECT_EQ(f.series.value("2.2").beta, kBeta);
+  EXPECT_EQ(f.series.value("2.2").beta_descriptor_sha256,
+            Sha(BetaDescriptor(kBeta)));
+  EXPECT_EQ(f.series.value("2.3").beta, "2.3.1-alpha.4+g0123456789ab");
+  // Listed as having none: none, whatever the top-level entry says.
+  EXPECT_TRUE(f.series.value("2.1").beta.isEmpty());
+}
+
+TEST(StableIndexTest, NoBuildIsOfferedAnotherSeriesBeta) {
+  const auto f = Parse(PerSeries());
+  // A 2.2 release build that asks for betas: 2.2's, never the newer 2.3 one
+  // the top-level entry names.
+  const auto two_two = ChooseUpdate(f, "v2.2.4", false, true);
+  EXPECT_EQ(two_two.list.latest.version, kBeta);
+  EXPECT_EQ(two_two.descriptor_sha256, Sha(BetaDescriptor(kBeta)));
+  // And 2.2's release branch nightlies follow 2.2's beta, while 2.3 has one.
+  EXPECT_EQ(
+      ChooseUpdate(f, "v2.2.5-alpha.1+gfedcba987654", true).list.latest.version,
+      kBeta);
+  // 2.1 has no beta: its builds are offered its release, and its release
+  // branch's nightlies nothing.
+  EXPECT_EQ(ChooseUpdate(f, "v2.1.10", false, true).list.latest.version,
+            "2.1.13");
+  EXPECT_TRUE(
+      ChooseUpdate(f, "v2.1.14-alpha.1+gfedcba987654", true).other_series);
+
+  // An index from before (one beta, of 2.3): a 2.2 build is offered no beta.
+  auto old = WithBeta("2.3.1-alpha.4+g0123456789ab");
+  const auto before = Parse(old);
+  EXPECT_EQ(ChooseUpdate(before, "v2.2.4", false, true).list.latest.version,
+            "2.2.4");
+}
+
+TEST(StableIndexTest, ASeriesBetaOfAnotherSeriesIsNoBeta) {
+  auto s = PerSeries();
+  // Listed under 2.2, a build of 2.3: whoever wrote it, not 2.2's beta.
+  s.SeriesBeta("2.2", "2.3.1-alpha.4+g0123456789ab");
+  EXPECT_TRUE(Parse(s).series.value("2.2").beta.isEmpty());
+  for (const auto& bad :
+       {QJsonValue(7), QJsonValue("2.2.5-alpha.1"),
+        QJsonValue(QJsonObject{{"version", kBeta}}),
+        QJsonValue(QJsonObject{{"version", kBeta},
+                               {"descriptor", "../escape/release.json"},
+                               {"sha256", QString(64, u'a')}})}) {
+    auto t = PerSeries();
+    auto entry = t.series["2.2"].toObject();
+    entry["beta"] = bad;
+    t.series["2.2"] = entry;
+    const auto f = Parse(t);
+    // No beta, and the rest of the index stands.
+    EXPECT_TRUE(f.series.value("2.2").beta.isEmpty());
+    EXPECT_EQ(f.series.value("2.2").latest, "2.2.4");
+  }
 }
 
 TEST(StableIndexTest, ListedWithdrawnAndUnknownReleases) {
@@ -598,34 +698,20 @@ TEST(StableIndexTest, GarbageNeverCrashesTheReaders) {
 namespace {
 
 /// The release server's buckets as a URL table, answered at once.
-struct Server {
+/// The mirrors of a release build's checks, and the checker that asks them.
+struct Server : Mirrors {
   Signer signer;
-  std::map<QString, std::pair<int, QByteArray>> table;
-  QStringList asked;
   QByteArray stored;
-
-  auto Fetcher() -> UpdateChecker::Fetcher {
-    return [this](const QUrl& url, const UpdateChecker::Reply& reply) {
-      asked << url.toString();
-      const auto it = table.find(url.toString());
-      if (it == table.end()) {
-        reply(404, {});
-      } else {
-        reply(it->second.first, it->second.second);
-      }
-    };
-  }
 
   void Publish(const Stable& s, qint64 serial = 5) {
     const auto index =
         Index(serial, "", "gpgfrontend", kNow.addDays(14), {}, s.Extra());
-    table[QString(kBase) + "gpgfrontend/v1/index.json"] = {200, index};
-    table[QString(kBase) + "gpgfrontend/v1/index.json.minisig"] = {
-        200, signer.Sign(index, Comment(serial))};
+    Serve(kBase, index, signer.Sign(index, Comment(serial)));
   }
 
+  /// @p path under the build mirror's product root.
   void Put(const QString& path, const QByteArray& data, int status = 200) {
-    table[QString(kBuilds) + "gpgfrontend/" + path] = {status, data};
+    Mirrors::Put(QString(kBuilds) + "gpgfrontend/" + path, data, status);
   }
 
   auto Make(const QString& version = "v2.2.3",
