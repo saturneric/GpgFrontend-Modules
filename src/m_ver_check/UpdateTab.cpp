@@ -42,17 +42,56 @@ constexpr auto kDownloadPage =
 /// again offers the restart, not the same download a second time.
 QString g_installed_sha256;  // NOLINT(*-avoid-non-const-global-variables)
 
-/// One icon per tone, for the header and the status line alike.
-auto ToneIcon(const QStyle* style, UpdateTone tone) -> QIcon {
+/// The marks that are drawn rather than taken from the style: a tick, a
+/// dash, an empty circle. One set, crisp at any size, in the palette's own
+/// colours; the raster glyphs of some styles are neither.
+auto PaintedMark(DetailRow::Mark mark, int size, const QPalette& palette,
+                 qreal ratio) -> QPixmap {
+  QPixmap pixmap(QSize(size, size) * ratio);
+  pixmap.setDevicePixelRatio(ratio);
+  pixmap.fill(Qt::transparent);
+  QPainter painter(&pixmap);
+  painter.setRenderHint(QPainter::Antialiasing);
+  const qreal s = size;
+  const auto color = mark == DetailRow::Mark::kVerified
+                         ? palette.color(QPalette::Highlight)
+                         : palette.color(QPalette::PlaceholderText);
+  painter.setPen(QPen(color, std::max(1.5, s / 9), Qt::SolidLine, Qt::RoundCap,
+                      Qt::RoundJoin));
+  switch (mark) {
+    case DetailRow::Mark::kVerified:
+      painter.drawPolyline(
+          QPolygonF({QPointF(s * 0.2, s * 0.52), QPointF(s * 0.42, s * 0.74),
+                     QPointF(s * 0.8, s * 0.28)}));
+      break;
+    case DetailRow::Mark::kNotRun:
+      painter.drawLine(QPointF(s * 0.3, s * 0.5), QPointF(s * 0.7, s * 0.5));
+      break;
+    case DetailRow::Mark::kNotChecked:
+      painter.drawEllipse(QPointF(s * 0.5, s * 0.5), s * 0.2, s * 0.2);
+      break;
+    case DetailRow::Mark::kFailed:
+    case DetailRow::Mark::kNone:
+      break;
+  }
+  return pixmap;
+}
+
+/// One icon per tone, for the header, the status line and the rows alike.
+auto ToneIcon(const QWidget* widget, UpdateTone tone) -> QIcon {
+  const auto* style = widget->style();
   switch (tone) {
     case UpdateTone::kGood:
-      return style->standardIcon(QStyle::SP_DialogApplyButton);
-    case UpdateTone::kUpdate:
-      // Good news, not a warning: the theme's update icon where there is
-      // one, the information sign otherwise.
+      return {PaintedMark(DetailRow::Mark::kVerified, 64, widget->palette(),
+                          widget->devicePixelRatioF())};
+    case UpdateTone::kUpdate: {
+      // Good news, not a warning: the theme's update icon, else the
+      // application's own, else an arrow up.
+      const auto app = QGuiApplication::windowIcon();
       return QIcon::fromTheme(
           QStringLiteral("system-software-update"),
-          style->standardIcon(QStyle::SP_MessageBoxInformation));
+          app.isNull() ? style->standardIcon(QStyle::SP_ArrowUp) : app);
+    }
     case UpdateTone::kAttention:
       return style->standardIcon(QStyle::SP_MessageBoxWarning);
     case UpdateTone::kError:
@@ -72,13 +111,6 @@ auto PlainLabel(const QString& text, QWidget* parent) -> QLabel* {
   return label;
 }
 
-/// A hash, a key or a file name can break after a dash, so a long one
-/// wraps instead of widening the dialog.
-auto Breakable(QString text) -> QString {
-  text.replace(u'-', QStringLiteral("-\u200b"));
-  return text;
-}
-
 auto MonoLabel(const QString& text, const QString& full, QWidget* parent)
     -> QLabel* {
   auto* label = PlainLabel(text, parent);
@@ -88,13 +120,23 @@ auto MonoLabel(const QString& text, const QString& full, QWidget* parent)
   return label;
 }
 
-auto CopyButton(const QString& value, QWidget* parent) -> QToolButton* {
+/// A small flat button that copies @p value, and says so.
+auto CopyButton(const QString& value, const QString& what, QWidget* parent)
+    -> QToolButton* {
   auto* button = new QToolButton(parent);
-  button->setText(QCoreApplication::translate("UpdateTab", "Copy"));
-  button->setToolTip(value);
+  button->setIcon(QIcon::fromTheme(QStringLiteral("edit-copy")));
+  if (button->icon().isNull()) {
+    button->setText(QCoreApplication::translate("UpdateTab", "Copy"));
+  }
+  button->setAccessibleName(what);
+  button->setToolTip(what);
   button->setAutoRaise(true);
-  QObject::connect(button, &QToolButton::clicked, button,
-                   [value] { QGuiApplication::clipboard()->setText(value); });
+  QObject::connect(button, &QToolButton::clicked, button, [button, value] {
+    QGuiApplication::clipboard()->setText(value);
+    QToolTip::showText(button->mapToGlobal(QPoint(0, button->height())),
+                       QCoreApplication::translate("UpdateTab", "Copied"),
+                       button);
+  });
   return button;
 }
 
@@ -114,54 +156,38 @@ auto Separator(QWidget* parent) -> QFrame* {
   return line;
 }
 
-/// The first column of a details row, the same width on every row so the
-/// text lines up: a mark's icon, a dash for what did not run, a circle for
-/// what was not checked, nothing for the release server's rows.
+/// The first column of a details row, as wide as a line of text on every
+/// row so the text lines up: the mark, or nothing for the release
+/// server's rows.
 auto MarkLabel(DetailRow::Mark mark, QWidget* parent) -> QLabel* {
   auto* label = new QLabel(parent);
-  const auto size = parent->style()->pixelMetric(QStyle::PM_SmallIconSize);
+  const int size = parent->fontMetrics().height();
   label->setFixedWidth(size);
   label->setAlignment(Qt::AlignHCenter | Qt::AlignTop);
-  label->setForegroundRole(QPalette::PlaceholderText);
-  switch (mark) {
-    case DetailRow::Mark::kVerified:
-      label->setPixmap(parent->style()
-                           ->standardIcon(QStyle::SP_DialogApplyButton)
-                           .pixmap(size, size));
-      break;
-    case DetailRow::Mark::kFailed:
-      label->setPixmap(parent->style()
-                           ->standardIcon(QStyle::SP_MessageBoxCritical)
-                           .pixmap(size, size));
-      break;
-    case DetailRow::Mark::kNotRun:
-      label->setText(QStringLiteral("\u2013"));
-      break;
-    case DetailRow::Mark::kNotChecked:
-      label->setText(QStringLiteral("\u25CB"));
-      break;
-    case DetailRow::Mark::kNone:
-      break;
+  if (mark == DetailRow::Mark::kFailed) {
+    label->setPixmap(ToneIcon(parent, UpdateTone::kError).pixmap(size, size));
+  } else if (mark != DetailRow::Mark::kNone) {
+    label->setPixmap(PaintedMark(mark, size, parent->palette(),
+                                 parent->devicePixelRatioF()));
   }
   return label;
 }
 
-/// A details row's text: the title, then its value in the secondary
-/// colour and its key ids or hashes in the fixed-width font, on the same
-/// line where they fit.
-auto RowText(const DetailRow& row, const QPalette& palette) -> QString {
+/// A details row's text: the title and its short result on one line, the
+/// facts under them, smaller, in the secondary colour.
+auto RowText(const DetailRow& row, const QWidget* widget) -> QString {
+  const auto muted = widget->palette().color(QPalette::PlaceholderText).name();
   auto text = row.title.toHtmlEscaped();
-  const auto muted = palette.color(QPalette::PlaceholderText).name();
-  if (!row.value.isEmpty()) {
-    text += QStringLiteral(" &nbsp;<span style=\"color:%1\">%2</span>")
-                .arg(muted, row.value.toHtmlEscaped());
+  if (!row.result.isEmpty()) {
+    text += QStringLiteral("&nbsp;&nbsp;<span style=\"color:%1\">%2</span>")
+                .arg(muted, row.result.toHtmlEscaped());
   }
-  if (!row.mono.isEmpty()) {
-    text += QStringLiteral(" <span style=\"font-family:'%1'\">%2</span>")
-                .arg(QFontDatabase::systemFont(QFontDatabase::FixedFont)
-                         .family()
-                         .toHtmlEscaped(),
-                     row.mono.toHtmlEscaped());
+  if (!row.facts.isEmpty()) {
+    text +=
+        QStringLiteral("<br><span style=\"color:%1; font-size:%2pt\">%3</span>")
+            .arg(muted)
+            .arg(widget->font().pointSizeF() - 1)
+            .arg(row.facts.toHtmlEscaped());
   }
   return text;
 }
@@ -440,7 +466,7 @@ void UpdateTab::fit_window() {
 void UpdateTab::apply(const UpdateView& view) {
   view_ = view;
   const auto icon_size = style()->pixelMetric(QStyle::PM_MessageBoxIconSize);
-  icon_->setPixmap(ToneIcon(style(), view.tone).pixmap(icon_size, icon_size));
+  icon_->setPixmap(ToneIcon(this, view.tone).pixmap(icon_size, icon_size));
 
   headline_->setText(view.headline);
   detail_->setText(view.detail);
@@ -466,8 +492,15 @@ void UpdateTab::apply(const UpdateView& view) {
   if (view.show_offer) {
     offer_form_->addRow(tr("Version"), PlainLabel(view.offer_version, this));
     if (!view.offer_file.isEmpty()) {
-      offer_form_->addRow(tr("File"),
-                          PlainLabel(Breakable(view.offer_file), this));
+      // Never broken inside the name: elided in the middle, whole in the
+      // tooltip.
+      auto* file = PlainLabel(
+          fontMetrics().elidedText(view.offer_file, Qt::ElideMiddle,
+                                   fontMetrics().averageCharWidth() * 30),
+          this);
+      file->setWordWrap(false);
+      file->setToolTip(view.offer_file);
+      offer_form_->addRow(tr("File"), file);
     }
     if (!view.offer_size.isEmpty()) {
       offer_form_->addRow(tr("Size"), PlainLabel(view.offer_size, this));
@@ -476,7 +509,7 @@ void UpdateTab::apply(const UpdateView& view) {
       auto* hash = new QHBoxLayout();
       hash->addWidget(
           MonoLabel(ShortHash(view.offer_sha256), view.offer_sha256, this));
-      hash->addWidget(CopyButton(view.offer_sha256, this));
+      hash->addWidget(CopyButton(view.offer_sha256, tr("Copy SHA-256"), this));
       hash->addStretch();
       offer_form_->addRow(tr("SHA-256"), hash);
     }
@@ -498,7 +531,7 @@ void UpdateTab::apply(const UpdateView& view) {
 
   const auto small = style()->pixelMetric(QStyle::PM_SmallIconSize);
   status_icon_->setPixmap(
-      ToneIcon(style(), view.verification_tone).pixmap(small, small));
+      ToneIcon(this, view.verification_tone).pixmap(small, small));
   status_text_->setText(view.verification);
   fill_details(view);
 
@@ -528,23 +561,21 @@ void UpdateTab::fill_details(const UpdateView& view) {
   const auto add_rows = [this](const QList<DetailRow>& rows) {
     auto* grid = new QGridLayout();
     grid->setColumnStretch(1, 1);
-    grid->setVerticalSpacing(4);
+    grid->setVerticalSpacing(6);
     for (int i = 0; i < rows.size(); ++i) {
       const auto& row = rows[i];
       grid->addWidget(MarkLabel(row.mark, details_), i, 0);
-      auto* text = new QLabel(RowText(row, palette()), details_);
+      auto* text = new QLabel(RowText(row, this), details_);
       text->setWordWrap(true);
       text->setTextInteractionFlags(Qt::TextSelectableByMouse);
-      text->setToolTip(row.full);
+      text->setToolTip(row.tip);
       grid->addWidget(text, i, 1);
-      if (!row.copy.isEmpty()) {
-        grid->addWidget(CopyButton(row.copy, details_), i, 2, Qt::AlignTop);
-      }
     }
     auto* holder = new QWidget(details_);
     holder->setLayout(grid);
     grid->setContentsMargins(0, 0, 0, 0);
     details_layout_->addWidget(holder);
+    return grid;
   };
 
   if (view.device_rows.isEmpty()) {
@@ -559,15 +590,17 @@ void UpdateTab::fill_details(const UpdateView& view) {
   if (!view.host_rows.isEmpty()) {
     details_layout_->addWidget(
         Caption(tr("Checked by the release server"), details_));
-    add_rows(view.host_rows);
-  }
-  if (!view.security_url.isEmpty()) {
-    auto* link = new QLabel(QStringLiteral("<a href=\"%1\">%2</a>")
-                                .arg(view.security_url.toHtmlEscaped(),
-                                     tr("How to verify the download yourself")),
-                            details_);
-    link->setOpenExternalLinks(true);
-    details_layout_->addWidget(link);
+    auto* grid = add_rows(view.host_rows);
+    // Under the server's rows, in their text column.
+    if (!view.security_url.isEmpty()) {
+      auto* link =
+          new QLabel(QStringLiteral("<a href=\"%1\">%2</a>")
+                         .arg(view.security_url.toHtmlEscaped(),
+                              tr("How to verify the download yourself")),
+                     details_);
+      link->setOpenExternalLinks(true);
+      grid->addWidget(link, grid->rowCount(), 1);
+    }
   }
 }
 

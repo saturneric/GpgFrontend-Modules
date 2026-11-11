@@ -30,6 +30,7 @@
 
 #include <QTextBlock>
 #include <QTextDocument>
+#include <QTranslator>
 
 #include "UpdatePresentation.h"
 
@@ -459,7 +460,7 @@ TEST(UpdatePresentationTest, ABuildWithoutTrustIsAStateNotAFailure) {
     EXPECT_EQ(v.build_official, "Not checked");
     ASSERT_EQ(v.device_rows.size(), 1);
     EXPECT_EQ(v.device_rows[0].title, "Root of trust");
-    EXPECT_EQ(v.device_rows[0].value, "Not included in this build");
+    EXPECT_EQ(v.device_rows[0].result, "Not included in this build");
     EXPECT_EQ(v.device_rows[0].mark, DetailRow::Mark::kNotChecked);
     EXPECT_TRUE(v.host_rows.isEmpty());
     EXPECT_TRUE(ReportText(v).contains(
@@ -488,14 +489,28 @@ TEST(UpdatePresentationTest, UpToDateShowsTheBuildAndEveryStepVerified) {
   for (const auto& row : v.device_rows) {
     EXPECT_EQ(row.mark, DetailRow::Mark::kVerified) << row.title.toStdString();
   }
-  EXPECT_EQ(v.device_rows[0].mono, "4E179325A34DCF45 27458E01B54EAF5D");
-  EXPECT_TRUE(v.device_rows[0].value.endsWith("2 of 3 root keys signed"));
-  EXPECT_TRUE(
-      v.device_rows[2].value.startsWith("Serial 42 from update.bktus.com"));
-  EXPECT_EQ(v.device_rows[2].mono, "0123456789ABCDEF");
-  EXPECT_EQ(v.device_rows[3].mono, "dddddddd…dddddddd eeeeeeee…eeeeeeee");
-  EXPECT_EQ(v.device_rows[3].full,
-            QString(64, u'd') + u'\n' + QString(64, u'e'));
+  // Title, a short result, then labelled facts; ids and hashes only in
+  // the tooltip (and the report).
+  EXPECT_EQ(v.device_rows[0].result, "Verified");
+  EXPECT_EQ(v.device_rows[0].facts,
+            "Version 1 (built in) · Valid until " +
+                kNow.addYears(2).toUTC().date().toString(Qt::ISODate) +
+                " · Signed by 2 of 3 root keys");
+  EXPECT_EQ(v.device_rows[0].tip,
+            "Root keys: 4E179325A34DCF45, 27458E01B54EAF5D");
+  EXPECT_EQ(v.device_rows[1].tip, "Signed by 9B09BDB5C65DAB85");
+  EXPECT_TRUE(v.device_rows[2].facts.startsWith(
+      "Serial 42 · update.bktus.com · Valid until "));
+  EXPECT_TRUE(v.device_rows[2].facts.endsWith(" · No rollback"));
+  EXPECT_EQ(v.device_rows[2].tip, "Signed by 0123456789ABCDEF");
+  EXPECT_EQ(v.device_rows[3].facts, "Match the hashes in the update index");
+  EXPECT_EQ(v.device_rows[3].tip, "Release details: " + QString(64, u'd') +
+                                      "\nRelease notes: " + QString(64, u'e'));
+  EXPECT_EQ(v.device_rows[4].facts, "Confirmed by builds.bktus.com");
+  for (const auto& row : v.device_rows) {
+    EXPECT_FALSE(row.facts.contains("4E179325A34DCF45"));
+    EXPECT_FALSE(row.facts.contains(QString(64, u'd')));
+  }
   ExpectHostRowsNeverVerified(v);
   EXPECT_EQ(v.security_url,
             "https://github.com/saturneric/GpgFrontend/blob/main/SECURITY.md");
@@ -508,7 +523,7 @@ TEST(UpdatePresentationTest, AnUpdateShowsTheOfferAndAnUncheckedDownload) {
   EXPECT_TRUE(v.show_offer);
   EXPECT_EQ(v.offer_version, "2.1.9");
   EXPECT_EQ(v.offer_file, "GpgFrontend-2.1.9-linux-x86_64.AppImage");
-  EXPECT_EQ(v.offer_size, QLocale().formattedDataSize(2 * 1024 * 1024));
+  EXPECT_EQ(v.offer_size, "2.0 MiB");
   EXPECT_EQ(ShortHash(v.offer_sha256), "0123abcd…89abcdef");
   EXPECT_TRUE(v.newest.isEmpty());
 
@@ -517,18 +532,30 @@ TEST(UpdatePresentationTest, AnUpdateShowsTheOfferAndAnUncheckedDownload) {
                                  [](const auto& row) { return row.download; });
   ASSERT_NE(file, v.device_rows.end());
   EXPECT_EQ(file->mark, DetailRow::Mark::kNotChecked);
-  EXPECT_EQ(file->value, "Not checked, opens in your browser");
-  EXPECT_EQ(file->mono, "0123abcd…89abcdef");
-  EXPECT_EQ(file->copy, v.offer_sha256);
+  EXPECT_EQ(file->result, "Not checked");
+  EXPECT_EQ(file->facts,
+            "Opens in your browser. Compare it with the SHA-256 above.");
+  // The hash is in the Offered block, once: none here.
+  EXPECT_TRUE(file->tip.isEmpty());
+  EXPECT_FALSE(
+      ReportText(v).contains("[not checked] Downloaded file: Not "
+                             "checked · Opens in your browser. "
+                             "Compare it with the SHA-256 above. · "));
 
   ASSERT_EQ(v.host_rows.size(), 2);
-  EXPECT_TRUE(v.host_rows[0].value.endsWith("tag v2.1.9"));
-  EXPECT_EQ(v.host_rows[1].mono, "12F7E8858CF15BEC9975FF3C5CA3DA246843FD03");
+  EXPECT_EQ(v.host_rows[0].facts,
+            "saturneric/GpgFrontend · build.yml · Tag v2.1.9");
+  EXPECT_EQ(v.host_rows[1].title, "Signed by the maintainer");
+  EXPECT_EQ(v.host_rows[1].result, "OpenPGP");
+  EXPECT_EQ(v.host_rows[1].facts,
+            "12F7 E885 8CF1 5BEC 9975 FF3C 5CA3 DA24 6843 FD03");
+  EXPECT_EQ(v.host_rows[1].tip, "12F7E8858CF15BEC9975FF3C5CA3DA246843FD03");
   // Authenticode is said only where it applies: Windows installers.
   v = PresentUpdate(Snapshot(WithFile(Update()), Verified()), kNow,
                     Release("windows", "msi"));
   ASSERT_EQ(v.host_rows.size(), 3);
-  EXPECT_EQ(v.host_rows[2].value, "Authenticode, CN=Example");
+  EXPECT_EQ(v.host_rows[2].result, "Authenticode");
+  EXPECT_EQ(v.host_rows[2].facts, "CN=Example");
   ExpectHostRowsNeverVerified(v);
 }
 
@@ -576,7 +603,7 @@ TEST(UpdatePresentationTest, AnUnofficialBuildIsNotAVerificationFailure) {
   EXPECT_EQ(v.headline, "This build isn't from the official repository");
   EXPECT_EQ(v.build_official, "No, not from the official repository");
   EXPECT_EQ(v.device_rows.back().mark, DetailRow::Mark::kFailed);
-  EXPECT_EQ(v.device_rows.back().value, "Not among the official builds");
+  EXPECT_EQ(v.device_rows.back().result, "Not among the official builds");
   EXPECT_EQ(v.verification_tone, UpdateTone::kGood);
 }
 
@@ -633,10 +660,10 @@ TEST(UpdatePresentationTest, AnInPlaceUpdateIsVerifiedAfterDownload) {
   EXPECT_EQ(v.download_label, "Restart now");
   EXPECT_EQ(file(v).mark, DetailRow::Mark::kVerified);
   EXPECT_TRUE(
-      file(v).value.startsWith("Size and SHA-256 matched after download"));
+      file(v).facts.startsWith("Size and SHA-256 matched after download"));
   v = PresentInstall(view, {InstallState::Stage::kFailed, 0, 0, "bad hash"});
   EXPECT_EQ(file(v).mark, DetailRow::Mark::kFailed);
-  EXPECT_EQ(file(v).value, "bad hash");
+  EXPECT_EQ(file(v).result, "bad hash");
 }
 
 TEST(UpdatePresentationTest, NoAnswerIsAWarningWithCheckAgain) {
@@ -652,7 +679,8 @@ TEST(UpdatePresentationTest, NoAnswerIsAWarningWithCheckAgain) {
   EXPECT_TRUE(v.show_check);
   EXPECT_EQ(v.verification_tone, UpdateTone::kAttention);
   EXPECT_EQ(v.verification, "Server not reached · checked just now");
-  EXPECT_EQ(v.device_rows[2].value, "No server answered (HTTP 503)");
+  EXPECT_EQ(v.device_rows[2].result, "No server answered");
+  EXPECT_EQ(v.device_rows[2].facts, "HTTP 503");
 
   // Release details nobody served cost the download link, nothing else.
   s = Snapshot(Update(),
@@ -672,8 +700,7 @@ TEST(UpdatePresentationTest, EachRefusalIsNamedOnce) {
   };
   const QDateTime expiry =
       QDateTime::fromString("2027-01-10T00:00:00Z", Qt::ISODate);
-  const auto day =
-      QLocale().toString(expiry.toLocalTime().date(), QLocale::ShortFormat);
+  const auto day = expiry.toUTC().date().toString(Qt::ISODate);
   const std::vector<Case> cases{
       {CheckStepId::kIndex,
        StepReason::kBadSignature,
@@ -746,10 +773,10 @@ TEST(UpdatePresentationTest, EachRefusalIsNamedOnce) {
         v.device_rows.begin(), v.device_rows.end(),
         [](const auto& row) { return row.mark == DetailRow::Mark::kFailed; });
     ASSERT_NE(failed, v.device_rows.end());
-    EXPECT_FALSE(failed->value.isEmpty());
-    EXPECT_FALSE(c.says.contains(failed->value, Qt::CaseInsensitive) &&
-                 failed->value.size() > 20)
-        << failed->value.toStdString();
+    EXPECT_FALSE(failed->result.isEmpty());
+    // The short form, not the header's sentence again.
+    EXPECT_LT(failed->result.size(), c.says.size())
+        << failed->result.toStdString();
     ExpectHostRowsNeverVerified(v);
     EXPECT_TRUE(ReportText(v).contains("[failed] " + failed->title + ": "));
   }
@@ -783,7 +810,7 @@ TEST(UpdatePresentationTest, TheReportSaysEverythingButNothingPersonal) {
   for (const auto* expected :
        {"GpgFrontend 2.1.8", "Commit abc123", "Release · series 2.1 (stable)",
         "Verified · checked", "[verified] Root of trust", "4E179325A34DCF45",
-        "Serial 42 from update.bktus.com", "0123456789ABCDEF",
+        "Serial 42 · update.bktus.com", "0123456789ABCDEF",
         "[not checked] Downloaded file", "saturneric/GpgFrontend",
         "Signed by the maintainer"}) {
     EXPECT_TRUE(report.contains(QString::fromUtf8(expected))) << expected;
@@ -814,4 +841,88 @@ TEST(UpdatePresentationTest, NotesHeadingsStayAtTheDialogsScale) {
     }
   }
   EXPECT_EQ(sizes, QList<qreal>({11, 11, 10}));
+}
+
+TEST(UpdatePresentationTest, SizesAreWholeMebibytesFromTen) {
+  auto r = WithFile(Update());
+  r.list.latest.download_size = 118 * 1024 * 1024 + 300 * 1024;
+  EXPECT_EQ(PresentUpdate(Snapshot(r, Verified()), kNow, Release()).offer_size,
+            "118 MiB");
+  r.list.latest.download_size = 7 * 1024 * 1024 + 300 * 1024;
+  EXPECT_EQ(PresentUpdate(Snapshot(r, Verified()), kNow, Release()).offer_size,
+            "7.3 MiB");
+}
+
+TEST(UpdatePresentationTest, DatesReadOneWayOnly) {
+  auto record = Verified();
+  record.root_expires =
+      QDateTime::fromString("2028-11-06T18:12:35Z", Qt::ISODate);
+  const auto v = PresentUpdate(Snapshot(Current(), record), kNow, Release());
+  EXPECT_TRUE(v.device_rows[0].facts.contains("Valid until 2028-11-06"))
+      << v.device_rows[0].facts.toStdString();
+  EXPECT_FALSE(v.device_rows[0].facts.contains("11/6/28"));
+}
+
+namespace {
+
+/// English plural forms, as en_US.ts gives them: proves the count goes
+/// through the translation mechanism, not a literal "(s)".
+class EnglishPlurals : public QTranslator {
+ public:
+  auto translate(const char* context, const char* source,
+                 const char* disambiguation, int n) const -> QString override {
+    Q_UNUSED(context);
+    Q_UNUSED(disambiguation);
+    if (QLatin1StringView(source) == u"%n key(s)") {
+      return n == 1 ? QStringLiteral("%n key") : QStringLiteral("%n keys");
+    }
+    return {};
+  }
+  [[nodiscard]] auto isEmpty() const -> bool override { return false; }
+};
+
+}  // namespace
+
+TEST(UpdatePresentationTest, CountsArePluralsOfTheTranslation) {
+  // A translator needs an application to be installed in.
+  int argc = 0;
+  std::unique_ptr<QCoreApplication> app;
+  if (QCoreApplication::instance() == nullptr) {
+    app = std::make_unique<QCoreApplication>(argc, nullptr);
+  }
+  EnglishPlurals plurals;
+  QCoreApplication::installTranslator(&plurals);
+  auto record = Verified();
+  auto v = PresentUpdate(Snapshot(Current(), record), kNow, Release());
+  EXPECT_TRUE(v.device_rows[1].facts.contains("1 key ·"))
+      << v.device_rows[1].facts.toStdString();
+  record.list_keys = 3;
+  v = PresentUpdate(Snapshot(Current(), record), kNow, Release());
+  EXPECT_TRUE(v.device_rows[1].facts.contains("3 keys ·"));
+  QCoreApplication::removeTranslator(&plurals);
+}
+
+TEST(UpdatePresentationTest, OnlyAReleaseIsSignedByTheMaintainer) {
+  auto release =
+      PresentUpdate(Snapshot(Current(), Verified()), kNow, Release());
+  EXPECT_TRUE(Titles(release.host_rows).contains("Signed by the maintainer"));
+  auto nightly =
+      PresentUpdate(Snapshot(Nightly("2.3.0-alpha.414"), Verified()), kNow);
+  EXPECT_FALSE(Titles(nightly.host_rows).contains("Signed by the maintainer"));
+  EXPECT_EQ(Titles(nightly.host_rows), QStringList{"Built by GitHub Actions"});
+}
+
+TEST(UpdatePresentationTest, TheServerGroupNamesOnlyWhatTheRootSays) {
+  // No repository in the root's host_policy: no server group, rather than
+  // an empty or made-up name.
+  auto record = Verified();
+  record.repository.clear();
+  auto v = PresentUpdate(Snapshot(Current(), record), kNow, Release());
+  EXPECT_TRUE(v.host_rows.isEmpty());
+  EXPECT_TRUE(v.security_url.isEmpty());
+  // Otherwise the repository as the root names it, never empty.
+  v = PresentUpdate(Snapshot(Current(), Verified()), kNow, Release());
+  ASSERT_FALSE(v.host_rows.isEmpty());
+  EXPECT_TRUE(v.host_rows[0].facts.startsWith("saturneric/GpgFrontend · "));
+  EXPECT_EQ(v.host_rows[0].tip, ".github/workflows/build.yml");
 }
