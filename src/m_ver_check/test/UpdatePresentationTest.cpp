@@ -833,10 +833,8 @@ TEST(UpdatePresentationTest, NotesHeadingsStayAtTheDialogsScale) {
     const auto fragment = block.begin().fragment();
     if (block.blockFormat().headingLevel() > 0) {
       EXPECT_EQ(fragment.charFormat().fontWeight(), QFont::Bold);
-      EXPECT_EQ(fragment.charFormat()
-                    .property(QTextFormat::FontSizeAdjustment)
-                    .toInt(),
-                0);
+      EXPECT_FALSE(
+          fragment.charFormat().hasProperty(QTextFormat::FontSizeAdjustment));
       sizes << fragment.charFormat().fontPointSize();
     }
   }

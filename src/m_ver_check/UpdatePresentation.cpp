@@ -530,16 +530,24 @@ void TameNotesHeadings(QTextDocument* document, qreal body_points) {
   for (auto block = document->begin(); block.isValid(); block = block.next()) {
     const int level = block.blockFormat().headingLevel();
     if (level <= 0) continue;
-    QTextCharFormat format;
-    format.setFontWeight(QFont::Bold);
-    format.setFontPointSize(level <= 2 ? body_points + 1 : body_points);
-    // The importer sizes headings by this adjustment; the point size above
-    // is what they are to be.
-    format.setProperty(QTextFormat::FontSizeAdjustment, 0);
-    QTextCursor cursor(block);
-    cursor.select(QTextCursor::BlockUnderCursor);
-    cursor.mergeCharFormat(format);
-    cursor.mergeBlockCharFormat(format);
+    // The importer sizes headings by an adjustment; the point size below is
+    // what they are to be.
+    const auto tame = [&](QTextCharFormat format) {
+      format.clearProperty(QTextFormat::FontSizeAdjustment);
+      format.setFontWeight(QFont::Bold);
+      format.setFontPointSize(level <= 2 ? body_points + 1 : body_points);
+      return format;
+    };
+    QTextCursor cursor(document);
+    cursor.setPosition(block.position());
+    cursor.setBlockCharFormat(tame(block.charFormat()));
+    for (auto it = block.begin(); !it.atEnd(); ++it) {
+      const auto fragment = it.fragment();
+      cursor.setPosition(fragment.position());
+      cursor.setPosition(fragment.position() + fragment.length(),
+                         QTextCursor::KeepAnchor);
+      cursor.setCharFormat(tame(fragment.charFormat()));
+    }
   }
 }
 
