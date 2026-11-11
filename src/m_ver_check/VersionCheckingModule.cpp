@@ -174,11 +174,18 @@ auto MakeDownload(QNetworkAccessManager* nam) -> AppImageInstaller::Download {
 #define GF_RELEASE_PRODUCT ""
 #define GF_RELEASE_UPDATE_BASES ""
 #define GF_RELEASE_BUILDS_BASES ""
-#define GF_RELEASE_INDEX_KEYS ""
 #endif
 #ifndef GF_RELEASE_NOTES_HOSTS
 #define GF_RELEASE_NOTES_HOSTS ""
 #endif
+
+}  // namespace
+
+/// The trust this build was made with (EmbeddedTrust.cpp, generated from
+/// release/root/ and release/index-keys/ by this module's CMakeLists.txt).
+auto BuiltInTrust() -> EmbeddedTrust;
+
+namespace {
 
 /// The update channel this build was made for (release/product.json, by way
 /// of this module's CMakeLists.txt).
@@ -188,7 +195,7 @@ auto BuiltInChannel() -> ReleaseChannel {
   };
   return {QString::fromLatin1(GF_RELEASE_PRODUCT),
           split(GF_RELEASE_UPDATE_BASES), split(GF_RELEASE_BUILDS_BASES),
-          split(GF_RELEASE_INDEX_KEYS)};
+          BuiltInTrust()};
 }
 
 /// This machine, as release descriptors and series requirements name it.
@@ -333,7 +340,10 @@ auto VersionChecker() -> UpdateChecker* {
     g_checker = new UpdateChecker(
         {QString::fromUtf8(GFAppVersion(ctx)),
          QString::fromUtf8(GFAppGitCommitHash(ctx)), BuiltInChannel(),
-         ThisPlatform(), GFAppIsNightlyIdentity(ctx), FollowBetaSetting()},
+         ThisPlatform(), GFAppIsNightlyIdentity(ctx), FollowBetaSetting(),
+         // Why the trust or an index was refused: a rotation in the field
+         // is diagnosed from these.
+         [](const QString& what) { FLOG_WARN("%1", what); }},
         MakeFetcher(nam), MakeStore());
     nam->setParent(g_checker);
 

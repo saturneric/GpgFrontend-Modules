@@ -36,6 +36,7 @@
 #include <optional>
 
 #include "ReleaseIndex.h"
+#include "RootTrust.h"
 #include "SoftwareVersion.h"
 
 /**
@@ -60,9 +61,17 @@ struct UpdateSnapshot {
   QDateTime last_seen_at;
 
   /// The highest serial of a signed update index this installation has
-  /// accepted. An index with a lower one is a replay of an older state and is
-  /// refused (anti-rollback); kept across builds, like the field above.
-  qint64 max_serial = 0;
+  /// accepted, by the id of the key that signed it. An index with a lower
+  /// one is a replay of an older state and is refused (anti-rollback); kept
+  /// across builds, like the field above. A key that leaves the index-keys
+  /// list takes its floor with it: a key rotated in starts afresh, and one
+  /// index with a huge serial under one key blocks no other.
+  QHash<QString, qint64> serial_floor;
+
+  /// The newest root and index-keys list this installation took beyond the
+  /// ones it was built with (RootTrust.h): kept across builds.
+  SignedFile root;
+  SignedFile index_keys;
 };
 
 /// Whether the update entry point asks for attention. Derived from the
@@ -115,6 +124,9 @@ class UpdateChecker : public QObject {
     /// versions"). The nightly identity ignores it: main's nightlies follow
     /// the nightly channel, a release branch's the beta one, either way.
     bool follow_beta = false;
+    /// Where to say why the update trust or an index was refused (a log at
+    /// WARNING): nothing a user sees changes.
+    std::function<void(const QString&)> warn;
   };
 
   static constexpr qint64 kFreshSeconds = 24 * 60 * 60;
@@ -171,7 +183,23 @@ class UpdateChecker : public QObject {
   // marker.
   void startIndex();
   void tryIndexBase(qsizetype i, bool retried = false);
+  // Before an index's signature is checked: the roots, and the index-keys
+  // list, it says it is signed under, from the same base.
+  using Then = std::function<void()>;
+  void checkIndex(qsizetype i, const QByteArray& body,
+                  const QByteArray& signature, bool retried);
+  void walkRoots(qsizetype i, qint64 target, int steps, const Then& then);
+  void fetchSignatures(const QString& prefix, QStringList ids,
+                       QHash<QString, QByteArray> found,
+                       const std::function<void(QHash<QString, QByteArray>)>&
+                           done);
+  void takeIndexKeys(qsizetype i, qint64 version, const Then& then);
   auto acceptIndex(const QByteArray& body, const QByteArray& signature) -> bool;
+  /// The built-in trust, or what was taken since: the newer of each.
+  void loadTrust();
+  void keepTrust();
+  void warn(const QString& what) const;
+  [[nodiscard]] auto trustBase(qsizetype i) const -> QString;
   void askDescriptor(qsizetype i = 0);
   void askNotes(qsizetype i = 0);
   void askCommitMarker();
@@ -188,7 +216,10 @@ class UpdateChecker : public QObject {
   SoftwareVersion fresh_;
   bool again_ = false;          ///< check again once the running check finishes
   bool marker_failed_ = false;  ///< the commit marker was asked, not answered
+  std::optional<TrustRoot> root_;
+  std::optional<IndexKeys> keys_;
   qint64 accepted_serial_ = 0;
+  QString accepted_key_;  ///< the id of the key that signed it
   QString descriptor_path_;    ///< of the release the accepted index offers
   QString descriptor_sha256_;  ///< what the signed index says it hashes to
   QString notes_path_;         ///< that release's notes, when listed

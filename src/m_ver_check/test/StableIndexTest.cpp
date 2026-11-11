@@ -721,7 +721,7 @@ struct Server : Mirrors {
         UpdateChecker::Build{
             version,
             kCommit,
-            {"gpgfrontend", {kBase}, {kBuilds}, {signer.PublicKey()}},
+            {"gpgfrontend", {kBase}, {kBuilds}, TrustFor(signer)},
             platform,
             nightly,
             follow_beta},
@@ -837,7 +837,7 @@ TEST(StableCheckTest, AnIndexAndSignatureOutOfStepAreAskedAgain) {
       UpdateChecker::Build{
           "v2.2.3",
           kCommit,
-          {"gpgfrontend", {kBase}, {kBuilds}, {server.signer.PublicKey()}},
+          {"gpgfrontend", {kBase}, {kBuilds}, TrustFor(server.signer)},
           Linux(),
           0},
       [&](const QUrl& url, const UpdateChecker::Reply& reply) {
@@ -851,7 +851,7 @@ TEST(StableCheckTest, AnIndexAndSignatureOutOfStepAreAskedAgain) {
   c->Start(CheckMode::kForce);
   EXPECT_EQ(reads, 2);
   ASSERT_TRUE(c->State().last_good);
-  EXPECT_EQ(c->State().max_serial, 6);
+  EXPECT_EQ(c->State().serial_floor.value(KeyId(server.signer)), 6);
 }
 
 TEST(StableCheckTest, NothingVerifiedClaimsNothing) {
@@ -890,7 +890,7 @@ TEST(StableCheckTest, AReleaseBranchNightlyIsOfferedNothing) {
       UpdateChecker::Build{
           "v2.2.5-alpha.3+g123",
           kCommit,
-          {"gpgfrontend", {kBase}, {kBuilds}, {server.signer.PublicKey()}},
+          {"gpgfrontend", {kBase}, {kBuilds}, TrustFor(server.signer)},
           Linux(),
           1},
       server.Fetcher(), UpdateChecker::Store{}, [] { return kNow; });

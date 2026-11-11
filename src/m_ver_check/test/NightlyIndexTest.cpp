@@ -261,7 +261,7 @@ struct Nightly {
 
   auto Channel() const -> ReleaseChannel {
     return {
-        "gpgfrontend", {kMirrorA, kMirrorB}, {kMirrorA}, {signer.PublicKey()}};
+        "gpgfrontend", {kMirrorA, kMirrorB}, {kMirrorA}, TrustFor(signer)};
   }
 
   auto Make(const QString& version = "v2.3.0-alpha.5+g0123456789ab")
@@ -303,7 +303,7 @@ TEST(NightlyCheckTest, ANewerNightlyIsAnUpdate) {
   EXPECT_FALSE(c->State().checking);
   EXPECT_EQ(n.Verdict(*c), Verdict::kUpdateAvailable);
   EXPECT_EQ(c->State().last_good->list.latest.version, "2.3.0-alpha.9+gffff");
-  EXPECT_EQ(c->State().max_serial, 3);
+  EXPECT_EQ(c->State().serial_floor.value(KeyId(n.signer)), 3);
   EXPECT_TRUE(IsAuthoritative(*c->State().last_good));
   // No GitHub question is asked by a nightly.
   for (const auto& url : n.mirrors.asked) {
@@ -348,7 +348,7 @@ TEST(NightlyCheckTest, ABadSignatureOnTheFirstMirrorFallsThrough) {
   auto c = n.Make();
   c->Start(CheckMode::kForce);
   EXPECT_EQ(c->State().last_good->list.latest.version, "2.3.0-alpha.9");
-  EXPECT_EQ(c->State().max_serial, 3);
+  EXPECT_EQ(c->State().serial_floor.value(KeyId(n.signer)), 3);
 }
 
 TEST(NightlyCheckTest, NothingVerifiedIsUnknownNeverAVerdict) {
@@ -375,10 +375,11 @@ TEST(NightlyCheckTest, AnOlderIndexThanOneSeenIsAReplay) {
   n.Publish(kMirrorA, 9, "2.3.0-alpha.7");
   n.Publish(kMirrorB, 11, "2.3.0-alpha.12");
   auto c = n.Make();
-  ASSERT_EQ(c->State().max_serial, 10);  // remembered across runs
+  // Remembered across runs.
+  ASSERT_EQ(c->State().serial_floor.value(KeyId(n.signer)), 10);
   c->Start(CheckMode::kForce);
   EXPECT_EQ(c->State().last_good->list.latest.version, "2.3.0-alpha.12");
-  EXPECT_EQ(c->State().max_serial, 11);
+  EXPECT_EQ(c->State().serial_floor.value(KeyId(n.signer)), 11);
 
   // Only the replay left: refused, the last good result stands.
   n.mirrors.table.erase(QString(kMirrorB) + "gpgfrontend/v1/index.json");
@@ -441,7 +442,7 @@ TEST(NightlyCheckTest, TheSerialSurvivesAnotherBuild) {
   // An upgrade to another build keeps what was seen, even with no result.
   const auto s =
       UpdateChecker::FromStorage(n.stored, {"v2.3.0-alpha.9", "x", {}});
-  EXPECT_EQ(s.max_serial, 7);
+  EXPECT_EQ(s.serial_floor.value(KeyId(n.signer)), 7);
   EXPECT_FALSE(s.last_good.has_value());
 }
 

@@ -45,6 +45,7 @@ add_executable(gf_mod_ver_check_test
   NightlyIndexTest.cpp
   ReleaseCheckTest.cpp
   StableIndexTest.cpp
+  TrustTest.cpp
   UpdateCheckerTest.cpp
   UpdatePresentationTest.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../AppImageUpdate.cpp
@@ -60,6 +61,11 @@ add_executable(gf_mod_ver_check_test
 target_include_directories(gf_mod_ver_check_test PRIVATE
   "${CMAKE_CURRENT_SOURCE_DIR}/.."
   "${CMAKE_BINARY_DIR}/src/sdk")
+
+# The trust files the release tooling made (scripts/tests/fixtures/trust):
+# what the Python side signs, this side verifies.
+target_compile_definitions(gf_mod_ver_check_test PRIVATE
+  GF_TRUST_FIXTURE="${CMAKE_SOURCE_DIR}/scripts/tests/fixtures/trust")
 
 target_link_libraries(gf_mod_ver_check_test PRIVATE
   GTest::gtest GTest::gtest_main Qt::Core Qt::Gui gf_sdk sodium)
