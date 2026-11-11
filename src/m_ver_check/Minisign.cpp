@@ -30,6 +30,7 @@
 
 #include <sodium.h>
 
+#include <algorithm>
 #include <array>
 
 namespace {
@@ -49,7 +50,30 @@ auto Bytes(const QByteArray& a) -> const unsigned char* {
   return reinterpret_cast<const unsigned char*>(a.constData());
 }
 
+/// Key id bytes as minisign prints them: a little-endian number, in hex.
+auto KeyIdHex(const QByteArray& id) -> QString {
+  QByteArray reversed(id.size(), 0);
+  std::reverse_copy(id.begin(), id.end(), reversed.begin());
+  return QString::fromLatin1(reversed.toHex().toUpper());
+}
+
 }  // namespace
+
+auto MinisignSignatureKeyId(const QByteArray& signature_file) -> QString {
+  const auto lines = signature_file.split('\n');
+  if (lines.size() < 2) return {};
+  const auto signature = Decode(QString::fromLatin1(lines[1]));
+  if (signature.size() != kSignatureSize || !signature.startsWith("ED")) {
+    return {};
+  }
+  return KeyIdHex(signature.mid(2, kKeyIdSize));
+}
+
+auto MinisignPublicKeyId(const QString& public_key) -> QString {
+  const auto key = Decode(public_key);
+  if (key.size() != kPublicKeySize || !key.startsWith("Ed")) return {};
+  return KeyIdHex(key.mid(2, kKeyIdSize));
+}
 
 auto MinisignVerify(const QStringList& public_keys, const QByteArray& message,
                     const QByteArray& signature_file)
