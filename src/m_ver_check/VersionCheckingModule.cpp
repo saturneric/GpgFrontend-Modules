@@ -42,6 +42,7 @@
 #include <QVBoxLayout>
 #include <QtNetwork>
 #include <atomic>
+#include <memory>
 
 #if defined(__GLIBC__)
 #include <gnu/libc-version.h>
@@ -71,9 +72,9 @@ constexpr auto kDetailsOpenKey = "details_open";
 std::atomic<bool> g_stopped{false};
 QPointer<UpdateChecker> g_checker;
 
-/// A request to the update or build mirrors, as every one of them is made.
+/// A request to the update or build bases, as every one of them is made.
 /// @p idle_ms bounds the wait between two packets.
-auto MirrorRequest(const QUrl& url, int idle_ms) -> QNetworkRequest {
+auto UpdateRequest(const QUrl& url, int idle_ms) -> QNetworkRequest {
   QNetworkRequest request(url);
   request.setTransferTimeout(idle_ms);
   request.setHeader(QNetworkRequest::UserAgentHeader,
@@ -93,10 +94,10 @@ auto MirrorRequest(const QUrl& url, int idle_ms) -> QNetworkRequest {
 constexpr int kFetchDeadlineMs = 2 * 60 * 1000;
 
 /// A GET of the update index, its signature, a descriptor, notes or a commit
-/// marker. Every request answers once, success or not: a transport failure,
-/// a body larger than UpdateChecker::kMaxFetchBytes (no more of it is read)
-/// and an answer cut off by the deadline are status 0, whatever the headers
-/// said before.
+/// marker. Every request answers once, success or not: a transport failure
+/// and an answer cut off by the deadline are status 0, a body larger than
+/// UpdateChecker::kMaxFetchBytes (no more of it is read) is
+/// UpdateChecker::kStatusOversized, whatever the headers said before.
 auto MakeFetcher(QNetworkAccessManager* nam) -> UpdateChecker::Fetcher {
   return [nam = QPointer<QNetworkAccessManager>(nam)](
              const QUrl& url, const UpdateChecker::Reply& reply) {
@@ -105,15 +106,18 @@ auto MakeFetcher(QNetworkAccessManager* nam) -> UpdateChecker::Fetcher {
       return;
     }
 
-    auto* r = nam->get(MirrorRequest(url, 30000));
+    auto* r = nam->get(UpdateRequest(url, 30000));
+    // Set where the transfer is cut off for its size; read once it ended.
+    auto oversized = std::make_shared<bool>(false);
     QTimer::singleShot(kFetchDeadlineMs, r, [r] { r->abort(); });
     QObject::connect(r, &QNetworkReply::downloadProgress, r,
-                     [r](qint64 received, qint64 /*total*/) {
+                     [r, oversized](qint64 received, qint64 /*total*/) {
                        if (received > UpdateChecker::kMaxFetchBytes) {
+                         *oversized = true;
                          r->abort();
                        }
                      });
-    QObject::connect(r, &QNetworkReply::finished, r, [r, reply] {
+    QObject::connect(r, &QNetworkReply::finished, r, [r, reply, oversized] {
       int status =
           r->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
       // A success the transfer did not finish (a timeout, an abort, a reset
@@ -121,11 +125,11 @@ auto MakeFetcher(QNetworkAccessManager* nam) -> UpdateChecker::Fetcher {
       // stays what it is: a 404 means something (ParseCommitMarker).
       if (r->error() != QNetworkReply::NoError && status >= 200 &&
           status < 300) {
-        status = 0;
+        status = *oversized ? UpdateChecker::kStatusOversized : 0;
       }
       FLOG_DEBUG("update check reply: %1, http status: %2, error: %3",
                  r->url().toString(), status, r->errorString());
-      const auto body = status == 0 ? QByteArray() : r->readAll();
+      const auto body = status <= 0 ? QByteArray() : r->readAll();
       r->deleteLater();
       reply(status, body);
     });
@@ -145,7 +149,7 @@ auto MakeDownload(QNetworkAccessManager* nam) -> AppImageInstaller::Download {
       return;
     }
     // 60 s between two packets, not for the whole file: an image is large.
-    auto* r = nam->get(MirrorRequest(url, 60000));
+    auto* r = nam->get(UpdateRequest(url, 60000));
     QPointer<QIODevice> out(sink);
     auto take = [r, out] {
       const auto chunk = r->readAll();

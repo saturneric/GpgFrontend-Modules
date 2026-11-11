@@ -697,6 +697,18 @@ TEST(UpdateCheckerTest, NoMirrorAnsweringIsUnreachable) {
   EXPECT_TRUE(StepOf(c->State(), CheckStepId::kIndex).detail.isEmpty());
 }
 
+TEST(UpdateCheckerTest, AnAnswerCutOffForItsSizeIsOversized) {
+  // What MakeFetcher answers once it stopped reading past kMaxFetchBytes:
+  // a server that sent too much, not one that sent nothing.
+  Steps w;
+  w.mirrors.Put(QString(kBase) + "gpgfrontend/v1/index.json", {},
+                UpdateChecker::kStatusOversized);
+  const auto s = w.Check();
+  EXPECT_TRUE(s.last_attempt_failed);
+  EXPECT_EQ(StepOf(s, CheckStepId::kIndex).reason, StepReason::kOversized);
+  EXPECT_TRUE(StepOf(s, CheckStepId::kIndex).detail.isEmpty());
+}
+
 TEST(UpdateCheckerTest, ABadSignatureIsRecorded) {
   Steps w;
   w.Serve(5);
