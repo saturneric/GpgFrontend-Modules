@@ -45,7 +45,7 @@ class UpdateChecker;
  * the installer lives as long as the page, so closing it cancels a download.
  *
  * Top to bottom: the status, this build and the offer side by side, the
- * release notes (a few lines, the rest in a window of their own), one short
+ * release notes (which take the height and scroll), one short
  * line on the update information with its details on request, and one row
  * of buttons.
  */
@@ -63,9 +63,8 @@ class UpdateTab : public QWidget {
   void render();
   void apply(const UpdateView& view);
   void fill_details(const UpdateView& view);
+  void fill_notes_palette();
   void fit_window();
-  void fit_notes();
-  void show_full_notes();
   void on_main_button();
   void install();
 
@@ -80,8 +79,7 @@ class UpdateTab : public QWidget {
   QWidget* offer_column_;  ///< only with an offer
   QFormLayout* offer_form_;
   QLabel* beta_hint_;    ///< "A newer beta, X, is available"
-  QTextBrowser* notes_;  ///< a few lines; full_notes_ opens the rest
-  QLabel* full_notes_;
+  QTextBrowser* notes_;  ///< the part that scrolls and takes the height
   QLabel* status_icon_;
   QLabel* status_text_;
   QToolButton* details_toggle_;

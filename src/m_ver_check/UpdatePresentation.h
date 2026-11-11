@@ -172,6 +172,11 @@ auto SeriesNoticeText(const SoftwareVersion::Notice& notice) -> QString;
 
 class QTextDocument;
 
+/// Release notes' headings at the dialog's scale: "#" and "##" bold at
+/// @p body_points + 1, deeper ones bold at @p body_points. Markdown's own
+/// heading sizes outgrow the dialog's headline.
+void TameNotesHeadings(QTextDocument* document, qreal body_points);
+
 /// Release notes as shown: a link is kept only when IsAllowedNotesLink()
 /// takes its target; any other reads as plain text and opens nothing.
 void RestrictNotesLinks(QTextDocument* document, const QStringList& hosts);
