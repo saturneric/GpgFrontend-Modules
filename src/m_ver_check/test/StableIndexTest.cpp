@@ -205,6 +205,17 @@ TEST(StableIndexTest, ReadsSeriesReleasesAndTheStableChannel) {
   EXPECT_EQ(f.releases.value("2.2.4").notes_sha256, Sha("Notes.\n"));
 }
 
+TEST(StableIndexTest, ANumberIsReadAsWritten) {
+  // A platform minimum written as a number: 13.5 is 13.5, never the 0 that
+  // every machine would meet.
+  Stable s;
+  s.Series("2.2", "stable", "2.2.4", {},
+           {{"macos", 13.5}, {"android_api", 26}});
+  const auto f = Parse(s);
+  EXPECT_EQ(f.series.value("2.2").platforms.value("macos"), "13.5");
+  EXPECT_EQ(f.series.value("2.2").platforms.value("android_api"), "26");
+}
+
 TEST(StableIndexTest, AMalformedEntryCostsThatEntryOnly) {
   Stable s;
   s.Series("2.2", "stable", "2.2.4");
@@ -624,7 +635,11 @@ TEST(StableIndexTest, NotesLinkOnlyWhereTheProductAllows) {
         "https://bktus.com.evil/",
         "https://github.com/saturneric/GpgFrontendEvil",
         "https://github.com/someone/else", "https://user@bktus.com/",
-        "javascript:alert(1)", "file:///etc/passwd", "notes.md"}) {
+        "javascript:alert(1)", "file:///etc/passwd", "notes.md",
+        // Out of the repository once the browser resolves the dots.
+        "https://github.com/saturneric/GpgFrontend/../evil",
+        "https://github.com/saturneric/GpgFrontend/%2e%2e/evil",
+        "https://bktus.com/./x", "https://bktus.com:8443/"}) {
     EXPECT_FALSE(IsAllowedNotesLink(QUrl(bad), hosts)) << bad;
   }
   EXPECT_FALSE(IsAllowedNotesLink(QUrl("https://bktus.com/"), {}));

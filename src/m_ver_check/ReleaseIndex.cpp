@@ -33,7 +33,6 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QRegularExpression>
-#include <QTimeZone>
 #include <QUrl>
 #include <QVersionNumber>
 
@@ -47,12 +46,6 @@ auto IsNightlyBuild(const QString& version) -> bool {
 }
 
 namespace {
-
-auto ParseTime(const QJsonValue& value) -> QDateTime {
-  auto t = QDateTime::fromString(value.toString(), Qt::ISODate);
-  if (t.isValid()) t.setTimeZone(QTimeZone::UTC);
-  return t;
-}
 
 /// A build an index entry names: its version, and its descriptor pinned by
 /// hash. False, and nothing taken, unless all three are sound.
@@ -96,22 +89,21 @@ auto ParseIndex(const QByteArray& json, const QString& trusted_comment,
   }
 
   IndexFacts f;
-  if (!obj.value("serial").isDouble()) return std::nullopt;
-  f.serial = obj.value("serial").toInteger();
+  f.serial = ReadCount(obj.value("serial"));
   if (f.serial <= 0) return std::nullopt;
   // The comment is what the signature binds; the document must agree.
   if (trusted_comment !=
-      QStringLiteral("product=%1 serial=%2").arg(product).arg(f.serial)) {
+      TrustedComment(product, QStringLiteral("serial"), f.serial)) {
     return std::nullopt;
   }
 
-  f.generated_at = ParseTime(obj.value("generated_at"));
-  f.expires = ParseTime(obj.value("expires"));
+  f.generated_at = ReadUtcTime(obj.value("generated_at"));
+  f.expires = ReadUtcTime(obj.value("expires"));
   if (!f.generated_at.isValid() || !f.expires.isValid()) return std::nullopt;
   if (f.generated_at.secsTo(f.expires) > kMaxIndexLifetimeSeconds) {
     return std::nullopt;
   }
-  if (f.expires.secsTo(now) > kExpirySkewSeconds) {
+  if (IsTrustExpired(f.expires, now)) {
     if (expired != nullptr) *expired = f.expires;
     return std::nullopt;
   }
@@ -133,7 +125,8 @@ auto ParseIndex(const QByteArray& json, const QString& trusted_comment,
   }
 
   for (const auto& w : obj.value("withdrawn").toArray()) {
-    f.withdrawn << w.toObject().value("version").toString();
+    const auto version = w.toObject().value("version").toString();
+    if (SemVer::Parse(version)) f.withdrawn << version;
   }
 
   // An index from before each series named its own beta names one for all:
@@ -167,9 +160,11 @@ auto ParseIndex(const QByteArray& json, const QString& trusted_comment,
     facts.eol = s.value("eol").toString();
     const auto platforms = s.value("platforms").toObject();
     for (auto p = platforms.begin(); p != platforms.end(); ++p) {
-      facts.platforms.insert(p.key(), p.value().isDouble()
-                                          ? QString::number(p.value().toInt())
-                                          : p.value().toString());
+      // A number as written ("13.5" stays 13.5, never the 0 toInt() makes
+      // of it, which every machine would meet).
+      facts.platforms.insert(
+          p.key(), p.value().isDouble() ? QString::number(p.value().toDouble())
+                                        : p.value().toString());
     }
     if (s.contains("beta")) {
       QString version;
@@ -411,11 +406,16 @@ auto ReleaseFact(const IndexFacts& facts, const QString& current)
 
 auto IsAllowedNotesLink(const QUrl& url, const QStringList& hosts) -> bool {
   if (!url.isValid() || url.scheme() != u"https" || url.host().isEmpty() ||
-      !url.userInfo().isEmpty()) {
+      !url.userInfo().isEmpty() || url.port() != -1) {
     return false;
   }
   const auto host = url.host().toLower();
   const auto path = url.path();
+  // "/owner/repo/../evil" would pass a repository's prefix and then be
+  // resolved out of it by the browser.
+  for (const auto& segment : url.path(QUrl::FullyDecoded).split(u'/')) {
+    if (segment == u"." || segment == u"..") return false;
+  }
   for (const auto& entry : hosts) {
     const auto slash = entry.indexOf(u'/');
     const auto want = (slash < 0 ? entry : entry.left(slash)).toLower();

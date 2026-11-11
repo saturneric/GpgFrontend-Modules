@@ -96,6 +96,18 @@ TEST(SemVerTest, PrecedenceFollowsTheSpec) {
   }
 }
 
+TEST(SemVerTest, ANumberTooLongForAnIntegerStillOrders) {
+  // 21 digits: past what toULongLong() reads, which made it 0.
+  EXPECT_GT(SemVerCompare("1.0.0-alpha.100000000000000000000",
+                          "1.0.0-alpha.99999999999999999999"),
+            0);
+  EXPECT_GT(SemVerCompare("1.0.0-alpha.100000000000000000000", "1.0.0-alpha.0"),
+            0);
+  EXPECT_EQ(SemVerCompare("1.0.0-alpha.100000000000000000000",
+                          "1.0.0-alpha.100000000000000000000"),
+            0);
+}
+
 TEST(SemVerTest, OurBuildsSortAsTheyAreMade) {
   // alpha (untagged) < beta < beta.dev < rc < final < next patch's alpha
   const QStringList order{"v2.3.0-alpha.400+gabc", "v2.4.0-alpha.1",
@@ -135,8 +147,23 @@ TEST(SemVerTest, NightlyBuildsAreTheUntaggedOnes) {
 TEST(MinisignTest, TheToolsSignaturesVerify) {
   EXPECT_EQ(MinisignVerify({kToolKey}, kToolMessage, kToolSignature),
             std::optional<QString>("product=gpgfrontend serial=7"));
-  EXPECT_EQ(MinisignVerify({kToolKey}, kToolMessage, kToolLegacySignature),
-            std::optional<QString>("legacy"));
+}
+
+TEST(MinisignTest, ALegacySignatureNeverVerifies) {
+  // Valid as minisign made it, but over the content itself: the release
+  // tooling verifies prehashed signatures only (minisign -H), and so does
+  // this.
+  EXPECT_FALSE(MinisignVerify({kToolKey}, kToolMessage, kToolLegacySignature));
+}
+
+TEST(MinisignTest, ACrlfCheckoutStillVerifies) {
+  // A signature file that went through a Windows checkout with CRLF line
+  // ends: minisign trims the CR, and so does this.
+  auto crlf = QByteArray(kToolSignature);
+  crlf.replace("\n", "\r\n");
+  EXPECT_EQ(MinisignVerify({kToolKey}, kToolMessage, crlf),
+            std::optional<QString>("product=gpgfrontend serial=7"));
+  EXPECT_EQ(MinisignSignatureKeyId(crlf), MinisignPublicKeyId(kToolKey));
 }
 
 TEST(MinisignTest, AnyPinnedKeyWillDo) {
@@ -192,6 +219,26 @@ TEST(ReleaseIndexTest, ReadsWhatItActsOn) {
             ListOutcome::kFound);
   EXPECT_EQ(WithdrawnFact(*f, "v2.2.3"), RemoteFact::kNotFound);
   EXPECT_EQ(WithdrawnFact(*f, "v2.2.4"), RemoteFact::kConfirmed);
+}
+
+TEST(ReleaseIndexTest, AWithdrawnEntryWithoutAVersionIsNone) {
+  const auto index =
+      Index(5, "2.3.0-alpha.9", "gpgfrontend", kNow.addDays(14), {},
+            {{"withdrawn", QJsonArray{QJsonObject{{"reason", "r"}},
+                                      QJsonObject{{"version", "2.2.3"}}}}});
+  const auto f = ParseIndex(index, Comment(5), "gpgfrontend", kNow);
+  ASSERT_TRUE(f.has_value());
+  EXPECT_EQ(f->withdrawn, QStringList{"2.2.3"});
+}
+
+TEST(ReleaseIndexTest, TimesAreTheToolingsShapeOnly) {
+  // An expiry the release tooling never writes: refused as malformed.
+  auto index = QJsonDocument::fromJson(
+                   Index(5, "2.3.0-alpha.9", "gpgfrontend", kNow.addDays(14)))
+                   .object();
+  index["expires"] = kNow.addDays(14).toUTC().toString(Qt::ISODateWithMs);
+  EXPECT_FALSE(ParseIndex(QJsonDocument(index).toJson(), Comment(5),
+                          "gpgfrontend", kNow));
 }
 
 TEST(ReleaseIndexTest, AnotherProductsIndexIsRefused) {

@@ -181,10 +181,6 @@ auto SelectArtifact(const QByteArray& descriptor, const Platform& platform)
 /// is an untagged one: "X.Y.Z-alpha.N" or "...-beta.K.dev.N".
 auto IsNightlyBuild(const QString& version) -> bool;
 
-/// How long past `expires` an index is still taken: a client clock a little
-/// wrong must not turn a good index into "unknown".
-inline constexpr qint64 kExpirySkewSeconds = 24 * 60 * 60;
-
 /// The longest an index may say it is valid, from `generated_at` to
 /// `expires`. The host signs for 14 days; one signed for longer is refused, so
 /// no index, however obtained, can be replayed to a client for long.

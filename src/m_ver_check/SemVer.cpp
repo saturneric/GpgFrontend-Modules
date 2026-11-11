@@ -67,9 +67,11 @@ auto CompareIdentifier(const QString& a, const QString& b) -> int {
   const bool na = IsNumeric(a);
   const bool nb = IsNumeric(b);
   if (na && nb) {
-    const auto x = a.toULongLong();
-    const auto y = b.toULongLong();
-    return x < y ? -1 : (x > y ? 1 : 0);
+    // By length, then digit by digit: no leading zeros (Parse), and no
+    // number too long for an integer reads as 0.
+    if (a.size() != b.size()) return a.size() < b.size() ? -1 : 1;
+    const int c = QString::compare(a, b, Qt::CaseSensitive);
+    return c < 0 ? -1 : (c > 0 ? 1 : 0);
   }
   if (na != nb) return na ? -1 : 1;  // a number sorts below a word
   const int c = QString::compare(a, b, Qt::CaseSensitive);  // ASCII order
