@@ -32,12 +32,98 @@
 #include <QDateTime>
 #include <QObject>
 #include <QUrl>
+#include <array>
 #include <functional>
 #include <optional>
 
 #include "ReleaseIndex.h"
 #include "RootTrust.h"
 #include "SoftwareVersion.h"
+
+/// The steps of a check, in the order it runs them.
+enum class CheckStepId {
+  kRoot,        ///< the trust root, walked to the one the index names
+  kIndexKeys,   ///< the list of keys that may sign the index
+  kIndex,       ///< the signed update index
+  kDescriptor,  ///< the offer's release details, by the index's hash
+  kNotes,       ///< its release notes, by the index's hash
+  kCommit,      ///< this build's commit marker
+};
+inline constexpr std::size_t kCheckSteps = 6;
+
+enum class StepStatus { kNotRun, kVerified, kFailed, kNotApplicable };
+
+/// Why a step failed; UpdatePresentation words each.
+enum class StepReason {
+  kNone,
+  kUnreachable,     ///< no answer, or none usable
+  kBadSignature,    ///< the index's signature does not verify
+  kKeyNotListed,    ///< signed by a key the trusted list does not hold
+  kExpired,         ///< the root, list or index is past its expiry
+  kRollback,        ///< an index older than one accepted before
+  kRootWalkFailed,  ///< the next root was refused
+  kListRejected,    ///< the index-keys list was refused
+  kHashMismatch,    ///< not what the signed index pins
+  kOversized,       ///< larger than any such answer may be
+  kMalformed,       ///< signed, but not a readable index for this product
+  kNotFound,        ///< no commit marker: not an official build
+};
+
+struct CheckStep {
+  StepStatus status = StepStatus::kNotRun;
+  StepReason reason = StepReason::kNone;
+  /// What goes with the reason: an expiry (ISO 8601), a key id, the serials
+  /// of a rollback, an HTTP status. Never a path or a URL.
+  QString detail;
+};
+
+/**
+ * @brief How the last check went, step by step, and what it verified: what
+ * the update dialog's details show. Filled where the checker already warns;
+ * it decides nothing.
+ */
+struct CheckRecord {
+  std::array<CheckStep, kCheckSteps> steps;
+
+  [[nodiscard]] auto Step(CheckStepId id) const -> const CheckStep& {
+    return steps.at(static_cast<std::size_t>(id));
+  }
+  auto Step(CheckStepId id) -> CheckStep& {
+    return steps.at(static_cast<std::size_t>(id));
+  }
+
+  // The trust held at the end of the check.
+  qint64 root_version = 0;
+  qint64 root_built_in = 0;  ///< the root this build was made with
+  int root_keys = 0;         ///< how many root keys it names
+  QStringList root_signers;  ///< those whose signatures on it verified
+  QDateTime root_expires;
+  qint64 list_version = 0;
+  QString list_signer;  ///< the key id that signed the list
+  int list_keys = 0;
+  QDateTime list_expires;
+
+  // The index accepted; serial 0 when none was.
+  qint64 index_serial = 0;
+  qint64 index_floor = 0;  ///< the highest serial seen before under its key
+  QString index_key;
+  QString mirror;  ///< the host it came from
+  QDateTime index_expires;
+  QString series_status;  ///< this build's series in it: "stable", ...
+  /// A newer beta of this build's series, not offered since the user did
+  /// not ask for betas; empty otherwise.
+  QString newer_beta;
+
+  QString descriptor_sha256;  ///< as pinned by the index, once matched
+  QString notes_sha256;
+  QString marker_base;  ///< the host the commit marker was asked of
+
+  // What the release host checks before it publishes (TrustRoot).
+  QString repository;
+  QString workflow;
+  QStringList pgp_fingerprints;
+  QString authenticode_subject;
+};
 
 /**
  * @brief Everything the update UI needs to know, readable at any moment.
@@ -72,6 +158,12 @@ struct UpdateSnapshot {
   /// ones it was built with (RootTrust.h): kept across builds.
   SignedFile root;
   SignedFile index_keys;
+  /// When `root` was taken; invalid for the built-in one.
+  QDateTime root_taken_at;
+
+  /// The last check of this build, step by step; none before the first one
+  /// (or from a store written before it was kept).
+  std::optional<CheckRecord> last_check;
 };
 
 /// Whether the update entry point asks for attention. Derived from the
@@ -156,6 +248,9 @@ class UpdateChecker : public QObject {
   /// AttentionFor() the current state, at the checker's own clock.
   [[nodiscard]] auto Attention() const -> UpdateAttention;
 
+  /// What this checker was made for (the dialog shows this build).
+  [[nodiscard]] auto GetBuild() const -> const Build&;
+
   /// Whether this build follows the nightly identity's channels, where the
   /// beta setting means nothing.
   [[nodiscard]] auto IsNightly() const -> bool;
@@ -199,6 +294,13 @@ class UpdateChecker : public QObject {
   void loadTrust();
   void keepTrust();
   void warn(const QString& what) const;
+  /// @p id failed. A refusal is kept over a later "unreachable": a mirror
+  /// that refused and one that was down read as refused.
+  void fail(CheckStepId id, StepReason reason, const QString& detail = {});
+  /// A fetch for @p id with no usable answer: none at all, too large, or
+  /// an error status (read as @p refused).
+  void failFetch(CheckStepId id, int status, bool oversized,
+                 StepReason refused);
   [[nodiscard]] auto trustBase(qsizetype i) const -> QString;
   void askDescriptor(qsizetype i = 0);
   void askNotes(qsizetype i = 0);
@@ -224,6 +326,8 @@ class UpdateChecker : public QObject {
   QString descriptor_sha256_;  ///< what the signed index says it hashes to
   QString notes_path_;         ///< that release's notes, when listed
   QString notes_sha256_;
+  qint64 built_in_root_ = 0;  ///< the version of the root built in
+  CheckRecord record_;        ///< the running check's
 };
 
 /// How long a nightly build stays quiet after an update was seen: its channel

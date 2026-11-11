@@ -31,7 +31,29 @@
 #include <QDateTime>
 #include <QJsonObject>
 #include <QString>
+#include <array>
 #include <optional>
+#include <utility>
+
+/// An enum value as stored, by name: a reordered enum must not flip a
+/// stored fact. An unknown value reads as the first.
+template <typename Enum, std::size_t N>
+auto NameOf(const std::array<std::pair<Enum, const char*>, N>& names,
+            Enum value) -> QString {
+  for (const auto& [e, name] : names) {
+    if (e == value) return QString::fromLatin1(name);
+  }
+  return QString::fromLatin1(names.front().second);
+}
+
+template <typename Enum, std::size_t N>
+auto ValueOf(const std::array<std::pair<Enum, const char*>, N>& names,
+             const QString& name) -> Enum {
+  for (const auto& [e, n] : names) {
+    if (name == QLatin1StringView(n)) return e;
+  }
+  return names.front().first;
+}
 
 /**
  * @brief What one lookup established about this build on the release server.
