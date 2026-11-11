@@ -374,6 +374,12 @@ void SetFollowBetaSetting(bool follow_beta) {
   if (!g_checker.isNull()) g_checker->SetFollowBeta(follow_beta);
 }
 
+auto UpdateCheckProhibited() -> bool {
+  return gf::sdk::Setting(GFModuleSdkContext(), GF_SETTING_HOST,
+                          kProhibitUpdateCheckKey, true)
+      .toBool();
+}
+
 auto DetailsOpenSetting() -> bool {
   return gf::sdk::Setting(GFModuleSdkContext(), GF_SETTING_MODULE,
                           kDetailsOpenKey, false)
@@ -428,7 +434,7 @@ auto OnActivate() -> GFResult {
                          "update_checking_api");
 
   const bool dialog = gf::ui::RegisterNativeWidget<UpdateWidget>(
-      "update", {GTrC::Noop("Check for Updates"), "", "", "", "", 0, 0},
+      "update", {GTrC::Noop("Check for updates"), "", "", "", "", 0, 0},
       [](const QCborMap& /*args*/) { return new UpdateWidget(); });
   const bool settings = gf::ui::RegisterNativeWidget<UpdateSettingsWidget>(
       "settings",

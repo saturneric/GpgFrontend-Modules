@@ -45,9 +45,9 @@ class UpdateChecker;
  * the installer lives as long as the page, so closing it cancels a download.
  *
  * Top to bottom: the status, this build and the offer side by side, the
- * release notes (a few lines, the rest in a window of their own), the
- * buttons, one line on whether the update information verified, and on
- * request the details of the last check.
+ * release notes (a few lines, the rest in a window of their own), one short
+ * line on the update information with its details on request, and one row
+ * of buttons.
  */
 class UpdateTab : public QWidget {
   Q_OBJECT
@@ -57,10 +57,12 @@ class UpdateTab : public QWidget {
 
  protected:
   void showEvent(QShowEvent* event) override;
+  void changeEvent(QEvent* event) override;
 
  private:
   void render();
   void apply(const UpdateView& view);
+  void fill_details(const UpdateView& view);
   void fit_window();
   void fit_notes();
   void show_full_notes();
@@ -73,25 +75,21 @@ class UpdateTab : public QWidget {
   QLabel* headline_;
   QLabel* detail_;
   QLabel* notice_;
-  QGroupBox* build_box_;  ///< "This build"
-  QLabel* build_text_;
-  QGroupBox* offer_box_;  ///< "Offered", or the newest there is
-  QLabel* offer_text_;
-  QToolButton* copy_hash_;
+  QLabel* build_caption_;
+  QFormLayout* build_form_;
+  QWidget* offer_column_;  ///< only with an offer
+  QFormLayout* offer_form_;
   QTextBrowser* notes_;  ///< a few lines; full_notes_ opens the rest
   QLabel* full_notes_;
-  QPushButton* check_btn_;
-  QPushButton* download_btn_;
   QCheckBox* beta_;  ///< "Also offer beta versions"; release builds only
-  QLabel* verified_icon_;
-  QLabel* verification_;
+  QLabel* status_icon_;
+  QLabel* status_text_;
   QToolButton* details_toggle_;
-  QWidget* details_;
-  QGroupBox* device_box_;  ///< checked on this device
-  QWidget* device_rows_ = nullptr;
-  QGroupBox* host_box_;  ///< checked by the release server
-  QWidget* host_rows_ = nullptr;
-  QLabel* security_link_;
+  QWidget* details_;  ///< rebuilt on each apply(): the rows change
+  QVBoxLayout* details_layout_;
+  QPushButton* copy_report_;
+  QPushButton* download_btn_;
+  QPushButton* check_btn_;
   UpdateView view_;  ///< as last drawn: what the buttons act on
   InstallState install_;
   QPointer<AppImageInstaller> installer_;

@@ -63,11 +63,11 @@ auto ReasonText(CheckStepId id, const CheckStep& step) -> QString {
       return QCoreApplication::translate(
           "UpdateTab", "the update index's signature is not valid");
     case StepReason::kKeyNotListed:
+      // The key's id is in its row.
       return QCoreApplication::translate(
-                 "UpdateTab",
-                 "the update index is signed by a key that is not "
-                 "trusted (%1)")
-          .arg(step.detail);
+          "UpdateTab",
+          "the update index is signed by a key that is not "
+          "trusted");
     case StepReason::kExpired:
       if (id == CheckStepId::kRoot) {
         return QCoreApplication::translate("UpdateTab",
@@ -127,90 +127,131 @@ auto Sentence(const QString& fragment) -> QString {
   return fragment.left(1).toUpper() + fragment.mid(1) + u'.';
 }
 
-auto MarkOf(StepStatus status) -> DetailRow::Mark {
-  switch (status) {
-    case StepStatus::kVerified:
-      return DetailRow::Mark::kVerified;
-    case StepStatus::kFailed:
-      return DetailRow::Mark::kFailed;
-    case StepStatus::kNotApplicable:
-      return DetailRow::Mark::kNotApplicable;
-    case StepStatus::kNotRun:
+/// A failed step's reason, short, for its row: the sentence is the
+/// header's (ReasonText()).
+auto ReasonShort(const CheckStep& step) -> QString {
+  switch (step.reason) {
+    case StepReason::kUnreachable:
+      return QCoreApplication::translate("UpdateTab", "No server answered");
+    case StepReason::kBadSignature:
+      return QCoreApplication::translate("UpdateTab", "Signature not valid");
+    case StepReason::kKeyNotListed:
+      return QCoreApplication::translate("UpdateTab",
+                                         "Signed by a key that isn't trusted");
+    case StepReason::kExpired:
+      return QCoreApplication::translate("UpdateTab", "Expired on %1")
+          .arg(Date(QDateTime::fromString(step.detail, Qt::ISODate)));
+    case StepReason::kRollback:
+      return QCoreApplication::translate(
+                 "UpdateTab", "Older than one seen before (serial %1, %2 seen)")
+          .arg(step.detail.section(u' ', 1, 1),
+               step.detail.section(u' ', 0, 0));
+    case StepReason::kRootWalkFailed:
+      return QCoreApplication::translate("UpdateTab",
+                                         "A newer root didn't verify");
+    case StepReason::kListRejected:
+      return QCoreApplication::translate("UpdateTab", "Didn't verify");
+    case StepReason::kHashMismatch:
+      return QCoreApplication::translate("UpdateTab",
+                                         "Doesn't match the update index");
+    case StepReason::kOversized:
+      return QCoreApplication::translate("UpdateTab", "Answer too large");
+    case StepReason::kMalformed:
+      return QCoreApplication::translate("UpdateTab", "Not readable");
+    case StepReason::kNotFound:
+      return QCoreApplication::translate("UpdateTab",
+                                         "Not among the official builds");
+    case StepReason::kNoTrust:
+      return QCoreApplication::translate("UpdateTab",
+                                         "Not included in this build");
+    case StepReason::kNone:
       break;
   }
-  return DetailRow::Mark::kNotRun;
+  return {};
 }
 
-/// The row of a step: @p verified when it verified, why it failed, or that
-/// it did not run.
-auto StepRow(const CheckStep& step, CheckStepId id, const QString& title,
-             const QStringList& verified) -> DetailRow {
-  DetailRow row{MarkOf(step.status), title, {}, {}};
+/// The row of a step: @p value (and @p mono, @p full) when it verified, its
+/// reason when it failed; nothing for a step that does not apply.
+auto StepRow(const CheckStep& step, const QString& title, const QString& value,
+             const QString& mono = {}, const QString& full = {})
+    -> std::optional<DetailRow> {
   switch (step.status) {
     case StepStatus::kVerified:
-      row.lines = verified;
-      break;
-    case StepStatus::kFailed:
-      row.lines << Sentence(ReasonText(id, step));
+      return DetailRow{DetailRow::Mark::kVerified, title, value, mono, full};
+    case StepStatus::kFailed: {
+      auto why = ReasonShort(step);
       // An HTTP status says something to whoever reads the report.
-      if (step.detail.startsWith(u"HTTP ")) row.lines << step.detail;
-      break;
-    case StepStatus::kNotApplicable:
-      row.lines << QCoreApplication::translate("UpdateTab", "Not applicable");
-      break;
+      if (step.detail.startsWith(u"HTTP ")) {
+        why += QStringLiteral(" (%1)").arg(step.detail);
+      }
+      const auto key =
+          step.reason == StepReason::kKeyNotListed ? step.detail : QString();
+      return DetailRow{DetailRow::Mark::kFailed, title, why, key, key};
+    }
     case StepStatus::kNotRun:
-      row.lines << QCoreApplication::translate("UpdateTab", "Not run");
+      return DetailRow{DetailRow::Mark::kNotRun, title,
+                       QCoreApplication::translate("UpdateTab", "Not run")};
+    case StepStatus::kNotApplicable:
       break;
   }
-  return row;
+  return std::nullopt;
 }
 
-/// The rows of what this device checked, from the last check's record.
-auto DeviceRows(const UpdateSnapshot& s, const CheckRecord& r)
-    -> QList<DetailRow> {
-  QList<DetailRow> rows;
-  const auto signers = r.root_signers.join(QStringLiteral(", "));
+/// The rows of what this device checked, from the last check's record, with
+/// @p file (the offer's download) in its place.
+auto DeviceRows(const UpdateSnapshot& s, const CheckRecord& r,
+                const std::optional<DetailRow>& file) -> QList<DetailRow> {
+  QList<std::optional<DetailRow>> steps;
+  const auto sep = QStringLiteral(" · ");
 
-  rows << StepRow(
-      r.Step(CheckStepId::kRoot), CheckStepId::kRoot,
+  steps << StepRow(
+      r.Step(CheckStepId::kRoot),
       QCoreApplication::translate("UpdateTab", "Root of trust"),
-      {r.root_version == r.root_built_in || !s.root_taken_at.isValid()
+      (r.root_version == r.root_built_in || !s.root_taken_at.isValid()
            ? QCoreApplication::translate("UpdateTab", "Version %1, built in")
                  .arg(r.root_version)
            : QCoreApplication::translate(
                  "UpdateTab", "Version %1, updated on %2 from version %3")
                  .arg(r.root_version)
                  .arg(Date(s.root_taken_at))
-                 .arg(r.root_built_in),
-       QCoreApplication::translate("UpdateTab", "%1 of %2 root keys signed: %3")
-           .arg(r.root_signers.size())
-           .arg(r.root_keys)
-           .arg(signers),
-       QCoreApplication::translate("UpdateTab", "Valid until %1")
-           .arg(Date(r.root_expires))});
+                 .arg(r.root_built_in)) +
+          sep +
+          QCoreApplication::translate("UpdateTab", "valid until %1")
+              .arg(Date(r.root_expires)) +
+          sep +
+          QCoreApplication::translate("UpdateTab", "%1 of %2 root keys signed")
+              .arg(r.root_signers.size())
+              .arg(r.root_keys),
+      r.root_signers.join(u' '), r.root_signers.join(u'\n'));
 
-  rows << StepRow(
-      r.Step(CheckStepId::kIndexKeys), CheckStepId::kIndexKeys,
+  steps << StepRow(
+      r.Step(CheckStepId::kIndexKeys),
       QCoreApplication::translate("UpdateTab", "Signing key list"),
-      {QCoreApplication::translate("UpdateTab", "Version %1, signed by %2")
-           .arg(r.list_version)
-           .arg(r.list_signer),
-       QCoreApplication::translate("UpdateTab", "%n key(s) listed", "",
-                                   r.list_keys),
-       QCoreApplication::translate("UpdateTab", "Valid until %1")
-           .arg(Date(r.list_expires))});
+      QCoreApplication::translate("UpdateTab", "Version %1")
+              .arg(r.list_version) +
+          sep +
+          QCoreApplication::translate("UpdateTab", "%n key(s)", "",
+                                      r.list_keys) +
+          sep +
+          QCoreApplication::translate("UpdateTab", "valid until %1")
+              .arg(Date(r.list_expires)) +
+          sep + QCoreApplication::translate("UpdateTab", "signed by"),
+      r.list_signer, r.list_signer);
 
-  rows << StepRow(r.Step(CheckStepId::kIndex), CheckStepId::kIndex,
-                  QCoreApplication::translate("UpdateTab", "Update index"),
-                  {QCoreApplication::translate("UpdateTab", "Serial %1 from %2")
-                       .arg(r.index_serial)
-                       .arg(r.mirror),
-                   QCoreApplication::translate("UpdateTab", "Signed by %1")
-                       .arg(r.index_key),
-                   QCoreApplication::translate("UpdateTab", "Valid until %1")
-                       .arg(Date(r.index_expires)),
-                   QCoreApplication::translate(
-                       "UpdateTab", "Not older than any index seen before")});
+  steps << StepRow(
+      r.Step(CheckStepId::kIndex),
+      QCoreApplication::translate("UpdateTab", "Update index"),
+      QCoreApplication::translate("UpdateTab", "Serial %1 from %2")
+              .arg(r.index_serial)
+              .arg(r.mirror) +
+          sep +
+          QCoreApplication::translate("UpdateTab",
+                                      "not older than any seen before") +
+          sep +
+          QCoreApplication::translate("UpdateTab", "valid until %1")
+              .arg(Date(r.index_expires)) +
+          sep + QCoreApplication::translate("UpdateTab", "signed by"),
+      r.index_key, r.index_key);
 
   // The release details and its notes: one row, the worse of the two.
   const auto& descriptor = r.Step(CheckStepId::kDescriptor);
@@ -221,39 +262,43 @@ auto DeviceRows(const UpdateSnapshot& s, const CheckRecord& r)
                               descriptor.status == StepStatus::kNotRun
                           ? descriptor
                           : notes;
-  QStringList hashes{QCoreApplication::translate(
-      "UpdateTab", "Match the hashes in the update index")};
-  if (!r.descriptor_sha256.isEmpty()) {
-    hashes << QCoreApplication::translate("UpdateTab", "Release details %1")
-                  .arg(ShortHash(r.descriptor_sha256));
-  }
-  if (!r.notes_sha256.isEmpty()) {
-    hashes << QCoreApplication::translate("UpdateTab", "Release notes %1")
-                  .arg(ShortHash(r.notes_sha256));
-  }
-  rows << StepRow(
-      worse, &worse == &notes ? CheckStepId::kNotes : CheckStepId::kDescriptor,
+  QStringList hashes{r.descriptor_sha256, r.notes_sha256};
+  hashes.removeAll(QString());
+  QStringList short_hashes;
+  for (const auto& hash : hashes) short_hashes << ShortHash(hash);
+  steps << StepRow(
+      worse,
       QCoreApplication::translate("UpdateTab", "Release details and notes"),
-      hashes);
+      QCoreApplication::translate("UpdateTab", "Match the update index"),
+      short_hashes.join(u' '), hashes.join(u'\n'));
 
-  // kDownloadRow: what the offer is, filled in by PresentUpdate().
-  rows << DetailRow{
-      DetailRow::Mark::kNotApplicable,
-      QCoreApplication::translate("UpdateTab", "Downloaded file"),
-      {QCoreApplication::translate("UpdateTab", "No file offered")},
-      {}};
+  steps << file;
 
-  const auto& commit = r.Step(CheckStepId::kCommit);
-  auto official = StepRow(
-      commit, CheckStepId::kCommit,
+  steps << StepRow(
+      r.Step(CheckStepId::kCommit),
       QCoreApplication::translate("UpdateTab", "Official build"),
-      {QCoreApplication::translate("UpdateTab", "Commit marker confirmed by %1")
-           .arg(r.marker_base)});
-  if (commit.status == StepStatus::kFailed) {
-    official.lines << QCoreApplication::translate("UpdateTab", "Asked of %1")
-                          .arg(r.marker_base);
+      QCoreApplication::translate("UpdateTab", "Commit marker confirmed by %1")
+          .arg(r.marker_base));
+
+  // After a failure, what came later is one row: it did not run, or it
+  // describes a result this check did not produce.
+  QList<DetailRow> rows;
+  bool failed = false;
+  bool collapsed = false;
+  for (const auto& row : steps) {
+    if (!row) continue;
+    if (failed && row->mark != DetailRow::Mark::kFailed) {
+      if (!collapsed) {
+        rows << DetailRow{
+            DetailRow::Mark::kNotRun,
+            QCoreApplication::translate("UpdateTab", "Later steps not run")};
+        collapsed = true;
+      }
+      continue;
+    }
+    failed = failed || row->mark == DetailRow::Mark::kFailed;
+    rows << *row;
   }
-  rows << official;
   return rows;
 }
 
@@ -344,11 +389,13 @@ auto PresentInstall(UpdateView view, const InstallState& install)
   DetailRow file{
       DetailRow::Mark::kNotRun,
       QCoreApplication::translate("UpdateTab", "Downloaded file"),
-      {QCoreApplication::translate(
-           "UpdateTab", "Checked against its size and SHA-256 after download"),
-       QCoreApplication::translate("UpdateTab", "Expected SHA-256 %1")
-           .arg(ShortHash(view.download_sha256))},
-      view.download_sha256};
+      QCoreApplication::translate("UpdateTab",
+                                  "Checked against its size and SHA-256 "
+                                  "after download"),
+      ShortHash(view.download_sha256),
+      view.download_sha256,
+      view.download_sha256,
+      true};
 
   switch (install.stage) {
     case Stage::kIdle:
@@ -387,22 +434,21 @@ auto PresentInstall(UpdateView view, const InstallState& install)
       view.show_download = install.can_restart;
       view.check_enabled = false;
       file.mark = DetailRow::Mark::kVerified;
-      file.lines = {QCoreApplication::translate(
-                        "UpdateTab", "Size and SHA-256 matched after download"),
-                    QCoreApplication::translate("UpdateTab", "%1, SHA-256 %2")
-                        .arg(QLocale().formattedDataSize(view.download_size),
-                             ShortHash(view.download_sha256))};
+      file.value = QCoreApplication::translate(
+                       "UpdateTab", "Size and SHA-256 matched after download") +
+                   QStringLiteral(" · ") +
+                   QLocale().formattedDataSize(view.download_size);
       break;
     case Stage::kFailed:
       view.notice = install.error;
       view.download_label =
           QCoreApplication::translate("UpdateTab", "Try again");
       file.mark = DetailRow::Mark::kFailed;
-      file.lines.prepend(install.error);
+      file.value = install.error;
       break;
   }
-  if (view.device_rows.size() > kDownloadRow) {
-    view.device_rows[kDownloadRow] = file;
+  for (auto& row : view.device_rows) {
+    if (row.download) row = file;
   }
   return view;
 }
@@ -488,25 +534,29 @@ namespace {
 auto PresentStatus(const UpdateSnapshot& s) -> UpdateView {
   UpdateView v;
   v.check_enabled = !s.checking;
+  v.check_label = s.checking
+                      ? QCoreApplication::translate("UpdateTab", "Checking…")
+                  : !s.last_good && !s.last_attempt.isValid()
+                      ? QCoreApplication::translate("UpdateTab", "Check now")
+                      : QCoreApplication::translate("UpdateTab", "Check again");
 
   if (!s.last_good) {
     if (s.checking) {
       v.headline =
           QCoreApplication::translate("UpdateTab", "Checking for updates…");
-      v.check_label = QCoreApplication::translate("UpdateTab", "Checking…");
     } else if (s.last_attempt_failed) {
-      v.headline = QCoreApplication::translate("UpdateTab",
-                                               "Couldn't check for updates");
-      v.detail =
-          QCoreApplication::translate("UpdateTab", "Please try again later.");
-      v.check_label = QCoreApplication::translate("UpdateTab", "Try again");
+      // A refusal or a build without trust is worded by PresentUpdate().
+      v.tone = UpdateTone::kAttention;
+      v.headline = QCoreApplication::translate(
+          "UpdateTab", "Couldn't reach the update server");
+      v.detail = QCoreApplication::translate("UpdateTab",
+                                             "No update server answered.");
     } else {
       v.headline =
           QCoreApplication::translate("UpdateTab", "No update information yet");
       v.detail = QCoreApplication::translate(
           "UpdateTab",
           "Check now to see whether a newer GpgFrontend is available.");
-      v.check_label = QCoreApplication::translate("UpdateTab", "Check now");
     }
     return v;
   }
@@ -551,13 +601,13 @@ auto PresentStatus(const UpdateSnapshot& s) -> UpdateView {
         v.headline = QCoreApplication::translate(
             "UpdateTab", "This nightly build has been withdrawn");
         v.detail = QCoreApplication::translate(
-            "UpdateTab", "Please move to the newest nightly build.");
+            "UpdateTab", "Move to the newest nightly build.");
         break;
       }
       v.headline = QCoreApplication::translate(
           "UpdateTab", "This version has been withdrawn");
       v.detail = QCoreApplication::translate(
-          "UpdateTab", "Please move to the latest release of its series.");
+          "UpdateTab", "Move to the latest release of its series.");
       break;
     case Verdict::kUnofficialBuild:
       v.tone = UpdateTone::kAttention;
@@ -606,66 +656,19 @@ auto PresentStatus(const UpdateSnapshot& s) -> UpdateView {
       break;
     case Verdict::kUnknown:
       // last_good is usable by construction; kept for completeness.
-      v.headline = QCoreApplication::translate("UpdateTab",
-                                               "Couldn't check for updates");
+      v.tone = UpdateTone::kAttention;
+      v.headline = QCoreApplication::translate(
+          "UpdateTab", "Couldn't reach the update server");
       break;
-  }
-
-  if (s.checking) {
-    // The button says it is busy; nothing else moves on the page.
-    v.check_label = QCoreApplication::translate("UpdateTab", "Checking…");
-  } else if (s.last_attempt_failed) {
-    // The verification line says why (PresentUpdate()).
-    v.check_label = QCoreApplication::translate("UpdateTab", "Try again");
-  } else {
-    v.check_label = QCoreApplication::translate("UpdateTab", "Check again");
   }
 
   v.notice = SeriesNoticeText(r.notice);
   return v;
 }
 
-/// Says the update information verified, or the first reason it did not.
-void PresentVerification(UpdateView& v, const UpdateSnapshot& s,
-                         const QDateTime& now) {
-  const auto& r = s.last_good;
-  if (s.checking) {
-    v.verification = QCoreApplication::translate(
-        "UpdateTab", "Checking the update information…");
-    return;
-  }
-  if (!s.last_attempt.isValid() && !r) {
-    v.verification = QCoreApplication::translate(
-        "UpdateTab", "Update information not checked yet");
-    return;
-  }
-  const auto failure =
-      s.last_check ? FirstFailure(*s.last_check) : std::nullopt;
-  // A result from before stays on the page; say how old it is.
-  const auto since =
-      r && s.last_attempt_failed
-          ? u' ' + QCoreApplication::translate("UpdateTab",
-                                               "Showing the result from %1.")
-                       .arg(RelativeTime(r->checked_at, now))
-          : QString();
-  if (failure && failure->second.reason != StepReason::kUnreachable) {
-    v.verification_tone = UpdateTone::kAttention;
-    v.verification =
-        QCoreApplication::translate(
-            "UpdateTab", "Update information couldn't be verified: %1.")
-            .arg(ReasonText(failure->first, failure->second)) +
-        since;
-  } else if (failure || s.last_attempt_failed || !r) {
-    v.verification = QCoreApplication::translate(
-                         "UpdateTab", "Couldn't reach the update server.") +
-                     since;
-  } else {
-    v.verification_tone = UpdateTone::kGood;
-    v.verification =
-        QCoreApplication::translate("UpdateTab",
-                                    "Update information verified · checked %1")
-            .arg(RelativeTime(r->checked_at, now));
-  }
+/// Puts @p line before what the notice already says.
+void PrependNotice(UpdateView& v, const QString& line) {
+  v.notice = v.notice.isEmpty() ? line : line + u'\n' + v.notice;
 }
 
 }  // namespace
@@ -673,7 +676,6 @@ void PresentVerification(UpdateView& v, const UpdateSnapshot& s,
 auto PresentUpdate(const UpdateSnapshot& s, const QDateTime& now,
                    const UpdateChecker::Build& build) -> UpdateView {
   auto v = PresentStatus(s);
-  PresentVerification(v, s, now);
 
   const SoftwareVersion* r = s.last_good ? &*s.last_good : nullptr;
   const CheckRecord* record = s.last_check ? &*s.last_check : nullptr;
@@ -683,6 +685,84 @@ auto PresentUpdate(const UpdateSnapshot& s, const QDateTime& now,
   const auto version = r != nullptr ? r->current_version : build.version;
   const auto commit = r != nullptr ? r->local_commit_hash : build.commit;
   const auto series = SoftwareVersion::VersionSeries(version);
+
+  // How the last check went: the reason is said once, in the header.
+  const auto failure = record != nullptr ? FirstFailure(*record) : std::nullopt;
+  // Built without release/root: no check can succeed, and asking again
+  // cannot help. A state of the build, not a failure.
+  const bool untrusted =
+      (!build.version.isEmpty() && !build.channel.IsConfigured()) ||
+      (failure && failure->second.reason == StepReason::kNoTrust);
+  const bool refused = !untrusted && failure &&
+                       failure->second.reason != StepReason::kUnreachable;
+  const bool unreached =
+      !untrusted && !refused && (failure || s.last_attempt_failed);
+  const auto attempted = RelativeTime(
+      s.last_attempt.isValid() ? s.last_attempt
+                               : (r != nullptr ? r->checked_at : now),
+      now);
+
+  if (untrusted) {
+    v.tone = UpdateTone::kNeutral;
+    v.headline = QCoreApplication::translate(
+        "UpdateTab", "Updates aren't available for this build");
+    v.detail = QCoreApplication::translate(
+        "UpdateTab",
+        "It was built without the release trust files. Official builds "
+        "include them and check for updates automatically.");
+    v.notice.clear();
+    v.show_check = false;
+  } else if (refused) {
+    const auto why = ReasonText(failure->first, failure->second);
+    if (r == nullptr) {
+      v.tone = UpdateTone::kError;
+      v.headline = QCoreApplication::translate(
+          "UpdateTab", "Update information couldn't be verified");
+      v.detail = Sentence(why);
+    } else {
+      PrependNotice(
+          v, QCoreApplication::translate(
+                 "UpdateTab", "Update information couldn't be verified: %1.")
+                     .arg(why) +
+                 (s.last_attempt_failed
+                      ? u' ' + QCoreApplication::translate(
+                                   "UpdateTab", "Showing the result from %1.")
+                                   .arg(RelativeTime(r->checked_at, now))
+                      : QString()));
+    }
+  } else if (unreached && r != nullptr) {
+    PrependNotice(v, QCoreApplication::translate(
+                         "UpdateTab",
+                         "Couldn't reach the update server. Showing the "
+                         "result from %1.")
+                         .arg(RelativeTime(r->checked_at, now)));
+  }
+
+  // The status line: short, its icon in the same set as the header's.
+  if (untrusted) {
+    v.verification = QCoreApplication::translate("UpdateTab", "Not checked");
+  } else if (s.checking) {
+    v.verification = QCoreApplication::translate("UpdateTab", "Checking…");
+  } else if (refused) {
+    v.verification_tone = UpdateTone::kError;
+    v.verification =
+        QCoreApplication::translate("UpdateTab", "Not verified · checked %1")
+            .arg(attempted);
+  } else if (unreached) {
+    v.verification_tone = UpdateTone::kAttention;
+    v.verification = QCoreApplication::translate(
+                         "UpdateTab", "Server not reached · checked %1")
+                         .arg(attempted);
+  } else if (r != nullptr) {
+    v.verification_tone = UpdateTone::kGood;
+    v.verification =
+        QCoreApplication::translate("UpdateTab", "Verified · checked %1")
+            .arg(RelativeTime(r->checked_at, now));
+  } else {
+    v.verification =
+        QCoreApplication::translate("UpdateTab", "Not checked yet");
+  }
+  v.show_beta = !nightly && !untrusted;
 
   // This build.
   v.build_version = DisplayVersion(version);
@@ -696,15 +776,15 @@ auto PresentUpdate(const UpdateSnapshot& s, const QDateTime& now,
           : QCoreApplication::translate("UpdateTab", "Release · series %1 (%2)")
                 .arg(series, status);
   v.build_commit = commit.left(12);
+  v.build_official = QCoreApplication::translate("UpdateTab", "Not checked");
   if (r != nullptr) {
     switch (r->commit_fact) {
       case RemoteFact::kConfirmed:
-        v.build_official =
-            QCoreApplication::translate("UpdateTab", "Official build");
+        v.build_official = QCoreApplication::translate("UpdateTab", "Yes");
         break;
       case RemoteFact::kNotFound:
         v.build_official = QCoreApplication::translate(
-            "UpdateTab", "Not from the official repository");
+            "UpdateTab", "No, not from the official repository");
         break;
       case RemoteFact::kUnknown:
         v.build_official =
@@ -716,13 +796,12 @@ auto PresentUpdate(const UpdateSnapshot& s, const QDateTime& now,
   // What is offered, or else the newest there is.
   if (r != nullptr) {
     const auto& latest = r->list.latest;
-    const auto verdict = Decide(*r);
-    if (verdict == Verdict::kWithdrawnOrUnreleased &&
+    if (Decide(*r) == Verdict::kWithdrawnOrUnreleased &&
         r->list.outcome == ListOutcome::kFound &&
         SemVerCompare(latest.version, r->current_version) != 0) {
       // Withdrawn: the newest of its line is the way out.
-      v.detail = QCoreApplication::translate(
-                     "UpdateTab", "Please move to %1, the newest version.")
+      v.detail = QCoreApplication::translate("UpdateTab",
+                                             "Move to %1, the newest version.")
                      .arg(DisplayVersion(latest.version));
       v.show_download = true;
       v.download_version = latest.version;
@@ -739,25 +818,22 @@ auto PresentUpdate(const UpdateSnapshot& s, const QDateTime& now,
       if (!v.download_url.isEmpty()) {
         v.offer_file = QUrl(v.download_url).fileName();
         if (v.download_size > 0) {
-          v.offer_file += QStringLiteral(" · ") +
-                          QLocale().formattedDataSize(v.download_size);
+          v.offer_size = QLocale().formattedDataSize(v.download_size);
         }
         v.offer_sha256 = v.download_sha256;
       }
     } else if (r->list.outcome == ListOutcome::kFound) {
-      v.newest =
-          nightly ? QCoreApplication::translate("UpdateTab",
-                                                "Newest nightly build: %1")
-                        .arg(DisplayVersion(latest.version))
-                  : QCoreApplication::translate("UpdateTab", "Newest in %1: %2")
-                        .arg(series, DisplayVersion(latest.version));
+      v.newest_label =
+          nightly ? QCoreApplication::translate("UpdateTab", "Newest nightly")
+                  : QCoreApplication::translate("UpdateTab", "Newest in %1")
+                        .arg(series);
+      v.newest = DisplayVersion(latest.version);
     }
   }
   if (record != nullptr && !nightly && !record->newer_beta.isEmpty()) {
-    v.newer_beta =
-        QCoreApplication::translate(
-            "UpdateTab", "Beta %1 is out; it is offered with beta versions on.")
-            .arg(DisplayVersion(record->newer_beta));
+    v.newer_beta = QCoreApplication::translate(
+                       "UpdateTab", "%1, offered when beta versions are on")
+                       .arg(DisplayVersion(record->newer_beta));
   }
 
   // A store, a distribution or Flatpak updates this build, not a download.
@@ -796,58 +872,54 @@ auto PresentUpdate(const UpdateSnapshot& s, const QDateTime& now,
   }
 
   // The details: what this device checked, then what the server did.
-  if (record != nullptr) {
-    v.device_rows = DeviceRows(s, *record);
-    auto& file = v.device_rows[kDownloadRow];
-    if (!source.isEmpty()) {
-      file.lines = {
-          QCoreApplication::translate("UpdateTab", "Updates come from %1")
-              .arg(source)};
-    } else if (v.show_download) {
-      file.mark = DetailRow::Mark::kInfo;
-      file.lines = {QCoreApplication::translate(
-          "UpdateTab", "Not checked, opens in your browser")};
-      if (!v.download_sha256.isEmpty()) {
-        file.lines << QCoreApplication::translate("UpdateTab",
-                                                  "Expected SHA-256 %1")
-                          .arg(ShortHash(v.download_sha256));
-        file.copy = v.download_sha256;
-      }
+  if (untrusted) {
+    v.device_rows << DetailRow{
+        DetailRow::Mark::kNotChecked,
+        QCoreApplication::translate("UpdateTab", "Root of trust"),
+        QCoreApplication::translate("UpdateTab", "Not included in this build")};
+  } else if (record != nullptr) {
+    std::optional<DetailRow> file;
+    if (v.show_download) {
+      file =
+          DetailRow{DetailRow::Mark::kNotChecked,
+                    QCoreApplication::translate("UpdateTab", "Downloaded file"),
+                    QCoreApplication::translate(
+                        "UpdateTab", "Not checked, opens in your browser"),
+                    ShortHash(v.download_sha256),
+                    v.download_sha256,
+                    v.download_sha256,
+                    true};
     }
+    v.device_rows = DeviceRows(s, *record, file);
 
     if (!record->repository.isEmpty()) {
-      DetailRow built{
+      QStringList built{record->repository, record->workflow};
+      if (!nightly && v.show_offer) {
+        built << QCoreApplication::translate("UpdateTab", "tag v%1")
+                     .arg(v.offer_version);
+      }
+      built.removeAll(QString());
+      v.host_rows << DetailRow{
           DetailRow::Mark::kNone,
           QCoreApplication::translate("UpdateTab", "Built by GitHub Actions"),
-          {QCoreApplication::translate("UpdateTab", "Repository %1")
-               .arg(record->repository),
-           QCoreApplication::translate("UpdateTab", "Workflow %1")
-               .arg(record->workflow)},
-          {}};
-      if (!nightly && v.show_offer) {
-        built.lines << QCoreApplication::translate("UpdateTab", "Tag v%1")
-                           .arg(v.offer_version);
-      }
-      v.host_rows << built;
+          built.join(QStringLiteral(" · "))};
       if (!nightly && !record->pgp_fingerprints.isEmpty()) {
-        DetailRow maintainer{DetailRow::Mark::kNone,
-                             QCoreApplication::translate(
-                                 "UpdateTab", "Signed by the maintainer"),
-                             {},
-                             {}};
-        for (const auto& fpr : record->pgp_fingerprints) {
-          maintainer.lines << QCoreApplication::translate("UpdateTab",
-                                                          "OpenPGP key %1")
-                                  .arg(fpr);
-        }
+        v.host_rows << DetailRow{
+            DetailRow::Mark::kNone,
+            QCoreApplication::translate("UpdateTab",
+                                        "Signed by the maintainer"),
+            QCoreApplication::translate("UpdateTab", "OpenPGP"),
+            record->pgp_fingerprints.join(u' '),
+            record->pgp_fingerprints.join(u'\n')};
         if (build.platform.os == u"windows" &&
             !record->authenticode_subject.isEmpty()) {
-          maintainer.lines << QCoreApplication::translate(
-                                  "UpdateTab",
-                                  "Windows installers: Authenticode, %1")
-                                  .arg(record->authenticode_subject);
+          v.host_rows << DetailRow{
+              DetailRow::Mark::kNone,
+              QCoreApplication::translate("UpdateTab",
+                                          "Windows installers signed"),
+              QCoreApplication::translate("UpdateTab", "Authenticode, %1")
+                  .arg(record->authenticode_subject)};
         }
-        v.host_rows << maintainer;
       }
       v.security_url =
           QStringLiteral("https://github.com/%1/blob/main/SECURITY.md")
@@ -877,9 +949,7 @@ auto ReportText(const UpdateView& view) -> QString {
         return QCoreApplication::translate("UpdateTab", "failed");
       case DetailRow::Mark::kNotRun:
         return QCoreApplication::translate("UpdateTab", "not run");
-      case DetailRow::Mark::kNotApplicable:
-        return QCoreApplication::translate("UpdateTab", "not applicable");
-      case DetailRow::Mark::kInfo:
+      case DetailRow::Mark::kNotChecked:
         return QCoreApplication::translate("UpdateTab", "not checked");
       case DetailRow::Mark::kNone:
         break;
@@ -887,13 +957,17 @@ auto ReportText(const UpdateView& view) -> QString {
     return {};
   };
   const auto text = [](const DetailRow& row) {
-    auto lines = row.lines;
-    if (!row.copy.isEmpty()) lines << row.copy;
-    return lines.join(QStringLiteral("; "));
+    QStringList parts{row.value};
+    // The full values: the report is for comparing, not for reading.
+    const auto full = row.full.isEmpty() ? row.mono : row.full;
+    if (!full.isEmpty()) parts << QString(full).replace(u'\n', u' ');
+    return parts.join(u' ');
   };
 
   QStringList out = view.report_head;
-  out << view.headline << view.verification << QString()
+  out << view.headline << view.detail;
+  if (!view.notice.isEmpty()) out << view.notice;
+  out << view.verification << QString()
       << QCoreApplication::translate("UpdateTab", "Checked on this device");
   for (const auto& row : view.device_rows) {
     out << QStringLiteral("[%1] %2: %3")
@@ -901,8 +975,8 @@ auto ReportText(const UpdateView& view) -> QString {
   }
   if (!view.host_rows.isEmpty()) {
     out << QString()
-        << QCoreApplication::translate(
-               "UpdateTab", "Checked by the release server before publishing");
+        << QCoreApplication::translate("UpdateTab",
+                                       "Checked by the release server");
     for (const auto& row : view.host_rows) {
       out << QStringLiteral("- %1: %2").arg(row.title, text(row));
     }

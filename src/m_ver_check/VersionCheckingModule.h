@@ -67,6 +67,12 @@ auto FollowBetaSetting() -> bool;
 /// Stores that answer, and hands it to the checker for its next check.
 void SetFollowBetaSetting(bool follow_beta);
 
+/// The Host's own switch, the one the setup wizard and this module's
+/// settings page share. Off, the dialog still offers the button: pressing
+/// it is the user asking. Absent means the wizard has not asked yet, which
+/// is not a yes: the startup check reads it the same way.
+auto UpdateCheckProhibited() -> bool;
+
 /// Whether the update dialog shows its verification details (this module's
 /// own setting; closed until opened).
 auto DetailsOpenSetting() -> bool;

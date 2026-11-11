@@ -44,47 +44,58 @@
  * server error); a refusal (a bad signature, a rollback) is named.
  */
 
-/// kUpdate is good news (a newer version); kAttention is something wrong
-/// with this one (withdrawn, unofficial).
-enum class UpdateTone { kNeutral, kGood, kUpdate, kAttention };
+/// kNeutral informs, kGood is all well, kUpdate good news (a newer
+/// version), kAttention a warning (withdrawn, unofficial, the server not
+/// reached), kError a refusal (update information that does not verify).
+enum class UpdateTone { kNeutral, kGood, kUpdate, kAttention, kError };
 
 /// One row of the update dialog's details.
 struct DetailRow {
-  /// kInfo: shown, not checked (a download the browser fetches); kNone: a
-  /// row about what the release server checked, never this device.
-  enum class Mark { kVerified, kFailed, kNotRun, kNotApplicable, kInfo, kNone };
+  /// kNotChecked: shown, not checked (a download the browser fetches, a
+  /// build without trust); kNone: what the release server checked, never
+  /// this device.
+  enum class Mark { kVerified, kFailed, kNotRun, kNotChecked, kNone };
   Mark mark = Mark::kNone;
   QString title;
-  QStringList lines;
-  QString copy;  ///< a value the row offers to copy (a full hash), or empty
+  QString value;          ///< in the secondary colour, after the title
+  QString mono;           ///< key ids, short hashes: in the fixed-width font
+  QString full;           ///< the full values behind `mono`, for its tooltip
+  QString copy;           ///< a value the row offers to copy, or empty
+  bool download = false;  ///< the downloaded file's (PresentInstall())
 };
 
 struct UpdateView {
   UpdateTone tone = UpdateTone::kNeutral;
   QString headline;
   QString detail;
-  QString notice;  ///< a series notice, a failed install, a package source
+  /// A refresh that failed while an older result is shown, a series notice,
+  /// a failed install, a package source.
+  QString notice;
 
   // "This build"
   QString build_version;
   QString build_kind;    ///< "Release · series 2.2 (stable)" or "Nightly"
   QString build_commit;  ///< shortened; empty without one
   QString build_official;
-
-  // "Offered": an update, or else the newest there is
-  bool show_offer = false;
-  QString offer_version;
-  QString offer_file;    ///< "<name> · <size>"; empty when not known
-  QString offer_sha256;  ///< full; shown shortened
-  QString newest;        ///< "Newest in 2.2: 2.2.4" when nothing is offered
+  QString newest_label;  ///< "Newest in 2.2" when nothing is offered
+  QString newest;        ///< "2.2.4"
   QString newer_beta;    ///< a beta not offered while betas are off
 
-  /// One line on the update information: verified when, or why not.
+  // "Offered"
+  bool show_offer = false;
+  QString offer_version;
+  QString offer_file;    ///< the file's name; empty when not known
+  QString offer_size;    ///< "2.0 MiB"; empty when not known
+  QString offer_sha256;  ///< full; shown shortened
+
+  /// One short line: verified and when, or that it was not. Why not is the
+  /// header's to say, once.
   QString verification;
   UpdateTone verification_tone = UpdateTone::kNeutral;
 
-  /// Checked on this device, in the order the check runs; empty before a
-  /// check recorded them. Row kDownloadRow is the downloaded file.
+  /// Checked on this device, in the order the check runs: a step that does
+  /// not apply is left out, and what did not run after a failure is one
+  /// row. Empty before a check recorded them.
   QList<DetailRow> device_rows;
   /// Checked by the release server before it published: never a mark.
   QList<DetailRow> host_rows;
@@ -109,15 +120,17 @@ struct UpdateView {
   enum class Action { kOpen, kInstall, kRestart } action = Action::kOpen;
   bool download_enabled = true;
 
-  QString check_label;  ///< "Check again", "Try again" or "Check now"
+  /// "Check again" only where asking again can help: not for a build
+  /// without trust.
+  bool show_check = true;
+  QString check_label;  ///< "Check now", "Check again" or "Checking…"
   bool check_enabled = true;
+  /// "Also offer beta versions": release builds that can check.
+  bool show_beta = false;
 
   bool show_notes = false;
   QString notes;  ///< markdown
 };
-
-/// Where the downloaded file's row is in UpdateView::device_rows.
-inline constexpr qsizetype kDownloadRow = 4;
 
 /// @p build is what the checker was made for (UpdateChecker::GetBuild()):
 /// this build's block, its package source and platform.

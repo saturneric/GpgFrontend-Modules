@@ -29,7 +29,6 @@
 #include "UpdateTab.h"
 
 #include "AppImageUpdate.h"
-#include "GFModule.h"
 #include "UpdateChecker.h"
 #include "UpdatePresentation.h"
 #include "VersionCheckingModule.h"
@@ -43,6 +42,7 @@ constexpr auto kDownloadPage =
 /// again offers the restart, not the same download a second time.
 QString g_installed_sha256;  // NOLINT(*-avoid-non-const-global-variables)
 
+/// One icon per tone, for the header and the status line alike.
 auto ToneIcon(const QStyle* style, UpdateTone tone) -> QIcon {
   switch (tone) {
     case UpdateTone::kGood:
@@ -55,38 +55,12 @@ auto ToneIcon(const QStyle* style, UpdateTone tone) -> QIcon {
           style->standardIcon(QStyle::SP_MessageBoxInformation));
     case UpdateTone::kAttention:
       return style->standardIcon(QStyle::SP_MessageBoxWarning);
+    case UpdateTone::kError:
+      return style->standardIcon(QStyle::SP_MessageBoxCritical);
     case UpdateTone::kNeutral:
       break;
   }
   return style->standardIcon(QStyle::SP_MessageBoxInformation);
-}
-
-/// The Host's own switch, the one the setup wizard and this module's
-/// settings page share. Off, the dialog still offers the button: pressing
-/// it is the user asking. Absent means the wizard has not asked yet, which
-/// is not a yes: the startup check reads it the same way.
-auto UpdateCheckProhibited() -> bool {
-  return gf::sdk::Setting(GFModuleSdkContext(), GF_SETTING_HOST,
-                          kProhibitUpdateCheckKey, true)
-      .toBool();
-}
-
-/// The icon of a step's mark; none for a step that did not run or does not
-/// apply, whose text says so.
-auto MarkIcon(const QStyle* style, DetailRow::Mark mark) -> QIcon {
-  switch (mark) {
-    case DetailRow::Mark::kVerified:
-      return style->standardIcon(QStyle::SP_DialogApplyButton);
-    case DetailRow::Mark::kFailed:
-      return style->standardIcon(QStyle::SP_MessageBoxCritical);
-    case DetailRow::Mark::kInfo:
-      return style->standardIcon(QStyle::SP_MessageBoxInformation);
-    case DetailRow::Mark::kNotRun:
-    case DetailRow::Mark::kNotApplicable:
-    case DetailRow::Mark::kNone:
-      break;
-  }
-  return {};
 }
 
 /// A label for text from the server or the build: never read as markup.
@@ -98,11 +72,20 @@ auto PlainLabel(const QString& text, QWidget* parent) -> QLabel* {
   return label;
 }
 
-/// A hash, a key or a file name can break after a dash or a dot, so a long
-/// one wraps instead of widening the dialog.
+/// A hash, a key or a file name can break after a dash, so a long one
+/// wraps instead of widening the dialog.
 auto Breakable(QString text) -> QString {
   text.replace(u'-', QStringLiteral("-\u200b"));
   return text;
+}
+
+auto MonoLabel(const QString& text, const QString& full, QWidget* parent)
+    -> QLabel* {
+  auto* label = PlainLabel(text, parent);
+  label->setWordWrap(false);  // short already: a hash cut in two misleads
+  label->setFont(QFontDatabase::systemFont(QFontDatabase::FixedFont));
+  label->setToolTip(full);
+  return label;
 }
 
 auto CopyButton(const QString& value, QWidget* parent) -> QToolButton* {
@@ -115,38 +98,77 @@ auto CopyButton(const QString& value, QWidget* parent) -> QToolButton* {
   return button;
 }
 
-/// The rows of the details: a mark (when @p marked), the title, its lines,
-/// and a Copy button for a row that offers a value.
-auto RowsWidget(const QList<DetailRow>& rows, bool marked, QWidget* parent)
-    -> QWidget* {
-  auto* widget = new QWidget(parent);
-  auto* grid = new QGridLayout(widget);
-  grid->setContentsMargins(0, 0, 0, 0);
-  grid->setColumnStretch(1, 1);
-  const auto size = widget->style()->pixelMetric(QStyle::PM_SmallIconSize);
-  for (int i = 0; i < rows.size(); ++i) {
-    const auto& row = rows[i];
-    if (marked) {
-      auto* icon = new QLabel(widget);
-      icon->setFixedWidth(size);
-      icon->setPixmap(MarkIcon(widget->style(), row.mark).pixmap(size, size));
-      grid->addWidget(icon, i, 0, Qt::AlignTop);
-    }
-    auto* title = new QLabel(row.title, widget);
-    auto font = title->font();
-    font.setBold(true);
-    title->setFont(font);
-    auto* lines = PlainLabel(Breakable(row.lines.join(u'\n')), widget);
-    auto* text = new QVBoxLayout();
-    text->setSpacing(0);
-    text->addWidget(title);
-    text->addWidget(lines);
-    grid->addLayout(text, i, 1);
-    if (!row.copy.isEmpty()) {
-      grid->addWidget(CopyButton(row.copy, widget), i, 2, Qt::AlignTop);
-    }
+/// A small heading over a group of rows.
+auto Caption(const QString& text, QWidget* parent) -> QLabel* {
+  auto* label = new QLabel(text, parent);
+  auto font = label->font();
+  font.setBold(true);
+  label->setFont(font);
+  return label;
+}
+
+auto Separator(QWidget* parent) -> QFrame* {
+  auto* line = new QFrame(parent);
+  line->setFrameShape(QFrame::HLine);
+  line->setFrameShadow(QFrame::Sunken);
+  return line;
+}
+
+/// The first column of a details row, the same width on every row so the
+/// text lines up: a mark's icon, a dash for what did not run, a circle for
+/// what was not checked, nothing for the release server's rows.
+auto MarkLabel(DetailRow::Mark mark, QWidget* parent) -> QLabel* {
+  auto* label = new QLabel(parent);
+  const auto size = parent->style()->pixelMetric(QStyle::PM_SmallIconSize);
+  label->setFixedWidth(size);
+  label->setAlignment(Qt::AlignHCenter | Qt::AlignTop);
+  label->setForegroundRole(QPalette::PlaceholderText);
+  switch (mark) {
+    case DetailRow::Mark::kVerified:
+      label->setPixmap(parent->style()
+                           ->standardIcon(QStyle::SP_DialogApplyButton)
+                           .pixmap(size, size));
+      break;
+    case DetailRow::Mark::kFailed:
+      label->setPixmap(parent->style()
+                           ->standardIcon(QStyle::SP_MessageBoxCritical)
+                           .pixmap(size, size));
+      break;
+    case DetailRow::Mark::kNotRun:
+      label->setText(QStringLiteral("\u2013"));
+      break;
+    case DetailRow::Mark::kNotChecked:
+      label->setText(QStringLiteral("\u25CB"));
+      break;
+    case DetailRow::Mark::kNone:
+      break;
   }
-  return widget;
+  return label;
+}
+
+/// A details row's text: the title, then its value in the secondary
+/// colour and its key ids or hashes in the fixed-width font, on the same
+/// line where they fit.
+auto RowText(const DetailRow& row, const QPalette& palette) -> QString {
+  auto text = row.title.toHtmlEscaped();
+  const auto muted = palette.color(QPalette::PlaceholderText).name();
+  if (!row.value.isEmpty()) {
+    text += QStringLiteral(" &nbsp;<span style=\"color:%1\">%2</span>")
+                .arg(muted, row.value.toHtmlEscaped());
+  }
+  if (!row.mono.isEmpty()) {
+    text += QStringLiteral(" <span style=\"font-family:'%1'\">%2</span>")
+                .arg(QFontDatabase::systemFont(QFontDatabase::FixedFont)
+                         .family()
+                         .toHtmlEscaped(),
+                     row.mono.toHtmlEscaped());
+  }
+  return text;
+}
+
+/// Empties a form, its labels and values with it.
+void ClearForm(QFormLayout* form) {
+  while (form->rowCount() > 0) form->removeRow(0);
 }
 
 }  // namespace
@@ -180,26 +202,29 @@ UpdateTab::UpdateTab(QWidget* parent)
   header->addWidget(icon_, 0, Qt::AlignTop);
   header->addLayout(text_column, 1);
 
-  // This build, and what it is offered, side by side.
-  build_box_ = new QGroupBox(tr("This build"), this);
-  build_text_ = PlainLabel({}, build_box_);
-  (new QVBoxLayout(build_box_))->addWidget(build_text_);
+  // This build, and what it is offered, side by side: plain label/value
+  // rows, no frames.
+  auto* build_column = new QWidget(this);
+  build_caption_ = Caption(tr("This build"), build_column);
+  build_form_ = new QFormLayout();
+  auto* build_layout = new QVBoxLayout(build_column);
+  build_layout->setContentsMargins(0, 0, 0, 0);
+  build_layout->addWidget(build_caption_);
+  build_layout->addLayout(build_form_);
+  build_layout->addStretch();
 
-  offer_box_ = new QGroupBox(this);
-  offer_text_ = PlainLabel({}, offer_box_);
-  copy_hash_ = new QToolButton(offer_box_);
-  copy_hash_->setText(tr("Copy"));
-  copy_hash_->setAutoRaise(true);
-  connect(copy_hash_, &QToolButton::clicked, this, [this] {
-    QGuiApplication::clipboard()->setText(view_.offer_sha256);
-  });
-  auto* offer_layout = new QVBoxLayout(offer_box_);
-  offer_layout->addWidget(offer_text_);
-  offer_layout->addWidget(copy_hash_, 0, Qt::AlignLeft);
+  offer_column_ = new QWidget(this);
+  offer_form_ = new QFormLayout();
+  auto* offer_layout = new QVBoxLayout(offer_column_);
+  offer_layout->setContentsMargins(0, 0, 0, 0);
+  offer_layout->addWidget(Caption(tr("Offered"), offer_column_));
+  offer_layout->addLayout(offer_form_);
+  offer_layout->addStretch();
 
   auto* blocks = new QHBoxLayout();
-  blocks->addWidget(build_box_, 1);
-  blocks->addWidget(offer_box_, 1);
+  blocks->setSpacing(24);
+  blocks->addWidget(build_column, 1);
+  blocks->addWidget(offer_column_, 1);
 
   notes_ = new QTextBrowser(this);
   // Notes are text the release server signed, but a link in them is still
@@ -223,17 +248,6 @@ UpdateTab::UpdateTab(QWidget* parent)
   connect(full_notes_, &QLabel::linkActivated, this,
           &UpdateTab::show_full_notes);
 
-  check_btn_ = new QPushButton(this);
-  check_btn_->setIcon(QIcon::fromTheme("view-refresh"));
-
-  download_btn_ = new QPushButton(this);
-  download_btn_->setDefault(true);
-
-  auto* actions = new QHBoxLayout();
-  actions->addStretch();
-  actions->addWidget(check_btn_);
-  actions->addWidget(download_btn_);
-
   // Only where it changes anything: the nightly identity follows its own
   // channel (main's nightly, or a release branch's betas) either way.
   beta_ = new QCheckBox(tr("Also offer beta versions"), this);
@@ -241,46 +255,46 @@ UpdateTab::UpdateTab(QWidget* parent)
       tr("Test builds of the next fix release, before it is out. They are "
          "less tested than releases."));
   beta_->setChecked(FollowBetaSetting());
-  beta_->setVisible(!checker_.isNull() && !checker_->IsNightly());
+  beta_->hide();
 
-  // One line on the update information, and its details on request.
-  verified_icon_ = new QLabel(this);
-  verification_ = new QLabel(this);
-  verification_->setWordWrap(true);
+  // One short line on the update information; its details on request.
+  status_icon_ = new QLabel(this);
+  status_text_ = new QLabel(this);
   details_toggle_ = new QToolButton(this);
   details_toggle_->setText(tr("Details"));
   details_toggle_->setCheckable(true);
   details_toggle_->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
   details_toggle_->setAutoRaise(true);
-  auto* verification_line = new QHBoxLayout();
-  verification_line->addWidget(verified_icon_, 0, Qt::AlignTop);
-  verification_line->addWidget(verification_, 1);
-  verification_line->addWidget(details_toggle_, 0, Qt::AlignTop);
+  auto* status_line = new QHBoxLayout();
+  status_line->addWidget(status_icon_);
+  status_line->addWidget(status_text_, 1);
+  status_line->addWidget(details_toggle_);
 
   details_ = new QWidget(this);
-  device_box_ = new QGroupBox(tr("Checked on this device"), details_);
-  new QVBoxLayout(device_box_);
-  host_box_ = new QGroupBox(
-      tr("Checked by the release server before publishing"), details_);
-  new QVBoxLayout(host_box_);
-  security_link_ = new QLabel(details_);
-  security_link_->setOpenExternalLinks(true);
-  auto* copy_report = new QPushButton(tr("Copy report"), details_);
-  connect(copy_report, &QPushButton::clicked, this,
+  details_layout_ = new QVBoxLayout(details_);
+  details_layout_->setContentsMargins(0, 0, 0, 0);
+
+  // One row of buttons.
+  copy_report_ = new QPushButton(tr("Copy report"), this);
+  connect(copy_report_, &QPushButton::clicked, this,
           [this] { QGuiApplication::clipboard()->setText(ReportText(view_)); });
-  auto* details_footer = new QHBoxLayout();
-  details_footer->addWidget(security_link_, 1);
-  details_footer->addWidget(copy_report);
-  auto* details_layout = new QVBoxLayout(details_);
-  details_layout->setContentsMargins(0, 0, 0, 0);
-  details_layout->addWidget(device_box_);
-  details_layout->addWidget(host_box_);
-  details_layout->addLayout(details_footer);
+  download_btn_ = new QPushButton(this);
+  download_btn_->setDefault(true);
+  check_btn_ = new QPushButton(this);
+  auto* close = new QPushButton(tr("Close"), this);
+  connect(close, &QPushButton::clicked, this, [this] { window()->close(); });
+  auto* buttons = new QHBoxLayout();
+  buttons->addWidget(copy_report_);
+  buttons->addStretch();
+  buttons->addWidget(download_btn_);
+  buttons->addWidget(check_btn_);
+  buttons->addWidget(close);
 
   const bool open = DetailsOpenSetting();
   details_toggle_->setChecked(open);
   details_toggle_->setArrowType(open ? Qt::DownArrow : Qt::RightArrow);
   details_->setVisible(open);
+  copy_report_->setVisible(open);
 
   auto* layout = new QVBoxLayout(this);
   layout->addLayout(header);
@@ -288,20 +302,23 @@ UpdateTab::UpdateTab(QWidget* parent)
   layout->addLayout(blocks);
   layout->addWidget(notes_);
   layout->addWidget(full_notes_, 0, Qt::AlignLeft);
-  layout->addLayout(actions);
   layout->addWidget(beta_, 0, Qt::AlignLeft);
-  layout->addSpacing(8);
-  layout->addLayout(verification_line);
+  layout->addSpacing(4);
+  layout->addWidget(Separator(this));
+  layout->addLayout(status_line);
   layout->addWidget(details_);
+  layout->addWidget(Separator(this));
+  layout->addLayout(buttons);
   layout->addStretch();
 
-  // Wide enough that a headline wraps at most once; the height follows the
-  // content (see fit_window()).
-  setMinimumWidth(fontMetrics().averageCharWidth() * 64);
+  // Wide enough that the status line and the two columns fit unwrapped;
+  // the height follows the content (see fit_window()).
+  setMinimumWidth(fontMetrics().averageCharWidth() * 92);
 
   connect(details_toggle_, &QToolButton::toggled, this, [this](bool open) {
     details_toggle_->setArrowType(open ? Qt::DownArrow : Qt::RightArrow);
     details_->setVisible(open);
+    copy_report_->setVisible(open);
     SetDetailsOpenSetting(open);
     fit_window();
   });
@@ -415,7 +432,14 @@ void UpdateTab::fit_window() {
   // keeps its place on screen, and overrides a size remembered from a page
   // that showed something else.
   QTimer::singleShot(0, this, [this] {
-    if (isVisible()) window()->adjustSize();
+    if (!isVisible()) return;
+    auto* frame = window();
+    frame->adjustSize();
+    // Wrapped text needs the height for the width it got, which
+    // adjustSize() does not always ask for.
+    if (frame->hasHeightForWidth()) {
+      frame->resize(frame->width(), frame->heightForWidth(frame->width()));
+    }
   });
 }
 
@@ -457,6 +481,7 @@ void UpdateTab::show_full_notes() {
 }
 
 void UpdateTab::apply(const UpdateView& view) {
+  view_ = view;
   const auto icon_size = style()->pixelMetric(QStyle::PM_MessageBoxIconSize);
   icon_->setPixmap(ToneIcon(style(), view.tone).pixmap(icon_size, icon_size));
 
@@ -466,46 +491,43 @@ void UpdateTab::apply(const UpdateView& view) {
   notice_->setText(view.notice);
   notice_->setVisible(!view.notice.isEmpty());
 
-  QStringList build{view.build_version, view.build_kind};
+  ClearForm(build_form_);
+  build_form_->addRow(tr("Version"), PlainLabel(view.build_version, this));
+  build_form_->addRow(tr("Type"), PlainLabel(view.build_kind, this));
   if (!view.build_commit.isEmpty()) {
-    build << tr("Commit %1").arg(view.build_commit);
+    build_form_->addRow(tr("Commit"),
+                        MonoLabel(view.build_commit, view.build_commit, this));
   }
-  if (!view.build_official.isEmpty()) build << view.build_official;
-  build_text_->setText(build.join(u'\n'));
-  build_box_->setVisible(!view.build_version.isEmpty());
+  build_form_->addRow(tr("Official build"),
+                      PlainLabel(view.build_official, this));
+  if (!view.newest.isEmpty()) {
+    build_form_->addRow(view.newest_label, PlainLabel(view.newest, this));
+  }
 
-  QStringList offer;
+  ClearForm(offer_form_);
+  offer_column_->setVisible(view.show_offer);
   if (view.show_offer) {
-    offer_box_->setTitle(tr("Offered"));
-    offer << view.offer_version;
-    if (!view.offer_file.isEmpty()) offer << Breakable(view.offer_file);
-    if (!view.offer_sha256.isEmpty()) {
-      offer << tr("SHA-256 %1").arg(ShortHash(view.offer_sha256));
+    offer_form_->addRow(tr("Version"), PlainLabel(view.offer_version, this));
+    if (!view.offer_file.isEmpty()) {
+      offer_form_->addRow(tr("File"),
+                          PlainLabel(Breakable(view.offer_file), this));
     }
-  } else {
-    offer_box_->setTitle(tr("Available"));
-    offer << view.newest;
+    if (!view.offer_size.isEmpty()) {
+      offer_form_->addRow(tr("Size"), PlainLabel(view.offer_size, this));
+    }
+    if (!view.offer_sha256.isEmpty()) {
+      auto* hash = new QHBoxLayout();
+      hash->addWidget(
+          MonoLabel(ShortHash(view.offer_sha256), view.offer_sha256, this));
+      hash->addWidget(CopyButton(view.offer_sha256, this));
+      hash->addStretch();
+      offer_form_->addRow(tr("SHA-256"), hash);
+    }
   }
-  if (!view.newer_beta.isEmpty()) offer << view.newer_beta;
-  offer.removeAll(QString());
-  offer_text_->setText(offer.join(u'\n'));
-  offer_text_->setToolTip(view.offer_sha256);
-  copy_hash_->setVisible(view.show_offer && !view.offer_sha256.isEmpty());
-  offer_box_->setVisible(!offer.isEmpty());
-
-  check_btn_->setText(view.check_label);
-  check_btn_->setEnabled(view.check_enabled);
-  // Once installed, checking again has nothing to add before the restart.
-  check_btn_->setVisible(view.action != UpdateView::Action::kRestart);
-
-  view_ = view;
-  download_btn_->setText(view.download_label);
-  download_btn_->setEnabled(view.download_enabled);
-  download_btn_->setVisible(view.show_download);
-  download_btn_->setIcon(QIcon::fromTheme(
-      view.action == UpdateView::Action::kRestart   ? "view-refresh"
-      : view.action == UpdateView::Action::kInstall ? "system-software-update"
-                                                    : "download"));
+  if (!view.newer_beta.isEmpty()) {
+    (view.show_offer ? offer_form_ : build_form_)
+        ->addRow(tr("Beta"), PlainLabel(view.newer_beta, this));
+  }
 
   notes_->setVisible(view.show_notes);
   full_notes_->hide();
@@ -517,32 +539,88 @@ void UpdateTab::apply(const UpdateView& view) {
     notes_->clear();
   }
 
-  const auto small = style()->pixelMetric(QStyle::PM_SmallIconSize);
-  verified_icon_->setPixmap(
-      ToneIcon(style(), view.verification_tone).pixmap(small, small));
-  verification_->setText(view.verification);
+  beta_->setVisible(view.show_beta && !checker_.isNull());
 
-  // The rows are rebuilt: each check may have run other steps.
-  delete device_rows_;
-  device_rows_ =
-      view.device_rows.isEmpty()
-          ? PlainLabel(tr("The details appear after the next check."),
-                       device_box_)
-          : RowsWidget(view.device_rows, true, device_box_);
-  device_box_->layout()->addWidget(device_rows_);
-  delete host_rows_;
-  host_rows_ = RowsWidget(view.host_rows, false, host_box_);
-  host_box_->layout()->addWidget(host_rows_);
-  // Unmarked: what the server checked is never shown as checked here.
-  host_box_->setVisible(!view.host_rows.isEmpty());
-  security_link_->setText(
-      view.security_url.isEmpty()
-          ? QString()
-          : QStringLiteral("<a href=\"%1\">%2</a>")
-                .arg(view.security_url.toHtmlEscaped(),
-                     tr("How to verify the download yourself")));
+  const auto small = style()->pixelMetric(QStyle::PM_SmallIconSize);
+  status_icon_->setPixmap(
+      ToneIcon(style(), view.verification_tone).pixmap(small, small));
+  status_text_->setText(view.verification);
+  fill_details(view);
+
+  download_btn_->setText(view.download_label);
+  download_btn_->setEnabled(view.download_enabled);
+  download_btn_->setVisible(view.show_download);
+  download_btn_->setIcon(QIcon::fromTheme(
+      view.action == UpdateView::Action::kRestart   ? "view-refresh"
+      : view.action == UpdateView::Action::kInstall ? "system-software-update"
+                                                    : "download"));
+  check_btn_->setText(view.check_label);
+  check_btn_->setEnabled(view.check_enabled);
+  // Only where asking again can help; once installed, a restart comes
+  // first.
+  check_btn_->setVisible(view.show_check &&
+                         view.action != UpdateView::Action::kRestart);
 
   fit_window();
+}
+
+void UpdateTab::fill_details(const UpdateView& view) {
+  // Rebuilt whole: each check may have run other steps.
+  while (auto* item = details_layout_->takeAt(0)) {
+    delete item->widget();
+    delete item;
+  }
+  const auto add_rows = [this](const QList<DetailRow>& rows) {
+    auto* grid = new QGridLayout();
+    grid->setColumnStretch(1, 1);
+    grid->setVerticalSpacing(4);
+    for (int i = 0; i < rows.size(); ++i) {
+      const auto& row = rows[i];
+      grid->addWidget(MarkLabel(row.mark, details_), i, 0);
+      auto* text = new QLabel(RowText(row, palette()), details_);
+      text->setWordWrap(true);
+      text->setTextInteractionFlags(Qt::TextSelectableByMouse);
+      text->setToolTip(row.full);
+      grid->addWidget(text, i, 1);
+      if (!row.copy.isEmpty()) {
+        grid->addWidget(CopyButton(row.copy, details_), i, 2, Qt::AlignTop);
+      }
+    }
+    auto* holder = new QWidget(details_);
+    holder->setLayout(grid);
+    grid->setContentsMargins(0, 0, 0, 0);
+    details_layout_->addWidget(holder);
+  };
+
+  if (view.device_rows.isEmpty()) {
+    auto* empty =
+        PlainLabel(tr("The details appear after the next check."), details_);
+    empty->setForegroundRole(QPalette::PlaceholderText);
+    details_layout_->addWidget(empty);
+    return;
+  }
+  details_layout_->addWidget(Caption(tr("Checked on this device"), details_));
+  add_rows(view.device_rows);
+  if (!view.host_rows.isEmpty()) {
+    details_layout_->addWidget(
+        Caption(tr("Checked by the release server"), details_));
+    add_rows(view.host_rows);
+  }
+  if (!view.security_url.isEmpty()) {
+    auto* link = new QLabel(QStringLiteral("<a href=\"%1\">%2</a>")
+                                .arg(view.security_url.toHtmlEscaped(),
+                                     tr("How to verify the download yourself")),
+                            details_);
+    link->setOpenExternalLinks(true);
+    details_layout_->addWidget(link);
+  }
+}
+
+void UpdateTab::changeEvent(QEvent* event) {
+  QWidget::changeEvent(event);
+  // The rows' secondary colour comes from the palette: a theme switch
+  // redraws them.
+  if (event->type() == QEvent::PaletteChange) fill_details(view_);
 }
 
 void UpdateTab::showEvent(QShowEvent* event) {
