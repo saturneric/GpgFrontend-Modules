@@ -64,17 +64,17 @@
     <message numerus="yes">
         <location filename="../UpdatePresentation.cpp" line="490"/>
         <source>%n minute(s) ago</source>
-        <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+        <translation>
+            <numerusform>%n minute ago</numerusform>
+            <numerusform>%n minutes ago</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location filename="../UpdatePresentation.cpp" line="495"/>
         <source>%n hour(s) ago</source>
-        <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+        <translation>
+            <numerusform>%n hour ago</numerusform>
+            <numerusform>%n hours ago</numerusform>
         </translation>
     </message>
     <message>
@@ -278,9 +278,9 @@
     <message numerus="yes">
         <location filename="../UpdatePresentation.cpp" line="239"/>
         <source>%n key(s)</source>
-        <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+        <translation>
+            <numerusform>%n key</numerusform>
+            <numerusform>%n keys</numerusform>
         </translation>
     </message>
     <message>
