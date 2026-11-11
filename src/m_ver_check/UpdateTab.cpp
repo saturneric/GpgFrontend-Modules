@@ -237,28 +237,25 @@ UpdateTab::UpdateTab(QWidget* parent)
   // inside the browser itself.
   notes_->setOpenLinks(false);
   notes_->setOpenExternalLinks(false);
-  // A few lines in the page; the rest in a window of their own, so the
-  // page never scrolls inside itself.
-  notes_->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+  // The one part of the page that scrolls, and takes what height there is:
+  // on the window's own background, one light frame, at least five lines.
+  notes_->setFrameShape(QFrame::StyledPanel);
+  notes_->setFrameShadow(QFrame::Plain);
+  notes_->setMinimumHeight(notes_->fontMetrics().lineSpacing() * 5 +
+                           2 * notes_->frameWidth());
+  fill_notes_palette();
   notes_->hide();
   connect(notes_, &QTextBrowser::anchorClicked, this, [](const QUrl& url) {
     if (IsAllowedNotesLink(url, NotesLinkHosts())) {
       QDesktopServices::openUrl(url);
     }
   });
-  full_notes_ = new QLabel(
-      QStringLiteral("<a href=\"#\">%1</a>").arg(tr("Full release notes")),
-      this);
-  full_notes_->hide();
-  connect(full_notes_, &QLabel::linkActivated, this,
-          &UpdateTab::show_full_notes);
 
   // One short line on the update information; its details on request.
   status_icon_ = new QLabel(this);
   status_text_ = new QLabel(this);
   details_toggle_ = new QToolButton(this);
   details_toggle_->setText(tr("Details"));
-  details_toggle_->setCheckable(true);
   details_toggle_->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
   details_toggle_->setAutoRaise(true);
   auto* status_line = new QHBoxLayout();
@@ -287,7 +284,6 @@ UpdateTab::UpdateTab(QWidget* parent)
   buttons->addWidget(close);
 
   const bool open = DetailsOpenSetting();
-  details_toggle_->setChecked(open);
   details_toggle_->setArrowType(open ? Qt::DownArrow : Qt::RightArrow);
   details_->setVisible(open);
   copy_report_->setVisible(open);
@@ -297,8 +293,7 @@ UpdateTab::UpdateTab(QWidget* parent)
   layout->addSpacing(8);
   layout->addLayout(blocks);
   layout->addWidget(beta_hint_);
-  layout->addWidget(notes_);
-  layout->addWidget(full_notes_, 0, Qt::AlignLeft);
+  layout->addWidget(notes_, 1);
   layout->addSpacing(4);
   layout->addWidget(Separator(this));
   layout->addLayout(status_line);
@@ -311,7 +306,8 @@ UpdateTab::UpdateTab(QWidget* parent)
   // the height follows the content (see fit_window()).
   setMinimumWidth(fontMetrics().averageCharWidth() * 92);
 
-  connect(details_toggle_, &QToolButton::toggled, this, [this](bool open) {
+  connect(details_toggle_, &QToolButton::clicked, this, [this] {
+    const bool open = !details_->isVisible();
     details_toggle_->setArrowType(open ? Qt::DownArrow : Qt::RightArrow);
     details_->setVisible(open);
     copy_report_->setVisible(open);
@@ -424,47 +420,21 @@ void UpdateTab::fit_window() {
     frame->adjustSize();
     // Wrapped text needs the height for the width it got, which
     // adjustSize() does not always ask for.
-    if (frame->hasHeightForWidth()) {
-      frame->resize(frame->width(), frame->heightForWidth(frame->width()));
+    int height = frame->hasHeightForWidth()
+                     ? frame->heightForWidth(frame->width())
+                     : frame->height();
+    // Never taller than most of the screen: the release notes give way down
+    // to their few lines, they scroll; the details never do.
+    if (const auto* screen = frame->screen(); screen != nullptr) {
+      const int give = notes_->isVisible() ? notes_->sizeHint().height() -
+                                                 notes_->minimumHeight()
+                                           : 0;
+      height = std::max(
+          std::min(height, screen->availableGeometry().height() * 4 / 5),
+          height - std::max(give, 0));
     }
+    frame->resize(frame->width(), height);
   });
-}
-
-void UpdateTab::fit_notes() {
-  // Deferred like fit_window(): the document has its width only once laid
-  // out. At most ten lines; a link to the rest when there is more.
-  QTimer::singleShot(0, this, [this] {
-    if (!notes_->isVisible()) return;
-    const int cap = notes_->fontMetrics().lineSpacing() * 10;
-    const int height = static_cast<int>(notes_->document()->size().height()) +
-                       2 * notes_->frameWidth();
-    notes_->setFixedHeight(std::min(height, cap));
-    full_notes_->setVisible(height > cap);
-    fit_window();
-  });
-}
-
-void UpdateTab::show_full_notes() {
-  auto* dialog = new QDialog(this);
-  dialog->setAttribute(Qt::WA_DeleteOnClose);
-  dialog->setWindowTitle(tr("Release notes"));
-  auto* browser = new QTextBrowser(dialog);
-  browser->setOpenLinks(false);
-  browser->setMarkdown(view_.notes);
-  RestrictNotesLinks(browser->document(), NotesLinkHosts());
-  connect(browser, &QTextBrowser::anchorClicked, dialog, [](const QUrl& url) {
-    if (IsAllowedNotesLink(url, NotesLinkHosts())) {
-      QDesktopServices::openUrl(url);
-    }
-  });
-  auto* buttons = new QDialogButtonBox(QDialogButtonBox::Close, dialog);
-  connect(buttons, &QDialogButtonBox::rejected, dialog, &QDialog::close);
-  auto* layout = new QVBoxLayout(dialog);
-  layout->addWidget(browser);
-  layout->addWidget(buttons);
-  dialog->resize(fontMetrics().averageCharWidth() * 80,
-                 fontMetrics().lineSpacing() * 30);
-  dialog->show();
 }
 
 void UpdateTab::apply(const UpdateView& view) {
@@ -515,11 +485,13 @@ void UpdateTab::apply(const UpdateView& view) {
   beta_hint_->setVisible(!view.newer_beta.isEmpty());
 
   notes_->setVisible(view.show_notes);
-  full_notes_->hide();
   if (view.show_notes) {
     notes_->setMarkdown(view.notes);
     RestrictNotesLinks(notes_->document(), NotesLinkHosts());
-    fit_notes();
+    TameNotesHeadings(notes_->document(), notes_->font().pointSizeF());
+    // The platform's usual list indent, not the document's wide default.
+    notes_->document()->setIndentWidth(
+        notes_->fontMetrics().averageCharWidth() * 4);
   } else {
     notes_->clear();
   }
@@ -603,7 +575,18 @@ void UpdateTab::changeEvent(QEvent* event) {
   QWidget::changeEvent(event);
   // The rows' secondary colour comes from the palette: a theme switch
   // redraws them.
-  if (event->type() == QEvent::PaletteChange) fill_details(view_);
+  if (event->type() == QEvent::PaletteChange) {
+    fill_notes_palette();
+    fill_details(view_);
+  }
+}
+
+void UpdateTab::fill_notes_palette() {
+  // The notes sit on the window's background like the rest of the page;
+  // a text view paints its own with Base.
+  auto notes = notes_->palette();
+  notes.setColor(QPalette::Base, palette().color(QPalette::Window));
+  notes_->setPalette(notes);
 }
 
 void UpdateTab::showEvent(QShowEvent* event) {

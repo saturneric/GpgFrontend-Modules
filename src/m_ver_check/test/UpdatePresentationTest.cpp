@@ -28,6 +28,9 @@
 
 #include <gtest/gtest.h>
 
+#include <QTextBlock>
+#include <QTextDocument>
+
 #include "UpdatePresentation.h"
 
 namespace {
@@ -792,4 +795,23 @@ TEST(UpdatePresentationTest, TheReportSaysEverythingButNothingPersonal) {
   EXPECT_TRUE(report.contains(QString(64, u'd')));
   EXPECT_FALSE(report.contains("/home"));
   EXPECT_FALSE(report.contains("https://"));
+}
+
+TEST(UpdatePresentationTest, NotesHeadingsStayAtTheDialogsScale) {
+  QTextDocument doc;
+  doc.setMarkdown("# One\n\n## Two\n\n### Three\n\nBody text\n");
+  TameNotesHeadings(&doc, 10);
+  QList<qreal> sizes;
+  for (auto block = doc.begin(); block.isValid(); block = block.next()) {
+    const auto fragment = block.begin().fragment();
+    if (block.blockFormat().headingLevel() > 0) {
+      EXPECT_EQ(fragment.charFormat().fontWeight(), QFont::Bold);
+      EXPECT_EQ(fragment.charFormat()
+                    .property(QTextFormat::FontSizeAdjustment)
+                    .toInt(),
+                0);
+      sizes << fragment.charFormat().fontPointSize();
+    }
+  }
+  EXPECT_EQ(sizes, QList<qreal>({11, 11, 10}));
 }

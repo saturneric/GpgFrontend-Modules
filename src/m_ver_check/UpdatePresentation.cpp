@@ -505,6 +505,23 @@ auto SeriesNoticeText(const SoftwareVersion::Notice& notice) -> QString {
                    .arg(notice.series);
 }
 
+void TameNotesHeadings(QTextDocument* document, qreal body_points) {
+  for (auto block = document->begin(); block.isValid(); block = block.next()) {
+    const int level = block.blockFormat().headingLevel();
+    if (level <= 0) continue;
+    QTextCharFormat format;
+    format.setFontWeight(QFont::Bold);
+    format.setFontPointSize(level <= 2 ? body_points + 1 : body_points);
+    // The importer sizes headings by this adjustment; the point size above
+    // is what they are to be.
+    format.setProperty(QTextFormat::FontSizeAdjustment, 0);
+    QTextCursor cursor(block);
+    cursor.select(QTextCursor::BlockUnderCursor);
+    cursor.mergeCharFormat(format);
+    cursor.mergeBlockCharFormat(format);
+  }
+}
+
 void RestrictNotesLinks(QTextDocument* document, const QStringList& hosts) {
   for (auto block = document->begin(); block.isValid(); block = block.next()) {
     for (auto it = block.begin(); !it.atEnd(); ++it) {
