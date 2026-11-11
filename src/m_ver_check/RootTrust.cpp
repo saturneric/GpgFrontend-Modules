@@ -97,16 +97,18 @@ auto Ids(const QJsonValue& role) -> QStringList {
   return ids;
 }
 
-/// How many of @p ids (keys of @p keys) signed @p file with @p comment.
+/// Which of @p ids (keys of @p keys) signed @p file with @p comment.
 auto Signers(const SignedFile& file, const QHash<QString, QString>& keys,
-             const QStringList& ids, const QString& comment) -> int {
-  int count = 0;
+             const QStringList& ids, const QString& comment) -> QStringList {
+  QStringList signers;
   for (const auto& id : ids) {
     const auto sig = file.signatures.value(id);
     if (sig.isEmpty() || MinisignSignatureKeyId(sig) != id) continue;
-    if (MinisignVerify({keys.value(id)}, file.data, sig) == comment) ++count;
+    if (MinisignVerify({keys.value(id)}, file.data, sig) == comment) {
+      signers << id;
+    }
   }
-  return count;
+  return signers;
 }
 
 auto Comment(const QString& product, const QString& what, qint64 n)
@@ -145,10 +147,20 @@ auto ReadRoot(const SignedFile& file, const QString& product, QString* why)
     }
   }
   const auto comment = Comment(product, QStringLiteral("root"), root.version);
-  if (Signers(file, root.keys, root.root_keyids, comment) < root.threshold) {
+  root.signed_by = Signers(file, root.keys, root.root_keyids, comment);
+  if (root.signed_by.size() < root.threshold) {
     return Fail(why, QStringLiteral("root %1: too few of its own keys signed "
                                     "it")
                          .arg(root.version));
+  }
+  // What the release host checks before it publishes: shown, never acted on.
+  const auto policy = obj.value("host_policy").toObject();
+  root.repository = policy.value("repository").toString();
+  root.workflow = policy.value("workflow").toString();
+  root.authenticode_subject = policy.value("authenticode_subject").toString();
+  for (const auto& fpr :
+       policy.value("stable_pgp").toObject().value("fingerprints").toArray()) {
+    root.pgp_fingerprints << fpr.toString();
   }
   root.file = file;
   return root;
@@ -172,7 +184,7 @@ auto AcceptNextRoot(const TrustRoot& trusted, const SignedFile& file,
                          .arg(trusted.version));
   }
   const auto comment = Comment(product, QStringLiteral("root"), next->version);
-  if (Signers(file, trusted.keys, trusted.root_keyids, comment) <
+  if (Signers(file, trusted.keys, trusted.root_keyids, comment).size() <
       trusted.threshold) {
     return Fail(why, QStringLiteral("root %1: too few of root %2's keys "
                                     "signed it")
@@ -204,7 +216,7 @@ auto ParseIndexKeys(const TrustRoot& root, const SignedFile& file,
   }
   const auto comment =
       Comment(product, QStringLiteral("index-keys"), keys.version);
-  if (Signers(by_g, root.keys, root.index_list_keyids, comment) < 1) {
+  if (Signers(by_g, root.keys, root.index_list_keyids, comment).isEmpty()) {
     return Fail(why, QStringLiteral("index-keys %1 is not signed by root %2's "
                                     "index_list key")
                          .arg(keys.version)

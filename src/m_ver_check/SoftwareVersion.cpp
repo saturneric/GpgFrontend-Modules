@@ -105,7 +105,8 @@ auto SoftwareVersion::ToJson() const -> QJsonObject {
                     {"eol", notice.eol},
                     {"successor", notice.successor},
                     {"successor_latest", notice.successor_latest},
-                    {"successor_runs_here", notice.successor_runs_here}};
+                    {"successor_runs_here", notice.successor_runs_here},
+                    {"unmet", notice.unmet}};
   }
   obj["checked_at"] = checked_at.toSecsSinceEpoch();
   return obj;
@@ -143,6 +144,7 @@ auto SoftwareVersion::FromJson(const QJsonObject& obj)
   sv.notice.successor = notice.value("successor").toString();
   sv.notice.successor_latest = notice.value("successor_latest").toString();
   sv.notice.successor_runs_here = notice.value("successor_runs_here").toBool();
+  sv.notice.unmet = notice.value("unmet").toString();
   sv.checked_at =
       QDateTime::fromSecsSinceEpoch(obj.value("checked_at").toInteger());
 

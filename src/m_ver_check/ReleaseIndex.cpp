@@ -84,8 +84,8 @@ auto Sha256Hex(const QByteArray& data) -> QString {
 }
 
 auto ParseIndex(const QByteArray& json, const QString& trusted_comment,
-                const QString& product, const QDateTime& now)
-    -> std::optional<IndexFacts> {
+                const QString& product, const QDateTime& now,
+                QDateTime* expired) -> std::optional<IndexFacts> {
   const auto doc = QJsonDocument::fromJson(json);
   if (!doc.isObject()) return std::nullopt;
   const auto obj = doc.object();
@@ -111,7 +111,10 @@ auto ParseIndex(const QByteArray& json, const QString& trusted_comment,
   if (f.generated_at.secsTo(f.expires) > kMaxIndexLifetimeSeconds) {
     return std::nullopt;
   }
-  if (f.expires.secsTo(now) > kExpirySkewSeconds) return std::nullopt;
+  if (f.expires.secsTo(now) > kExpirySkewSeconds) {
+    if (expired != nullptr) *expired = f.expires;
+    return std::nullopt;
+  }
 
   const auto nightly = obj.value("channels").toObject().value("nightly");
   if (nightly.isString()) {
@@ -361,23 +364,19 @@ auto ChooseUpdate(const IndexFacts& facts, const QString& current, bool nightly,
 }
 
 auto MeetsPlatform(const QHash<QString, QString>& required,
-                   const Platform& platform) -> bool {
-  const auto at_least = [](const QString& have, const QString& need) {
+                   const Platform& platform, QString* unmet) -> bool {
+  const auto check = [&](const QString& key, const QString& have) {
+    if (!required.contains(key)) return true;
+    const auto need = required.value(key);
     const auto h = QVersionNumber::fromString(have);
-    return !h.isNull() && h >= QVersionNumber::fromString(need);
+    if (!h.isNull() && h >= QVersionNumber::fromString(need)) return true;
+    if (unmet != nullptr) *unmet = key + u' ' + need;
+    return false;
   };
-  if (platform.os == u"windows") {
-    return !required.contains("windows") ||
-           at_least(platform.os_version, required.value("windows"));
-  }
-  if (platform.os == u"macos") {
-    return !required.contains("macos") ||
-           at_least(platform.os_version, required.value("macos"));
-  }
-  if (platform.os == u"linux") {
-    return !required.contains("linux_glibc") ||
-           at_least(platform.glibc, required.value("linux_glibc"));
-  }
+  if (platform.os == u"windows") return check("windows", platform.os_version);
+  if (platform.os == u"macos") return check("macos", platform.os_version);
+  if (platform.os == u"linux") return check("linux_glibc", platform.glibc);
+  if (unmet != nullptr) unmet->clear();  // nothing this system is checked by
   return false;
 }
 
@@ -393,8 +392,9 @@ auto NoticeFor(const IndexFacts& facts, const QString& current,
   notice.successor = series.successor;
   const auto successor = facts.series.value(series.successor);
   notice.successor_latest = successor.latest;
-  notice.successor_runs_here = !successor.latest.isEmpty() &&
-                               MeetsPlatform(successor.platforms, platform);
+  notice.successor_runs_here =
+      !successor.latest.isEmpty() &&
+      MeetsPlatform(successor.platforms, platform, &notice.unmet);
   return notice;
 }
 

@@ -215,6 +215,19 @@ TEST(ReleaseIndexTest, ExpiryHasADaysGrace) {
                           Comment(5), "gpgfrontend", kNow));
 }
 
+TEST(ReleaseIndexTest, AnExpiredIndexSaysWhenItExpired) {
+  QDateTime expired;
+  const auto when = kNow.addDays(-2);
+  EXPECT_FALSE(ParseIndex(Index(5, "", "gpgfrontend", when), Comment(5),
+                          "gpgfrontend", kNow, &expired));
+  EXPECT_EQ(expired.toSecsSinceEpoch(), when.toSecsSinceEpoch());
+  // Refused for anything else: no expiry to report.
+  QDateTime none;
+  EXPECT_FALSE(
+      ParseIndex(Index(6, ""), Comment(5), "gpgfrontend", kNow, &none));
+  EXPECT_FALSE(none.isValid());
+}
+
 TEST(ReleaseIndexTest, AnIndexSaysWhenItWasSignedAndIsShortLived) {
   const auto with = [](const QJsonValue& generated_at,
                        const QDateTime& expires = kNow.addDays(14)) {

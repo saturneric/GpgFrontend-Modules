@@ -187,6 +187,28 @@ TEST(TrustTest, ARootNeedsEnoughOfTheOldKeysAndOfItsOwn) {
   }
 }
 
+TEST(TrustTest, ARootSaysWhoSignedItAndWhatTheHostChecks) {
+  const auto& k = Keys();
+  const auto root = ParseRoot(TrustFor(Signer()).root, "gpgfrontend");
+  ASSERT_TRUE(root);
+  EXPECT_EQ(QSet<QString>(root->signed_by.begin(), root->signed_by.end()),
+            QSet<QString>({test_index::KeyId(k.a), test_index::KeyId(k.b)}));
+  EXPECT_EQ(root->repository, "o/r");
+  EXPECT_TRUE(root->workflow.isEmpty());  // the fixture names none
+
+  // One the release tooling wrote, with a whole host_policy.
+  const QDir dir(QStringLiteral(GF_TRUST_FIXTURE));
+  const auto made =
+      ParseRoot(TrustFile(dir, "root", "1.root.json"), "gpgfrontend");
+  ASSERT_TRUE(made);
+  EXPECT_GE(made->signed_by.size(), made->threshold);
+  EXPECT_EQ(made->repository, "saturneric/GpgFrontend");
+  EXPECT_EQ(made->workflow, ".github/workflows/build.yml");
+  EXPECT_EQ(made->pgp_fingerprints,
+            QStringList{"12F7E8858CF15BEC9975FF3C5CA3DA246843FD03"});
+  EXPECT_EQ(made->authenticode_subject, "CN=Example");
+}
+
 TEST(TrustTest, AnIndexSignedByAKeyTheListDoesNotHoldIsRefused) {
   World w;
   w.Index(5, Signer(), 1, 1);
