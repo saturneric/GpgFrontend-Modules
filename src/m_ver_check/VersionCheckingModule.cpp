@@ -66,6 +66,7 @@ constexpr auto kStateKey = "update_checking_state";
 
 /// "Also offer beta versions": this module's own setting, off when absent.
 constexpr auto kFollowBetaKey = "follow_beta";
+constexpr auto kDetailsOpenKey = "details_open";
 
 std::atomic<bool> g_stopped{false};
 QPointer<UpdateChecker> g_checker;
@@ -371,6 +372,17 @@ void SetFollowBetaSetting(bool follow_beta) {
   gf::sdk::SetSetting(GFModuleSdkContext(), GF_SETTING_MODULE, kFollowBetaKey,
                       follow_beta);
   if (!g_checker.isNull()) g_checker->SetFollowBeta(follow_beta);
+}
+
+auto DetailsOpenSetting() -> bool {
+  return gf::sdk::Setting(GFModuleSdkContext(), GF_SETTING_MODULE,
+                          kDetailsOpenKey, false)
+      .toBool();
+}
+
+void SetDetailsOpenSetting(bool open) {
+  gf::sdk::SetSetting(GFModuleSdkContext(), GF_SETTING_MODULE, kDetailsOpenKey,
+                      open);
 }
 
 auto NotesLinkHosts() -> QStringList {

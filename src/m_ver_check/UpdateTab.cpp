@@ -71,6 +71,84 @@ auto UpdateCheckProhibited() -> bool {
       .toBool();
 }
 
+/// The icon of a step's mark; none for a step that did not run or does not
+/// apply, whose text says so.
+auto MarkIcon(const QStyle* style, DetailRow::Mark mark) -> QIcon {
+  switch (mark) {
+    case DetailRow::Mark::kVerified:
+      return style->standardIcon(QStyle::SP_DialogApplyButton);
+    case DetailRow::Mark::kFailed:
+      return style->standardIcon(QStyle::SP_MessageBoxCritical);
+    case DetailRow::Mark::kInfo:
+      return style->standardIcon(QStyle::SP_MessageBoxInformation);
+    case DetailRow::Mark::kNotRun:
+    case DetailRow::Mark::kNotApplicable:
+    case DetailRow::Mark::kNone:
+      break;
+  }
+  return {};
+}
+
+/// A label for text from the server or the build: never read as markup.
+auto PlainLabel(const QString& text, QWidget* parent) -> QLabel* {
+  auto* label = new QLabel(text, parent);
+  label->setTextFormat(Qt::PlainText);
+  label->setWordWrap(true);
+  label->setTextInteractionFlags(Qt::TextSelectableByMouse);
+  return label;
+}
+
+/// A hash, a key or a file name can break after a dash or a dot, so a long
+/// one wraps instead of widening the dialog.
+auto Breakable(QString text) -> QString {
+  text.replace(u'-', QStringLiteral("-\u200b"));
+  return text;
+}
+
+auto CopyButton(const QString& value, QWidget* parent) -> QToolButton* {
+  auto* button = new QToolButton(parent);
+  button->setText(QCoreApplication::translate("UpdateTab", "Copy"));
+  button->setToolTip(value);
+  button->setAutoRaise(true);
+  QObject::connect(button, &QToolButton::clicked, button,
+                   [value] { QGuiApplication::clipboard()->setText(value); });
+  return button;
+}
+
+/// The rows of the details: a mark (when @p marked), the title, its lines,
+/// and a Copy button for a row that offers a value.
+auto RowsWidget(const QList<DetailRow>& rows, bool marked, QWidget* parent)
+    -> QWidget* {
+  auto* widget = new QWidget(parent);
+  auto* grid = new QGridLayout(widget);
+  grid->setContentsMargins(0, 0, 0, 0);
+  grid->setColumnStretch(1, 1);
+  const auto size = widget->style()->pixelMetric(QStyle::PM_SmallIconSize);
+  for (int i = 0; i < rows.size(); ++i) {
+    const auto& row = rows[i];
+    if (marked) {
+      auto* icon = new QLabel(widget);
+      icon->setFixedWidth(size);
+      icon->setPixmap(MarkIcon(widget->style(), row.mark).pixmap(size, size));
+      grid->addWidget(icon, i, 0, Qt::AlignTop);
+    }
+    auto* title = new QLabel(row.title, widget);
+    auto font = title->font();
+    font.setBold(true);
+    title->setFont(font);
+    auto* lines = PlainLabel(Breakable(row.lines.join(u'\n')), widget);
+    auto* text = new QVBoxLayout();
+    text->setSpacing(0);
+    text->addWidget(title);
+    text->addWidget(lines);
+    grid->addLayout(text, i, 1);
+    if (!row.copy.isEmpty()) {
+      grid->addWidget(CopyButton(row.copy, widget), i, 2, Qt::AlignTop);
+    }
+  }
+  return widget;
+}
+
 }  // namespace
 
 UpdateTab::UpdateTab(QWidget* parent)
@@ -91,24 +169,59 @@ UpdateTab::UpdateTab(QWidget* parent)
   notice_ = new QLabel(this);
   notice_->setWordWrap(true);
 
-  freshness_ = new QLabel(this);
-  freshness_->setWordWrap(true);
-  freshness_->setForegroundRole(QPalette::PlaceholderText);
-  auto small_font = freshness_->font();
-  small_font.setPointSizeF(small_font.pointSizeF() * 0.9);
-  freshness_->setFont(small_font);
-
   auto* text_column = new QVBoxLayout();
   text_column->setSpacing(4);
   text_column->addWidget(headline_);
   text_column->addWidget(detail_);
   text_column->addWidget(notice_);
-  text_column->addWidget(freshness_);
 
   auto* header = new QHBoxLayout();
   header->setSpacing(12);
   header->addWidget(icon_, 0, Qt::AlignTop);
   header->addLayout(text_column, 1);
+
+  // This build, and what it is offered, side by side.
+  build_box_ = new QGroupBox(tr("This build"), this);
+  build_text_ = PlainLabel({}, build_box_);
+  (new QVBoxLayout(build_box_))->addWidget(build_text_);
+
+  offer_box_ = new QGroupBox(this);
+  offer_text_ = PlainLabel({}, offer_box_);
+  copy_hash_ = new QToolButton(offer_box_);
+  copy_hash_->setText(tr("Copy"));
+  copy_hash_->setAutoRaise(true);
+  connect(copy_hash_, &QToolButton::clicked, this, [this] {
+    QGuiApplication::clipboard()->setText(view_.offer_sha256);
+  });
+  auto* offer_layout = new QVBoxLayout(offer_box_);
+  offer_layout->addWidget(offer_text_);
+  offer_layout->addWidget(copy_hash_, 0, Qt::AlignLeft);
+
+  auto* blocks = new QHBoxLayout();
+  blocks->addWidget(build_box_, 1);
+  blocks->addWidget(offer_box_, 1);
+
+  notes_ = new QTextBrowser(this);
+  // Notes are text the release server signed, but a link in them is still
+  // a link: it opens only to a host release/product.json allows, and never
+  // inside the browser itself.
+  notes_->setOpenLinks(false);
+  notes_->setOpenExternalLinks(false);
+  // A few lines in the page; the rest in a window of their own, so the
+  // page never scrolls inside itself.
+  notes_->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+  notes_->hide();
+  connect(notes_, &QTextBrowser::anchorClicked, this, [](const QUrl& url) {
+    if (IsAllowedNotesLink(url, NotesLinkHosts())) {
+      QDesktopServices::openUrl(url);
+    }
+  });
+  full_notes_ = new QLabel(
+      QStringLiteral("<a href=\"#\">%1</a>").arg(tr("Full release notes")),
+      this);
+  full_notes_->hide();
+  connect(full_notes_, &QLabel::linkActivated, this,
+          &UpdateTab::show_full_notes);
 
   check_btn_ = new QPushButton(this);
   check_btn_->setIcon(QIcon::fromTheme("view-refresh"));
@@ -130,43 +243,66 @@ UpdateTab::UpdateTab(QWidget* parent)
   beta_->setChecked(FollowBetaSetting());
   beta_->setVisible(!checker_.isNull() && !checker_->IsNightly());
 
-  notes_toggle_ = new QToolButton(this);
-  notes_toggle_->setText(tr("Release notes"));
-  notes_toggle_->setCheckable(true);
-  notes_toggle_->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
-  notes_toggle_->setArrowType(Qt::RightArrow);
-  notes_toggle_->setAutoRaise(true);
+  // One line on the update information, and its details on request.
+  verified_icon_ = new QLabel(this);
+  verification_ = new QLabel(this);
+  verification_->setWordWrap(true);
+  details_toggle_ = new QToolButton(this);
+  details_toggle_->setText(tr("Details"));
+  details_toggle_->setCheckable(true);
+  details_toggle_->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+  details_toggle_->setAutoRaise(true);
+  auto* verification_line = new QHBoxLayout();
+  verification_line->addWidget(verified_icon_, 0, Qt::AlignTop);
+  verification_line->addWidget(verification_, 1);
+  verification_line->addWidget(details_toggle_, 0, Qt::AlignTop);
 
-  notes_ = new QTextBrowser(this);
-  // Notes are text the release server signed, but a link in them is still
-  // a link: it opens only to a host release/product.json allows, and never
-  // inside the browser itself.
-  notes_->setOpenLinks(false);
-  notes_->setOpenExternalLinks(false);
-  notes_->hide();
-  connect(notes_, &QTextBrowser::anchorClicked, this, [](const QUrl& url) {
-    if (IsAllowedNotesLink(url, NotesLinkHosts())) {
-      QDesktopServices::openUrl(url);
-    }
-  });
+  details_ = new QWidget(this);
+  device_box_ = new QGroupBox(tr("Checked on this device"), details_);
+  new QVBoxLayout(device_box_);
+  host_box_ = new QGroupBox(
+      tr("Checked by the release server before publishing"), details_);
+  new QVBoxLayout(host_box_);
+  security_link_ = new QLabel(details_);
+  security_link_->setOpenExternalLinks(true);
+  auto* copy_report = new QPushButton(tr("Copy report"), details_);
+  connect(copy_report, &QPushButton::clicked, this,
+          [this] { QGuiApplication::clipboard()->setText(ReportText(view_)); });
+  auto* details_footer = new QHBoxLayout();
+  details_footer->addWidget(security_link_, 1);
+  details_footer->addWidget(copy_report);
+  auto* details_layout = new QVBoxLayout(details_);
+  details_layout->setContentsMargins(0, 0, 0, 0);
+  details_layout->addWidget(device_box_);
+  details_layout->addWidget(host_box_);
+  details_layout->addLayout(details_footer);
+
+  const bool open = DetailsOpenSetting();
+  details_toggle_->setChecked(open);
+  details_toggle_->setArrowType(open ? Qt::DownArrow : Qt::RightArrow);
+  details_->setVisible(open);
 
   auto* layout = new QVBoxLayout(this);
   layout->addLayout(header);
   layout->addSpacing(8);
+  layout->addLayout(blocks);
+  layout->addWidget(notes_);
+  layout->addWidget(full_notes_, 0, Qt::AlignLeft);
   layout->addLayout(actions);
   layout->addWidget(beta_, 0, Qt::AlignLeft);
   layout->addSpacing(8);
-  layout->addWidget(notes_toggle_, 0, Qt::AlignLeft);
-  layout->addWidget(notes_, 1);
+  layout->addLayout(verification_line);
+  layout->addWidget(details_);
   layout->addStretch();
 
   // Wide enough that a headline wraps at most once; the height follows the
   // content (see fit_window()).
   setMinimumWidth(fontMetrics().averageCharWidth() * 64);
 
-  connect(notes_toggle_, &QToolButton::toggled, this, [this](bool open) {
-    notes_toggle_->setArrowType(open ? Qt::DownArrow : Qt::RightArrow);
-    notes_->setVisible(open);
+  connect(details_toggle_, &QToolButton::toggled, this, [this](bool open) {
+    details_toggle_->setArrowType(open ? Qt::DownArrow : Qt::RightArrow);
+    details_->setVisible(open);
+    SetDetailsOpenSetting(open);
     fit_window();
   });
 
@@ -208,7 +344,8 @@ void UpdateTab::render() {
     apply(view);
     return;
   }
-  auto view = PresentUpdate(checker_->State(), QDateTime::currentDateTime());
+  auto view = PresentUpdate(checker_->State(), QDateTime::currentDateTime(),
+                            checker_->GetBuild());
   // In place only where this machine allows it: an AppImage of the nightly
   // application, in a place the user can write.
   view.installable = view.installable && !SelfUpdateImage().isEmpty();
@@ -282,6 +419,43 @@ void UpdateTab::fit_window() {
   });
 }
 
+void UpdateTab::fit_notes() {
+  // Deferred like fit_window(): the document has its width only once laid
+  // out. At most ten lines; a link to the rest when there is more.
+  QTimer::singleShot(0, this, [this] {
+    if (!notes_->isVisible()) return;
+    const int cap = notes_->fontMetrics().lineSpacing() * 10;
+    const int height = static_cast<int>(notes_->document()->size().height()) +
+                       2 * notes_->frameWidth();
+    notes_->setFixedHeight(std::min(height, cap));
+    full_notes_->setVisible(height > cap);
+    fit_window();
+  });
+}
+
+void UpdateTab::show_full_notes() {
+  auto* dialog = new QDialog(this);
+  dialog->setAttribute(Qt::WA_DeleteOnClose);
+  dialog->setWindowTitle(tr("Release notes"));
+  auto* browser = new QTextBrowser(dialog);
+  browser->setOpenLinks(false);
+  browser->setMarkdown(view_.notes);
+  RestrictNotesLinks(browser->document(), NotesLinkHosts());
+  connect(browser, &QTextBrowser::anchorClicked, dialog, [](const QUrl& url) {
+    if (IsAllowedNotesLink(url, NotesLinkHosts())) {
+      QDesktopServices::openUrl(url);
+    }
+  });
+  auto* buttons = new QDialogButtonBox(QDialogButtonBox::Close, dialog);
+  connect(buttons, &QDialogButtonBox::rejected, dialog, &QDialog::close);
+  auto* layout = new QVBoxLayout(dialog);
+  layout->addWidget(browser);
+  layout->addWidget(buttons);
+  dialog->resize(fontMetrics().averageCharWidth() * 80,
+                 fontMetrics().lineSpacing() * 30);
+  dialog->show();
+}
+
 void UpdateTab::apply(const UpdateView& view) {
   const auto icon_size = style()->pixelMetric(QStyle::PM_MessageBoxIconSize);
   icon_->setPixmap(ToneIcon(style(), view.tone).pixmap(icon_size, icon_size));
@@ -291,8 +465,33 @@ void UpdateTab::apply(const UpdateView& view) {
   detail_->setVisible(!view.detail.isEmpty());
   notice_->setText(view.notice);
   notice_->setVisible(!view.notice.isEmpty());
-  freshness_->setText(view.verification);
-  freshness_->setVisible(!view.verification.isEmpty());
+
+  QStringList build{view.build_version, view.build_kind};
+  if (!view.build_commit.isEmpty()) {
+    build << tr("Commit %1").arg(view.build_commit);
+  }
+  if (!view.build_official.isEmpty()) build << view.build_official;
+  build_text_->setText(build.join(u'\n'));
+  build_box_->setVisible(!view.build_version.isEmpty());
+
+  QStringList offer;
+  if (view.show_offer) {
+    offer_box_->setTitle(tr("Offered"));
+    offer << view.offer_version;
+    if (!view.offer_file.isEmpty()) offer << Breakable(view.offer_file);
+    if (!view.offer_sha256.isEmpty()) {
+      offer << tr("SHA-256 %1").arg(ShortHash(view.offer_sha256));
+    }
+  } else {
+    offer_box_->setTitle(tr("Available"));
+    offer << view.newest;
+  }
+  if (!view.newer_beta.isEmpty()) offer << view.newer_beta;
+  offer.removeAll(QString());
+  offer_text_->setText(offer.join(u'\n'));
+  offer_text_->setToolTip(view.offer_sha256);
+  copy_hash_->setVisible(view.show_offer && !view.offer_sha256.isEmpty());
+  offer_box_->setVisible(!offer.isEmpty());
 
   check_btn_->setText(view.check_label);
   check_btn_->setEnabled(view.check_enabled);
@@ -308,15 +507,40 @@ void UpdateTab::apply(const UpdateView& view) {
       : view.action == UpdateView::Action::kInstall ? "system-software-update"
                                                     : "download"));
 
-  notes_toggle_->setVisible(view.show_notes);
+  notes_->setVisible(view.show_notes);
+  full_notes_->hide();
   if (view.show_notes) {
     notes_->setMarkdown(view.notes);
     RestrictNotesLinks(notes_->document(), NotesLinkHosts());
-    notes_->setVisible(notes_toggle_->isChecked());
+    fit_notes();
   } else {
     notes_->clear();
-    notes_->hide();
   }
+
+  const auto small = style()->pixelMetric(QStyle::PM_SmallIconSize);
+  verified_icon_->setPixmap(
+      ToneIcon(style(), view.verification_tone).pixmap(small, small));
+  verification_->setText(view.verification);
+
+  // The rows are rebuilt: each check may have run other steps.
+  delete device_rows_;
+  device_rows_ =
+      view.device_rows.isEmpty()
+          ? PlainLabel(tr("The details appear after the next check."),
+                       device_box_)
+          : RowsWidget(view.device_rows, true, device_box_);
+  device_box_->layout()->addWidget(device_rows_);
+  delete host_rows_;
+  host_rows_ = RowsWidget(view.host_rows, false, host_box_);
+  host_box_->layout()->addWidget(host_rows_);
+  // Unmarked: what the server checked is never shown as checked here.
+  host_box_->setVisible(!view.host_rows.isEmpty());
+  security_link_->setText(
+      view.security_url.isEmpty()
+          ? QString()
+          : QStringLiteral("<a href=\"%1\">%2</a>")
+                .arg(view.security_url.toHtmlEscaped(),
+                     tr("How to verify the download yourself")));
 
   fit_window();
 }
