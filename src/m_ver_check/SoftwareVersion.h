@@ -70,10 +70,11 @@ enum class RemoteFact { kUnknown, kConfirmed, kNotFound };
 enum class ListOutcome { kFailed, kNoMatch, kFound };
 
 struct LatestRelease {
-  QString version;       ///< normalized, e.g. "v2.1.9"
-  QString published_at;  ///< as the server wrote it
-  QString notes;         ///< markdown
-  QString html_url;      ///< the release page
+  QString version;  ///< the version offered, as the signed index spells it
+  QString notes;    ///< markdown, exactly as the index pins it
+  /// The file "Download" leads to, picked from the verified descriptor
+  /// (SelectArtifact); empty when none fits, and the downloads page is shown.
+  QString html_url;
   /// The file behind html_url, as the verified descriptor states it: what an
   /// in-place update checks its download against. Empty and 0 otherwise.
   QString download_sha256;

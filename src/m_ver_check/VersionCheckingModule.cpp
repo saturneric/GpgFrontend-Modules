@@ -265,9 +265,8 @@ class UpdateWidget : public QWidget, public gf::ui::DialogWidget {
   }
 };
 
-/// Settings > Updates: whether to check automatically, once a day. A day is
-/// the right interval; the one other choice, whether a release build is also
-/// offered betas, sits on the update page beside what it changes.
+/// Settings > Updates: whether to check automatically, once a day (a day is
+/// the right interval), and whether a release build is also offered betas.
 class UpdateSettingsWidget : public QWidget, public gf::ui::SettingsWidget {
  public:
   UpdateSettingsWidget() {

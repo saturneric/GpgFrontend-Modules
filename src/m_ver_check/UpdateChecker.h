@@ -106,9 +106,8 @@ struct CheckRecord {
 
   // The index accepted; serial 0 when none was.
   qint64 index_serial = 0;
-  qint64 index_floor = 0;  ///< the highest serial seen before under its key
   QString index_key;
-  QString mirror;  ///< the host it came from
+  QString mirror;  ///< the update base's host it came from
   QDateTime index_expires;
   QString series_status;  ///< this build's series in it: "stable", ...
   /// A newer beta of this build's series, not offered since the user did
@@ -307,9 +306,31 @@ class UpdateChecker : public QObject {
   /// an error status (read as @p refused).
   void failFetch(CheckStepId id, int status, bool oversized,
                  StepReason refused);
+  /// A GET of @p url, used only when it is a 200 of at most @p limit bytes:
+  /// then @p ok has the body. Otherwise @p id failed (failFetch) and
+  /// @p failed runs. Neither runs once the checker is gone.
+  void fetchBounded(const QUrl& url, qsizetype limit, CheckStepId id,
+                    StepReason refused,
+                    const std::function<void(const QByteArray&)>& ok,
+                    const Then& failed);
+  /// Update base @p i's product directory, ".../<product>/v1/".
   [[nodiscard]] auto trustBase(qsizetype i) const -> QString;
-  void askDescriptor(qsizetype i = 0);
-  void askNotes(qsizetype i = 0);
+  /// Build base @p i's product directory, ".../<product>/".
+  [[nodiscard]] auto buildBase(qsizetype i) const -> QString;
+  /// A file the accepted index pins by its hash (the descriptor, the
+  /// notes), from each build base in turn until one serves exactly it.
+  struct Pinned {
+    CheckStepId step;
+    QString path;
+    QString sha256;
+    qsizetype limit;
+    /// The verified body, and the base it came from.
+    std::function<void(const QString& base, const QByteArray& body)> take;
+    Then next;  ///< then, whatever became of it
+  };
+  void askPinned(const Pinned& pinned, qsizetype i = 0);
+  void askDescriptor();
+  void askNotes();
   void askCommitMarker();
   /// The beta setting as it applies to this build: never for a nightly.
   [[nodiscard]] auto followsBeta() const -> bool;

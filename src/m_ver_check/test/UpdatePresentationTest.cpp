@@ -359,7 +359,6 @@ auto Verified() -> CheckRecord {
   r.list_keys = 1;
   r.list_expires = kNow.addYears(1);
   r.index_serial = 42;
-  r.index_floor = 41;
   r.index_key = "0123456789ABCDEF";
   r.mirror = "update.bktus.com";
   r.index_expires = kNow.addDays(14);

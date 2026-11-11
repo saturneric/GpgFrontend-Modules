@@ -30,16 +30,6 @@
 
 #include "SemVer.h"
 
-namespace {
-
-// SemVer precedence: "2.3.0-alpha.12" is older than "2.3.0", and the number
-// after "alpha." is a number. A leading "v" ("v2.1.9") still compares.
-auto Compare(const QString& a, const QString& b) -> int {
-  return SemVerCompare(a, b);
-}
-
-}  // namespace
-
 auto IsUsable(const SoftwareVersion& r) -> bool {
   return r.list.outcome != ListOutcome::kFailed;
 }
@@ -72,7 +62,7 @@ auto Merge(const std::optional<SoftwareVersion>& prev,
 auto Decide(const SoftwareVersion& r) -> Verdict {
   if (!IsUsable(r)) return Verdict::kUnknown;
   if (r.list.outcome == ListOutcome::kFound &&
-      Compare(r.current_version, r.list.latest.version) < 0) {
+      SemVerCompare(r.current_version, r.list.latest.version) < 0) {
     return Verdict::kUpdateAvailable;
   }
   if (r.tag_fact == RemoteFact::kNotFound) {

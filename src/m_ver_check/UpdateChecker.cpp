@@ -108,7 +108,6 @@ auto RecordToJson(const CheckRecord& r) -> QJsonObject {
       {"list_keys", r.list_keys},
       {"list_expires", TimeToJson(r.list_expires)},
       {"index_serial", r.index_serial},
-      {"index_floor", r.index_floor},
       {"index_key", r.index_key},
       {"mirror", r.mirror},
       {"index_expires", TimeToJson(r.index_expires)},
@@ -146,7 +145,6 @@ auto RecordFromJson(const QJsonObject& obj) -> CheckRecord {
   r.list_keys = obj.value("list_keys").toInt();
   r.list_expires = TimeFromJson(obj.value("list_expires"));
   r.index_serial = obj.value("index_serial").toInteger();
-  r.index_floor = obj.value("index_floor").toInteger();
   r.index_key = obj.value("index_key").toString();
   r.mirror = obj.value("mirror").toString();
   r.index_expires = TimeFromJson(obj.value("index_expires"));
@@ -281,9 +279,30 @@ void UpdateChecker::keepTrust() {
   if (store_.save) store_.save(ToStorage(state_));
 }
 
+void UpdateChecker::fetchBounded(
+    const QUrl& url, qsizetype limit, CheckStepId id, StepReason refused,
+    const std::function<void(const QByteArray&)>& ok, const Then& failed) {
+  QPointer<UpdateChecker> self(this);
+  fetch_(url, [=](int status, const QByteArray& body) {
+    if (self.isNull()) return;
+    if (status != 200 || body.size() > limit) {
+      self->warn(QStringLiteral("%1: HTTP %2").arg(url.toString()).arg(status));
+      self->failFetch(id, status, body.size() > limit, refused);
+      failed();
+      return;
+    }
+    ok(body);
+  });
+}
+
 auto UpdateChecker::trustBase(qsizetype i) const -> QString {
   const auto& channel = build_.channel;
   return channel.update_bases[i] + channel.product + QStringLiteral("/v1/");
+}
+
+auto UpdateChecker::buildBase(qsizetype i) const -> QString {
+  const auto& channel = build_.channel;
+  return channel.build_bases[i] + channel.product + u'/';
 }
 
 auto UpdateChecker::State() const -> const UpdateSnapshot& { return state_; }
@@ -384,32 +403,20 @@ void UpdateChecker::tryIndexBase(qsizetype i, bool retried) {
     return;
   }
 
-  const QString url = channel.update_bases[i] + channel.product +
-                      QStringLiteral("/v1/index.json");
-  QPointer<UpdateChecker> self(this);
-  fetch_(QUrl(url), [self, i, url, retried](int status,
-                                            const QByteArray& body) {
-    if (self.isNull()) return;
-    if (status != 200 || body.size() > kMaxFetchBytes) {
-      self->failFetch(CheckStepId::kIndex, status, body.size() > kMaxFetchBytes,
-                      StepReason::kUnreachable);
-      self->tryIndexBase(i + 1);
-      return;
-    }
-    self->fetch_(
-        QUrl(url + QStringLiteral(".minisig")),
-        [self, i, body, retried](int sig_status, const QByteArray& signature) {
-          if (self.isNull()) return;
-          if (sig_status == 200 && signature.size() <= kMaxFetchBytes) {
-            self->checkIndex(i, body, signature, retried);
-            return;
-          }
-          self->failFetch(CheckStepId::kIndex, sig_status,
-                          signature.size() > kMaxFetchBytes,
-                          StepReason::kUnreachable);
-          self->tryIndexBase(i + 1);
-        });
-  });
+  const QString url = trustBase(i) + QStringLiteral("index.json");
+  const auto next = [this, i] { tryIndexBase(i + 1); };
+  fetchBounded(
+      QUrl(url), kMaxFetchBytes, CheckStepId::kIndex, StepReason::kUnreachable,
+      [this, i, url, retried, next](const QByteArray& body) {
+        fetchBounded(
+            QUrl(url + QStringLiteral(".minisig")), kMaxFetchBytes,
+            CheckStepId::kIndex, StepReason::kUnreachable,
+            [this, i, body, retried](const QByteArray& signature) {
+              checkIndex(i, body, signature, retried);
+            },
+            next);
+      },
+      next);
 }
 
 void UpdateChecker::checkIndex(qsizetype i, const QByteArray& body,
@@ -445,41 +452,38 @@ void UpdateChecker::walkRoots(qsizetype i, qint64 target, int steps,
   const auto n = root_->version + 1;
   const auto url = trustBase(i) + QStringLiteral("root/%1.root.json").arg(n);
   QPointer<UpdateChecker> self(this);
-  fetch_(QUrl(url), [=](int status, const QByteArray& data) {
-    if (self.isNull()) return;
-    if (status != 200 || data.size() > kMaxFetchBytes) {
-      self->warn(QStringLiteral("%1: HTTP %2").arg(url).arg(status));
-      self->failFetch(CheckStepId::kRoot, status, data.size() > kMaxFetchBytes,
-                      StepReason::kRootWalkFailed);
-      then();
-      return;
-    }
-    // Signed by root keys of the trusted root, and of its own.
-    auto ids = self->root_->root_keyids + NamedRootKeys(data);
-    ids.removeDuplicates();
-    self->fetchSignatures(
-        url + u'.', ids, {}, [=](const QHash<QString, QByteArray>& sigs) {
-          if (self.isNull()) return;
-          QString why;
-          auto next = AcceptNextRoot(*self->root_, {data, sigs},
-                                     self->build_.channel.product, &why);
-          if (!next) {
-            self->warn(url + QStringLiteral(": ") + why);
-            self->fail(CheckStepId::kRoot, StepReason::kRootWalkFailed, why);
-            then();
-            return;
-          }
-          // Another G: what the old one signed counts no more.
-          if (next->index_list_keyids != self->root_->index_list_keyids) {
-            self->keys_.reset();
-          }
-          self->root_ = next;
-          self->state_.root_taken_at = self->clock_();
-          self->record_.Step(CheckStepId::kRoot) = {StepStatus::kVerified};
-          self->keepTrust();  // each root kept before the next is asked
-          self->walkRoots(i, target, steps - 1, then);
-        });
-  });
+  fetchBounded(
+      QUrl(url), kMaxFetchBytes, CheckStepId::kRoot,
+      StepReason::kRootWalkFailed,
+      [=](const QByteArray& data) {
+        // Signed by root keys of the trusted root, and of its own.
+        auto ids = self->root_->root_keyids + NamedRootKeys(data);
+        ids.removeDuplicates();
+        self->fetchSignatures(
+            url + u'.', ids, {}, [=](const QHash<QString, QByteArray>& sigs) {
+              if (self.isNull()) return;
+              QString why;
+              auto next = AcceptNextRoot(*self->root_, {data, sigs},
+                                         self->build_.channel.product, &why);
+              if (!next) {
+                self->warn(url + QStringLiteral(": ") + why);
+                self->fail(CheckStepId::kRoot, StepReason::kRootWalkFailed,
+                           why);
+                then();
+                return;
+              }
+              // Another G: what the old one signed counts no more.
+              if (next->index_list_keyids != self->root_->index_list_keyids) {
+                self->keys_.reset();
+              }
+              self->root_ = next;
+              self->state_.root_taken_at = self->clock_();
+              self->record_.Step(CheckStepId::kRoot) = {StepStatus::kVerified};
+              self->keepTrust();  // each root kept before the next is asked
+              self->walkRoots(i, target, steps - 1, then);
+            });
+      },
+      then);
 }
 
 void UpdateChecker::fetchSignatures(
@@ -508,41 +512,31 @@ void UpdateChecker::takeIndexKeys(qsizetype i, qint64 version,
   }
   const auto url = trustBase(i) + QStringLiteral("index-keys/%1.json")
                                       .arg(version);
-  QPointer<UpdateChecker> self(this);
-  fetch_(QUrl(url), [=](int status, const QByteArray& data) {
-    if (self.isNull()) return;
-    if (status != 200 || data.size() > kMaxFetchBytes) {
-      self->warn(QStringLiteral("%1: HTTP %2").arg(url).arg(status));
-      self->failFetch(CheckStepId::kIndexKeys, status,
-                      data.size() > kMaxFetchBytes, StepReason::kListRejected);
-      then();
-      return;
-    }
-    self->fetch_(
-        QUrl(url + QStringLiteral(".minisig")),
-        [=](int sig_status, const QByteArray& sig) {
-          if (self.isNull()) return;
-          QString why;
-          auto keys =
-              sig_status == 200
-                  ? ParseIndexKeys(*self->root_, {data, {{QString(), sig}}},
-                                   self->build_.channel.product,
-                                   self->keys_ ? self->keys_->version : 0,
-                                   &why)
-                  : std::nullopt;
-          if (keys) {
-            self->keys_ = keys;
-            self->record_.Step(CheckStepId::kIndexKeys) = {
-                StepStatus::kVerified};
-            self->keepTrust();
-          } else {
-            if (why.isEmpty()) why = QStringLiteral("no signature");
-            self->warn(url + QStringLiteral(": ") + why);
-            self->fail(CheckStepId::kIndexKeys, StepReason::kListRejected, why);
-          }
-          then();
-        });
-  });
+  fetchBounded(
+      QUrl(url), kMaxFetchBytes, CheckStepId::kIndexKeys,
+      StepReason::kListRejected,
+      [this, url, then](const QByteArray& data) {
+        fetchBounded(
+            QUrl(url + QStringLiteral(".minisig")), kMaxFetchBytes,
+            CheckStepId::kIndexKeys, StepReason::kListRejected,
+            [this, url, data, then](const QByteArray& sig) {
+              QString why;
+              auto keys = ParseIndexKeys(*root_, {data, {{QString(), sig}}},
+                                         build_.channel.product,
+                                         keys_ ? keys_->version : 0, &why);
+              if (keys) {
+                keys_ = keys;
+                record_.Step(CheckStepId::kIndexKeys) = {StepStatus::kVerified};
+                keepTrust();
+              } else {
+                warn(url + QStringLiteral(": ") + why);
+                fail(CheckStepId::kIndexKeys, StepReason::kListRejected, why);
+              }
+              then();
+            },
+            then);
+      },
+      then);
 }
 
 auto UpdateChecker::acceptIndex(const QByteArray& body,
@@ -636,105 +630,71 @@ auto UpdateChecker::acceptIndex(const QByteArray& body,
     record_.Step(id) = {StepStatus::kVerified};
   }
   record_.index_serial = facts->serial;
-  record_.index_floor = state_.serial_floor.value(key_id);
   record_.index_key = key_id;
   record_.index_expires = facts->expires;
-  const auto series =
-      facts->series.value(SoftwareVersion::VersionSeries(build_.version));
-  record_.series_status = series.status;
-  // The beta ChooseUpdate() would offer had the user asked for it.
-  if (!nightly_ && !fresh_.follow_beta && !series.beta.isEmpty() &&
-      SemVerCompare(series.beta, build_.version) > 0 &&
-      (series.latest.isEmpty() ||
-       SemVerCompare(series.beta, series.latest) > 0)) {
-    record_.newer_beta = series.beta;
-  }
+  record_.series_status =
+      facts->series.value(SoftwareVersion::VersionSeries(build_.version))
+          .status;
+  record_.newer_beta = choice.newer_beta;
   return true;
 }
 
-void UpdateChecker::askDescriptor(qsizetype i) {
-  // Only for the link behind "Download": whatever goes wrong here leaves it
-  // to the downloads page, and changes no verdict.
-  const auto& channel = build_.channel;
-  if (descriptor_path_.isEmpty() ||
-      fresh_.list.outcome != ListOutcome::kFound) {
-    record_.Step(CheckStepId::kDescriptor).status = StepStatus::kNotApplicable;
-    askNotes();
+void UpdateChecker::askPinned(const Pinned& pinned, qsizetype i) {
+  if (pinned.path.isEmpty() || fresh_.list.outcome != ListOutcome::kFound) {
+    record_.Step(pinned.step).status = StepStatus::kNotApplicable;
+    pinned.next();
     return;
   }
-  if (i >= channel.build_bases.size()) {
-    askNotes();
+  if (i >= build_.channel.build_bases.size()) {
+    pinned.next();
     return;
   }
-
-  const QString base = channel.build_bases[i] + channel.product + u'/';
-  QPointer<UpdateChecker> self(this);
-  fetch_(
-      QUrl(base + descriptor_path_),
-      [self, base, i](int status, const QByteArray& body) {
-        if (self.isNull()) return;
-        // The signed index names this exact descriptor by its hash.
-        if (status != 200 || body.size() > kMaxFetchBytes) {
-          self->failFetch(CheckStepId::kDescriptor, status,
-                          body.size() > kMaxFetchBytes,
-                          StepReason::kUnreachable);
-          self->askDescriptor(i + 1);
+  const auto base = buildBase(i);
+  fetchBounded(
+      QUrl(base + pinned.path), pinned.limit, pinned.step,
+      StepReason::kUnreachable,
+      [this, pinned, base, i](const QByteArray& body) {
+        // The signed index names this exact file by its hash.
+        if (Sha256Hex(body) != pinned.sha256) {
+          fail(pinned.step, StepReason::kHashMismatch);
+          askPinned(pinned, i + 1);
           return;
         }
-        if (Sha256Hex(body) != self->descriptor_sha256_) {
-          self->fail(CheckStepId::kDescriptor, StepReason::kHashMismatch);
-          self->askDescriptor(i + 1);
-          return;
-        }
-        self->record_.Step(CheckStepId::kDescriptor) = {StepStatus::kVerified};
-        self->record_.descriptor_sha256 = self->descriptor_sha256_;
-        const auto choice = SelectArtifact(body, self->build_.platform);
-        if (!choice.path.isEmpty()) {
-          auto& latest = self->fresh_.list.latest;
-          latest.html_url = base + choice.path;
-          latest.download_sha256 = choice.sha256;
-          latest.download_size = choice.size;
-        }
-        self->askNotes();
-      });
+        record_.Step(pinned.step) = {StepStatus::kVerified};
+        pinned.take(base, body);
+        pinned.next();
+      },
+      [this, pinned, i] { askPinned(pinned, i + 1); });
 }
 
-void UpdateChecker::askNotes(qsizetype i) {
+void UpdateChecker::askDescriptor() {
+  // Only for the link behind "Download": whatever goes wrong here leaves it
+  // to the downloads page, and changes no verdict.
+  askPinned({CheckStepId::kDescriptor, descriptor_path_, descriptor_sha256_,
+             kMaxFetchBytes,
+             [this](const QString& base, const QByteArray& body) {
+               record_.descriptor_sha256 = descriptor_sha256_;
+               const auto choice = SelectArtifact(body, build_.platform);
+               if (!choice.path.isEmpty()) {
+                 auto& latest = fresh_.list.latest;
+                 latest.html_url = base + choice.path;
+                 latest.download_sha256 = choice.sha256;
+                 latest.download_size = choice.size;
+               }
+             },
+             [this] { askNotes(); }});
+}
+
+void UpdateChecker::askNotes() {
   // The offer's release notes, as reviewed and signed: kept only when they
   // are exactly what the signed index states, otherwise the page shows the
   // version and a link, and no verdict changes.
-  const auto& channel = build_.channel;
-  if (notes_path_.isEmpty() || fresh_.list.outcome != ListOutcome::kFound) {
-    record_.Step(CheckStepId::kNotes).status = StepStatus::kNotApplicable;
-    askCommitMarker();
-    return;
-  }
-  if (i >= channel.build_bases.size()) {
-    askCommitMarker();
-    return;
-  }
-
-  QPointer<UpdateChecker> self(this);
-  fetch_(QUrl(channel.build_bases[i] + channel.product + u'/' + notes_path_),
-         [self, i](int status, const QByteArray& body) {
-           if (self.isNull()) return;
-           if (status != 200 || body.size() > kMaxNotesBytes) {
-             self->failFetch(CheckStepId::kNotes, status,
-                             body.size() > kMaxNotesBytes,
-                             StepReason::kUnreachable);
-             self->askNotes(i + 1);
-             return;
-           }
-           if (Sha256Hex(body) != self->notes_sha256_) {
-             self->fail(CheckStepId::kNotes, StepReason::kHashMismatch);
-             self->askNotes(i + 1);
-             return;
-           }
-           self->record_.Step(CheckStepId::kNotes) = {StepStatus::kVerified};
-           self->record_.notes_sha256 = self->notes_sha256_;
-           self->fresh_.list.latest.notes = QString::fromUtf8(body);
-           self->askCommitMarker();
-         });
+  askPinned({CheckStepId::kNotes, notes_path_, notes_sha256_, kMaxNotesBytes,
+             [this](const QString& /*base*/, const QByteArray& body) {
+               record_.notes_sha256 = notes_sha256_;
+               fresh_.list.latest.notes = QString::fromUtf8(body);
+             },
+             [this] { askCommitMarker(); }});
 }
 
 void UpdateChecker::askCommitMarker() {
@@ -751,8 +711,7 @@ void UpdateChecker::askCommitMarker() {
 
   record_.marker_base = QUrl(channel.build_bases.first()).host();
   QPointer<UpdateChecker> self(this);
-  fetch_(QUrl(channel.build_bases.first() + channel.product +
-              QStringLiteral("/commits/") + commit),
+  fetch_(QUrl(buildBase(0) + QStringLiteral("commits/") + commit),
          [self](int status, const QByteArray& /*body*/) {
            if (self.isNull()) return;
            self->fresh_.commit_fact = ParseCommitMarker(status);
