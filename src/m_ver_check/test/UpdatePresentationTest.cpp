@@ -66,7 +66,7 @@ TEST(UpdatePresentationTest, NothingKnownYet) {
   EXPECT_TRUE(v.check_enabled);
   EXPECT_TRUE(v.check_enabled);
   EXPECT_EQ(v.check_label, "Check now");
-  EXPECT_EQ(v.verification, "Update information not checked yet");
+  EXPECT_EQ(v.verification, "Not checked yet");
 }
 
 TEST(UpdatePresentationTest, FirstCheckInProgress) {
@@ -79,12 +79,16 @@ TEST(UpdatePresentationTest, FirstCheckInProgress) {
   EXPECT_FALSE(v.show_download);
 }
 
-TEST(UpdatePresentationTest, FailedWithNothingKnownOffersTryAgain) {
+TEST(UpdatePresentationTest, FailedWithNothingKnownOffersCheckAgain) {
   UpdateSnapshot s;
+  s.last_attempt = kNow;
   s.last_attempt_failed = true;
   const auto v = PresentUpdate(s, kNow);
-  EXPECT_EQ(v.headline, "Couldn't check for updates");
-  EXPECT_EQ(v.check_label, "Try again");
+  EXPECT_EQ(v.headline, "Couldn't reach the update server");
+  EXPECT_EQ(v.tone, UpdateTone::kAttention);
+  EXPECT_EQ(v.check_label, "Check again");
+  EXPECT_TRUE(v.show_check);
+  EXPECT_FALSE(v.detail.contains("try again later", Qt::CaseInsensitive));
   EXPECT_FALSE(v.show_download);
   // Generic: no guessed cause.
   EXPECT_FALSE(v.detail.contains("offline", Qt::CaseInsensitive));
@@ -100,8 +104,7 @@ TEST(UpdatePresentationTest, UpdateAvailableOffersDownloadAndNotes) {
   EXPECT_EQ(v.download_label, "Download");
   EXPECT_TRUE(v.show_notes);
   EXPECT_EQ(v.notes, "## What's new");
-  EXPECT_EQ(v.verification,
-            "Update information verified · checked 5 minute(s) ago");
+  EXPECT_EQ(v.verification, "Verified · checked 5 minute(s) ago");
   EXPECT_TRUE(v.notice.isEmpty());
 }
 
@@ -123,11 +126,12 @@ TEST(UpdatePresentationTest, FailedRefreshKeepsKnownUpdate) {
   const auto v = PresentUpdate(s, kNow);
   EXPECT_TRUE(v.show_download);
   EXPECT_EQ(v.download_label, "Download");
-  EXPECT_EQ(v.check_label, "Try again");
+  EXPECT_EQ(v.check_label, "Check again");
   // The age is the last success's, not the failed attempt's.
-  EXPECT_EQ(v.verification,
+  EXPECT_EQ(v.notice,
             "Couldn't reach the update server. Showing the result from 5 "
             "minute(s) ago.");
+  EXPECT_EQ(v.verification, "Server not reached · checked just now");
 }
 
 TEST(UpdatePresentationTest, CheckingKeepsPreviousResultVisible) {
@@ -185,7 +189,7 @@ TEST(UpdatePresentationTest, ANightlyNamesItsOwnChannel) {
   EXPECT_EQ(v.headline, "You're up to date");
   EXPECT_EQ(v.detail, "2.3.0-alpha.414 is the newest nightly build.");
   // The count is "5 minute(s)" with no translator loaded: match the source.
-  EXPECT_TRUE(v.verification.startsWith("Update information verified"))
+  EXPECT_TRUE(v.verification.startsWith("Verified"))
       << v.verification.toStdString();
 
   s.last_good = Nightly("2.3.0-alpha.420+gabc");
@@ -217,7 +221,7 @@ TEST(UpdatePresentationTest, AReleaseBuildNamesTheSignedIndex) {
   s.last_good = Current();
   const auto v = PresentUpdate(s, kNow);
   EXPECT_EQ(v.detail, "2.1.8 is the latest release.");
-  EXPECT_TRUE(v.verification.startsWith("Update information verified"))
+  EXPECT_TRUE(v.verification.startsWith("Verified"))
       << v.verification.toStdString();
   EXPECT_FALSE(v.verification.contains("GitHub"));
 }
@@ -331,9 +335,9 @@ TEST(UpdatePresentationTest, OnlyAFileTheDescriptorStatesIsInstallable) {
   EXPECT_FALSE(PresentUpdate(s, kNow).installable);
 }
 
-// The dialog's blocks and its details: this build, the offer, the one
-// verification line, each step of the last check, and what only the
-// release server checked, never marked as verified here.
+// The dialog's blocks and its details: this build, the offer, one short
+// status line, each step of the last check, and what only the release
+// server checked, never marked as verified here.
 
 namespace {
 
@@ -366,8 +370,8 @@ auto Verified() -> CheckRecord {
   return r;
 }
 
-/// The check stopped at @p id: it failed there, and what comes after it
-/// in the check did not run (the commit marker is asked only after).
+/// The check stopped at @p id: it failed there, and what comes after it in
+/// the check did not run.
 auto FailedAt(CheckStepId id, StepReason reason, const QString& detail = {})
     -> CheckRecord {
   auto r = Verified();
@@ -382,14 +386,19 @@ auto Snapshot(const SoftwareVersion& good, const CheckRecord& record)
     -> UpdateSnapshot {
   UpdateSnapshot s;
   s.last_good = good;
-  s.last_attempt = kNow;
+  s.last_attempt = good.checked_at;
   s.last_check = record;
   return s;
 }
 
+/// A release build of a tree with release/root (the channel is configured).
 auto Release(const QString& os = "linux", const QString& kind = "appimage")
     -> UpdateChecker::Build {
-  UpdateChecker::Build b{"v2.1.8", "abc123", {}};
+  UpdateChecker::Build b{"v2.1.8", "abc123",
+                         ReleaseChannel{"gpgfrontend",
+                                        {"https://update.example/"},
+                                        {"https://builds.example/"},
+                                        {{"root", {}}, {"list", {}}}}};
   b.platform.os = os;
   b.platform.install_kind = kind;
   b.nightly = 0;
@@ -405,6 +414,12 @@ auto WithFile(SoftwareVersion r) -> SoftwareVersion {
   return r;
 }
 
+auto Titles(const QList<DetailRow>& rows) -> QStringList {
+  QStringList titles;
+  for (const auto& row : rows) titles << row.title;
+  return titles;
+}
+
 void ExpectHostRowsNeverVerified(const UpdateView& v) {
   for (const auto& row : v.host_rows) {
     EXPECT_EQ(row.mark, DetailRow::Mark::kNone) << row.title.toStdString();
@@ -413,34 +428,76 @@ void ExpectHostRowsNeverVerified(const UpdateView& v) {
 
 }  // namespace
 
+TEST(UpdatePresentationTest, ABuildWithoutTrustIsAStateNotAFailure) {
+  UpdateChecker::Build build{"v2.3.0-alpha.496+ga7abc7903d41",
+                             "a7abc7903d41aaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                             {}};
+  build.nightly = 1;
+  for (const auto& s : {UpdateSnapshot{},  // before any check
+                        [] {  // after one: the root step says so too
+                          UpdateSnapshot s;
+                          s.last_attempt = kNow;
+                          s.last_attempt_failed = true;
+                          s.last_check = FailedAt(CheckStepId::kRoot,
+                                                  StepReason::kNoTrust);
+                          return s;
+                        }()}) {
+    const auto v = PresentUpdate(s, kNow, build);
+    EXPECT_EQ(v.tone, UpdateTone::kNeutral);
+    EXPECT_EQ(v.headline, "Updates aren't available for this build");
+    EXPECT_EQ(v.detail,
+              "It was built without the release trust files. Official builds "
+              "include them and check for updates automatically.");
+    EXPECT_FALSE(v.show_check);
+    EXPECT_FALSE(v.show_beta);
+    EXPECT_EQ(v.verification, "Not checked");
+    EXPECT_EQ(v.build_version, "2.3.0-alpha.496");
+    EXPECT_EQ(v.build_kind, "Nightly");
+    EXPECT_EQ(v.build_commit, "a7abc7903d41");
+    EXPECT_EQ(v.build_official, "Not checked");
+    ASSERT_EQ(v.device_rows.size(), 1);
+    EXPECT_EQ(v.device_rows[0].title, "Root of trust");
+    EXPECT_EQ(v.device_rows[0].value, "Not included in this build");
+    EXPECT_EQ(v.device_rows[0].mark, DetailRow::Mark::kNotChecked);
+    EXPECT_TRUE(v.host_rows.isEmpty());
+    EXPECT_TRUE(ReportText(v).contains(
+        "[not checked] Root of trust: Not included in this build"));
+  }
+  // A release build without trust is offered no beta either.
+  build.nightly = 0;
+  EXPECT_FALSE(PresentUpdate({}, kNow, build).show_beta);
+}
+
 TEST(UpdatePresentationTest, UpToDateShowsTheBuildAndEveryStepVerified) {
   const auto v =
       PresentUpdate(Snapshot(Current(), Verified()), kNow, Release());
   EXPECT_EQ(v.headline, "You're up to date");
-  EXPECT_EQ(v.build_version, "2.1.8");
+  EXPECT_EQ(v.tone, UpdateTone::kGood);
   EXPECT_EQ(v.build_kind, "Release · series 2.1 (stable)");
-  EXPECT_EQ(v.build_commit, "abc123");
-  EXPECT_EQ(v.build_official, "Official build");
+  EXPECT_EQ(v.build_official, "Yes");
   EXPECT_FALSE(v.show_offer);
-  EXPECT_EQ(v.newest, "Newest in 2.1: 2.1.8");
+  EXPECT_EQ(v.newest_label, "Newest in 2.1");
+  EXPECT_EQ(v.newest, "2.1.8");
+  EXPECT_TRUE(v.show_check);
+  EXPECT_TRUE(v.show_beta);
   EXPECT_EQ(v.verification_tone, UpdateTone::kGood);
-  EXPECT_EQ(v.verification,
-            "Update information verified · checked 5 minute(s) ago");
+  EXPECT_EQ(v.verification, "Verified · checked 5 minute(s) ago");
 
-  ASSERT_EQ(v.device_rows.size(), 6);
-  for (const auto i : {0, 1, 2, 3, 5}) {
-    EXPECT_EQ(v.device_rows[i].mark, DetailRow::Mark::kVerified) << i;
+  // Nothing offered: no downloaded file row.
+  EXPECT_EQ(Titles(v.device_rows),
+            QStringList({"Root of trust", "Signing key list", "Update index",
+                         "Release details and notes", "Official build"}));
+  for (const auto& row : v.device_rows) {
+    EXPECT_EQ(row.mark, DetailRow::Mark::kVerified) << row.title.toStdString();
   }
-  EXPECT_EQ(v.device_rows[0].lines,
-            QStringList({"Version 1, built in",
-                         "2 of 3 root keys signed: 4E179325A34DCF45, "
-                         "27458E01B54EAF5D",
-                         v.device_rows[0].lines[2]}));
-  EXPECT_EQ(v.device_rows[2].lines[0], "Serial 42 from update.bktus.com");
-  EXPECT_EQ(v.device_rows[2].lines[1], "Signed by 0123456789ABCDEF");
-  EXPECT_EQ(v.device_rows[3].lines[1], "Release details dddddddd…dddddddd");
-  // Nothing offered, nothing downloaded.
-  EXPECT_EQ(v.device_rows[kDownloadRow].mark, DetailRow::Mark::kNotApplicable);
+  EXPECT_EQ(v.device_rows[0].mono, "4E179325A34DCF45 27458E01B54EAF5D");
+  EXPECT_TRUE(v.device_rows[0].value.endsWith("2 of 3 root keys signed"));
+  EXPECT_TRUE(
+      v.device_rows[2].value.startsWith("Serial 42 from update.bktus.com"));
+  EXPECT_EQ(v.device_rows[2].mono, "0123456789ABCDEF");
+  EXPECT_EQ(v.device_rows[3].mono, "dddddddd…dddddddd eeeeeeee…eeeeeeee");
+  EXPECT_EQ(v.device_rows[3].full,
+            QString(64, u'd') + u'\n' + QString(64, u'e'));
   ExpectHostRowsNeverVerified(v);
   EXPECT_EQ(v.security_url,
             "https://github.com/saturneric/GpgFrontend/blob/main/SECURITY.md");
@@ -449,53 +506,54 @@ TEST(UpdatePresentationTest, UpToDateShowsTheBuildAndEveryStepVerified) {
 TEST(UpdatePresentationTest, AnUpdateShowsTheOfferAndAnUncheckedDownload) {
   auto v =
       PresentUpdate(Snapshot(WithFile(Update()), Verified()), kNow, Release());
+  EXPECT_EQ(v.tone, UpdateTone::kUpdate);
   EXPECT_TRUE(v.show_offer);
   EXPECT_EQ(v.offer_version, "2.1.9");
-  EXPECT_EQ(v.offer_file, "GpgFrontend-2.1.9-linux-x86_64.AppImage · " +
-                              QLocale().formattedDataSize(2 * 1024 * 1024));
-  EXPECT_EQ(v.offer_sha256.size(), 64);
+  EXPECT_EQ(v.offer_file, "GpgFrontend-2.1.9-linux-x86_64.AppImage");
+  EXPECT_EQ(v.offer_size, QLocale().formattedDataSize(2 * 1024 * 1024));
   EXPECT_EQ(ShortHash(v.offer_sha256), "0123abcd…89abcdef");
   EXPECT_TRUE(v.newest.isEmpty());
 
   // The browser fetches it: never shown as verified.
-  const auto& file = v.device_rows[kDownloadRow];
-  EXPECT_EQ(file.mark, DetailRow::Mark::kInfo);
-  EXPECT_EQ(file.lines[0], "Not checked, opens in your browser");
-  EXPECT_EQ(file.copy, v.offer_sha256);
+  const auto file = std::find_if(v.device_rows.begin(), v.device_rows.end(),
+                                 [](const auto& row) { return row.download; });
+  ASSERT_NE(file, v.device_rows.end());
+  EXPECT_EQ(file->mark, DetailRow::Mark::kNotChecked);
+  EXPECT_EQ(file->value, "Not checked, opens in your browser");
+  EXPECT_EQ(file->mono, "0123abcd…89abcdef");
+  EXPECT_EQ(file->copy, v.offer_sha256);
 
   ASSERT_EQ(v.host_rows.size(), 2);
-  EXPECT_TRUE(v.host_rows[0].lines.contains("Tag v2.1.9"));
-  EXPECT_TRUE(v.host_rows[1].lines.contains(
-      "OpenPGP key 12F7E8858CF15BEC9975FF3C5CA3DA246843FD03"));
+  EXPECT_TRUE(v.host_rows[0].value.endsWith("tag v2.1.9"));
+  EXPECT_EQ(v.host_rows[1].mono, "12F7E8858CF15BEC9975FF3C5CA3DA246843FD03");
   // Authenticode is said only where it applies: Windows installers.
-  EXPECT_FALSE(v.host_rows[1].lines.join(' ').contains("Authenticode"));
   v = PresentUpdate(Snapshot(WithFile(Update()), Verified()), kNow,
                     Release("windows", "msi"));
-  EXPECT_TRUE(
-      v.host_rows[1].lines.join(' ').contains("Authenticode, CN=Example"));
+  ASSERT_EQ(v.host_rows.size(), 3);
+  EXPECT_EQ(v.host_rows[2].value, "Authenticode, CN=Example");
   ExpectHostRowsNeverVerified(v);
 }
 
 TEST(UpdatePresentationTest, NeverCheckedShowsTheBuildOnly) {
-  UpdateChecker::Build build{"v2.2.4+gabc", "0123456789abcdef0123", {}};
-  build.nightly = 0;
+  auto build = Release();
+  build.version = "v2.2.4+gabc";
+  build.commit = "0123456789abcdef0123";
   const auto v = PresentUpdate({}, kNow, build);
   EXPECT_EQ(v.build_version, "2.2.4");
   EXPECT_EQ(v.build_kind, "Release · series 2.2");
   EXPECT_EQ(v.build_commit, "0123456789ab");
-  EXPECT_TRUE(v.build_official.isEmpty());
+  EXPECT_EQ(v.build_official, "Not checked");
+  EXPECT_EQ(v.verification, "Not checked yet");
+  EXPECT_EQ(v.check_label, "Check now");
   EXPECT_TRUE(v.device_rows.isEmpty());
   EXPECT_TRUE(v.host_rows.isEmpty());
-
-  build.nightly = 1;
-  EXPECT_EQ(PresentUpdate({}, kNow, build).build_kind, "Nightly");
 }
 
-TEST(UpdatePresentationTest, CheckingSaysSoOnTheVerificationLine) {
+TEST(UpdatePresentationTest, CheckingSaysSoOnTheStatusLine) {
   auto s = Snapshot(Update(), Verified());
   s.checking = true;
   const auto v = PresentUpdate(s, kNow, Release());
-  EXPECT_EQ(v.verification, "Checking the update information…");
+  EXPECT_EQ(v.verification, "Checking…");
   EXPECT_FALSE(v.check_enabled);
 }
 
@@ -505,27 +563,22 @@ TEST(UpdatePresentationTest, AWithdrawnBuildIsPointedAtTheNewest) {
   const auto v = PresentUpdate(Snapshot(r, Verified()), kNow, Release());
   EXPECT_EQ(v.tone, UpdateTone::kAttention);
   EXPECT_EQ(v.headline, "This version has been withdrawn");
-  EXPECT_EQ(v.detail, "Please move to 2.1.7, the newest version.");
+  EXPECT_EQ(v.detail, "Move to 2.1.7, the newest version.");
   EXPECT_TRUE(v.show_download);
-  EXPECT_TRUE(v.show_offer);
   EXPECT_EQ(v.offer_version, "2.1.7");
 }
 
-TEST(UpdatePresentationTest,
-     AnUnofficialBuildIsSaidButNotAVerificationFailure) {
+TEST(UpdatePresentationTest, AnUnofficialBuildIsNotAVerificationFailure) {
   auto record = Verified();
   record.Step(CheckStepId::kCommit) = {StepStatus::kFailed,
                                        StepReason::kNotFound};
   const auto r = Known(ListOutcome::kFound, "v2.1.8", RemoteFact::kConfirmed,
                        RemoteFact::kNotFound);
   const auto v = PresentUpdate(Snapshot(r, record), kNow, Release());
-  EXPECT_EQ(v.tone, UpdateTone::kAttention);
   EXPECT_EQ(v.headline, "This build isn't from the official repository");
-  EXPECT_EQ(v.build_official, "Not from the official repository");
-  EXPECT_EQ(v.device_rows[5].mark, DetailRow::Mark::kFailed);
-  EXPECT_EQ(v.device_rows[5].lines[0],
-            "This build's commit is not among the official builds.");
-  // The update information itself verified.
+  EXPECT_EQ(v.build_official, "No, not from the official repository");
+  EXPECT_EQ(v.device_rows.back().mark, DetailRow::Mark::kFailed);
+  EXPECT_EQ(v.device_rows.back().value, "Not among the official builds");
   EXPECT_EQ(v.verification_tone, UpdateTone::kGood);
 }
 
@@ -552,19 +605,17 @@ TEST(UpdatePresentationTest, AnEolSeriesOffersItsSuccessorOnlyWhereItRuns) {
 TEST(UpdatePresentationTest, AStoreBuildIsUpdatedByItsPackageSource) {
   const auto v = PresentUpdate(Snapshot(WithFile(Update()), Verified()), kNow,
                                Release("linux", "flatpak"));
-  EXPECT_EQ(v.headline, "GpgFrontend 2.1.9 is available");
   EXPECT_FALSE(v.show_download);
   EXPECT_FALSE(v.installable);
   EXPECT_EQ(v.notice, "Updates for this build come from Flatpak.");
-  EXPECT_EQ(v.device_rows[kDownloadRow].mark, DetailRow::Mark::kNotApplicable);
+  EXPECT_FALSE(Titles(v.device_rows).contains("Downloaded file"));
 }
 
 TEST(UpdatePresentationTest, ANewerBetaIsMentionedWhileBetasAreOff) {
   auto record = Verified();
   record.newer_beta = "v2.1.9-alpha.3";
   const auto v = PresentUpdate(Snapshot(Current(), record), kNow, Release());
-  EXPECT_EQ(v.newer_beta,
-            "Beta 2.1.9-alpha.3 is out; it is offered with beta versions on.");
+  EXPECT_EQ(v.newer_beta, "2.1.9-alpha.3, offered when beta versions are on");
 }
 
 TEST(UpdatePresentationTest, AnInPlaceUpdateIsVerifiedAfterDownload) {
@@ -574,29 +625,51 @@ TEST(UpdatePresentationTest, AnInPlaceUpdateIsVerifiedAfterDownload) {
   r.list.latest.download_size = 1000;
   const auto view = PresentUpdate(Snapshot(r, Verified()), kNow);
   ASSERT_TRUE(view.installable);
+  const auto file = [](const UpdateView& v) {
+    return *std::find_if(v.device_rows.begin(), v.device_rows.end(),
+                         [](const auto& row) { return row.download; });
+  };
 
-  auto v = PresentInstall(view, {});
-  EXPECT_EQ(v.device_rows[kDownloadRow].mark, DetailRow::Mark::kNotRun);
-  v = PresentInstall(view, {InstallState::Stage::kDownloading, 10, 1000});
-  EXPECT_EQ(v.device_rows[kDownloadRow].mark, DetailRow::Mark::kNotRun);
-  v = PresentInstall(view, {InstallState::Stage::kInstalled});
+  EXPECT_EQ(file(PresentInstall(view, {})).mark, DetailRow::Mark::kNotRun);
+  auto v = PresentInstall(view, {InstallState::Stage::kInstalled});
   EXPECT_EQ(v.download_label, "Restart now");
-  EXPECT_EQ(v.device_rows[kDownloadRow].mark, DetailRow::Mark::kVerified);
-  EXPECT_EQ(v.device_rows[kDownloadRow].lines[0],
-            "Size and SHA-256 matched after download");
+  EXPECT_EQ(file(v).mark, DetailRow::Mark::kVerified);
+  EXPECT_TRUE(
+      file(v).value.startsWith("Size and SHA-256 matched after download"));
   v = PresentInstall(view, {InstallState::Stage::kFailed, 0, 0, "bad hash"});
-  EXPECT_EQ(v.device_rows[kDownloadRow].mark, DetailRow::Mark::kFailed);
-  EXPECT_EQ(v.device_rows[kDownloadRow].lines[0], "bad hash");
+  EXPECT_EQ(file(v).mark, DetailRow::Mark::kFailed);
+  EXPECT_EQ(file(v).value, "bad hash");
 }
 
-// Each reason a check can fail for: its own words on the verification line
-// and in its row, what came after it not run, the last good result kept.
-TEST(UpdatePresentationTest, EachFailureIsNamed) {
+TEST(UpdatePresentationTest, NoAnswerIsAWarningWithCheckAgain) {
+  UpdateSnapshot s;
+  s.last_attempt = kNow;
+  s.last_attempt_failed = true;
+  s.last_check =
+      FailedAt(CheckStepId::kIndex, StepReason::kUnreachable, "HTTP 503");
+  auto v = PresentUpdate(s, kNow, Release());
+  EXPECT_EQ(v.tone, UpdateTone::kAttention);
+  EXPECT_EQ(v.headline, "Couldn't reach the update server");
+  EXPECT_EQ(v.check_label, "Check again");
+  EXPECT_TRUE(v.show_check);
+  EXPECT_EQ(v.verification_tone, UpdateTone::kAttention);
+  EXPECT_EQ(v.verification, "Server not reached · checked just now");
+  EXPECT_EQ(v.device_rows[2].value, "No server answered (HTTP 503)");
+
+  // Release details nobody served cost the download link, nothing else.
+  s = Snapshot(Update(),
+               FailedAt(CheckStepId::kDescriptor, StepReason::kUnreachable));
+  EXPECT_EQ(PresentUpdate(s, kNow, Release()).verification_tone,
+            UpdateTone::kGood);
+}
+
+// Each reason a check can be refused for: an error, stated once in full in
+// the header, short in its row, never on the status line.
+TEST(UpdatePresentationTest, EachRefusalIsNamedOnce) {
   struct Case {
     CheckStepId step;
     StepReason reason;
     QString detail;
-    int row;
     QString says;
   };
   const QDateTime expiry =
@@ -607,93 +680,102 @@ TEST(UpdatePresentationTest, EachFailureIsNamed) {
       {CheckStepId::kIndex,
        StepReason::kBadSignature,
        {},
-       2,
        "the update index's signature is not valid"},
-      {CheckStepId::kIndex, StepReason::kKeyNotListed, "FEDCBA9876543210", 2,
-       "the update index is signed by a key that is not trusted "
-       "(FEDCBA9876543210)"},
-      {CheckStepId::kRoot, StepReason::kExpired, "2027-01-10T00:00:00Z", 0,
+      {CheckStepId::kIndex, StepReason::kKeyNotListed, "FEDCBA9876543210",
+       "the update index is signed by a key that is not trusted"},
+      {CheckStepId::kRoot, StepReason::kExpired, "2027-01-10T00:00:00Z",
        "the root of trust expired on " + day},
-      {CheckStepId::kIndexKeys, StepReason::kExpired, "2027-01-10T00:00:00Z", 1,
+      {CheckStepId::kIndexKeys, StepReason::kExpired, "2027-01-10T00:00:00Z",
        "the signing key list expired on " + day},
-      {CheckStepId::kIndex, StepReason::kExpired, "2027-01-10T00:00:00Z", 2,
+      {CheckStepId::kIndex, StepReason::kExpired, "2027-01-10T00:00:00Z",
        "the update index expired on " + day},
-      {CheckStepId::kIndex, StepReason::kRollback, "41 40", 2,
+      {CheckStepId::kIndex, StepReason::kRollback, "41 40",
        "the update index is older than one seen before (serial 40, 41 seen "
        "before)"},
-      {CheckStepId::kRoot, StepReason::kRootWalkFailed, "why", 0,
+      {CheckStepId::kRoot, StepReason::kRootWalkFailed, "why",
        "a newer root of trust could not be verified"},
-      {CheckStepId::kIndexKeys, StepReason::kListRejected, "why", 1,
+      {CheckStepId::kIndexKeys, StepReason::kListRejected, "why",
        "the signing key list could not be verified"},
       {CheckStepId::kDescriptor,
        StepReason::kHashMismatch,
        {},
-       3,
        "the release details don't match the update index"},
       {CheckStepId::kNotes,
        StepReason::kHashMismatch,
        {},
-       3,
        "the release notes don't match the update index"},
       {CheckStepId::kIndex,
        StepReason::kOversized,
        {},
-       2,
        "an answer from the server was too large"},
       {CheckStepId::kIndex,
        StepReason::kMalformed,
        {},
-       2,
        "the update index could not be read"},
-      {CheckStepId::kRoot,
-       StepReason::kNoTrust,
-       {},
-       0,
-       "this build was made without a built-in root of trust"},
   };
   for (const auto& c : cases) {
     SCOPED_TRACE(c.says.toStdString());
-    auto s = Snapshot(Update(), FailedAt(c.step, c.reason, c.detail));
-    s.last_attempt_failed = c.step <= CheckStepId::kIndex;
-    const auto v = PresentUpdate(s, kNow, Release());
-    EXPECT_EQ(v.headline, "GpgFrontend 2.1.9 is available");  // kept
-    EXPECT_EQ(v.verification_tone, UpdateTone::kAttention);
-    EXPECT_TRUE(v.verification.startsWith(
-        "Update information couldn't be verified: " + c.says + "."))
-        << v.verification.toStdString();
-    EXPECT_EQ(v.verification.contains("Showing the result from 5 minute"),
-              s.last_attempt_failed);
-    EXPECT_EQ(v.device_rows[c.row].mark, DetailRow::Mark::kFailed);
-    EXPECT_EQ(v.device_rows[c.row].lines[0],
-              c.says.left(1).toUpper() + c.says.mid(1) + ".");
-    for (auto i = c.row + 1; i < v.device_rows.size(); ++i) {
-      if (i == kDownloadRow) continue;
-      EXPECT_EQ(v.device_rows[i].mark, DetailRow::Mark::kNotRun) << i;
-      EXPECT_EQ(v.device_rows[i].lines, QStringList{"Not run"}) << i;
+    // Nothing known yet: the header is the refusal.
+    UpdateSnapshot first;
+    first.last_attempt = kNow;
+    first.last_attempt_failed = c.step <= CheckStepId::kIndex;
+    first.last_check = FailedAt(c.step, c.reason, c.detail);
+    auto v = PresentUpdate(first, kNow, Release());
+    if (c.step <= CheckStepId::kIndex) {
+      EXPECT_EQ(v.tone, UpdateTone::kError);
+      EXPECT_EQ(v.headline, "Update information couldn't be verified");
+      EXPECT_EQ(v.detail, c.says.left(1).toUpper() + c.says.mid(1) + ".");
     }
+    EXPECT_EQ(v.verification_tone, UpdateTone::kError);
+    EXPECT_TRUE(v.verification.startsWith("Not verified · checked"));
+    EXPECT_FALSE(v.verification.contains(c.says));
+    EXPECT_TRUE(v.show_check);
+
+    // A result from before: it stays, and the notice says why it is old.
+    auto s = Snapshot(Update(), FailedAt(c.step, c.reason, c.detail));
+    s.last_attempt = kNow;
+    s.last_attempt_failed = c.step <= CheckStepId::kIndex;
+    v = PresentUpdate(s, kNow, Release());
+    EXPECT_EQ(v.headline, "GpgFrontend 2.1.9 is available");
+    EXPECT_TRUE(v.notice.startsWith(
+        "Update information couldn't be verified: " + c.says + "."))
+        << v.notice.toStdString();
+    EXPECT_EQ(v.notice.contains("Showing the result from 5 minute"),
+              s.last_attempt_failed);
+    // Stated once: not again on the status line or in the row.
+    EXPECT_FALSE(v.verification.contains(c.says));
+    const auto failed = std::find_if(
+        v.device_rows.begin(), v.device_rows.end(),
+        [](const auto& row) { return row.mark == DetailRow::Mark::kFailed; });
+    ASSERT_NE(failed, v.device_rows.end());
+    EXPECT_FALSE(failed->value.isEmpty());
+    EXPECT_FALSE(c.says.contains(failed->value, Qt::CaseInsensitive) &&
+                 failed->value.size() > 20)
+        << failed->value.toStdString();
     ExpectHostRowsNeverVerified(v);
-    EXPECT_TRUE(ReportText(v).contains("[failed] " +
-                                       v.device_rows[c.row].title + ": "));
+    EXPECT_TRUE(ReportText(v).contains("[failed] " + failed->title + ": "));
   }
 }
 
-TEST(UpdatePresentationTest, NoAnswerIsNotARefusal) {
-  auto s = Snapshot(Update(), FailedAt(CheckStepId::kIndex,
-                                       StepReason::kUnreachable, "HTTP 503"));
+TEST(UpdatePresentationTest, WhatDidNotRunAfterAFailureIsOneRow) {
+  auto s = Snapshot(
+      Update(), FailedAt(CheckStepId::kIndexKeys, StepReason::kListRejected));
   s.last_attempt_failed = true;
   const auto v = PresentUpdate(s, kNow, Release());
-  EXPECT_EQ(v.verification_tone, UpdateTone::kNeutral);
-  EXPECT_EQ(v.verification,
-            "Couldn't reach the update server. Showing the result from 5 "
-            "minute(s) ago.");
-  EXPECT_EQ(v.device_rows[2].lines,
-            QStringList({"No update server answered.", "HTTP 503"}));
+  EXPECT_EQ(Titles(v.device_rows),
+            QStringList(
+                {"Root of trust", "Signing key list", "Later steps not run"}));
+  EXPECT_EQ(v.device_rows[2].mark, DetailRow::Mark::kNotRun);
+}
 
-  // Release details nobody served cost the download link, nothing else.
-  s = Snapshot(Update(),
-               FailedAt(CheckStepId::kDescriptor, StepReason::kUnreachable));
-  EXPECT_EQ(PresentUpdate(s, kNow, Release()).verification_tone,
-            UpdateTone::kGood);
+TEST(UpdatePresentationTest, StepsThatDoNotApplyAreLeftOut) {
+  auto record = Verified();
+  record.Step(CheckStepId::kDescriptor).status = StepStatus::kNotApplicable;
+  record.Step(CheckStepId::kNotes).status = StepStatus::kNotApplicable;
+  record.Step(CheckStepId::kCommit).status = StepStatus::kNotApplicable;
+  const auto v = PresentUpdate(Snapshot(Current(), record), kNow, Release());
+  EXPECT_EQ(Titles(v.device_rows),
+            QStringList({"Root of trust", "Signing key list", "Update index"}));
 }
 
 TEST(UpdatePresentationTest, TheReportSaysEverythingButNothingPersonal) {
@@ -702,15 +784,17 @@ TEST(UpdatePresentationTest, TheReportSaysEverythingButNothingPersonal) {
   const auto report = ReportText(v);
   for (const auto* expected :
        {"GpgFrontend 2.1.8", "Commit abc123", "Release · series 2.1 (stable)",
-        "Update information verified", "[verified] Root of trust",
-        "4E179325A34DCF45", "Serial 42 from update.bktus.com",
-        "Signed by 0123456789ABCDEF", "[not checked] Downloaded file",
-        "Repository saturneric/GpgFrontend", "Signed by the maintainer"}) {
+        "Verified · checked", "[verified] Root of trust", "4E179325A34DCF45",
+        "Serial 42 from update.bktus.com", "0123456789ABCDEF",
+        "[not checked] Downloaded file", "saturneric/GpgFrontend",
+        "Signed by the maintainer"}) {
     EXPECT_TRUE(report.contains(QString::fromUtf8(expected))) << expected;
   }
-  EXPECT_TRUE(report.contains("Checked " + kNow.toUTC().toString(Qt::ISODate)));
-  // The full hash, once, for comparing a download by hand.
+  EXPECT_TRUE(report.contains(
+      "Checked " + kNow.addSecs(-300).toUTC().toString(Qt::ISODate)));
+  // The full hashes, for comparing a download by hand.
   EXPECT_TRUE(report.contains(v.offer_sha256));
+  EXPECT_TRUE(report.contains(QString(64, u'd')));
   EXPECT_FALSE(report.contains("/home"));
   EXPECT_FALSE(report.contains("https://"));
 }
