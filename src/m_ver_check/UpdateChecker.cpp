@@ -30,6 +30,7 @@
 
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <algorithm>
 #include <QPointer>
 #include <QRegularExpression>
 #include <utility>
@@ -41,6 +42,36 @@
 namespace {
 
 constexpr int kStorageSchema = 2;
+
+auto FileToJson(const SignedFile& f) -> QJsonObject {
+  QJsonObject sigs;
+  for (auto it = f.signatures.begin(); it != f.signatures.end(); ++it) {
+    sigs[it.key()] = QString::fromLatin1(it.value().toBase64());
+  }
+  return {{"data", QString::fromLatin1(f.data.toBase64())},
+          {"signatures", sigs}};
+}
+
+auto FileFromJson(const QJsonValue& v) -> SignedFile {
+  const auto obj = v.toObject();
+  SignedFile f{QByteArray::fromBase64(obj.value("data").toString().toLatin1()),
+               {}};
+  const auto sigs = obj.value("signatures").toObject();
+  for (auto it = sigs.begin(); it != sigs.end(); ++it) {
+    f.signatures.insert(it.key(), QByteArray::fromBase64(
+                                      it.value().toString().toLatin1()));
+  }
+  return f;
+}
+
+/// A serial as stored: a whole number above zero, never through a double.
+auto StoredSerial(const QJsonValue& v) -> qint64 {
+  if (!v.isDouble() || v.toInteger() <= 0 ||
+      v.toVariant().typeId() != QMetaType::LongLong) {
+    return 0;
+  }
+  return v.toInteger();
+}
 
 }  // namespace
 
@@ -55,6 +86,57 @@ UpdateChecker::UpdateChecker(Build build, Fetcher fetch, Store store,
   nightly_ = build_.nightly >= 0 ? build_.nightly == 1
                                  : IsNightlyBuild(build_.version);
   if (store_.load) state_ = FromStorage(store_.load(), build_);
+  loadTrust();
+}
+
+void UpdateChecker::warn(const QString& what) const {
+  if (build_.warn) build_.warn(QStringLiteral("update check: ") + what);
+}
+
+void UpdateChecker::loadTrust() {
+  const auto& channel = build_.channel;
+  if (!channel.IsConfigured()) return;
+  QString why;
+  root_ = ParseRoot(channel.trust.root, channel.product, &why);
+  if (!root_) {
+    warn(QStringLiteral("the built-in trust root does not hold: ") + why);
+    return;
+  }
+  if (!state_.root.data.isEmpty()) {
+    // Taken through the chain before; its own signatures still hold.
+    auto kept = ParseRoot(state_.root, channel.product);
+    if (kept && kept->version > root_->version) root_ = kept;
+  }
+  for (const SignedFile* file :
+       std::initializer_list<const SignedFile*>{&state_.index_keys,
+                                                &channel.trust.index_keys}) {
+    if (file->data.isEmpty()) continue;
+    auto keys = ParseIndexKeys(*root_, *file, channel.product, 0);
+    if (keys && (!keys_ || keys->version > keys_->version)) keys_ = keys;
+  }
+  if (!keys_) {
+    warn(QStringLiteral("no index-keys list that root %1 signs")
+             .arg(root_->version));
+  }
+  // A store from before the floor was kept per key: its one floor was the
+  // floor of the key every index was signed with then, a listed one.
+  if (state_.serial_floor.contains(QString()) && keys_) {
+    const auto floor = state_.serial_floor.take(QString());
+    for (const auto& id : keys_->keys.keys()) {
+      state_.serial_floor[id] = std::max(state_.serial_floor.value(id), floor);
+    }
+  }
+}
+
+void UpdateChecker::keepTrust() {
+  if (root_) state_.root = root_->file;
+  state_.index_keys = keys_ ? keys_->file : SignedFile{};
+  if (store_.save) store_.save(ToStorage(state_));
+}
+
+auto UpdateChecker::trustBase(qsizetype i) const -> QString {
+  const auto& channel = build_.channel;
+  return channel.update_bases[i] + channel.product + QStringLiteral("/v1/");
 }
 
 auto UpdateChecker::State() const -> const UpdateSnapshot& { return state_; }
@@ -111,6 +193,7 @@ void UpdateChecker::Start(CheckMode mode) {
   again_ = false;
   marker_failed_ = false;
   accepted_serial_ = 0;
+  accepted_key_.clear();
   descriptor_path_.clear();
   descriptor_sha256_.clear();
   notes_path_.clear();
@@ -153,15 +236,8 @@ void UpdateChecker::tryIndexBase(qsizetype i, bool retried) {
         QUrl(url + QStringLiteral(".minisig")),
         [self, i, body, retried](int sig_status, const QByteArray& signature) {
           if (self.isNull()) return;
-          if (sig_status == 200 && signature.size() <= kMaxFetchBytes &&
-              self->acceptIndex(body, signature)) {
-            self->askDescriptor();
-            return;
-          }
-          // The server replaces the index and then its signature: read in
-          // between, the two disagree. Once more on the same base, then on.
-          if (sig_status == 200 && !retried) {
-            self->tryIndexBase(i, true);
+          if (sig_status == 200 && signature.size() <= kMaxFetchBytes) {
+            self->checkIndex(i, body, signature, retried);
             return;
           }
           self->tryIndexBase(i + 1);
@@ -169,16 +245,169 @@ void UpdateChecker::tryIndexBase(qsizetype i, bool retried) {
   });
 }
 
+void UpdateChecker::checkIndex(qsizetype i, const QByteArray& body,
+                               const QByteArray& signature, bool retried) {
+  // What the index says it is signed under is only where to look: the
+  // roots and the list hold on their own signatures, and the index on the
+  // list's keys.
+  const auto hints = ReadTrustHints(body);
+  QPointer<UpdateChecker> self(this);
+  walkRoots(i, hints.root_version, kMaxRootSteps, [=] {
+    if (self.isNull()) return;
+    self->takeIndexKeys(i, hints.index_keys_version, [=] {
+      if (self.isNull()) return;
+      if (self->acceptIndex(body, signature)) {
+        self->askDescriptor();
+        return;
+      }
+      // The server replaces the index and then its signature: read in
+      // between, the two disagree. Once more on the same base, then on.
+      self->tryIndexBase(retried ? i + 1 : i, !retried);
+    });
+  });
+}
+
+void UpdateChecker::walkRoots(qsizetype i, qint64 target, int steps,
+                              const Then& then) {
+  if (!root_ || root_->version >= target || steps <= 0) {
+    then();
+    return;
+  }
+  const auto n = root_->version + 1;
+  const auto url = trustBase(i) + QStringLiteral("root/%1.root.json").arg(n);
+  QPointer<UpdateChecker> self(this);
+  fetch_(QUrl(url), [=](int status, const QByteArray& data) {
+    if (self.isNull()) return;
+    if (status != 200 || data.size() > kMaxFetchBytes) {
+      self->warn(QStringLiteral("%1: HTTP %2").arg(url).arg(status));
+      then();
+      return;
+    }
+    // Signed by root keys of the trusted root, and of its own.
+    auto ids = self->root_->root_keyids + NamedRootKeys(data);
+    ids.removeDuplicates();
+    self->fetchSignatures(
+        url + u'.', ids, {}, [=](const QHash<QString, QByteArray>& sigs) {
+          if (self.isNull()) return;
+          QString why;
+          auto next = AcceptNextRoot(*self->root_, {data, sigs},
+                                     self->build_.channel.product, &why);
+          if (!next) {
+            self->warn(url + QStringLiteral(": ") + why);
+            then();
+            return;
+          }
+          // Another G: what the old one signed counts no more.
+          if (next->index_list_keyids != self->root_->index_list_keyids) {
+            self->keys_.reset();
+          }
+          self->root_ = next;
+          self->keepTrust();  // each root kept before the next is asked
+          self->walkRoots(i, target, steps - 1, then);
+        });
+  });
+}
+
+void UpdateChecker::fetchSignatures(
+    const QString& prefix, QStringList ids, QHash<QString, QByteArray> found,
+    const std::function<void(QHash<QString, QByteArray>)>& done) {
+  if (ids.isEmpty()) {
+    done(found);
+    return;
+  }
+  const auto id = ids.takeFirst();
+  QPointer<UpdateChecker> self(this);
+  fetch_(QUrl(prefix + id + QStringLiteral(".minisig")),
+         [=](int status, const QByteArray& sig) mutable {
+           if (self.isNull()) return;
+           // A missing one is no error: only those that verify count.
+           if (status == 200 && sig.size() <= kMaxFetchBytes) found[id] = sig;
+           self->fetchSignatures(prefix, ids, found, done);
+         });
+}
+
+void UpdateChecker::takeIndexKeys(qsizetype i, qint64 version,
+                                  const Then& then) {
+  if (!root_ || version <= 0 || (keys_ && version <= keys_->version)) {
+    then();
+    return;
+  }
+  const auto url = trustBase(i) + QStringLiteral("index-keys/%1.json")
+                                      .arg(version);
+  QPointer<UpdateChecker> self(this);
+  fetch_(QUrl(url), [=](int status, const QByteArray& data) {
+    if (self.isNull()) return;
+    if (status != 200 || data.size() > kMaxFetchBytes) {
+      self->warn(QStringLiteral("%1: HTTP %2").arg(url).arg(status));
+      then();
+      return;
+    }
+    self->fetch_(
+        QUrl(url + QStringLiteral(".minisig")),
+        [=](int sig_status, const QByteArray& sig) {
+          if (self.isNull()) return;
+          QString why;
+          auto keys =
+              sig_status == 200
+                  ? ParseIndexKeys(*self->root_, {data, {{QString(), sig}}},
+                                   self->build_.channel.product,
+                                   self->keys_ ? self->keys_->version : 0,
+                                   &why)
+                  : std::nullopt;
+          if (keys) {
+            self->keys_ = keys;
+            self->keepTrust();
+          } else {
+            self->warn(url + QStringLiteral(": ") +
+                       (why.isEmpty() ? QStringLiteral("no signature") : why));
+          }
+          then();
+        });
+  });
+}
+
 auto UpdateChecker::acceptIndex(const QByteArray& body,
                                 const QByteArray& signature) -> bool {
   const auto& channel = build_.channel;
-  const auto comment = MinisignVerify(channel.index_keys, body, signature);
-  if (!comment) return false;
-  const auto facts = ParseIndex(body, *comment, channel.product, clock_());
-  if (!facts) return false;
-  // An older index than one already accepted is a replay, from a stale
-  // mirror or an attacker: it is not believed, and another base is tried.
-  if (facts->serial < state_.max_serial) return false;
+  const auto now = clock_();
+  if (!root_ || !keys_) return false;  // said when it was found out
+  if (IsTrustExpired(root_->expires, now) ||
+      IsTrustExpired(keys_->expires, now)) {
+    warn(QStringLiteral("root %1 or index-keys %2 has expired")
+             .arg(root_->version)
+             .arg(keys_->version));
+    return false;
+  }
+  // Only a key the trusted list names signs an index; anything else is not
+  // one, however it verifies.
+  const auto key_id = MinisignSignatureKeyId(signature);
+  if (!keys_->keys.contains(key_id)) {
+    warn(QStringLiteral("the index is signed by %1, which index-keys %2 does "
+                        "not list")
+             .arg(key_id.isEmpty() ? QStringLiteral("no key it knows")
+                                   : key_id)
+             .arg(keys_->version));
+    return false;
+  }
+  const auto comment =
+      MinisignVerify({keys_->keys.value(key_id)}, body, signature);
+  if (!comment) {
+    warn(QStringLiteral("the index's signature does not verify"));
+    return false;
+  }
+  const auto facts = ParseIndex(body, *comment, channel.product, now);
+  if (!facts) {
+    warn(QStringLiteral("the index is expired, malformed or another's"));
+    return false;
+  }
+  // An older index than one already accepted under this key is a replay,
+  // from a stale mirror or an attacker: not believed, another base is tried.
+  if (facts->serial < state_.serial_floor.value(key_id)) {
+    warn(QStringLiteral("index serial %1 is older than %2, seen before")
+             .arg(facts->serial)
+             .arg(state_.serial_floor.value(key_id)));
+    return false;
+  }
 
   const auto choice =
       ChooseUpdate(*facts, build_.version, nightly_, fresh_.follow_beta);
@@ -190,6 +419,7 @@ auto UpdateChecker::acceptIndex(const QByteArray& body,
     fresh_.notice = NoticeFor(*facts, build_.version, build_.platform);
   }
   accepted_serial_ = facts->serial;
+  accepted_key_ = key_id;
   descriptor_path_ = choice.descriptor;
   descriptor_sha256_ = choice.descriptor_sha256;
   notes_path_ = choice.notes;
@@ -291,7 +521,15 @@ void UpdateChecker::finish() {
   state_.last_attempt = now;
   state_.last_attempt_failed = !IsUsable(fresh_);
   state_.last_good = Merge(state_.last_good, fresh_);
-  state_.max_serial = std::max(state_.max_serial, accepted_serial_);
+  if (accepted_serial_ > 0) {
+    state_.serial_floor[accepted_key_] =
+        std::max(state_.serial_floor.value(accepted_key_), accepted_serial_);
+  }
+  if (keys_) {
+    // A key no longer listed takes its floor with it.
+    state_.serial_floor.removeIf(
+        [this](const auto& it) { return !keys_->keys.contains(it.key()); });
+  }
 
   if (store_.save) store_.save(ToStorage(state_));
   emit Changed();
@@ -309,8 +547,18 @@ auto UpdateChecker::ToStorage(const UpdateSnapshot& s) -> QByteArray {
   if (!s.last_seen_update_version.isEmpty()) {
     obj["last_seen_update_version"] = s.last_seen_update_version;
   }
-  // Additive: a build that does not know the field keeps it untouched.
-  if (s.max_serial > 0) obj["max_serial"] = s.max_serial;
+  // Additive: a build that does not know these fields leaves them out.
+  if (!s.serial_floor.isEmpty()) {
+    QJsonObject floors;
+    for (auto it = s.serial_floor.begin(); it != s.serial_floor.end(); ++it) {
+      floors[it.key()] = QJsonValue(it.value());  // an integer, exactly
+    }
+    obj["serial_floor"] = floors;
+  }
+  if (!s.root.data.isEmpty()) obj["root"] = FileToJson(s.root);
+  if (!s.index_keys.data.isEmpty()) {
+    obj["index_keys"] = FileToJson(s.index_keys);
+  }
   if (s.last_seen_at.isValid()) {
     obj["last_seen_at"] = s.last_seen_at.toSecsSinceEpoch();
   }
@@ -330,7 +578,18 @@ auto UpdateChecker::FromStorage(const QByteArray& data, const Build& build)
   // upgrade, or a rebuild, must not advertise it again.
   s.last_seen_update_version = obj.value("last_seen_update_version").toString();
   // Never below zero: a damaged store only forgets what was seen.
-  s.max_serial = std::max<qint64>(0, obj.value("max_serial").toInteger());
+  const auto floors = obj.value("serial_floor").toObject();
+  for (auto it = floors.begin(); it != floors.end(); ++it) {
+    if (const auto serial = StoredSerial(it.value()); serial > 0) {
+      s.serial_floor[it.key()] = serial;
+    }
+  }
+  // A store from before: one floor, for whichever key is listed (loadTrust).
+  if (const auto serial = StoredSerial(obj.value("max_serial")); serial > 0) {
+    s.serial_floor[QString()] = serial;
+  }
+  s.root = FileFromJson(obj.value("root"));
+  s.index_keys = FileFromJson(obj.value("index_keys"));
   if (obj.value("last_seen_at").isDouble()) {
     s.last_seen_at =
         QDateTime::fromSecsSinceEpoch(obj.value("last_seen_at").toInteger());

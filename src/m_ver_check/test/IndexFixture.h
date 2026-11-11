@@ -46,6 +46,7 @@
 #include <map>
 #include <utility>
 
+#include "Minisign.h"
 #include "UpdateChecker.h"
 
 namespace test_index {
@@ -134,6 +135,95 @@ inline auto Index(qint64 serial, const QString& nightly,
 inline auto Comment(qint64 serial, const QString& product = "gpgfrontend")
     -> QString {
   return QStringLiteral("product=%1 serial=%2").arg(product).arg(serial);
+}
+
+/// The id of @p s's key, as the trust files spell it.
+inline auto KeyId(const Signer& s) -> QString {
+  return MinisignPublicKeyId(s.PublicKey());
+}
+
+/// A root as gfrelease writes it: root keys @p root (@p threshold of them
+/// needed), @p g signing the index-keys list.
+inline auto RootDoc(qint64 version, const QList<const Signer*>& root,
+                    const Signer& g, int threshold = 2,
+                    const QDateTime& expires = kNow.addYears(2))
+    -> QByteArray {
+  QJsonObject keys{{KeyId(g), g.PublicKey()}};
+  QJsonArray ids;
+  for (const auto* s : root) {
+    keys[KeyId(*s)] = s->PublicKey();
+    ids.append(KeyId(*s));
+  }
+  return QJsonDocument(
+             QJsonObject{
+                 {"schema", 1},
+                 {"type", "root"},
+                 {"product", "gpgfrontend"},
+                 {"version", version},
+                 {"expires", expires.toUTC().toString(Qt::ISODate)},
+                 {"keys", keys},
+                 {"roles",
+                  QJsonObject{
+                      {"root", QJsonObject{{"keyids", ids},
+                                           {"threshold", threshold}}},
+                      {"index_list",
+                       QJsonObject{{"keyids", QJsonArray{KeyId(g)}},
+                                   {"threshold", 1}}}}},
+                 {"host_policy", QJsonObject{{"repository", "o/r"}}}})
+      .toJson();
+}
+
+/// Each of @p by's signature on root @p version, by key id.
+inline auto SignRoot(const QByteArray& root, qint64 version,
+                     const QList<const Signer*>& by)
+    -> QHash<QString, QByteArray> {
+  QHash<QString, QByteArray> sigs;
+  for (const auto* s : by) {
+    sigs[KeyId(*s)] = s->Sign(
+        root, QStringLiteral("product=gpgfrontend root=%1").arg(version));
+  }
+  return sigs;
+}
+
+/// An index-keys list naming @p keys.
+inline auto ListDoc(qint64 version, const QList<const Signer*>& keys,
+                    const QDateTime& expires = kNow.addYears(1))
+    -> QByteArray {
+  QJsonObject listed;
+  for (const auto* s : keys) listed[KeyId(*s)] = s->PublicKey();
+  return QJsonDocument(
+             QJsonObject{{"schema", 1},
+                         {"type", "index-keys"},
+                         {"product", "gpgfrontend"},
+                         {"version", version},
+                         {"expires", expires.toUTC().toString(Qt::ISODate)},
+                         {"keys", listed}})
+      .toJson();
+}
+
+inline auto SignList(const QByteArray& list, qint64 version, const Signer& g)
+    -> QByteArray {
+  return g.Sign(
+      list, QStringLiteral("product=gpgfrontend index-keys=%1").arg(version));
+}
+
+/// The test run's root keys a, b and c, and two Gs.
+struct TrustKeys {
+  Signer a, b, c, g, g2;
+};
+inline auto Keys() -> const TrustKeys& {
+  static const TrustKeys keys;
+  return keys;
+}
+
+/// What a build is made with: root 1 (a and b, both needed; G g), and list 1
+/// naming @p index.
+inline auto TrustFor(const Signer& index) -> EmbeddedTrust {
+  const auto& k = Keys();
+  const auto root = RootDoc(1, {&k.a, &k.b}, k.g);
+  const auto list = ListDoc(1, {&index});
+  return {{root, SignRoot(root, 1, {&k.a, &k.b})},
+          {list, {{QString(), SignList(list, 1, k.g)}}}};
 }
 
 /// The update and build mirrors as a table of URL -> (status, body), every

@@ -121,7 +121,7 @@ struct FakeServer {
 };
 
 auto Channel(const FakeServer& server) -> ReleaseChannel {
-  return {"gpgfrontend", {kBase}, {kBase}, {server.signer.PublicKey()}};
+  return {"gpgfrontend", {kBase}, {kBase}, TrustFor(server.signer)};
 }
 
 struct Harness {
@@ -270,14 +270,36 @@ TEST(UpdateCheckerTest, AClockSetBackIsNotFreshForEver) {
 TEST(UpdateCheckerTest, ADamagedStoreOnlyForgetsTheSerial) {
   Harness h;
   for (const auto* bad :
-       {R"({"schema":2,"max_serial":-5})", R"({"schema":2,"max_serial":"9"})",
+       {R"({"schema":2,"serial_floor":{"A":-5}})",
+        R"({"schema":2,"serial_floor":{"A":"9"}})",
+        R"({"schema":2,"serial_floor":{"A":1.5}})",
         R"({"schema":2,"max_serial":1.5})"}) {
-    EXPECT_EQ(UpdateChecker::FromStorage(bad, h.Build()).max_serial, 0) << bad;
+    EXPECT_TRUE(
+        UpdateChecker::FromStorage(bad, h.Build()).serial_floor.isEmpty())
+        << bad;
   }
-  EXPECT_EQ(
-      UpdateChecker::FromStorage(R"({"schema":2,"max_serial":7})", h.Build())
-          .max_serial,
-      7);
+  EXPECT_EQ(UpdateChecker::FromStorage(R"({"schema":2,"serial_floor":{"A":7}})",
+                                       h.Build())
+                .serial_floor.value("A"),
+            7);
+}
+
+TEST(UpdateCheckerTest, ASerialIsKeptExactlyNotAsADouble) {
+  UpdateSnapshot s;
+  const qint64 big = (qint64{1} << 53) + 1;  // a double would round it
+  s.serial_floor["A"] = big;
+  Harness h;
+  EXPECT_EQ(UpdateChecker::FromStorage(UpdateChecker::ToStorage(s), h.Build())
+                .serial_floor.value("A"),
+            big);
+}
+
+TEST(UpdateCheckerTest, AStoreFromBeforeKeepsItsFloorForTheListedKey) {
+  Harness h;
+  h.stored = R"({"schema":2,"max_serial":7})";
+  auto c = h.Make();
+  EXPECT_EQ(c->State().serial_floor.value(KeyId(h.server.signer)), 7);
+  EXPECT_FALSE(c->State().serial_floor.contains(QString()));
 }
 
 TEST(UpdateCheckerTest, SecondStartJoinsTheRunningCheck) {

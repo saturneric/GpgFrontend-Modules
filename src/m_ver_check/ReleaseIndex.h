@@ -35,6 +35,7 @@
 #include <QStringList>
 #include <optional>
 
+#include "RootTrust.h"
 #include "SoftwareVersion.h"
 
 class QUrl;
@@ -45,7 +46,8 @@ class QUrl;
  *
  * scripts/release/gfrelease publishes <base><product>/v1/index.json and its
  * minisign signature. Nothing in it counts until the signature verifies
- * against a pinned key (Minisign.h); this file reads it after that, and maps
+ * against a key the trusted index-keys list names (RootTrust.h, Minisign.h);
+ * this file reads it after that, and maps
  * it onto the facts Decide() and everything downstream work from.
  *
  * Three lines, one chain of trust each the same: the nightly channel (main's
@@ -59,16 +61,23 @@ class QUrl;
  * minisign alone, never OpenPGP.
  */
 
-/// Where the index and builds are, and the keys allowed to sign the index.
+/// The trust a build starts from: the newest root and index-keys list of
+/// the tree it was built from (release/root/, release/index-keys/).
+struct EmbeddedTrust {
+  SignedFile root;
+  SignedFile index_keys;
+};
+
+/// Where the index and builds are, and the trust its signature rests on.
 struct ReleaseChannel {
   QString product;           ///< the product slug, e.g. "gpgfrontend"
   QStringList update_bases;  ///< https://.../ ; tried in order
   QStringList build_bases;   ///< https://.../ ; tried in order
-  QStringList index_keys;    ///< minisign public keys: current, next
+  EmbeddedTrust trust;
 
   [[nodiscard]] auto IsConfigured() const -> bool {
     return !product.isEmpty() && !update_bases.isEmpty() &&
-           !index_keys.isEmpty();
+           !trust.root.data.isEmpty() && !trust.index_keys.data.isEmpty();
   }
 };
 

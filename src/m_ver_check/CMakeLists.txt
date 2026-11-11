@@ -37,6 +37,7 @@ gf_add_module(
           Minisign.cpp
           ReleaseCheck.cpp
           ReleaseIndex.cpp
+          RootTrust.cpp
           SemVer.cpp
           SoftwareVersion.cpp
           UpdateChecker.cpp
@@ -47,11 +48,13 @@ gf_add_module(
   UI_DIR  ui
   LUA_SCRIPTS ui/main.lua)
 
-# Where every build reads its signed update index, and which keys may sign it:
-# release/product.json of the Host tree, the one place the product names
-# them. They reach the code as definitions read by VersionCheckingModule.cpp,
-# "|"-joined. A build of the modules without that file has no channel, and
-# then reports "unknown" rather than trust anything.
+# Where every build reads its signed update index: release/product.json of
+# the Host tree, the one place the product names it. It reaches the code as
+# definitions read by VersionCheckingModule.cpp, "|"-joined. What the index
+# is trusted on is the newest root and index-keys list of release/root/ and
+# release/index-keys/, built in byte for byte (EmbeddedTrust.cpp, below). A
+# build of the modules without them has no channel, and then reports
+# "unknown" rather than trust anything.
 #
 # GF_RELEASE_*_OVERRIDE replace them for a rehearsal against a local mirror
 # with throwaway keys (scripts/release/rehearse.sh); a build made so must
@@ -60,7 +63,6 @@ set(_gf_product_json "${CMAKE_SOURCE_DIR}/release/product.json")
 set(_gf_release_product "")
 set(_gf_release_update "")
 set(_gf_release_builds "")
-set(_gf_release_keys "")
 set(_gf_release_notes_hosts "")
 if(EXISTS "${_gf_product_json}")
   file(READ "${_gf_product_json}" _gf_product)
@@ -77,14 +79,6 @@ if(EXISTS "${_gf_product_json}")
     endif()
     set(_gf_release_${_gf_role} "${_gf_list}")
   endforeach()
-  string(JSON _gf_n LENGTH "${_gf_product}" signing index_keys)
-  if(_gf_n GREATER 0)
-    math(EXPR _gf_last "${_gf_n} - 1")
-    foreach(_gf_i RANGE ${_gf_last})
-      string(JSON _gf_key GET "${_gf_product}" signing index_keys ${_gf_i})
-      list(APPEND _gf_release_keys "${_gf_key}")
-    endforeach()
-  endif()
   # Where release notes may link to (UpdateTab opens no other link).
   string(JSON _gf_n ERROR_VARIABLE _gf_err LENGTH "${_gf_product}"
          notes_link_hosts)
@@ -97,7 +91,7 @@ if(EXISTS "${_gf_product_json}")
   endif()
 endif()
 
-foreach(_gf_what UPDATE_BASES BUILDS_BASES INDEX_KEYS CA)
+foreach(_gf_what UPDATE_BASES BUILDS_BASES TRUST CA)
   if(DEFINED GF_RELEASE_${_gf_what}_OVERRIDE)
     message(WARNING "m_ver_check: GF_RELEASE_${_gf_what}_OVERRIDE is set. "
       "This build trusts a rehearsal update channel; never distribute it.")
@@ -109,13 +103,9 @@ endif()
 if(DEFINED GF_RELEASE_BUILDS_BASES_OVERRIDE)
   set(_gf_release_builds "${GF_RELEASE_BUILDS_BASES_OVERRIDE}")
 endif()
-if(DEFINED GF_RELEASE_INDEX_KEYS_OVERRIDE)
-  set(_gf_release_keys "${GF_RELEASE_INDEX_KEYS_OVERRIDE}")
-endif()
 
 list(JOIN _gf_release_update "|" _gf_release_update)
 list(JOIN _gf_release_builds "|" _gf_release_builds)
-list(JOIN _gf_release_keys "|" _gf_release_keys)
 list(JOIN _gf_release_notes_hosts "|" _gf_release_notes_hosts)
 # A rehearsal mirror's own CA (scripts/release/rehearse.sh writes it), trusted
 # by the update checker's requests only; never set in a build to distribute.
@@ -128,8 +118,68 @@ set_property(SOURCE VersionCheckingModule.cpp APPEND PROPERTY
     GF_RELEASE_PRODUCT="${_gf_release_product}"
     GF_RELEASE_UPDATE_BASES="${_gf_release_update}"
     GF_RELEASE_BUILDS_BASES="${_gf_release_builds}"
-    GF_RELEASE_INDEX_KEYS="${_gf_release_keys}"
     GF_RELEASE_NOTES_HOSTS="${_gf_release_notes_hosts}")
+
+# The trust built in: <dir>/root/<N>.root.json with each of its
+# <N>.root.json.<keyid>.minisig, and <dir>/index-keys/<V>.json with its
+# .minisig, the highest N and V. <dir> is release/, or for a rehearsal
+# GF_RELEASE_TRUST_OVERRIDE (a directory laid out the same).
+set(_gf_trust "${CMAKE_SOURCE_DIR}/release")
+if(DEFINED GF_RELEASE_TRUST_OVERRIDE)
+  set(_gf_trust "${GF_RELEASE_TRUST_OVERRIDE}")
+endif()
+function(_gf_newest out dir pattern)
+  file(GLOB _files RELATIVE "${dir}" "${dir}/*")
+  set(_best 0)
+  foreach(_f IN LISTS _files)
+    if(_f MATCHES "${pattern}" AND CMAKE_MATCH_1 GREATER _best)
+      set(_best "${CMAKE_MATCH_1}")
+    endif()
+  endforeach()
+  set(${out} "${_best}" PARENT_SCOPE)
+endfunction()
+function(_gf_bytes out file)
+  file(READ "${file}" _hex HEX)
+  string(LENGTH "${_hex}" _n)
+  math(EXPR _n "${_n} / 2")
+  string(REGEX REPLACE "(..)" "\\\\x\\1" _esc "${_hex}")
+  set(${out} "QByteArray(\"${_esc}\", ${_n})" PARENT_SCOPE)
+  set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${file}")
+endfunction()
+_gf_newest(_gf_root "${_gf_trust}/root" "^([0-9]+)\\.root\\.json$")
+_gf_newest(_gf_list "${_gf_trust}/index-keys" "^([0-9]+)\\.json$")
+set(_gf_trust_code "")
+if(_gf_root GREATER 0 AND _gf_list GREATER 0)
+  set(_gf_root_file "${_gf_trust}/root/${_gf_root}.root.json")
+  _gf_bytes(_gf_data "${_gf_root_file}")
+  string(APPEND _gf_trust_code "  t.root.data = ${_gf_data};\n")
+  file(GLOB _gf_sigs RELATIVE "${_gf_trust}/root"
+       "${_gf_trust}/root/${_gf_root}.root.json.*.minisig")
+  foreach(_gf_sig IN LISTS _gf_sigs)
+    string(REGEX MATCH "\\.([0-9A-F]+)\\.minisig$" _ "${_gf_sig}")
+    _gf_bytes(_gf_data "${_gf_trust}/root/${_gf_sig}")
+    string(APPEND _gf_trust_code
+           "  t.root.signatures.insert(\"${CMAKE_MATCH_1}\", ${_gf_data});\n")
+  endforeach()
+  _gf_bytes(_gf_data "${_gf_trust}/index-keys/${_gf_list}.json")
+  string(APPEND _gf_trust_code "  t.index_keys.data = ${_gf_data};\n")
+  _gf_bytes(_gf_data "${_gf_trust}/index-keys/${_gf_list}.json.minisig")
+  string(APPEND _gf_trust_code
+         "  t.index_keys.signatures.insert(QString(), ${_gf_data});\n")
+else()
+  message(STATUS "m_ver_check: no trust root in ${_gf_trust}; this build "
+    "has no update channel")
+endif()
+set(_gf_trust_cpp "${CMAKE_CURRENT_BINARY_DIR}/EmbeddedTrust.cpp")
+file(CONFIGURE OUTPUT "${_gf_trust_cpp}" CONTENT "// Generated by CMake from ${_gf_trust}: do not edit.
+#include \"ReleaseIndex.h\"
+
+auto BuiltInTrust() -> EmbeddedTrust {
+  EmbeddedTrust t;
+@_gf_trust_code@  return t;
+}
+" @ONLY)
+target_sources(gf_mod_ver_check PRIVATE "${_gf_trust_cpp}")
 
 if(GPGFRONTEND_MODULES_BUILD_TESTS)
   add_subdirectory(test)
