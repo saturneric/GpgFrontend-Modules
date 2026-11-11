@@ -79,9 +79,9 @@ class UpdateTab : public QWidget {
   QFormLayout* build_form_;
   QWidget* offer_column_;  ///< only with an offer
   QFormLayout* offer_form_;
+  QLabel* beta_hint_;    ///< "A newer beta, X, is available"
   QTextBrowser* notes_;  ///< a few lines; full_notes_ opens the rest
   QLabel* full_notes_;
-  QCheckBox* beta_;  ///< "Also offer beta versions"; release builds only
   QLabel* status_icon_;
   QLabel* status_text_;
   QToolButton* details_toggle_;

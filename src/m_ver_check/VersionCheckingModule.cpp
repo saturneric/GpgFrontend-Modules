@@ -274,6 +274,16 @@ class UpdateSettingsWidget : public QWidget, public gf::ui::SettingsWidget {
         GTrC::tr("Check for updates automatically, once a day."), box);
     column->addWidget(check_);
 
+    // Only where it changes anything: the nightly identity follows its own
+    // channel (main's nightly, or a release branch's betas) either way.
+    beta_ = new QCheckBox(GTrC::tr("Also offer beta versions"), box);
+    beta_->setToolTip(
+        GTrC::tr("Test builds of the next fix release, before it is out. They "
+                 "are less tested than releases."));
+    auto* checker = VersionChecker();
+    beta_->setVisible(checker != nullptr && !checker->IsNightly());
+    column->addWidget(beta_);
+
     auto* layout = new QVBoxLayout(this);
     layout->addWidget(box);
     layout->addStretch();
@@ -283,15 +293,20 @@ class UpdateSettingsWidget : public QWidget, public gf::ui::SettingsWidget {
     check_->setChecked(!gf::sdk::Setting(GFModuleSdkContext(), GF_SETTING_HOST,
                                          kProhibitUpdateCheckKey, true)
                             .toBool());
+    beta_->setChecked(FollowBetaSetting());
   }
 
   auto ApplySettings() -> bool override {
+    // Applies to the next check: a result made under the other answer is
+    // no longer fresh, so the update dialog asks again when opened.
+    SetFollowBetaSetting(beta_->isChecked());
     return gf::sdk::SetSetting(GFModuleSdkContext(), GF_SETTING_HOST,
                                kProhibitUpdateCheckKey, !check_->isChecked());
   }
 
  private:
   QCheckBox* check_;
+  QCheckBox* beta_;  ///< "Also offer beta versions"; release builds only
 };
 
 /// Help > Check for Updates.

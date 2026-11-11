@@ -449,7 +449,6 @@ TEST(UpdatePresentationTest, ABuildWithoutTrustIsAStateNotAFailure) {
               "It was built without the release trust files. Official builds "
               "include them and check for updates automatically.");
     EXPECT_FALSE(v.show_check);
-    EXPECT_FALSE(v.show_beta);
     EXPECT_EQ(v.verification, "Not checked");
     EXPECT_EQ(v.build_version, "2.3.0-alpha.496");
     EXPECT_EQ(v.build_kind, "Nightly");
@@ -463,9 +462,6 @@ TEST(UpdatePresentationTest, ABuildWithoutTrustIsAStateNotAFailure) {
     EXPECT_TRUE(ReportText(v).contains(
         "[not checked] Root of trust: Not included in this build"));
   }
-  // A release build without trust is offered no beta either.
-  build.nightly = 0;
-  EXPECT_FALSE(PresentUpdate({}, kNow, build).show_beta);
 }
 
 TEST(UpdatePresentationTest, UpToDateShowsTheBuildAndEveryStepVerified) {
@@ -479,7 +475,6 @@ TEST(UpdatePresentationTest, UpToDateShowsTheBuildAndEveryStepVerified) {
   EXPECT_EQ(v.newest_label, "Newest in 2.1");
   EXPECT_EQ(v.newest, "2.1.8");
   EXPECT_TRUE(v.show_check);
-  EXPECT_TRUE(v.show_beta);
   EXPECT_EQ(v.verification_tone, UpdateTone::kGood);
   EXPECT_EQ(v.verification, "Verified · checked 5 minute(s) ago");
 
@@ -615,7 +610,7 @@ TEST(UpdatePresentationTest, ANewerBetaIsMentionedWhileBetasAreOff) {
   auto record = Verified();
   record.newer_beta = "v2.1.9-alpha.3";
   const auto v = PresentUpdate(Snapshot(Current(), record), kNow, Release());
-  EXPECT_EQ(v.newer_beta, "2.1.9-alpha.3, offered when beta versions are on");
+  EXPECT_EQ(v.newer_beta, "A newer beta, 2.1.9-alpha.3, is available");
 }
 
 TEST(UpdatePresentationTest, AnInPlaceUpdateIsVerifiedAfterDownload) {

@@ -762,7 +762,6 @@ auto PresentUpdate(const UpdateSnapshot& s, const QDateTime& now,
     v.verification =
         QCoreApplication::translate("UpdateTab", "Not checked yet");
   }
-  v.show_beta = !nightly && !untrusted;
 
   // This build.
   v.build_version = DisplayVersion(version);
@@ -831,8 +830,8 @@ auto PresentUpdate(const UpdateSnapshot& s, const QDateTime& now,
     }
   }
   if (record != nullptr && !nightly && !record->newer_beta.isEmpty()) {
-    v.newer_beta = QCoreApplication::translate(
-                       "UpdateTab", "%1, offered when beta versions are on")
+    v.newer_beta = QCoreApplication::translate("UpdateTab",
+                                               "A newer beta, %1, is available")
                        .arg(DisplayVersion(record->newer_beta));
   }
 
