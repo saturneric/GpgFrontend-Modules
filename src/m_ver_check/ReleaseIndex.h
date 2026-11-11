@@ -57,8 +57,8 @@ class QUrl;
  * descriptor is trusted through the
  * hash the index states for it, its files through the hashes the descriptor
  * states. A stable release is listed only after the release server checked
- * its maintainer's OpenPGP signatures and countersigned it; the client checks
- * minisign alone, never OpenPGP.
+ * its maintainer's OpenPGP signatures; the client checks the index's
+ * minisign signature alone, never OpenPGP.
  */
 
 /// The trust a build starts from: the newest root and index-keys list of
