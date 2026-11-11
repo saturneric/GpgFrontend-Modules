@@ -226,6 +226,11 @@ UpdateTab::UpdateTab(QWidget* parent)
   blocks->addWidget(build_column, 1);
   blocks->addWidget(offer_column_, 1);
 
+  // A beta the user did not ask for: the setting is in Settings > Updates.
+  beta_hint_ = PlainLabel({}, this);
+  beta_hint_->setForegroundRole(QPalette::PlaceholderText);
+  beta_hint_->hide();
+
   notes_ = new QTextBrowser(this);
   // Notes are text the release server signed, but a link in them is still
   // a link: it opens only to a host release/product.json allows, and never
@@ -247,15 +252,6 @@ UpdateTab::UpdateTab(QWidget* parent)
   full_notes_->hide();
   connect(full_notes_, &QLabel::linkActivated, this,
           &UpdateTab::show_full_notes);
-
-  // Only where it changes anything: the nightly identity follows its own
-  // channel (main's nightly, or a release branch's betas) either way.
-  beta_ = new QCheckBox(tr("Also offer beta versions"), this);
-  beta_->setToolTip(
-      tr("Test builds of the next fix release, before it is out. They are "
-         "less tested than releases."));
-  beta_->setChecked(FollowBetaSetting());
-  beta_->hide();
 
   // One short line on the update information; its details on request.
   status_icon_ = new QLabel(this);
@@ -300,9 +296,9 @@ UpdateTab::UpdateTab(QWidget* parent)
   layout->addLayout(header);
   layout->addSpacing(8);
   layout->addLayout(blocks);
+  layout->addWidget(beta_hint_);
   layout->addWidget(notes_);
   layout->addWidget(full_notes_, 0, Qt::AlignLeft);
-  layout->addWidget(beta_, 0, Qt::AlignLeft);
   layout->addSpacing(4);
   layout->addWidget(Separator(this));
   layout->addLayout(status_line);
@@ -329,15 +325,6 @@ UpdateTab::UpdateTab(QWidget* parent)
 
   connect(download_btn_, &QPushButton::clicked, this,
           &UpdateTab::on_main_button);
-
-  // Applies to the next check, and makes the last result stale: the page
-  // asks again at once where checking is allowed.
-  connect(beta_, &QCheckBox::clicked, this, [this](bool checked) {
-    SetFollowBetaSetting(checked);
-    if (!UpdateCheckProhibited() && !checker_.isNull()) {
-      checker_->Start(CheckMode::kIfStale);
-    }
-  });
 
   if (!checker_.isNull()) {
     connect(checker_, &UpdateChecker::Changed, this, [this] {
@@ -524,10 +511,8 @@ void UpdateTab::apply(const UpdateView& view) {
       offer_form_->addRow(tr("SHA-256"), hash);
     }
   }
-  if (!view.newer_beta.isEmpty()) {
-    (view.show_offer ? offer_form_ : build_form_)
-        ->addRow(tr("Beta"), PlainLabel(view.newer_beta, this));
-  }
+  beta_hint_->setText(view.newer_beta);
+  beta_hint_->setVisible(!view.newer_beta.isEmpty());
 
   notes_->setVisible(view.show_notes);
   full_notes_->hide();
@@ -538,8 +523,6 @@ void UpdateTab::apply(const UpdateView& view) {
   } else {
     notes_->clear();
   }
-
-  beta_->setVisible(view.show_beta && !checker_.isNull());
 
   const auto small = style()->pixelMetric(QStyle::PM_SmallIconSize);
   status_icon_->setPixmap(

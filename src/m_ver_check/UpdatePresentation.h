@@ -79,7 +79,9 @@ struct UpdateView {
   QString build_official;
   QString newest_label;  ///< "Newest in 2.2" when nothing is offered
   QString newest;        ///< "2.2.4"
-  QString newer_beta;    ///< a beta not offered while betas are off
+  /// "A newer beta, X, is available": a beta not offered while "Also offer
+  /// beta versions" (Settings > Updates) is off.
+  QString newer_beta;
 
   // "Offered"
   bool show_offer = false;
@@ -125,8 +127,6 @@ struct UpdateView {
   bool show_check = true;
   QString check_label;  ///< "Check now", "Check again" or "Checking…"
   bool check_enabled = true;
-  /// "Also offer beta versions": release builds that can check.
-  bool show_beta = false;
 
   bool show_notes = false;
   QString notes;  ///< markdown
