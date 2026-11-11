@@ -49,7 +49,8 @@
 /// reached), kError a refusal (update information that does not verify).
 enum class UpdateTone { kNeutral, kGood, kUpdate, kAttention, kError };
 
-/// One row of the update dialog's details.
+/// One row of the update dialog's details: "[mark] Title  result", then a
+/// secondary line of labelled facts.
 struct DetailRow {
   /// kNotChecked: shown, not checked (a download the browser fetches, a
   /// build without trust); kNone: what the release server checked, never
@@ -57,10 +58,10 @@ struct DetailRow {
   enum class Mark { kVerified, kFailed, kNotRun, kNotChecked, kNone };
   Mark mark = Mark::kNone;
   QString title;
-  QString value;          ///< in the secondary colour, after the title
-  QString mono;           ///< key ids, short hashes: in the fixed-width font
-  QString full;           ///< the full values behind `mono`, for its tooltip
-  QString copy;           ///< a value the row offers to copy, or empty
+  QString result;  ///< "Verified", "Not run", a failure's short reason
+  QString facts;   ///< "Version 1 (built in) · Valid until 2028-11-06"
+  /// Key ids and full hashes: the tooltip and the copied report only.
+  QString tip;
   bool download = false;  ///< the downloaded file's (PresentInstall())
 };
 
@@ -87,7 +88,7 @@ struct UpdateView {
   bool show_offer = false;
   QString offer_version;
   QString offer_file;    ///< the file's name; empty when not known
-  QString offer_size;    ///< "2.0 MiB"; empty when not known
+  QString offer_size;    ///< "118 MiB", "7.3 MiB"; empty when not known
   QString offer_sha256;  ///< full; shown shortened
 
   /// One short line: verified and when, or that it was not. Why not is the

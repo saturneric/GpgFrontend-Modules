@@ -46,9 +46,10 @@
 
 namespace {
 
-/// A date as the user's locale writes it.
+/// A date that reads one way only.
 auto Date(const QDateTime& t) -> QString {
-  return QLocale().toString(t.toLocalTime().date(), QLocale::ShortFormat);
+  // ISO: "11/6/28" reads three ways.
+  return t.toUTC().date().toString(Qt::ISODate);
 }
 
 /// Why @p step failed, as the end of a sentence ("... couldn't be verified:
@@ -170,24 +171,25 @@ auto ReasonShort(const CheckStep& step) -> QString {
   return {};
 }
 
-/// The row of a step: @p value (and @p mono, @p full) when it verified, its
-/// reason when it failed; nothing for a step that does not apply.
-auto StepRow(const CheckStep& step, const QString& title, const QString& value,
-             const QString& mono = {}, const QString& full = {})
-    -> std::optional<DetailRow> {
+/// The row of a step: "Verified" and @p facts when it verified, its reason
+/// when it failed; nothing for a step that does not apply.
+auto StepRow(const CheckStep& step, const QString& title, const QString& facts,
+             const QString& tip = {}) -> std::optional<DetailRow> {
   switch (step.status) {
     case StepStatus::kVerified:
-      return DetailRow{DetailRow::Mark::kVerified, title, value, mono, full};
-    case StepStatus::kFailed: {
-      auto why = ReasonShort(step);
-      // An HTTP status says something to whoever reads the report.
-      if (step.detail.startsWith(u"HTTP ")) {
-        why += QStringLiteral(" (%1)").arg(step.detail);
-      }
-      const auto key =
-          step.reason == StepReason::kKeyNotListed ? step.detail : QString();
-      return DetailRow{DetailRow::Mark::kFailed, title, why, key, key};
-    }
+      return DetailRow{DetailRow::Mark::kVerified, title,
+                       QCoreApplication::translate("UpdateTab", "Verified"),
+                       facts, tip};
+    case StepStatus::kFailed:
+      // An HTTP status says something to whoever reads the report; a key
+      // id is in the tooltip.
+      return DetailRow{
+          DetailRow::Mark::kFailed, title, ReasonShort(step),
+          step.detail.startsWith(u"HTTP ") ? step.detail : QString(),
+          step.reason == StepReason::kKeyNotListed
+              ? QCoreApplication::translate("UpdateTab", "Signed by %1")
+                    .arg(step.detail)
+              : QString()};
     case StepStatus::kNotRun:
       return DetailRow{DetailRow::Mark::kNotRun, title,
                        QCoreApplication::translate("UpdateTab", "Not run")};
@@ -197,61 +199,61 @@ auto StepRow(const CheckStep& step, const QString& title, const QString& value,
   return std::nullopt;
 }
 
+/// Facts as the secondary line shows them.
+auto Facts(const QStringList& facts) -> QString {
+  return facts.join(QStringLiteral(" · "));
+}
+
 /// The rows of what this device checked, from the last check's record, with
 /// @p file (the offer's download) in its place.
 auto DeviceRows(const UpdateSnapshot& s, const CheckRecord& r,
                 const std::optional<DetailRow>& file) -> QList<DetailRow> {
   QList<std::optional<DetailRow>> steps;
-  const auto sep = QStringLiteral(" · ");
 
   steps << StepRow(
       r.Step(CheckStepId::kRoot),
       QCoreApplication::translate("UpdateTab", "Root of trust"),
-      (r.root_version == r.root_built_in || !s.root_taken_at.isValid()
-           ? QCoreApplication::translate("UpdateTab", "Version %1, built in")
-                 .arg(r.root_version)
-           : QCoreApplication::translate(
-                 "UpdateTab", "Version %1, updated on %2 from version %3")
-                 .arg(r.root_version)
-                 .arg(Date(s.root_taken_at))
-                 .arg(r.root_built_in)) +
-          sep +
-          QCoreApplication::translate("UpdateTab", "valid until %1")
-              .arg(Date(r.root_expires)) +
-          sep +
-          QCoreApplication::translate("UpdateTab", "%1 of %2 root keys signed")
-              .arg(r.root_signers.size())
-              .arg(r.root_keys),
-      r.root_signers.join(u' '), r.root_signers.join(u'\n'));
+      Facts({r.root_version == r.root_built_in || !s.root_taken_at.isValid()
+                 ? QCoreApplication::translate("UpdateTab",
+                                               "Version %1 (built in)")
+                       .arg(r.root_version)
+                 : QCoreApplication::translate(
+                       "UpdateTab", "Version %1 (updated %2 from version %3)")
+                       .arg(r.root_version)
+                       .arg(Date(s.root_taken_at))
+                       .arg(r.root_built_in),
+             QCoreApplication::translate("UpdateTab", "Valid until %1")
+                 .arg(Date(r.root_expires)),
+             QCoreApplication::translate("UpdateTab",
+                                         "Signed by %1 of %2 root keys")
+                 .arg(r.root_signers.size())
+                 .arg(r.root_keys)}),
+      QCoreApplication::translate("UpdateTab", "Root keys: %1")
+          .arg(r.root_signers.join(QStringLiteral(", "))));
 
   steps << StepRow(
       r.Step(CheckStepId::kIndexKeys),
       QCoreApplication::translate("UpdateTab", "Signing key list"),
-      QCoreApplication::translate("UpdateTab", "Version %1")
-              .arg(r.list_version) +
-          sep +
-          QCoreApplication::translate("UpdateTab", "%n key(s)", "",
-                                      r.list_keys) +
-          sep +
-          QCoreApplication::translate("UpdateTab", "valid until %1")
-              .arg(Date(r.list_expires)) +
-          sep + QCoreApplication::translate("UpdateTab", "signed by"),
-      r.list_signer, r.list_signer);
+      Facts({QCoreApplication::translate("UpdateTab", "Version %1")
+                 .arg(r.list_version),
+             QCoreApplication::translate("UpdateTab", "%n key(s)", "",
+                                         r.list_keys),
+             QCoreApplication::translate("UpdateTab", "Valid until %1")
+                 .arg(Date(r.list_expires))}),
+      QCoreApplication::translate("UpdateTab", "Signed by %1")
+          .arg(r.list_signer));
 
   steps << StepRow(
       r.Step(CheckStepId::kIndex),
       QCoreApplication::translate("UpdateTab", "Update index"),
-      QCoreApplication::translate("UpdateTab", "Serial %1 from %2")
-              .arg(r.index_serial)
-              .arg(r.mirror) +
-          sep +
-          QCoreApplication::translate("UpdateTab",
-                                      "not older than any seen before") +
-          sep +
-          QCoreApplication::translate("UpdateTab", "valid until %1")
-              .arg(Date(r.index_expires)) +
-          sep + QCoreApplication::translate("UpdateTab", "signed by"),
-      r.index_key, r.index_key);
+      Facts({QCoreApplication::translate("UpdateTab", "Serial %1")
+                 .arg(r.index_serial),
+             r.mirror,
+             QCoreApplication::translate("UpdateTab", "Valid until %1")
+                 .arg(Date(r.index_expires)),
+             QCoreApplication::translate("UpdateTab", "No rollback")}),
+      QCoreApplication::translate("UpdateTab", "Signed by %1")
+          .arg(r.index_key));
 
   // The release details and its notes: one row, the worse of the two.
   const auto& descriptor = r.Step(CheckStepId::kDescriptor);
@@ -262,23 +264,28 @@ auto DeviceRows(const UpdateSnapshot& s, const CheckRecord& r,
                               descriptor.status == StepStatus::kNotRun
                           ? descriptor
                           : notes;
-  QStringList hashes{r.descriptor_sha256, r.notes_sha256};
-  hashes.removeAll(QString());
-  QStringList short_hashes;
-  for (const auto& hash : hashes) short_hashes << ShortHash(hash);
+  QStringList hashes;
+  if (!r.descriptor_sha256.isEmpty()) {
+    hashes << QCoreApplication::translate("UpdateTab", "Release details: %1")
+                  .arg(r.descriptor_sha256);
+  }
+  if (!r.notes_sha256.isEmpty()) {
+    hashes << QCoreApplication::translate("UpdateTab", "Release notes: %1")
+                  .arg(r.notes_sha256);
+  }
   steps << StepRow(
       worse,
       QCoreApplication::translate("UpdateTab", "Release details and notes"),
-      QCoreApplication::translate("UpdateTab", "Match the update index"),
-      short_hashes.join(u' '), hashes.join(u'\n'));
+      QCoreApplication::translate("UpdateTab",
+                                  "Match the hashes in the update index"),
+      hashes.join(u'\n'));
 
   steps << file;
 
-  steps << StepRow(
-      r.Step(CheckStepId::kCommit),
-      QCoreApplication::translate("UpdateTab", "Official build"),
-      QCoreApplication::translate("UpdateTab", "Commit marker confirmed by %1")
-          .arg(r.marker_base));
+  steps << StepRow(r.Step(CheckStepId::kCommit),
+                   QCoreApplication::translate("UpdateTab", "Official build"),
+                   QCoreApplication::translate("UpdateTab", "Confirmed by %1")
+                       .arg(r.marker_base));
 
   // After a failure, what came later is one row: it did not run, or it
   // describes a result this check did not produce.
@@ -300,6 +307,21 @@ auto DeviceRows(const UpdateSnapshot& s, const CheckRecord& r,
     rows << *row;
   }
   return rows;
+}
+
+/// A fingerprint as people read one out: in blocks of four.
+auto Grouped(const QString& fingerprint) -> QString {
+  QStringList blocks;
+  for (qsizetype i = 0; i < fingerprint.size(); i += 4) {
+    blocks << fingerprint.mid(i, 4);
+  }
+  return blocks.join(u' ');
+}
+
+/// "118 MiB" from 10 MiB up, "7.3 MiB" below.
+auto SizeText(qint64 bytes) -> QString {
+  return QLocale().formattedDataSize(bytes,
+                                     bytes >= 10LL * 1024 * 1024 ? 0 : 1);
 }
 
 /// The first step that failed to verify the update information: a release
@@ -389,12 +411,10 @@ auto PresentInstall(UpdateView view, const InstallState& install)
   DetailRow file{
       DetailRow::Mark::kNotRun,
       QCoreApplication::translate("UpdateTab", "Downloaded file"),
-      QCoreApplication::translate("UpdateTab",
-                                  "Checked against its size and SHA-256 "
-                                  "after download"),
-      ShortHash(view.download_sha256),
-      view.download_sha256,
-      view.download_sha256,
+      QCoreApplication::translate("UpdateTab", "Not run"),
+      QCoreApplication::translate(
+          "UpdateTab", "Checked against its size and SHA-256 after download"),
+      {},
       true};
 
   switch (install.stage) {
@@ -434,17 +454,18 @@ auto PresentInstall(UpdateView view, const InstallState& install)
       view.show_download = install.can_restart;
       view.check_enabled = false;
       file.mark = DetailRow::Mark::kVerified;
-      file.value = QCoreApplication::translate(
-                       "UpdateTab", "Size and SHA-256 matched after download") +
-                   QStringLiteral(" · ") +
-                   QLocale().formattedDataSize(view.download_size);
+      file.result = QCoreApplication::translate("UpdateTab", "Verified");
+      file.facts =
+          Facts({QCoreApplication::translate(
+                     "UpdateTab", "Size and SHA-256 matched after download"),
+                 SizeText(view.download_size)});
       break;
     case Stage::kFailed:
       view.notice = install.error;
       view.download_label =
           QCoreApplication::translate("UpdateTab", "Try again");
       file.mark = DetailRow::Mark::kFailed;
-      file.value = install.error;
+      file.result = install.error;
       break;
   }
   for (auto& row : view.device_rows) {
@@ -834,7 +855,7 @@ auto PresentUpdate(const UpdateSnapshot& s, const QDateTime& now,
       if (!v.download_url.isEmpty()) {
         v.offer_file = QUrl(v.download_url).fileName();
         if (v.download_size > 0) {
-          v.offer_size = QLocale().formattedDataSize(v.download_size);
+          v.offer_size = SizeText(v.download_size);
         }
         v.offer_sha256 = v.download_sha256;
       }
@@ -896,36 +917,44 @@ auto PresentUpdate(const UpdateSnapshot& s, const QDateTime& now,
   } else if (record != nullptr) {
     std::optional<DetailRow> file;
     if (v.show_download) {
-      file =
-          DetailRow{DetailRow::Mark::kNotChecked,
-                    QCoreApplication::translate("UpdateTab", "Downloaded file"),
-                    QCoreApplication::translate(
-                        "UpdateTab", "Not checked, opens in your browser"),
-                    ShortHash(v.download_sha256),
-                    v.download_sha256,
-                    v.download_sha256,
-                    true};
+      // The hash to compare it with is in the Offered block, once.
+      file = DetailRow{
+          DetailRow::Mark::kNotChecked,
+          QCoreApplication::translate("UpdateTab", "Downloaded file"),
+          QCoreApplication::translate("UpdateTab", "Not checked"),
+          QCoreApplication::translate(
+              "UpdateTab",
+              "Opens in your browser. Compare it with the SHA-256 above."),
+          {},
+          true};
     }
     v.device_rows = DeviceRows(s, *record, file);
 
+    // What the trusted root's host_policy names, as it names it.
     if (!record->repository.isEmpty()) {
-      QStringList built{record->repository, record->workflow};
+      QStringList built{record->repository, record->workflow.section(u'/', -1)};
       if (!nightly && v.show_offer) {
-        built << QCoreApplication::translate("UpdateTab", "tag v%1")
+        built << QCoreApplication::translate("UpdateTab", "Tag v%1")
                      .arg(v.offer_version);
       }
       built.removeAll(QString());
       v.host_rows << DetailRow{
           DetailRow::Mark::kNone,
           QCoreApplication::translate("UpdateTab", "Built by GitHub Actions"),
-          built.join(QStringLiteral(" · "))};
+          {},
+          Facts(built),
+          record->workflow};
       if (!nightly && !record->pgp_fingerprints.isEmpty()) {
+        QStringList grouped;
+        for (const auto& fpr : record->pgp_fingerprints) {
+          grouped << Grouped(fpr);
+        }
         v.host_rows << DetailRow{
             DetailRow::Mark::kNone,
             QCoreApplication::translate("UpdateTab",
                                         "Signed by the maintainer"),
             QCoreApplication::translate("UpdateTab", "OpenPGP"),
-            record->pgp_fingerprints.join(u' '),
+            grouped.join(QStringLiteral(" · ")),
             record->pgp_fingerprints.join(u'\n')};
         if (build.platform.os == u"windows" &&
             !record->authenticode_subject.isEmpty()) {
@@ -933,8 +962,8 @@ auto PresentUpdate(const UpdateSnapshot& s, const QDateTime& now,
               DetailRow::Mark::kNone,
               QCoreApplication::translate("UpdateTab",
                                           "Windows installers signed"),
-              QCoreApplication::translate("UpdateTab", "Authenticode, %1")
-                  .arg(record->authenticode_subject)};
+              QCoreApplication::translate("UpdateTab", "Authenticode"),
+              record->authenticode_subject};
         }
       }
       v.security_url =
@@ -948,6 +977,17 @@ auto PresentUpdate(const UpdateSnapshot& s, const QDateTime& now,
   if (!commit.isEmpty()) {
     v.report_head
         << QCoreApplication::translate("UpdateTab", "Commit %1").arg(commit);
+  }
+  if (v.show_offer) {
+    // The full hash, once, for comparing a download by hand.
+    QStringList offer{QCoreApplication::translate("UpdateTab", "Offered %1")
+                          .arg(v.offer_version),
+                      v.offer_file, v.offer_size,
+                      v.offer_sha256.isEmpty()
+                          ? QString()
+                          : QStringLiteral("SHA-256 %1").arg(v.offer_sha256)};
+    offer.removeAll(QString());
+    v.report_head << offer.join(QStringLiteral(" · "));
   }
   if (s.last_attempt.isValid()) {
     v.report_head << QCoreApplication::translate("UpdateTab", "Checked %1")
@@ -973,11 +1013,11 @@ auto ReportText(const UpdateView& view) -> QString {
     return {};
   };
   const auto text = [](const DetailRow& row) {
-    QStringList parts{row.value};
-    // The full values: the report is for comparing, not for reading.
-    const auto full = row.full.isEmpty() ? row.mono : row.full;
-    if (!full.isEmpty()) parts << QString(full).replace(u'\n', u' ');
-    return parts.join(u' ');
+    // Everything, key ids and full hashes too: the report is for comparing.
+    QStringList parts{row.result, row.facts, row.tip};
+    parts.removeAll(QString());
+    return parts.join(QStringLiteral(" · "))
+        .replace(u'\n', QStringLiteral(" · "));
   };
 
   QStringList out = view.report_head;
