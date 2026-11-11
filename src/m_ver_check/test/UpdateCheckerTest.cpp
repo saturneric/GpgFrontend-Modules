@@ -819,3 +819,12 @@ TEST(UpdateCheckerTest, AStoreFromBeforeTheRecordStillLoads) {
   EXPECT_FALSE(old.last_check);
   EXPECT_EQ(old.serial_floor, s.serial_floor);
 }
+
+TEST(UpdateCheckerTest, ABuildWithoutTrustSaysSoAndAsksNothing) {
+  Steps w;
+  w.trust = {};
+  const auto s = w.Check();
+  EXPECT_TRUE(w.mirrors.asked.isEmpty());
+  EXPECT_EQ(StepOf(s, CheckStepId::kRoot).reason, StepReason::kNoTrust);
+  EXPECT_EQ(StepOf(s, CheckStepId::kIndex).status, StepStatus::kNotRun);
+}

@@ -62,7 +62,7 @@ constexpr std::array<std::pair<StepStatus, const char*>, 4> kStatusNames = {{
     {StepStatus::kNotApplicable, "not_applicable"},
 }};
 
-constexpr std::array<std::pair<StepReason, const char*>, 12> kReasonNames = {{
+constexpr std::array<std::pair<StepReason, const char*>, 13> kReasonNames = {{
     {StepReason::kNone, ""},
     {StepReason::kUnreachable, "unreachable"},
     {StepReason::kBadSignature, "bad_signature"},
@@ -75,6 +75,7 @@ constexpr std::array<std::pair<StepReason, const char*>, 12> kReasonNames = {{
     {StepReason::kOversized, "oversized"},
     {StepReason::kMalformed, "malformed"},
     {StepReason::kNotFound, "not_found"},
+    {StepReason::kNoTrust, "no_trust"},
 }};
 
 auto TimeToJson(const QDateTime& t) -> QJsonValue {
@@ -358,6 +359,7 @@ void UpdateChecker::startIndex() {
   // Not built with a channel (a build of the modules on their own): nothing
   // can be verified, so nothing is claimed.
   if (!build_.channel.IsConfigured()) {
+    fail(CheckStepId::kRoot, StepReason::kNoTrust);
     finish();
     return;
   }
@@ -781,7 +783,7 @@ void UpdateChecker::finish() {
   state_.last_attempt = now;
   state_.last_attempt_failed = !IsUsable(fresh_);
   state_.last_good = Merge(state_.last_good, fresh_);
-  if (build_.channel.IsConfigured()) {
+  {
     // The trust held now, whatever this check took or was refused.
     record_.root_built_in = built_in_root_;
     if (root_) {

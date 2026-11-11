@@ -645,6 +645,11 @@ TEST(UpdatePresentationTest, EachFailureIsNamed) {
        {},
        2,
        "the update index could not be read"},
+      {CheckStepId::kRoot,
+       StepReason::kNoTrust,
+       {},
+       0,
+       "this build was made without a built-in root of trust"},
   };
   for (const auto& c : cases) {
     SCOPED_TRACE(c.says.toStdString());

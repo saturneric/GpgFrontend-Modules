@@ -67,6 +67,7 @@ enum class StepReason {
   kOversized,       ///< larger than any such answer may be
   kMalformed,       ///< signed, but not a readable index for this product
   kNotFound,        ///< no commit marker: not an official build
+  kNoTrust,         ///< built without an update channel: nothing to check
 };
 
 struct CheckStep {
