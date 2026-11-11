@@ -106,8 +106,9 @@ void AppImageInstaller::Start() {
 
   if (image_.isEmpty() || file_.size <= 0 || !IsSha256(file_.sha256) ||
       file_.url.scheme() != QLatin1String("https")) {
-    done(false, QCoreApplication::translate(
-                    "UpdateTab", "The update does not describe its file."));
+    emit Finished(false,
+                  QCoreApplication::translate(
+                      "UpdateTab", "The update does not describe its file."));
     return;
   }
 
@@ -137,10 +138,7 @@ void AppImageInstaller::Start() {
 }
 
 void AppImageInstaller::done(bool ok, const QString& error) {
-  if (save_ == nullptr) {
-    emit Finished(false, error);
-    return;
-  }
+  if (save_ == nullptr) return;  // finished already: a late callback
   QSaveFile* save = save_;
   save_ = nullptr;  // once: a late callback finds nothing to finish
 
