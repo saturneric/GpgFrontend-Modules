@@ -4,7 +4,7 @@
 <context>
     <name>ModuleVersionChecking</name>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="301"/>
+        <location filename="../VersionCheckingModule.cpp" line="316"/>
         <source>Check for Updates</source>
         <translation>Verifica aggiornamenti</translation>
     </message>
@@ -27,27 +27,37 @@
         <translation>Verifica automaticamente la presenza di aggiornamenti, una volta al giorno.</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="302"/>
+        <location filename="../VersionCheckingModule.cpp" line="279"/>
+        <source>Also offer beta versions</source>
+        <translation type="unfinished">Offri anche le versioni beta</translation>
+    </message>
+    <message>
+        <location filename="../VersionCheckingModule.cpp" line="281"/>
+        <source>Test builds of the next fix release, before it is out. They are less tested than releases.</source>
+        <translation type="unfinished">Build di test della prossima versione di correzione, prima che sia disponibile. Sono meno testate rispetto alle release.</translation>
+    </message>
+    <message>
+        <location filename="../VersionCheckingModule.cpp" line="317"/>
         <source>See whether a newer GpgFrontend is available</source>
         <translation>Verifica se è disponibile una versione più recente di GpgFrontend</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="311"/>
+        <location filename="../VersionCheckingModule.cpp" line="326"/>
         <source>A newer version is available</source>
         <translation>È disponibile una versione più recente</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="437"/>
+        <location filename="../VersionCheckingModule.cpp" line="452"/>
         <source>Check for updates</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="441"/>
+        <location filename="../VersionCheckingModule.cpp" line="456"/>
         <source>Updates</source>
         <translation>Aggiornamenti</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="441"/>
+        <location filename="../VersionCheckingModule.cpp" line="456"/>
         <source>update,version,check,github</source>
         <translation>update,version,check,github,aggiornamento,versione,verifica</translation>
     </message>
@@ -163,12 +173,12 @@
         <translation type="vanished">per scaricare l’ultima versione stabile.</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="465"/>
+        <location filename="../UpdatePresentation.cpp" line="486"/>
         <source>just now</source>
         <translation>poco fa</translation>
     </message>
     <message numerus="yes">
-        <location filename="../UpdatePresentation.cpp" line="469"/>
+        <location filename="../UpdatePresentation.cpp" line="490"/>
         <source>%n minute(s) ago</source>
         <translation>
             <numerusform>%n minuto fa
@@ -177,7 +187,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../UpdatePresentation.cpp" line="474"/>
+        <location filename="../UpdatePresentation.cpp" line="495"/>
         <source>%n hour(s) ago</source>
         <translation>
             <numerusform>%n ore fa</numerusform>
@@ -185,13 +195,13 @@
         </translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="546"/>
+        <location filename="../UpdatePresentation.cpp" line="584"/>
         <source>Checking for updates…</source>
         <translation>Verifica aggiornamenti in corso…</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="540"/>
-        <location filename="../UpdateTab.cpp" line="360"/>
+        <location filename="../UpdatePresentation.cpp" line="578"/>
+        <location filename="../UpdateTab.cpp" line="369"/>
         <source>Check now</source>
         <translation>Controlla ora</translation>
     </message>
@@ -200,8 +210,8 @@
         <translation type="vanished">Impossibile controllare gli aggiornamenti.</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="538"/>
-        <location filename="../UpdatePresentation.cpp" line="745"/>
+        <location filename="../UpdatePresentation.cpp" line="576"/>
+        <location filename="../UpdatePresentation.cpp" line="783"/>
         <source>Checking…</source>
         <translation>Verifica in corso…</translation>
     </message>
@@ -210,196 +220,188 @@
         <translation type="vanished">Per favore, riprova più tardi.</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="445"/>
+        <location filename="../UpdatePresentation.cpp" line="466"/>
         <source>Try again</source>
         <translation>Riprova</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="403"/>
+        <location filename="../UpdatePresentation.cpp" line="423"/>
         <source>Install update</source>
         <translation>Installa aggiornamento</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="60"/>
+        <location filename="../UpdatePresentation.cpp" line="61"/>
         <source>no update server answered</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="63"/>
+        <location filename="../UpdatePresentation.cpp" line="64"/>
         <source>the update index&apos;s signature is not valid</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="67"/>
+        <location filename="../UpdatePresentation.cpp" line="68"/>
         <source>the update index is signed by a key that is not trusted</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="73"/>
+        <location filename="../UpdatePresentation.cpp" line="74"/>
         <source>the root of trust expired on %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="78"/>
+        <location filename="../UpdatePresentation.cpp" line="79"/>
         <source>the signing key list expired on %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="82"/>
+        <location filename="../UpdatePresentation.cpp" line="83"/>
         <source>the update index expired on %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="86"/>
+        <location filename="../UpdatePresentation.cpp" line="87"/>
         <source>the update index is older than one seen before (serial %1, %2 seen before)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="93"/>
+        <location filename="../UpdatePresentation.cpp" line="94"/>
         <source>a newer root of trust could not be verified</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="96"/>
+        <location filename="../UpdatePresentation.cpp" line="97"/>
         <source>the signing key list could not be verified</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="100"/>
+        <location filename="../UpdatePresentation.cpp" line="101"/>
         <source>the release notes don&apos;t match the update index</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="103"/>
+        <location filename="../UpdatePresentation.cpp" line="104"/>
         <source>the release details don&apos;t match the update index</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="107"/>
+        <location filename="../UpdatePresentation.cpp" line="108"/>
         <source>an answer from the server was too large</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="110"/>
+        <location filename="../UpdatePresentation.cpp" line="111"/>
         <source>the update index could not be read</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="113"/>
+        <location filename="../UpdatePresentation.cpp" line="114"/>
         <source>this build&apos;s commit is not among the official builds</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="116"/>
+        <location filename="../UpdatePresentation.cpp" line="117"/>
         <source>this build was made without a built-in root of trust</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="135"/>
+        <location filename="../UpdatePresentation.cpp" line="136"/>
         <source>No server answered</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="137"/>
+        <location filename="../UpdatePresentation.cpp" line="138"/>
         <source>Signature not valid</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="139"/>
+        <location filename="../UpdatePresentation.cpp" line="140"/>
         <source>Signed by a key that isn&apos;t trusted</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="142"/>
+        <location filename="../UpdatePresentation.cpp" line="143"/>
         <source>Expired on %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="145"/>
+        <location filename="../UpdatePresentation.cpp" line="146"/>
         <source>Older than one seen before (serial %1, %2 seen)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="150"/>
+        <location filename="../UpdatePresentation.cpp" line="151"/>
         <source>A newer root didn&apos;t verify</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="153"/>
+        <location filename="../UpdatePresentation.cpp" line="154"/>
         <source>Didn&apos;t verify</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="155"/>
+        <location filename="../UpdatePresentation.cpp" line="156"/>
         <source>Doesn&apos;t match the update index</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="158"/>
+        <location filename="../UpdatePresentation.cpp" line="159"/>
         <source>Answer too large</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="160"/>
+        <location filename="../UpdatePresentation.cpp" line="161"/>
         <source>Not readable</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="162"/>
+        <location filename="../UpdatePresentation.cpp" line="163"/>
         <source>Not among the official builds</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="165"/>
-        <location filename="../UpdatePresentation.cpp" line="879"/>
+        <location filename="../UpdatePresentation.cpp" line="166"/>
+        <location filename="../UpdatePresentation.cpp" line="916"/>
         <source>Not included in this build</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="193"/>
+        <location filename="../UpdatePresentation.cpp" line="181"/>
+        <location filename="../UpdatePresentation.cpp" line="457"/>
+        <source>Verified</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="190"/>
+        <location filename="../UpdatePresentation.cpp" line="243"/>
+        <location filename="../UpdatePresentation.cpp" line="255"/>
+        <source>Signed by %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="195"/>
+        <location filename="../UpdatePresentation.cpp" line="414"/>
         <source>Not run</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="209"/>
-        <location filename="../UpdatePresentation.cpp" line="878"/>
+        <location filename="../UpdatePresentation.cpp" line="215"/>
+        <location filename="../UpdatePresentation.cpp" line="915"/>
         <source>Root of trust</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="211"/>
-        <source>Version %1, built in</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../UpdatePresentation.cpp" line="213"/>
-        <source>Version %1, updated on %2 from version %3</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../UpdatePresentation.cpp" line="219"/>
         <location filename="../UpdatePresentation.cpp" line="236"/>
-        <location filename="../UpdatePresentation.cpp" line="251"/>
-        <source>valid until %1</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../UpdatePresentation.cpp" line="222"/>
-        <source>%1 of %2 root keys signed</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../UpdatePresentation.cpp" line="229"/>
         <source>Signing key list</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="230"/>
+        <location filename="../UpdatePresentation.cpp" line="237"/>
         <source>Version %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message numerus="yes">
-        <location filename="../UpdatePresentation.cpp" line="233"/>
+        <location filename="../UpdatePresentation.cpp" line="239"/>
         <source>%n key(s)</source>
         <translation type="unfinished">
             <numerusform></numerusform>
@@ -407,404 +409,441 @@
         </translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="238"/>
-        <location filename="../UpdatePresentation.cpp" line="253"/>
-        <source>signed by</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../UpdatePresentation.cpp" line="243"/>
+        <location filename="../UpdatePresentation.cpp" line="248"/>
         <source>Update index</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="244"/>
-        <source>Serial %1 from %2</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../UpdatePresentation.cpp" line="248"/>
-        <source>not older than any seen before</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../UpdatePresentation.cpp" line="271"/>
+        <location filename="../UpdatePresentation.cpp" line="278"/>
         <source>Release details and notes</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="272"/>
-        <source>Match the update index</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../UpdatePresentation.cpp" line="279"/>
-        <location filename="../UpdateTab.cpp" line="501"/>
+        <location filename="../UpdatePresentation.cpp" line="286"/>
+        <location filename="../UpdateTab.cpp" line="484"/>
         <source>Official build</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="280"/>
-        <source>Commit marker confirmed by %1</source>
+        <location filename="../UpdatePresentation.cpp" line="217"/>
+        <source>Version %1 (built in)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="294"/>
+        <location filename="../UpdatePresentation.cpp" line="220"/>
+        <source>Version %1 (updated %2 from version %3)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="225"/>
+        <location filename="../UpdatePresentation.cpp" line="241"/>
+        <location filename="../UpdatePresentation.cpp" line="252"/>
+        <source>Valid until %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="227"/>
+        <source>Signed by %1 of %2 root keys</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="231"/>
+        <source>Root keys: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="249"/>
+        <source>Serial %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="254"/>
+        <source>No rollback</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="269"/>
+        <source>Release details: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="273"/>
+        <source>Release notes: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="279"/>
+        <source>Match the hashes in the update index</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="287"/>
+        <source>Confirmed by %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="301"/>
         <source>Later steps not run</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="327"/>
+        <location filename="../UpdatePresentation.cpp" line="349"/>
         <source>stable</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="330"/>
+        <location filename="../UpdatePresentation.cpp" line="352"/>
         <source>mainline</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="333"/>
+        <location filename="../UpdatePresentation.cpp" line="355"/>
         <source>security fixes only</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="336"/>
+        <location filename="../UpdatePresentation.cpp" line="358"/>
         <source>end of life</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="345"/>
+        <location filename="../UpdatePresentation.cpp" line="367"/>
         <source>the Microsoft Store</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="348"/>
+        <location filename="../UpdatePresentation.cpp" line="370"/>
         <source>the Mac App Store</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="351"/>
+        <location filename="../UpdatePresentation.cpp" line="373"/>
         <source>Flatpak</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="354"/>
+        <location filename="../UpdatePresentation.cpp" line="376"/>
         <source>your distribution&apos;s packages</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="358"/>
+        <location filename="../UpdatePresentation.cpp" line="380"/>
         <source>the store it was installed from</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="391"/>
-        <location filename="../UpdatePresentation.cpp" line="885"/>
+        <location filename="../UpdatePresentation.cpp" line="413"/>
+        <location filename="../UpdatePresentation.cpp" line="923"/>
         <source>Downloaded file</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="392"/>
+        <location filename="../UpdatePresentation.cpp" line="415"/>
         <source>Checked against its size and SHA-256 after download</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="412"/>
+        <location filename="../UpdatePresentation.cpp" line="432"/>
         <source>Downloading… %1%</source>
         <translation>Download in corso… %1%</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="420"/>
+        <location filename="../UpdatePresentation.cpp" line="440"/>
         <source>Nightly build %1 is installed</source>
         <translation>La build notturna %1 è installata</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="425"/>
+        <location filename="../UpdatePresentation.cpp" line="445"/>
         <source>Restart GpgFrontend to start using it.</source>
         <translation>Riavvia GpgFrontend per iniziare a usarlo.</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="427"/>
+        <location filename="../UpdatePresentation.cpp" line="447"/>
         <source>Close and reopen GpgFrontend to start using it.</source>
         <translation>Chiudi e riapri GpgFrontend per iniziare a usarlo.</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="433"/>
+        <location filename="../UpdatePresentation.cpp" line="453"/>
         <source>Restart now</source>
         <translation>Riavvia ora</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="437"/>
+        <location filename="../UpdatePresentation.cpp" line="459"/>
         <source>Size and SHA-256 matched after download</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="485"/>
+        <location filename="../UpdatePresentation.cpp" line="506"/>
         <source>The %1 series gets security fixes only, until %2. GpgFrontend %3 is the current release.</source>
         <translation>La serie %1 riceve solo correzioni di sicurezza, fino a %2. GpgFrontend %3 è la versione corrente.</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="490"/>
+        <location filename="../UpdatePresentation.cpp" line="511"/>
         <source>The %1 series gets security fixes only, until %2.</source>
         <translation>La serie %1 riceve solo correzioni di sicurezza fino a %2.</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="496"/>
+        <location filename="../UpdatePresentation.cpp" line="517"/>
         <source>The %1 series no longer gets fixes. GpgFrontend %2 is the current release.</source>
         <translation>La serie %1 non riceve più correzioni. GpgFrontend %2 è la versione corrente.</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="501"/>
+        <location filename="../UpdatePresentation.cpp" line="522"/>
         <source>The %1 series no longer gets fixes, and the current release does not run on this system.</source>
         <translation>La serie %1 non riceve più correzioni e la versione corrente non funziona su questo sistema.</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="550"/>
-        <location filename="../UpdatePresentation.cpp" line="660"/>
+        <location filename="../UpdatePresentation.cpp" line="588"/>
+        <location filename="../UpdatePresentation.cpp" line="698"/>
         <source>Couldn&apos;t reach the update server</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="552"/>
+        <location filename="../UpdatePresentation.cpp" line="590"/>
         <source>No update server answered.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="556"/>
+        <location filename="../UpdatePresentation.cpp" line="594"/>
         <source>No update information yet</source>
         <translation>Nessuna informazione sull&apos;aggiornamento disponibile al momento.</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="557"/>
+        <location filename="../UpdatePresentation.cpp" line="595"/>
         <source>Check now to see whether a newer GpgFrontend is available.</source>
         <translation>Verifica ora se è disponibile una versione più recente di GpgFrontend.</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="574"/>
+        <location filename="../UpdatePresentation.cpp" line="612"/>
         <source>Nightly build %1 is available</source>
         <translation>È disponibile la build notturna %1</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="577"/>
+        <location filename="../UpdatePresentation.cpp" line="615"/>
         <source>GpgFrontend %1 is available</source>
         <translation>GpgFrontend %1 è disponibile.</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="580"/>
+        <location filename="../UpdatePresentation.cpp" line="618"/>
         <source>You are using %1.</source>
         <translation>Stai usando %1.</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="603"/>
+        <location filename="../UpdatePresentation.cpp" line="641"/>
         <source>Move to the newest nightly build.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="607"/>
+        <location filename="../UpdatePresentation.cpp" line="645"/>
         <source>This version has been withdrawn</source>
         <translation>Questa versione è stata ritirata</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="609"/>
+        <location filename="../UpdatePresentation.cpp" line="647"/>
         <source>Move to the latest release of its series.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="707"/>
+        <location filename="../UpdatePresentation.cpp" line="745"/>
         <source>Updates aren&apos;t available for this build</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="709"/>
+        <location filename="../UpdatePresentation.cpp" line="747"/>
         <source>It was built without the release trust files. Official builds include them and check for updates automatically.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="719"/>
+        <location filename="../UpdatePresentation.cpp" line="757"/>
         <source>Update information couldn&apos;t be verified</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="724"/>
+        <location filename="../UpdatePresentation.cpp" line="762"/>
         <source>Update information couldn&apos;t be verified: %1.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="728"/>
+        <location filename="../UpdatePresentation.cpp" line="766"/>
         <source>Showing the result from %1.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="734"/>
+        <location filename="../UpdatePresentation.cpp" line="772"/>
         <source>Couldn&apos;t reach the update server. Showing the result from %1.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="743"/>
-        <location filename="../UpdatePresentation.cpp" line="779"/>
+        <location filename="../UpdatePresentation.cpp" line="781"/>
+        <location filename="../UpdatePresentation.cpp" line="816"/>
+        <location filename="../UpdatePresentation.cpp" line="924"/>
         <source>Not checked</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="749"/>
+        <location filename="../UpdatePresentation.cpp" line="787"/>
         <source>Not verified · checked %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="753"/>
+        <location filename="../UpdatePresentation.cpp" line="791"/>
         <source>Server not reached · checked %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="759"/>
+        <location filename="../UpdatePresentation.cpp" line="797"/>
         <source>Verified · checked %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="763"/>
+        <location filename="../UpdatePresentation.cpp" line="801"/>
         <source>Not checked yet</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="772"/>
+        <location filename="../UpdatePresentation.cpp" line="809"/>
         <source>Nightly</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="774"/>
+        <location filename="../UpdatePresentation.cpp" line="811"/>
         <source>Release · series %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="776"/>
+        <location filename="../UpdatePresentation.cpp" line="813"/>
         <source>Release · series %1 (%2)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="783"/>
+        <location filename="../UpdatePresentation.cpp" line="820"/>
         <source>Yes</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="786"/>
+        <location filename="../UpdatePresentation.cpp" line="823"/>
         <source>No, not from the official repository</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="791"/>
+        <location filename="../UpdatePresentation.cpp" line="828"/>
         <source>Not confirmed</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="803"/>
+        <location filename="../UpdatePresentation.cpp" line="840"/>
         <source>Move to %1, the newest version.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="827"/>
+        <location filename="../UpdatePresentation.cpp" line="864"/>
         <source>Newest nightly</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="828"/>
+        <location filename="../UpdatePresentation.cpp" line="865"/>
         <source>Newest in %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="834"/>
-        <source>%1, offered when beta versions are on</source>
+        <location filename="../UpdatePresentation.cpp" line="871"/>
+        <source>A newer beta, %1, is available</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="845"/>
-        <source>Updates for this build come from %1.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../UpdatePresentation.cpp" line="862"/>
-        <source>GpgFrontend %1 does not support this system.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../UpdatePresentation.cpp" line="866"/>
-        <source>GpgFrontend %1 needs %2 or later, which this system doesn&apos;t have or couldn&apos;t confirm.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../UpdatePresentation.cpp" line="886"/>
-        <source>Not checked, opens in your browser</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../UpdatePresentation.cpp" line="898"/>
-        <source>tag v%1</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../UpdatePresentation.cpp" line="904"/>
-        <source>Built by GitHub Actions</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../UpdatePresentation.cpp" line="909"/>
-        <source>Signed by the maintainer</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../UpdatePresentation.cpp" line="911"/>
-        <source>OpenPGP</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../UpdatePresentation.cpp" line="918"/>
-        <source>Windows installers signed</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../UpdatePresentation.cpp" line="920"/>
-        <source>Authenticode, %1</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../UpdatePresentation.cpp" line="934"/>
-        <source>Commit %1</source>
+        <location filename="../UpdatePresentation.cpp" line="925"/>
+        <source>Opens in your browser. Compare it with the SHA-256 above.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../UpdatePresentation.cpp" line="937"/>
+        <source>Tag v%1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="965"/>
+        <source>Authenticode</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="882"/>
+        <source>Updates for this build come from %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="899"/>
+        <source>GpgFrontend %1 does not support this system.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="903"/>
+        <source>GpgFrontend %1 needs %2 or later, which this system doesn&apos;t have or couldn&apos;t confirm.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="943"/>
+        <source>Built by GitHub Actions</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="954"/>
+        <source>Signed by the maintainer</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="956"/>
+        <source>OpenPGP</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="963"/>
+        <source>Windows installers signed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="979"/>
+        <source>Commit %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="983"/>
+        <source>Offered %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="993"/>
         <source>Checked %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="947"/>
+        <location filename="../UpdatePresentation.cpp" line="1003"/>
         <source>verified</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="949"/>
+        <location filename="../UpdatePresentation.cpp" line="1005"/>
         <source>failed</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="951"/>
+        <location filename="../UpdatePresentation.cpp" line="1007"/>
         <source>not run</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="953"/>
+        <location filename="../UpdatePresentation.cpp" line="1009"/>
         <source>not checked</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="971"/>
-        <location filename="../UpdateTab.cpp" line="602"/>
+        <location filename="../UpdatePresentation.cpp" line="1027"/>
+        <location filename="../UpdateTab.cpp" line="588"/>
         <source>Checked on this device</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="978"/>
-        <location filename="../UpdateTab.cpp" line="606"/>
+        <location filename="../UpdatePresentation.cpp" line="1034"/>
+        <location filename="../UpdateTab.cpp" line="592"/>
         <source>Checked by the release server</source>
         <translation type="unfinished"></translation>
     </message>
@@ -821,14 +860,14 @@
         <translation type="vanished">Scarica %1</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="585"/>
-        <location filename="../UpdatePresentation.cpp" line="808"/>
-        <location filename="../UpdatePresentation.cpp" line="857"/>
+        <location filename="../UpdatePresentation.cpp" line="623"/>
+        <location filename="../UpdatePresentation.cpp" line="845"/>
+        <location filename="../UpdatePresentation.cpp" line="894"/>
         <source>Download</source>
         <translation>Scarica</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="601"/>
+        <location filename="../UpdatePresentation.cpp" line="639"/>
         <source>This nightly build has been withdrawn</source>
         <translation>Questa build notturna è stata ritirata</translation>
     </message>
@@ -845,47 +884,47 @@
         <translation type="vanished">Potrebbe essere una build di pre-rilascio o una versione ritirata. Si consiglia l&apos;ultima versione ufficiale.</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="614"/>
+        <location filename="../UpdatePresentation.cpp" line="652"/>
         <source>This build isn&apos;t from the official repository</source>
         <translation>Questa build non proviene dal repository ufficiale</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="617"/>
+        <location filename="../UpdatePresentation.cpp" line="655"/>
         <source>Its source commit isn&apos;t among the published builds. That is expected for self-built or modified versions.</source>
         <translation>Il suo commit di origine non è tra le build pubblicate. È normale per le versioni compilate autonomamente o modificate.</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="622"/>
+        <location filename="../UpdatePresentation.cpp" line="660"/>
         <source>Its source commit wasn&apos;t found upstream. That is expected for self-built or modified versions.</source>
         <translation>Il suo commit sorgente non è stato trovato upstream. Ciò è previsto per versioni auto-compilate o modificate.</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="631"/>
+        <location filename="../UpdatePresentation.cpp" line="669"/>
         <source>This is a release branch build</source>
         <translation>Questa è una build del ramo di rilascio</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="633"/>
+        <location filename="../UpdatePresentation.cpp" line="671"/>
         <source>%1 is a test build of a fix release. It is not offered updates; install the release when it is out.</source>
         <translation>%1 è una build di test di una versione correttiva. Non riceve aggiornamenti; installa la versione quando sarà disponibile.</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="642"/>
+        <location filename="../UpdatePresentation.cpp" line="680"/>
         <source>You&apos;re up to date</source>
         <translation>Sei aggiornato</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="644"/>
+        <location filename="../UpdatePresentation.cpp" line="682"/>
         <source>%1 is the newest nightly build.</source>
         <translation>%1 è la build notturna più recente.</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="649"/>
+        <location filename="../UpdatePresentation.cpp" line="687"/>
         <source>%1 is the latest release.</source>
         <translation>%1 è l&apos;ultima versione.</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="652"/>
+        <location filename="../UpdatePresentation.cpp" line="690"/>
         <source>No newer release was found for %1.</source>
         <translation>Nessuna versione più recente trovata per %1.</translation>
     </message>
@@ -902,108 +941,105 @@
         <translation type="vanished">Impossibile controllare gli aggiornamenti in questo momento. Viene mostrato l&apos;ultimo risultato noto.</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="541"/>
+        <location filename="../UpdatePresentation.cpp" line="579"/>
         <source>Check again</source>
         <translation>Controlla di nuovo</translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="93"/>
+        <location filename="../UpdateTab.cpp" line="129"/>
         <source>Copy</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="208"/>
+        <location filename="../UpdateTab.cpp" line="137"/>
+        <source>Copied</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../UpdateTab.cpp" line="234"/>
         <source>This build</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="220"/>
+        <location filename="../UpdateTab.cpp" line="246"/>
         <source>Offered</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="245"/>
-        <source>Full release notes</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../UpdateTab.cpp" line="253"/>
         <source>Also offer beta versions</source>
-        <translation>Offri anche le versioni beta</translation>
+        <translation type="vanished">Offri anche le versioni beta</translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="255"/>
         <source>Test builds of the next fix release, before it is out. They are less tested than releases.</source>
-        <translation>Build di test della prossima versione di correzione, prima che sia disponibile. Sono meno testate rispetto alle release.</translation>
+        <translation type="vanished">Build di test della prossima versione di correzione, prima che sia disponibile. Sono meno testate rispetto alle release.</translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="264"/>
+        <location filename="../UpdateTab.cpp" line="284"/>
         <source>Details</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="278"/>
+        <location filename="../UpdateTab.cpp" line="297"/>
         <source>Copy report</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="284"/>
+        <location filename="../UpdateTab.cpp" line="303"/>
         <source>Close</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="463"/>
         <source>Release notes</source>
-        <translation>Note di rilascio</translation>
+        <translation type="vanished">Note di rilascio</translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="495"/>
-        <location filename="../UpdateTab.cpp" line="510"/>
+        <location filename="../UpdateTab.cpp" line="478"/>
+        <location filename="../UpdateTab.cpp" line="493"/>
         <source>Version</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="496"/>
+        <location filename="../UpdateTab.cpp" line="479"/>
         <source>Type</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="498"/>
+        <location filename="../UpdateTab.cpp" line="481"/>
         <source>Commit</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="512"/>
+        <location filename="../UpdateTab.cpp" line="503"/>
         <source>File</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="516"/>
+        <location filename="../UpdateTab.cpp" line="506"/>
         <source>Size</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="524"/>
+        <location filename="../UpdateTab.cpp" line="512"/>
+        <source>Copy SHA-256</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../UpdateTab.cpp" line="514"/>
         <source>SHA-256</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="529"/>
-        <source>Beta</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../UpdateTab.cpp" line="597"/>
+        <location filename="../UpdateTab.cpp" line="583"/>
         <source>The details appear after the next check.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="612"/>
+        <location filename="../UpdateTab.cpp" line="599"/>
         <source>How to verify the download yourself</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="358"/>
+        <location filename="../UpdateTab.cpp" line="367"/>
         <source>Update checking is unavailable</source>
         <translation>Il controllo degli aggiornamenti non è disponibile.</translation>
     </message>
