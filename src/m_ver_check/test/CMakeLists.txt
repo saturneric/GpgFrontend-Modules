@@ -51,6 +51,7 @@ add_executable(gf_mod_ver_check_test
   ${CMAKE_CURRENT_SOURCE_DIR}/../Minisign.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../ReleaseCheck.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../ReleaseIndex.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/../RootTrust.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../SemVer.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../SoftwareVersion.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../UpdateChecker.cpp

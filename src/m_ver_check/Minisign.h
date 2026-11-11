@@ -51,3 +51,13 @@
 /// nullopt for anything else: another key, other bytes, a malformed file.
 auto MinisignVerify(const QStringList& public_keys, const QByteArray& message,
                     const QByteArray& signature_file) -> std::optional<QString>;
+
+/// The key id of a prehashed ("ED") signature, as minisign prints it and the
+/// trust files spell it: 16 upper-case hex digits. Empty for a legacy ("Ed")
+/// signature, or anything that is not a signature: what the update trust
+/// accepts is prehashed only.
+auto MinisignSignatureKeyId(const QByteArray& signature_file) -> QString;
+
+/// The key id of a public key (the base64 line of a .pub), spelled as above;
+/// empty when it is not one.
+auto MinisignPublicKeyId(const QString& public_key) -> QString;

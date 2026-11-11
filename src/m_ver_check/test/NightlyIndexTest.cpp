@@ -159,6 +159,17 @@ TEST(MinisignTest, EverythingElseIsRefused) {
   EXPECT_FALSE(MinisignVerify({"not base64!"}, kToolMessage, kToolSignature));
 }
 
+TEST(MinisignTest, KeyIdsAreTheToolsAndOnlyPrehashedSignaturesHaveOne) {
+  const auto id = MinisignPublicKeyId(kToolKey);
+  EXPECT_EQ(id.size(), 16);
+  EXPECT_EQ(id, id.toUpper());
+  EXPECT_EQ(MinisignSignatureKeyId(kToolSignature), id);
+  // The update trust takes prehashed signatures only.
+  EXPECT_TRUE(MinisignSignatureKeyId(kToolLegacySignature).isEmpty());
+  EXPECT_TRUE(MinisignSignatureKeyId("garbage").isEmpty());
+  EXPECT_TRUE(MinisignPublicKeyId("not a key").isEmpty());
+}
+
 TEST(MinisignTest, TheTestSignerSignsAsTheToolDoes) {
   Signer s;
   const auto sig = s.Sign("data", "hello");
