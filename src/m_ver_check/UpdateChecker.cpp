@@ -230,7 +230,7 @@ void UpdateChecker::fail(CheckStepId id, StepReason reason,
 
 void UpdateChecker::failFetch(CheckStepId id, int status, bool oversized,
                               StepReason refused) {
-  if (oversized) {
+  if (oversized || status == kStatusOversized) {
     fail(id, StepReason::kOversized);
   } else if (status == 0) {
     fail(id, StepReason::kUnreachable);
@@ -912,10 +912,14 @@ auto AttentionFor(const UpdateSnapshot& s, const QDateTime& now)
     return UpdateAttention::kNone;
   }
   // A nightly's channel moves with every push: after one offer was seen, the
-  // next waits a day. The dialog still shows the newest whenever opened.
-  if (now.isValid() && s.last_seen_at.isValid() && s.last_good->nightly &&
-      s.last_seen_at.secsTo(now) < kNightlyQuietSeconds) {
-    return UpdateAttention::kNone;
+  // next waits a day. The dialog still shows the newest whenever opened. One
+  // seen "in the future" was seen under a clock that was ahead: how long ago
+  // cannot be told, and it keeps nothing quiet for ever (as IsFresh()).
+  if (now.isValid() && s.last_seen_at.isValid() && s.last_good->nightly) {
+    const auto since = s.last_seen_at.secsTo(now);
+    if (since >= 0 && since < kNightlyQuietSeconds) {
+      return UpdateAttention::kNone;
+    }
   }
   return UpdateAttention::kUpdateAvailable;
 }

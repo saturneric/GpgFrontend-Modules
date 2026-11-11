@@ -597,6 +597,25 @@ TEST(NightlyCheckTest, AReleaseBuildBadgeIsNotHeldBack) {
   EXPECT_EQ(AttentionFor(s, kNow), UpdateAttention::kUpdateAvailable);
 }
 
+TEST(NightlyCheckTest, AnOfferSeenUnderAClockAheadIsNotQuietForEver) {
+  UpdateSnapshot s;
+  SoftwareVersion r;
+  r.current_version = "v2.3.0-alpha.5";
+  r.nightly = true;
+  r.list.outcome = ListOutcome::kFound;
+  r.list.latest.version = "v2.3.0-alpha.9";
+  r.tag_fact = RemoteFact::kConfirmed;
+  r.commit_fact = RemoteFact::kConfirmed;
+  s.last_good = r;
+  s.last_seen_update_version = "v2.3.0-alpha.7";
+  s.last_seen_at = kNow.addSecs(-3600);  // an hour ago: quiet
+  EXPECT_EQ(AttentionFor(s, kNow), UpdateAttention::kNone);
+  // Seen "in a month": a clock that was ahead then. How long ago cannot be
+  // told, and the badge is not held back until that date comes.
+  s.last_seen_at = kNow.addDays(30);
+  EXPECT_EQ(AttentionFor(s, kNow), UpdateAttention::kUpdateAvailable);
+}
+
 // ------------------------------------------------------------- downloads
 
 namespace {

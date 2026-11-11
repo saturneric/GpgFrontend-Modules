@@ -191,7 +191,9 @@ class UpdateChecker : public QObject {
   Q_OBJECT
 
  public:
-  /// Answers a GET: the HTTP status (0 when there was none) and the body.
+  /// Answers a GET: the HTTP status (0 when there was none,
+  /// kStatusOversized when the body grew past kMaxFetchBytes and was cut
+  /// off) and the body.
   using Reply = std::function<void(int http_status, const QByteArray& body)>;
   using Fetcher = std::function<void(const QUrl& url, Reply reply)>;
   using Clock = std::function<QDateTime()>;
@@ -230,6 +232,9 @@ class UpdateChecker : public QObject {
   /// larger body whatever transport it was handed. The host refuses to
   /// publish anything larger (gfrelease's SMALL_OBJECT_LIMIT).
   static constexpr qsizetype kMaxFetchBytes = 8 * 1024 * 1024;
+  /// The status a Fetcher answers with when it stopped reading at
+  /// kMaxFetchBytes: an answer too large, not one that never came.
+  static constexpr int kStatusOversized = -1;
 
   UpdateChecker(Build build, Fetcher fetch, Store store, Clock clock = {},
                 QObject* parent = nullptr);
