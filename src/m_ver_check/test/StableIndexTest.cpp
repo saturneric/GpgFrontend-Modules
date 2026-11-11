@@ -783,7 +783,7 @@ TEST(StableCheckTest, ANewerReleaseIsOfferedWithItsFileAndNotes) {
   EXPECT_EQ(view.download_url, r.list.latest.html_url);
   EXPECT_FALSE(view.installable);  // a stable release is not put in place
   EXPECT_TRUE(view.show_notes);
-  EXPECT_TRUE(view.freshness.contains("Signed update index"));
+  EXPECT_TRUE(view.verification.startsWith("Update information verified"));
 }
 
 TEST(StableCheckTest, TheLatestReleaseIsUpToDate) {
