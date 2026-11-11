@@ -112,6 +112,9 @@ auto ReasonText(CheckStepId id, const CheckStep& step) -> QString {
     case StepReason::kNotFound:
       return QCoreApplication::translate(
           "UpdateTab", "this build's commit is not among the official builds");
+    case StepReason::kNoTrust:
+      return QCoreApplication::translate(
+          "UpdateTab", "this build was made without a built-in root of trust");
     case StepReason::kNone:
       break;
   }
