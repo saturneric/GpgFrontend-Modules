@@ -215,6 +215,10 @@ struct ChannelChoice {
   /// has no beta: it is offered nothing, rather than a jump to another
   /// series.
   bool other_series = false;
+  /// For a release build that does not follow betas: the beta it would be
+  /// offered if it did (newer than it runs and than the series' latest);
+  /// empty otherwise.
+  QString newer_beta;
 };
 
 /**

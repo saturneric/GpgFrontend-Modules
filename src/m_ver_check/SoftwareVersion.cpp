@@ -57,7 +57,6 @@ auto SoftwareVersion::SameBuild(const QString& version,
 auto SoftwareVersion::ToJson() const -> QJsonObject {
   QJsonObject latest;
   latest["version"] = list.latest.version;
-  latest["published_at"] = list.latest.published_at;
   latest["notes"] = list.latest.notes;
   latest["html_url"] = list.latest.html_url;
   if (!list.latest.download_sha256.isEmpty()) {  // additive
@@ -104,7 +103,6 @@ auto SoftwareVersion::FromJson(const QJsonObject& obj)
 
   const auto latest = obj.value("latest").toObject();
   sv.list.latest.version = latest.value("version").toString();
-  sv.list.latest.published_at = latest.value("published_at").toString();
   sv.list.latest.notes = latest.value("notes").toString();
   sv.list.latest.html_url = latest.value("html_url").toString();
   sv.list.latest.download_sha256 = latest.value("download_sha256").toString();

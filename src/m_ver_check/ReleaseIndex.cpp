@@ -308,7 +308,6 @@ auto ChooseUpdate(const IndexFacts& facts, const QString& current, bool nightly,
   const auto found = [&](const QString& version) {
     choice.list.outcome = ListOutcome::kFound;
     choice.list.latest.version = version;
-    choice.list.latest.published_at = facts.generated_at.toString(Qt::ISODate);
   };
 
   // The series this build is of: its beta, and its releases.
@@ -340,13 +339,14 @@ auto ChooseUpdate(const IndexFacts& facts, const QString& current, bool nightly,
     return choice;
   }
 
-  // Asked for: its series' beta, when newer than what this build runs and
-  // than the release it would be offered otherwise.
-  if (follow_beta && !series.beta.isEmpty() &&
-      SemVerCompare(series.beta, current) > 0 &&
+  // Its series' beta, when newer than what this build runs and than the
+  // release it would be offered otherwise: offered when asked for, named
+  // otherwise.
+  if (!series.beta.isEmpty() && SemVerCompare(series.beta, current) > 0 &&
       (series.latest.isEmpty() ||
        SemVerCompare(series.beta, series.latest) > 0)) {
-    return offer_beta();
+    if (follow_beta) return offer_beta();
+    choice.newer_beta = series.beta;
   }
   if (series.latest.isEmpty()) return choice;
   found(series.latest);
