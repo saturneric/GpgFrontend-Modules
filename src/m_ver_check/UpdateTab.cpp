@@ -291,8 +291,8 @@ void UpdateTab::apply(const UpdateView& view) {
   detail_->setVisible(!view.detail.isEmpty());
   notice_->setText(view.notice);
   notice_->setVisible(!view.notice.isEmpty());
-  freshness_->setText(view.freshness);
-  freshness_->setVisible(!view.freshness.isEmpty());
+  freshness_->setText(view.verification);
+  freshness_->setVisible(!view.verification.isEmpty());
 
   check_btn_->setText(view.check_label);
   check_btn_->setEnabled(view.check_enabled);

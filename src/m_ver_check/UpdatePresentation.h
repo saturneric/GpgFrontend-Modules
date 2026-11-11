@@ -39,21 +39,57 @@
  * @brief What the update dialog shows, decided without a widget.
  *
  * The checker keeps a precise model; the user gets a headline, a line of
- * detail and at most two buttons. Failure wording stays generic: the cause of
- * a failed request (offline, a mirror down, a server error) is not known for
- * certain, so it is not guessed.
+ * detail, at most two buttons, and on request the steps of the last check.
+ * A request that got no answer is not guessed at (offline, a mirror down, a
+ * server error); a refusal (a bad signature, a rollback) is named.
  */
 
 /// kUpdate is good news (a newer version); kAttention is something wrong
 /// with this one (withdrawn, unofficial).
 enum class UpdateTone { kNeutral, kGood, kUpdate, kAttention };
 
+/// One row of the update dialog's details.
+struct DetailRow {
+  /// kInfo: shown, not checked (a download the browser fetches); kNone: a
+  /// row about what the release server checked, never this device.
+  enum class Mark { kVerified, kFailed, kNotRun, kNotApplicable, kInfo, kNone };
+  Mark mark = Mark::kNone;
+  QString title;
+  QStringList lines;
+  QString copy;  ///< a value the row offers to copy (a full hash), or empty
+};
+
 struct UpdateView {
   UpdateTone tone = UpdateTone::kNeutral;
   QString headline;
   QString detail;
-  QString notice;     ///< a refresh failed while older results are shown
-  QString freshness;  ///< "Last checked ... · <where the answer came from>"
+  QString notice;  ///< a series notice, a failed install, a package source
+
+  // "This build"
+  QString build_version;
+  QString build_kind;    ///< "Release · series 2.2 (stable)" or "Nightly"
+  QString build_commit;  ///< shortened; empty without one
+  QString build_official;
+
+  // "Offered": an update, or else the newest there is
+  bool show_offer = false;
+  QString offer_version;
+  QString offer_file;    ///< "<name> · <size>"; empty when not known
+  QString offer_sha256;  ///< full; shown shortened
+  QString newest;        ///< "Newest in 2.2: 2.2.4" when nothing is offered
+  QString newer_beta;    ///< a beta not offered while betas are off
+
+  /// One line on the update information: verified when, or why not.
+  QString verification;
+  UpdateTone verification_tone = UpdateTone::kNeutral;
+
+  /// Checked on this device, in the order the check runs; empty before a
+  /// check recorded them. Row kDownloadRow is the downloaded file.
+  QList<DetailRow> device_rows;
+  /// Checked by the release server before it published: never a mark.
+  QList<DetailRow> host_rows;
+  QString security_url;     ///< how to verify a download by hand
+  QStringList report_head;  ///< the build and when it was checked
 
   bool show_download = false;
   QString download_label;
@@ -80,7 +116,20 @@ struct UpdateView {
   QString notes;  ///< markdown
 };
 
-auto PresentUpdate(const UpdateSnapshot& s, const QDateTime& now) -> UpdateView;
+/// Where the downloaded file's row is in UpdateView::device_rows.
+inline constexpr qsizetype kDownloadRow = 4;
+
+/// @p build is what the checker was made for (UpdateChecker::GetBuild()):
+/// this build's block, its package source and platform.
+auto PresentUpdate(const UpdateSnapshot& s, const QDateTime& now,
+                   const UpdateChecker::Build& build = {}) -> UpdateView;
+
+/// The details as plain text, one line per step, for a bug report: no
+/// paths, nothing about the user.
+auto ReportText(const UpdateView& view) -> QString;
+
+/// "0123abcd…89abcdef": a hash as a person compares it.
+auto ShortHash(const QString& hash) -> QString;
 
 /// Where an in-place update of the running AppImage stands.
 struct InstallState {
