@@ -197,15 +197,16 @@ inline constexpr qint64 kMaxIndexLifetimeSeconds = 60LL * 24 * 60 * 60;
  * trusted comment, which must be exactly "product=<slug> serial=<n>"), a
  * serial that disagrees with the comment, an index without its
  * `generated_at`, one valid for longer than kMaxIndexLifetimeSeconds, and one
- * expired by more than kExpirySkewSeconds at @p now.
+ * expired by more than kExpirySkewSeconds at @p now. @p expired gets the
+ * expiry of an index refused for that reason alone.
  *
  * Each series' beta is its `series.<X.Y>.beta`. An index from before that
  * entry names one beta for all (`channels.beta` and the top-level `beta`):
  * it counts as the beta of its own series only.
  */
 auto ParseIndex(const QByteArray& json, const QString& trusted_comment,
-                const QString& product, const QDateTime& now)
-    -> std::optional<IndexFacts>;
+                const QString& product, const QDateTime& now,
+                QDateTime* expired = nullptr) -> std::optional<IndexFacts>;
 
 /// What a build is offered, and where the offer's files and notes are listed.
 struct ChannelChoice {
@@ -245,8 +246,10 @@ auto NoticeFor(const IndexFacts& facts, const QString& current,
 
 /// Whether @p platform meets @p required (SeriesFacts::platforms). A
 /// requirement for this system that cannot be checked here is not met.
+/// @p unmet gets the requirement that is not ("macos 13.0"); empty when
+/// this system is one no requirement is stated for.
 auto MeetsPlatform(const QHash<QString, QString>& required,
-                   const Platform& platform) -> bool;
+                   const Platform& platform, QString* unmet = nullptr) -> bool;
 
 /// kNotFound when @p current is withdrawn (the index says so; a missing
 /// object never does), kConfirmed otherwise.

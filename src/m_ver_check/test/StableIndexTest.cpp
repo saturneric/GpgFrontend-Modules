@@ -599,6 +599,12 @@ TEST(StableIndexTest, ASeriesNoticeNamesTheSuccessorOnlyWhereItRuns) {
           .successor_runs_here);
   EXPECT_FALSE(NoticeFor(f, "v2.1.10", {"macos", "arm64", "14.6", "dmg", ""})
                    .successor_runs_here);
+  // Not run here: which requirement, so the page can say it.
+  EXPECT_EQ(NoticeFor(f, "v2.1.10", Linux("2.31")).unmet, "linux_glibc 2.35");
+  EXPECT_EQ(
+      NoticeFor(f, "v2.1.10", {"macos", "arm64", "14.6", "dmg", ""}).unmet,
+      "macos 15.0");
+  EXPECT_TRUE(here.unmet.isEmpty());
   EXPECT_EQ(NoticeFor(f, "v2.0.7", Linux()).status, "eol");
   // A supported series has nothing to say.
   EXPECT_TRUE(NoticeFor(f, "v2.2.3", Linux()).series.isEmpty());

@@ -67,7 +67,15 @@ struct TrustRoot {
   QStringList root_keyids;
   int threshold = 0;
   QStringList index_list_keyids;  ///< who signs the index-keys list (G)
-  SignedFile file;                ///< as it was taken, to keep it
+  /// Its own root keys whose signatures on it verified.
+  QStringList signed_by;
+  /// What the release host checks before it publishes (host_policy): shown
+  /// to the user, never acted on by the client.
+  QString repository;            ///< "owner/name" on GitHub
+  QString workflow;              ///< the build workflow's path in it
+  QStringList pgp_fingerprints;  ///< the maintainers' signing keys
+  QString authenticode_subject;  ///< the Windows signing certificate
+  SignedFile file;               ///< as it was taken, to keep it
 };
 
 /// An index-keys list whose signature held.

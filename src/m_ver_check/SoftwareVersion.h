@@ -109,6 +109,9 @@ struct SoftwareVersion {
     /// against holds, and none is unknown: only then is it recommended by
     /// name.
     bool successor_runs_here = false;
+    /// Not runs here: the requirement this machine does not meet, or does
+    /// not know it meets ("macos 13.0"); empty for an unsupported system.
+    QString unmet;
   } notice;
 
   QDateTime checked_at;
