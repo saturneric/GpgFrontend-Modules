@@ -40,9 +40,14 @@ class UpdateChecker;
  * @brief The update dialog's content: renders UpdateView, offers the actions.
  *
  * It decides nothing itself. The checker holds the state and PresentUpdate()
- * turns it into text; this only draws it and forwards the two buttons. An
+ * turns it into text; this only draws it and forwards the buttons. An
  * in-place update of an AppImage (PresentInstall()) is the one thing it runs:
  * the installer lives as long as the page, so closing it cancels a download.
+ *
+ * Top to bottom: the status, this build and the offer side by side, the
+ * release notes (a few lines, the rest in a window of their own), the
+ * buttons, one line on whether the update information verified, and on
+ * request the details of the last check.
  */
 class UpdateTab : public QWidget {
   Q_OBJECT
@@ -57,6 +62,8 @@ class UpdateTab : public QWidget {
   void render();
   void apply(const UpdateView& view);
   void fit_window();
+  void fit_notes();
+  void show_full_notes();
   void on_main_button();
   void install();
 
@@ -66,13 +73,26 @@ class UpdateTab : public QWidget {
   QLabel* headline_;
   QLabel* detail_;
   QLabel* notice_;
-  QLabel* freshness_;
+  QGroupBox* build_box_;  ///< "This build"
+  QLabel* build_text_;
+  QGroupBox* offer_box_;  ///< "Offered", or the newest there is
+  QLabel* offer_text_;
+  QToolButton* copy_hash_;
+  QTextBrowser* notes_;  ///< a few lines; full_notes_ opens the rest
+  QLabel* full_notes_;
   QPushButton* check_btn_;
   QPushButton* download_btn_;
   QCheckBox* beta_;  ///< "Also offer beta versions"; release builds only
-  UpdateView view_;  ///< as last drawn: what the main button acts on
+  QLabel* verified_icon_;
+  QLabel* verification_;
+  QToolButton* details_toggle_;
+  QWidget* details_;
+  QGroupBox* device_box_;  ///< checked on this device
+  QWidget* device_rows_ = nullptr;
+  QGroupBox* host_box_;  ///< checked by the release server
+  QWidget* host_rows_ = nullptr;
+  QLabel* security_link_;
+  UpdateView view_;  ///< as last drawn: what the buttons act on
   InstallState install_;
   QPointer<AppImageInstaller> installer_;
-  QToolButton* notes_toggle_;
-  QTextBrowser* notes_;
 };
