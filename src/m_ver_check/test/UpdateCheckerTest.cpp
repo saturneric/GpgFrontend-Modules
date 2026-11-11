@@ -71,7 +71,9 @@ struct FakeServer {
 
   /// The index of a 2.1 series whose newest release is @p latest, with
   /// 2.1.8 (the running build) listed as well.
-  auto Signed(const QString& latest) -> std::pair<QByteArray, QByteArray> {
+  auto Signed(const QString& latest,
+              const QDateTime& expires = Now().addDays(14))
+      -> std::pair<QByteArray, QByteArray> {
     ++serial;
     const auto entry = [](const QString& v) {
       return QJsonObject{{"descriptor", "releases/" + v + "/release.json"},
@@ -82,8 +84,8 @@ struct FakeServer {
                                                    {"latest", latest}}}}},
         {"releases",
          QJsonObject{{"2.1.8", entry("2.1.8")}, {latest, entry(latest)}}}};
-    const auto index = test_index::Index(serial, "", "gpgfrontend",
-                                         Now().addDays(14), {}, extra);
+    const auto index =
+        test_index::Index(serial, "", "gpgfrontend", expires, {}, extra);
     return {index, signer.Sign(index, test_index::Comment(serial))};
   }
 
@@ -606,4 +608,214 @@ TEST(UpdateCheckerTest, WithdrawnOrUnofficialNeverAskForAttention) {
   s.last_good->tag_fact = RemoteFact::kConfirmed;
   EXPECT_EQ(Decide(*s.last_good), Verdict::kUnofficialBuild);
   EXPECT_EQ(AttentionFor(s), UpdateAttention::kNone);
+}
+
+// Each step of the last check, as the dialog's details show it: why a
+// check failed is recorded where the checker already warns.
+
+namespace {
+
+/// A release build checked against mirrors that answer at once.
+struct Steps {
+  FakeServer server;  // its signer is the one the built-in list names
+  test_index::Mirrors mirrors;
+  QStringList bases{kBase};
+  EmbeddedTrust trust = Channel(server).trust;
+  QByteArray stored;
+
+  /// The index of @p serial, signed by @p by (the listed key by default).
+  void Serve(qint64 serial, const test_index::Signer* by = nullptr,
+             const QDateTime& expires = FakeServer::Now().addDays(14),
+             const QString& base = kBase) {
+    server.serial = serial - 1;
+    auto [index, signature] = server.Signed("2.1.9", expires);
+    if (by != nullptr) signature = by->Sign(index, test_index::Comment(serial));
+    mirrors.Serve(base, index, signature);
+  }
+
+  auto Check() -> UpdateSnapshot {
+    UpdateChecker c({"v2.1.8", kCommitA, {"gpgfrontend", bases, bases, trust}},
+                    mirrors.Fetcher(),
+                    {[this] { return stored; },
+                     [this](const QByteArray& d) { stored = d; }},
+                    [] { return FakeServer::Now(); });
+    c.Start(CheckMode::kForce);
+    return c.State();
+  }
+};
+
+auto StepOf(const UpdateSnapshot& s, CheckStepId id) -> CheckStep {
+  return s.last_check ? s.last_check->Step(id) : CheckStep{};
+}
+
+}  // namespace
+
+TEST(UpdateCheckerTest, AGoodCheckRecordsWhatItVerified) {
+  Steps w;
+  w.Serve(5);
+  w.mirrors.Put(QString(kBase) + "gpgfrontend/commits/" + kCommitA, {});
+  const auto s = w.Check();
+  ASSERT_TRUE(s.last_check);
+  const auto& r = *s.last_check;
+  for (const auto id : {CheckStepId::kRoot, CheckStepId::kIndexKeys,
+                        CheckStepId::kIndex, CheckStepId::kCommit}) {
+    EXPECT_EQ(r.Step(id).status, StepStatus::kVerified);
+  }
+  // Its descriptor is not served: no file, no verdict changed.
+  EXPECT_EQ(r.Step(CheckStepId::kDescriptor).status, StepStatus::kFailed);
+  EXPECT_EQ(r.Step(CheckStepId::kNotes).status, StepStatus::kNotApplicable);
+  EXPECT_EQ(r.root_version, 1);
+  EXPECT_EQ(r.root_built_in, 1);
+  EXPECT_EQ(r.root_keys, 2);
+  EXPECT_EQ(r.root_signers.size(), 2);
+  EXPECT_EQ(r.list_version, 1);
+  EXPECT_EQ(r.list_keys, 1);
+  EXPECT_EQ(r.list_signer, test_index::KeyId(test_index::Keys().g));
+  EXPECT_EQ(r.index_serial, 5);
+  EXPECT_EQ(r.index_key, test_index::KeyId(w.server.signer));
+  EXPECT_EQ(r.mirror, "update.example");
+  EXPECT_EQ(r.series_status, "stable");
+  EXPECT_EQ(r.marker_base, "update.example");
+  EXPECT_EQ(r.repository, "o/r");
+}
+
+TEST(UpdateCheckerTest, NoMirrorAnsweringIsUnreachable) {
+  Steps w;
+  const auto s = w.Check();
+  EXPECT_TRUE(s.last_attempt_failed);
+  EXPECT_EQ(StepOf(s, CheckStepId::kRoot).status, StepStatus::kVerified);
+  EXPECT_EQ(StepOf(s, CheckStepId::kIndex).reason, StepReason::kUnreachable);
+  EXPECT_EQ(StepOf(s, CheckStepId::kIndex).detail, "HTTP 404");
+  EXPECT_EQ(StepOf(s, CheckStepId::kDescriptor).status, StepStatus::kNotRun);
+
+  Harness h;  // no answer at all
+  auto c = h.Make();
+  c->Start(CheckMode::kForce);
+  h.server.AnswerAll(false);
+  EXPECT_EQ(StepOf(c->State(), CheckStepId::kIndex).reason,
+            StepReason::kUnreachable);
+  EXPECT_TRUE(StepOf(c->State(), CheckStepId::kIndex).detail.isEmpty());
+}
+
+TEST(UpdateCheckerTest, ABadSignatureIsRecorded) {
+  Steps w;
+  w.Serve(5);
+  const auto [other, unused] = w.server.Signed("2.1.7");
+  w.mirrors.Put(QString(kBase) + "gpgfrontend/v1/index.json.minisig",
+                w.server.signer.Sign(other, test_index::Comment(6)));
+  const auto s = w.Check();
+  EXPECT_EQ(StepOf(s, CheckStepId::kIndex).reason, StepReason::kBadSignature);
+}
+
+TEST(UpdateCheckerTest, AKeyTheListDoesNotHoldIsRecorded) {
+  Steps w;
+  const test_index::Signer stranger;
+  w.Serve(5, &stranger);
+  const auto s = w.Check();
+  EXPECT_EQ(StepOf(s, CheckStepId::kIndex).reason, StepReason::kKeyNotListed);
+  EXPECT_EQ(StepOf(s, CheckStepId::kIndex).detail, test_index::KeyId(stranger));
+}
+
+TEST(UpdateCheckerTest, AnExpiredRootListOrIndexIsRecordedWithItsDate) {
+  const auto& k = test_index::Keys();
+  const auto when = FakeServer::Now().addDays(-3);
+  {
+    Steps w;
+    const auto list = test_index::ListDoc(1, {&w.server.signer}, when);
+    w.trust.index_keys = {list,
+                          {{QString(), test_index::SignList(list, 1, k.g)}}};
+    w.Serve(5);
+    const auto step = StepOf(w.Check(), CheckStepId::kIndexKeys);
+    EXPECT_EQ(step.reason, StepReason::kExpired);
+    EXPECT_EQ(step.detail, when.toUTC().toString(Qt::ISODate));
+  }
+  {
+    Steps w;
+    const auto root = test_index::RootDoc(1, {&k.a, &k.b}, k.g, 2, when);
+    w.trust.root = {root, test_index::SignRoot(root, 1, {&k.a, &k.b})};
+    w.Serve(5);
+    const auto s = w.Check();
+    EXPECT_EQ(StepOf(s, CheckStepId::kRoot).reason, StepReason::kExpired);
+    EXPECT_EQ(StepOf(s, CheckStepId::kIndex).status, StepStatus::kNotRun);
+  }
+  {
+    Steps w;
+    w.Serve(5, nullptr, when);
+    const auto step = StepOf(w.Check(), CheckStepId::kIndex);
+    EXPECT_EQ(step.reason, StepReason::kExpired);
+    EXPECT_EQ(step.detail, when.toUTC().toString(Qt::ISODate));
+  }
+}
+
+TEST(UpdateCheckerTest, ARollbackIsRecordedWithBothSerials) {
+  Steps w;
+  w.Serve(5);
+  ASSERT_FALSE(w.Check().last_attempt_failed);
+  w.Serve(4);
+  const auto s = w.Check();
+  EXPECT_EQ(StepOf(s, CheckStepId::kIndex).reason, StepReason::kRollback);
+  EXPECT_EQ(StepOf(s, CheckStepId::kIndex).detail, "5 4");
+  // The last good result stays; the record is the failed attempt's.
+  EXPECT_TRUE(s.last_good);
+}
+
+TEST(UpdateCheckerTest, ADescriptorNotTheIndexsIsAHashMismatch) {
+  Steps w;
+  w.Serve(5);
+  w.mirrors.Put(QString(kBase) + "gpgfrontend/releases/2.1.9/release.json",
+                "{}");
+  const auto s = w.Check();
+  EXPECT_EQ(StepOf(s, CheckStepId::kDescriptor).reason,
+            StepReason::kHashMismatch);
+  EXPECT_FALSE(s.last_attempt_failed);  // the verdict does not change
+}
+
+TEST(UpdateCheckerTest, ARefusalOnOneMirrorOutweighsAnotherBeingDown) {
+  Steps w;
+  w.bases = {kBase, "https://down.example/"};
+  const test_index::Signer stranger;
+  w.Serve(5, &stranger);
+  const auto s = w.Check();
+  EXPECT_EQ(StepOf(s, CheckStepId::kIndex).reason, StepReason::kKeyNotListed);
+}
+
+TEST(UpdateCheckerTest, TheLastCheckSurvivesTheStore) {
+  Steps w;
+  w.Serve(5);
+  ASSERT_FALSE(w.Check().last_attempt_failed);
+  const test_index::Signer stranger;
+  w.Serve(6, &stranger);
+  const auto s = w.Check();
+  EXPECT_EQ(StepOf(s, CheckStepId::kIndex).reason, StepReason::kKeyNotListed);
+  const auto back = UpdateChecker::FromStorage(UpdateChecker::ToStorage(s),
+                                               {"v2.1.8", kCommitA, {}});
+  ASSERT_TRUE(s.last_check);
+  ASSERT_TRUE(back.last_check);
+  for (std::size_t i = 0; i < kCheckSteps; ++i) {
+    EXPECT_EQ(back.last_check->steps.at(i).status,
+              s.last_check->steps.at(i).status);
+    EXPECT_EQ(back.last_check->steps.at(i).reason,
+              s.last_check->steps.at(i).reason);
+    EXPECT_EQ(back.last_check->steps.at(i).detail,
+              s.last_check->steps.at(i).detail);
+  }
+  EXPECT_EQ(back.last_check->root_signers, s.last_check->root_signers);
+  EXPECT_EQ(back.last_check->root_expires, s.last_check->root_expires);
+  EXPECT_EQ(back.last_check->list_signer, s.last_check->list_signer);
+  EXPECT_EQ(back.last_check->repository, s.last_check->repository);
+}
+
+TEST(UpdateCheckerTest, AStoreFromBeforeTheRecordStillLoads) {
+  Steps w;
+  w.Serve(5);
+  const auto s = w.Check();
+  auto obj = QJsonDocument::fromJson(UpdateChecker::ToStorage(s)).object();
+  obj["schema"] = 2;
+  obj.remove("last_check");
+  obj.remove("root_taken_at");
+  const auto old = UpdateChecker::FromStorage(QJsonDocument(obj).toJson(),
+                                              {"v2.1.8", kCommitA, {}});
+  EXPECT_TRUE(old.last_good);
+  EXPECT_FALSE(old.last_check);
+  EXPECT_EQ(old.serial_floor, s.serial_floor);
 }
