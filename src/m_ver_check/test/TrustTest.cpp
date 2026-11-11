@@ -34,6 +34,9 @@
 
 #include <QDir>
 #include <QFile>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <memory>
 
 #include "IndexFixture.h"
@@ -138,6 +141,27 @@ auto TrustFile(const QDir& dir, const QString& sub, const QString& name)
   return f;
 }
 
+/// Root 1 of the test keys (a, b; g) with @p edit applied, signed by a and
+/// b: parsed, or why not.
+auto EditedRoot(const std::function<void(QJsonObject&)>& edit, QString* why)
+    -> std::optional<TrustRoot> {
+  const auto& k = Keys();
+  auto obj = QJsonDocument::fromJson(RootDoc(1, {&k.a, &k.b}, k.g)).object();
+  edit(obj);
+  const auto doc = QJsonDocument(obj).toJson();
+  return ParseRoot({doc, SignRoot(doc, 1, {&k.a, &k.b})}, "gpgfrontend", why);
+}
+
+/// @p obj's roles.<role>.<field> set to @p value.
+void SetRole(QJsonObject& obj, const QString& role, const QString& field,
+             const QJsonValue& value) {
+  auto roles = obj["roles"].toObject();
+  auto r = roles[role].toObject();
+  r[field] = value;
+  roles[role] = r;
+  obj["roles"] = roles;
+}
+
 }  // namespace
 
 TEST(TrustTest, AnIndexFromBeforeTheHintsVerifiesOnTheBuiltInTrust) {
@@ -175,15 +199,94 @@ TEST(TrustTest, ARootNeedsEnoughOfTheOldKeysAndOfItsOwn) {
     World w;  // its own threshold (all three) not met
     w.Root(2, RootDoc(2, {&k.a, &k.b, &k.c}, k.g, 3), {&k.a, &k.b});
     w.Index(5, w.index1, 2, 1);
-    w.Check();
+    EXPECT_TRUE(w.Check());  // still root 1
     EXPECT_TRUE(w.Warned("too few of its own keys"));
   }
   {
     World w;  // a skipped version
     w.Root(3, RootDoc(3, {&k.a, &k.b}, k.g), {&k.a, &k.b});
     w.Index(5, w.index1, 3, 1);
-    w.Check();
+    EXPECT_TRUE(w.Check());  // still root 1
     EXPECT_TRUE(w.Warned("2.root.json: HTTP 404"));
+  }
+}
+
+TEST(TrustTest, AKeyListedTwiceCountsOnce) {
+  // Root keys a, a and b, two needed: a alone must not meet it.
+  const auto& k = Keys();
+  const auto doc = RootDoc(1, {&k.a, &k.a, &k.b}, k.g, 2);
+  QString why;
+  EXPECT_FALSE(ParseRoot({doc, SignRoot(doc, 1, {&k.a})}, "gpgfrontend", &why));
+  EXPECT_TRUE(why.contains("no usable roles")) << why.toStdString();
+}
+
+TEST(TrustTest, ARootIsReadAsTheReleaseToolingReadsIt) {
+  QString why;
+  ASSERT_TRUE(EditedRoot([](QJsonObject&) {}, &why)) << why.toStdString();
+
+  // trust.py refuses each of these; so does the client.
+  const std::vector<std::pair<const char*, std::function<void(QJsonObject&)>>>
+      refused{
+          {"G with a threshold other than 1",
+           [](QJsonObject& o) { SetRole(o, "index_list", "threshold", 2); }},
+          {"a threshold that is not a whole number",
+           [](QJsonObject& o) { SetRole(o, "root", "threshold", 1.5); }},
+          {"no host_policy", [](QJsonObject& o) { o.remove("host_policy"); }},
+          {"a host_policy without its workflow",
+           [](QJsonObject& o) {
+             o["host_policy"] = QJsonObject{{"repository", "o/r"}};
+           }},
+          {"an expiry with an offset",
+           [](QJsonObject& o) { o["expires"] = "2099-01-05T00:00:00+02:00"; }},
+          {"an expiry with fractions of a second",
+           [](QJsonObject& o) { o["expires"] = "2099-01-05T00:00:00.000Z"; }},
+          {"an expiry not zero-padded",
+           [](QJsonObject& o) { o["expires"] = "2099-1-5T0:0:0Z"; }},
+          {"a key listed under no id",
+           [](QJsonObject& o) {
+             auto keys = o["keys"].toObject();
+             keys[""] = "garbage";
+             o["keys"] = keys;
+           }},
+      };
+  for (const auto& [what, edit] : refused) {
+    EXPECT_FALSE(EditedRoot(edit, nullptr)) << what;
+  }
+}
+
+TEST(TrustTest, TimesAreReadInOneShapeOnly) {
+  EXPECT_EQ(ReadUtcTime(QJsonValue("2028-01-05T01:02:03Z")),
+            QDateTime(QDate(2028, 1, 5), QTime(1, 2, 3), QTimeZone::UTC));
+  for (const auto* bad :
+       {"2028-01-05T01:02:03", "2028-01-05T01:02:03+00:00", "2028-01-05",
+        "2028-01-05T01:02:03.5Z", " 2028-01-05T01:02:03Z", ""}) {
+    EXPECT_FALSE(ReadUtcTime(QJsonValue(bad)).isValid()) << bad;
+  }
+  EXPECT_FALSE(ReadUtcTime(QJsonValue(5)).isValid());
+  EXPECT_EQ(ReadCount(QJsonValue(7)), 7);
+  EXPECT_EQ(ReadCount(QJsonValue(1.5)), 0);
+  EXPECT_EQ(ReadCount(QJsonValue(-3)), 0);
+  EXPECT_EQ(ReadCount(QJsonValue("7")), 0);
+}
+
+TEST(TrustTest, OnlyKeyIdsOfAnUncheckedRootAreFetched) {
+  // A root nobody has verified yet names which signatures to fetch: each
+  // becomes a URL, so only key ids, each once, and only so many.
+  const auto& k = Keys();
+  const auto a = test_index::KeyId(k.a);
+  QJsonArray ids{a, a, "../../x?y", a.toLower(), "", 5};
+  for (int i = 0; i < 40; ++i) {
+    ids.append(QStringLiteral("%1").arg(i, 16, 10, QLatin1Char('0')));
+  }
+  QJsonObject root{
+      {"roles", QJsonObject{{"root", QJsonObject{{"keyids", ids}}}}}};
+  const auto named = NamedRootKeys(QJsonDocument(root).toJson());
+  EXPECT_EQ(named.size(), kMaxRootKeys);
+  EXPECT_EQ(named.first(), a);
+  EXPECT_EQ(named.count(a), 1);
+  for (const auto& id : named) {
+    EXPECT_EQ(id.size(), 16) << id.toStdString();
+    EXPECT_EQ(id, id.toUpper()) << id.toStdString();
   }
 }
 
@@ -194,7 +297,7 @@ TEST(TrustTest, ARootSaysWhoSignedItAndWhatTheHostChecks) {
   EXPECT_EQ(QSet<QString>(root->signed_by.begin(), root->signed_by.end()),
             QSet<QString>({test_index::KeyId(k.a), test_index::KeyId(k.b)}));
   EXPECT_EQ(root->repository, "o/r");
-  EXPECT_TRUE(root->workflow.isEmpty());  // the fixture names none
+  EXPECT_EQ(root->workflow, ".github/workflows/build.yml");
 
   // One the release tooling wrote, with a whole host_policy.
   const QDir dir(QStringLiteral(GF_TRUST_FIXTURE));
@@ -311,23 +414,29 @@ TEST(TrustTest, ThePythonMadeFixturesHold) {
 }
 
 // scripts/release/rehearse.sh's update store, read as a client of it would,
-// built with its trust: GF_REHEARSAL_UPDATE_DIR (<dir>/www/update) and
-// GF_REHEARSAL_TRUST_DIR (<dir>/trust, root 1 and list 1), and the version
-// to run as, GF_REHEARSAL_VERSION. Skipped without them.
+// built with its trust, by what its <dir>/client.env says
+// (`set -a; . <dir>/client.env; set +a` first): GF_REHEARSAL_UPDATE_DIR
+// (<dir>/www/update), GF_REHEARSAL_TRUST (<dir>/trust, root 1 and list 1),
+// GF_REHEARSAL_PRODUCT, and the nightly it published, GF_REHEARSAL_NIGHTLY,
+// to run as. Skipped without them.
 TEST(TrustTest, TheRehearsalsUpdateStoreVerifies) {
   const auto update = qEnvironmentVariable("GF_REHEARSAL_UPDATE_DIR");
-  const QDir trust(qEnvironmentVariable("GF_REHEARSAL_TRUST_DIR"));
+  const QDir trust(qEnvironmentVariable("GF_REHEARSAL_TRUST"));
   if (update.isEmpty()) GTEST_SKIP() << "no rehearsal to read";
   const ReleaseChannel channel{
-      "gpgfrontend",
+      qEnvironmentVariable("GF_REHEARSAL_PRODUCT", "gpgfrontend"),
       {"https://rehearsal.example/"},
       {"https://rehearsal.example/"},
       {TrustFile(trust, QStringLiteral("root"), "1.root.json"),
        TrustFile(trust, QStringLiteral("index-keys"), "1.json")}};
   QStringList warnings;
   UpdateChecker c(
-      {qEnvironmentVariable("GF_REHEARSAL_VERSION", "v2.3.0-alpha.1"),
-       kCommit, channel, {}, 1, false,
+      {qEnvironmentVariable("GF_REHEARSAL_NIGHTLY", "v2.3.0-alpha.1"),
+       kCommit,
+       channel,
+       {},
+       1,
+       false,
        [&](const QString& w) { warnings << w; }},
       [&](const QUrl& url, const UpdateChecker::Reply& reply) {
         QFile f(update + url.path());

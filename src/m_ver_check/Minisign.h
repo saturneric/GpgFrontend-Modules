@@ -40,10 +40,11 @@
  * The update index is signed with minisign (scripts/release/gfrelease), so
  * anyone can check it with the minisign tool, and this checks it the same
  * way with libsodium: Ed25519 over the BLAKE2b-512 hash of the content ("ED",
- * what minisign makes) or over the content itself (the legacy "Ed"), and
- * Ed25519 over that signature followed by the trusted comment, which is what
- * makes the trusted comment trustworthy. The key id in the signature must be
- * one of the pinned keys'.
+ * what minisign makes, and the only form taken: a legacy "Ed" signature over
+ * the content itself never verifies), and Ed25519 over that signature
+ * followed by the trusted comment, which is what makes the trusted comment
+ * trustworthy. The key id in the signature must be one of the pinned keys'.
+ * A CR before a line's LF is ignored, as minisign ignores it.
  */
 
 /// The trusted comment of @p signature_file when it verifies @p message

@@ -163,13 +163,18 @@ inline auto RootDoc(qint64 version, const QList<const Signer*>& root,
                  {"expires", expires.toUTC().toString(Qt::ISODate)},
                  {"keys", keys},
                  {"roles",
-                  QJsonObject{
-                      {"root", QJsonObject{{"keyids", ids},
-                                           {"threshold", threshold}}},
-                      {"index_list",
-                       QJsonObject{{"keyids", QJsonArray{KeyId(g)}},
-                                   {"threshold", 1}}}}},
-                 {"host_policy", QJsonObject{{"repository", "o/r"}}}})
+                  QJsonObject{{"root", QJsonObject{{"keyids", ids},
+                                                   {"threshold", threshold}}},
+                              {"index_list",
+                               QJsonObject{{"keyids", QJsonArray{KeyId(g)}},
+                                           {"threshold", 1}}}}},
+                 // As trust.py requires it, so gfrelease takes this root too.
+                 {"host_policy",
+                  QJsonObject{{"repository", "o/r"},
+                              {"workflow", ".github/workflows/build.yml"},
+                              {"stable_pgp",
+                               QJsonObject{{"fingerprints",
+                                            QJsonArray{QString(40, u'A')}}}}}}})
       .toJson();
 }
 

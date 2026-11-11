@@ -50,6 +50,16 @@ auto Bytes(const QByteArray& a) -> const unsigned char* {
   return reinterpret_cast<const unsigned char*>(a.constData());
 }
 
+/// A signature file's lines, a CR before each LF dropped: a file that went
+/// through a CRLF checkout reads as minisign itself reads it.
+auto Lines(const QByteArray& file) -> QList<QByteArray> {
+  auto lines = file.split('\n');
+  for (auto& line : lines) {
+    if (line.endsWith('\r')) line.chop(1);
+  }
+  return lines;
+}
+
 /// Key id bytes as minisign prints them: a little-endian number, in hex.
 auto KeyIdHex(const QByteArray& id) -> QString {
   QByteArray reversed(id.size(), 0);
@@ -60,7 +70,7 @@ auto KeyIdHex(const QByteArray& id) -> QString {
 }  // namespace
 
 auto MinisignSignatureKeyId(const QByteArray& signature_file) -> QString {
-  const auto lines = signature_file.split('\n');
+  const auto lines = Lines(signature_file);
   if (lines.size() < 2) return {};
   const auto signature = Decode(QString::fromLatin1(lines[1]));
   if (signature.size() != kSignatureSize || !signature.startsWith("ED")) {
@@ -81,7 +91,7 @@ auto MinisignVerify(const QStringList& public_keys, const QByteArray& message,
   if (sodium_init() < 0) return std::nullopt;
 
   // untrusted comment, signature, trusted comment, global signature.
-  const auto lines = signature_file.split('\n');
+  const auto lines = Lines(signature_file);
   if (lines.size() < 4) return std::nullopt;
   if (!lines[2].startsWith(kTrustedPrefix)) return std::nullopt;
 
@@ -93,8 +103,8 @@ auto MinisignVerify(const QStringList& public_keys, const QByteArray& message,
     return std::nullopt;
   }
 
-  const auto algorithm = signature.left(2);
-  if (algorithm != "ED" && algorithm != "Ed") return std::nullopt;
+  // Prehashed only, as every signature the release tooling makes.
+  if (!signature.startsWith("ED")) return std::nullopt;
   const auto key_id = signature.mid(2, kKeyIdSize);
   const auto sig = signature.mid(2 + kKeyIdSize);
 
@@ -104,20 +114,13 @@ auto MinisignVerify(const QStringList& public_keys, const QByteArray& message,
     if (key.mid(2, kKeyIdSize) != key_id) continue;
     const auto pk = key.mid(2 + kKeyIdSize);
 
-    // What the first signature covers: the content's hash, or the content.
-    QByteArray signed_part = message;
-    if (algorithm == "ED") {
-      std::array<unsigned char, crypto_generichash_BYTES_MAX> hash{};
-      crypto_generichash(hash.data(), hash.size(), Bytes(message),
-                         static_cast<unsigned long long>(message.size()),
-                         nullptr, 0);
-      signed_part = QByteArray(reinterpret_cast<const char*>(hash.data()),
-                               static_cast<qsizetype>(hash.size()));
-    }
-    if (crypto_sign_verify_detached(
-            Bytes(sig), Bytes(signed_part),
-            static_cast<unsigned long long>(signed_part.size()),
-            Bytes(pk)) != 0) {
+    // The first signature covers the content's BLAKE2b-512 hash.
+    std::array<unsigned char, crypto_generichash_BYTES_MAX> hash{};
+    crypto_generichash(hash.data(), hash.size(), Bytes(message),
+                       static_cast<unsigned long long>(message.size()), nullptr,
+                       0);
+    if (crypto_sign_verify_detached(Bytes(sig), hash.data(), hash.size(),
+                                    Bytes(pk)) != 0) {
       return std::nullopt;
     }
 

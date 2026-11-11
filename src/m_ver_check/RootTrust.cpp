@@ -31,10 +31,31 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QRegularExpression>
 #include <QTimeZone>
 
 #include "Minisign.h"
-#include "ReleaseIndex.h"
+
+auto ReadCount(const QJsonValue& value) -> qint64 {
+  if (!value.isDouble() ||
+      value.toDouble() != static_cast<double>(value.toInteger())) {
+    return 0;
+  }
+  return std::max<qint64>(0, value.toInteger());
+}
+
+auto ReadUtcTime(const QJsonValue& value) -> QDateTime {
+  static const QRegularExpression kShape(QStringLiteral(
+      R"(\A[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z\z)"));
+  const auto text = value.toString();
+  if (!kShape.match(text).hasMatch()) return {};
+  return QDateTime::fromString(text, Qt::ISODate).toUTC();
+}
+
+auto TrustedComment(const QString& product, const QString& what, qint64 n)
+    -> QString {
+  return QStringLiteral("product=%1 %2=%3").arg(product, what).arg(n);
+}
 
 namespace {
 
@@ -43,18 +64,10 @@ auto Fail(QString* why, const QString& what) -> std::nullopt_t {
   return std::nullopt;
 }
 
-auto Integer(const QJsonValue& v) -> qint64 {
-  // A whole positive number, or 0.
-  if (!v.isDouble() || v.toDouble() != static_cast<double>(v.toInteger())) {
-    return 0;
-  }
-  return std::max<qint64>(0, v.toInteger());
-}
-
-auto Time(const QJsonValue& v) -> QDateTime {
-  auto t = QDateTime::fromString(v.toString(), Qt::ISODate);
-  if (t.isValid()) t.setTimeZone(QTimeZone::UTC);
-  return t;
+/// A key id as the trust files spell it.
+auto IsKeyId(const QString& id) -> bool {
+  static const QRegularExpression kKeyId(QStringLiteral(R"(\A[0-9A-F]{16}\z)"));
+  return kKeyId.match(id).hasMatch();
 }
 
 /// What a root and a list share: schema, type, product, version, expiry,
@@ -71,11 +84,12 @@ auto ReadCommon(const QByteArray& data, const QString& type,
     Fail(why, QStringLiteral("not a %1 of %2").arg(type, product));
     return false;
   }
-  version = Integer(obj.value("version"));
-  expires = Time(obj.value("expires"));
+  version = ReadCount(obj.value("version"));
+  expires = ReadUtcTime(obj.value("expires"));
   const auto listed = obj.value("keys").toObject();
   for (auto it = listed.begin(); it != listed.end(); ++it) {
-    if (MinisignPublicKeyId(it.value().toString()) != it.key()) {
+    if (!IsKeyId(it.key()) ||
+        MinisignPublicKeyId(it.value().toString()) != it.key()) {
       Fail(why, QStringLiteral("key %1 is not the key listed under it")
                     .arg(it.key()));
       return false;
@@ -97,6 +111,13 @@ auto Ids(const QJsonValue& role) -> QStringList {
   return ids;
 }
 
+/// @p ids of a role, each at most once: one key listed twice would count
+/// twice toward its threshold.
+auto Distinct(const QStringList& ids) -> bool {
+  auto once = ids;
+  return once.removeDuplicates() == 0;
+}
+
 /// Which of @p ids (keys of @p keys) signed @p file with @p comment.
 auto Signers(const SignedFile& file, const QHash<QString, QString>& keys,
              const QStringList& ids, const QString& comment) -> QStringList {
@@ -111,11 +132,6 @@ auto Signers(const SignedFile& file, const QHash<QString, QString>& keys,
   return signers;
 }
 
-auto Comment(const QString& product, const QString& what, qint64 n)
-    -> QString {
-  return QStringLiteral("product=%1 %2=%3").arg(product, what).arg(n);
-}
-
 /// The root in @p file, read and signed by enough of its own keys.
 auto ReadRoot(const SignedFile& file, const QString& product, QString* why)
     -> std::optional<TrustRoot> {
@@ -127,7 +143,9 @@ auto ReadRoot(const SignedFile& file, const QString& product, QString* why)
   }
   const auto roles = obj.value("roles").toObject();
   root.root_keyids = Ids(roles.value("root"));
-  root.threshold = roles.value("root").toObject().value("threshold").toInt();
+  root.threshold = static_cast<int>(std::min<qint64>(
+      ReadCount(roles.value("root").toObject().value("threshold")),
+      kMaxRootKeys + 1));
   root.index_list_keyids = Ids(roles.value("index_list"));
   for (const auto& id : root.root_keyids + root.index_list_keyids) {
     if (!root.keys.contains(id)) {
@@ -135,8 +153,13 @@ auto ReadRoot(const SignedFile& file, const QString& product, QString* why)
                            .arg(id));
     }
   }
-  if (root.threshold < 1 || root.threshold > root.root_keyids.size() ||
-      root.index_list_keyids.isEmpty()) {
+  // As trust.py reads a root: distinct keys in each role, at least one, a
+  // threshold they can meet, and G alone signing the list.
+  if (!Distinct(root.root_keyids) || !Distinct(root.index_list_keyids) ||
+      root.root_keyids.size() > kMaxRootKeys || root.threshold < 1 ||
+      root.threshold > root.root_keyids.size() ||
+      root.index_list_keyids.isEmpty() ||
+      ReadCount(roles.value("index_list").toObject().value("threshold")) != 1) {
     return Fail(why, QStringLiteral("root %1 has no usable roles")
                          .arg(root.version));
   }
@@ -146,17 +169,23 @@ auto ReadRoot(const SignedFile& file, const QString& product, QString* why)
                                       "key"));
     }
   }
-  const auto comment = Comment(product, QStringLiteral("root"), root.version);
+  const auto comment =
+      TrustedComment(product, QStringLiteral("root"), root.version);
   root.signed_by = Signers(file, root.keys, root.root_keyids, comment);
   if (root.signed_by.size() < root.threshold) {
     return Fail(why, QStringLiteral("root %1: too few of its own keys signed "
                                     "it")
                          .arg(root.version));
   }
-  // What the release host checks before it publishes: shown, never acted on.
+  // What the release host checks before it publishes: shown, never acted on,
+  // but there, as the host requires it.
   const auto policy = obj.value("host_policy").toObject();
   root.repository = policy.value("repository").toString();
   root.workflow = policy.value("workflow").toString();
+  if (root.repository.isEmpty() || root.workflow.isEmpty()) {
+    return Fail(why,
+                QStringLiteral("root %1 has no host_policy").arg(root.version));
+  }
   root.authenticode_subject = policy.value("authenticode_subject").toString();
   for (const auto& fpr :
        policy.value("stable_pgp").toObject().value("fingerprints").toArray()) {
@@ -183,7 +212,8 @@ auto AcceptNextRoot(const TrustRoot& trusted, const SignedFile& file,
                          .arg(next->version)
                          .arg(trusted.version));
   }
-  const auto comment = Comment(product, QStringLiteral("root"), next->version);
+  const auto comment =
+      TrustedComment(product, QStringLiteral("root"), next->version);
   if (Signers(file, trusted.keys, trusted.root_keyids, comment).size() <
       trusted.threshold) {
     return Fail(why, QStringLiteral("root %1: too few of root %2's keys "
@@ -215,7 +245,7 @@ auto ParseIndexKeys(const TrustRoot& root, const SignedFile& file,
     by_g.signatures.insert(MinisignSignatureKeyId(sig), sig);
   }
   const auto comment =
-      Comment(product, QStringLiteral("index-keys"), keys.version);
+      TrustedComment(product, QStringLiteral("index-keys"), keys.version);
   if (Signers(by_g, root.keys, root.index_list_keyids, comment).isEmpty()) {
     return Fail(why, QStringLiteral("index-keys %1 is not signed by root %2's "
                                     "index_list key")
@@ -232,14 +262,19 @@ auto IsTrustExpired(const QDateTime& expires, const QDateTime& now) -> bool {
 
 auto ReadTrustHints(const QByteArray& index) -> TrustHints {
   const auto obj = QJsonDocument::fromJson(index).object();
-  return {Integer(obj.value("root_version")),
-          Integer(obj.value("index_keys_version"))};
+  return {ReadCount(obj.value("root_version")),
+          ReadCount(obj.value("index_keys_version"))};
 }
 
 auto NamedRootKeys(const QByteArray& root) -> QStringList {
-  return Ids(QJsonDocument::fromJson(root)
-                 .object()
-                 .value("roles")
-                 .toObject()
-                 .value("root"));
+  QStringList ids;
+  for (const auto& id : Ids(QJsonDocument::fromJson(root)
+                                .object()
+                                .value("roles")
+                                .toObject()
+                                .value("root"))) {
+    if (ids.size() >= kMaxRootKeys) break;
+    if (IsKeyId(id) && !ids.contains(id)) ids << id;
+  }
+  return ids;
 }

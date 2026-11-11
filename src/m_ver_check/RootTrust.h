@@ -31,6 +31,7 @@
 #include <QByteArray>
 #include <QDateTime>
 #include <QHash>
+#include <QJsonValue>
 #include <QString>
 #include <QStringList>
 #include <optional>
@@ -116,9 +117,33 @@ struct TrustHints {
 };
 auto ReadTrustHints(const QByteArray& index) -> TrustHints;
 
-/// The root keys @p root names, read without checking anything: which
-/// signature files to fetch for it.
+/// The root keys @p root names, read before anything about it is checked:
+/// which signature files to fetch for it. Only ids spelled as a key id is
+/// (16 upper-case hex digits), each once, and no more than kMaxRootKeys:
+/// they become URLs.
 auto NamedRootKeys(const QByteArray& root) -> QStringList;
 
 /// How far one check walks the roots.
 inline constexpr int kMaxRootSteps = 32;
+
+/// The most root keys a root may name (trust.py's MAX_ROLE_KEYS): what one
+/// step of the walk fetches a signature for, at most.
+inline constexpr int kMaxRootKeys = 16;
+
+/// How long past `expires` a root, a list or an index is still taken: a
+/// client clock a little wrong must not turn good trust into "unknown".
+inline constexpr qint64 kExpirySkewSeconds = 24 * 60 * 60;
+
+/// A whole positive JSON number (a version, a serial, a threshold); 0 for
+/// anything else.
+auto ReadCount(const QJsonValue& value) -> qint64;
+
+/// A time as the release tooling writes it, "YYYY-MM-DDTHH:MM:SSZ" and in
+/// UTC (common.iso); invalid for anything else, an offset or fractions of a
+/// second included, so the publisher and every client read one instant.
+auto ReadUtcTime(const QJsonValue& value) -> QDateTime;
+
+/// The trusted comment the release tooling signs a trust file or the index
+/// with: "product=<product> <what>=<n>" (layout.py).
+auto TrustedComment(const QString& product, const QString& what, qint64 n)
+    -> QString;
