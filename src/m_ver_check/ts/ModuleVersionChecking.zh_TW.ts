@@ -4,7 +4,7 @@
 <context>
     <name>ModuleVersionChecking</name>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="316"/>
+        <location filename="../VersionCheckingModule.cpp" line="319"/>
         <source>Check for Updates</source>
         <translation>檢查更新</translation>
     </message>
@@ -13,7 +13,7 @@
         <translation type="vanished">從網際網路檢查更新。</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="270"/>
+        <location filename="../VersionCheckingModule.cpp" line="273"/>
         <source>Update Checking</source>
         <translation>更新檢查</translation>
     </message>
@@ -22,42 +22,42 @@
         <translation type="vanished">應用程式啟動時檢查版本更新。</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="274"/>
+        <location filename="../VersionCheckingModule.cpp" line="277"/>
         <source>Check for updates automatically, once a day.</source>
         <translation>每天自動檢查更新一次。</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="279"/>
+        <location filename="../VersionCheckingModule.cpp" line="282"/>
         <source>Also offer beta versions</source>
-        <translation type="unfinished">也提供 Beta 版本</translation>
+        <translation>也提供 Beta 版本</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="281"/>
+        <location filename="../VersionCheckingModule.cpp" line="284"/>
         <source>Test builds of the next fix release, before it is out. They are less tested than releases.</source>
-        <translation type="unfinished">下一個修正版本發布前的測試建置，測試程度低於正式版本。</translation>
+        <translation>下一個修正版本發布前的測試建置，測試程度低於正式版本。</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="317"/>
+        <location filename="../VersionCheckingModule.cpp" line="320"/>
         <source>See whether a newer GpgFrontend is available</source>
         <translation>查看是否有更新版本的 GpgFrontend</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="326"/>
+        <location filename="../VersionCheckingModule.cpp" line="329"/>
         <source>A newer version is available</source>
         <translation>有更新版本可用</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="452"/>
+        <location filename="../VersionCheckingModule.cpp" line="455"/>
         <source>Check for updates</source>
-        <translation type="unfinished"></translation>
+        <translation>檢查更新</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="456"/>
+        <location filename="../VersionCheckingModule.cpp" line="459"/>
         <source>Updates</source>
         <translation>更新</translation>
     </message>
     <message>
-        <location filename="../VersionCheckingModule.cpp" line="456"/>
+        <location filename="../VersionCheckingModule.cpp" line="459"/>
         <source>update,version,check,github</source>
         <translation>update,version,check,github,更新,版本,檢查</translation>
     </message>
@@ -173,31 +173,31 @@
         <translation type="vanished">下載最新的穩定版本。</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="486"/>
+        <location filename="../UpdatePresentation.cpp" line="492"/>
         <source>just now</source>
         <translation>剛剛</translation>
     </message>
     <message numerus="yes">
-        <location filename="../UpdatePresentation.cpp" line="490"/>
+        <location filename="../UpdatePresentation.cpp" line="496"/>
         <source>%n minute(s) ago</source>
         <translation>
             <numerusform>%n 分鐘前</numerusform>
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../UpdatePresentation.cpp" line="495"/>
+        <location filename="../UpdatePresentation.cpp" line="501"/>
         <source>%n hour(s) ago</source>
         <translation>
             <numerusform>%n 小時前</numerusform>
         </translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="584"/>
+        <location filename="../UpdatePresentation.cpp" line="598"/>
         <source>Checking for updates…</source>
         <translation>正在檢查更新…</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="578"/>
+        <location filename="../UpdatePresentation.cpp" line="592"/>
         <location filename="../UpdateTab.cpp" line="369"/>
         <source>Check now</source>
         <translation>立即檢查</translation>
@@ -207,8 +207,8 @@
         <translation type="vanished">無法檢查更新</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="576"/>
-        <location filename="../UpdatePresentation.cpp" line="783"/>
+        <location filename="../UpdatePresentation.cpp" line="590"/>
+        <location filename="../UpdatePresentation.cpp" line="797"/>
         <source>Checking…</source>
         <translation>檢查中…</translation>
     </message>
@@ -217,631 +217,631 @@
         <translation type="vanished">請稍後再試。</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="466"/>
+        <location filename="../UpdatePresentation.cpp" line="472"/>
         <source>Try again</source>
         <translation>重試</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="423"/>
+        <location filename="../UpdatePresentation.cpp" line="429"/>
         <source>Install update</source>
         <translation>安裝更新</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="61"/>
+        <location filename="../UpdatePresentation.cpp" line="67"/>
         <source>no update server answered</source>
-        <translation type="unfinished"></translation>
+        <translation>沒有更新伺服器回應</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="64"/>
+        <location filename="../UpdatePresentation.cpp" line="70"/>
         <source>the update index&apos;s signature is not valid</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../UpdatePresentation.cpp" line="68"/>
-        <source>the update index is signed by a key that is not trusted</source>
-        <translation type="unfinished"></translation>
+        <translation>更新索引的簽章無效</translation>
     </message>
     <message>
         <location filename="../UpdatePresentation.cpp" line="74"/>
+        <source>the update index is signed by a key that is not trusted</source>
+        <translation>更新索引由不受信任的金鑰簽署</translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="80"/>
         <source>the root of trust expired on %1</source>
-        <translation type="unfinished"></translation>
+        <translation>信任根已於 %1 過期</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="79"/>
+        <location filename="../UpdatePresentation.cpp" line="85"/>
         <source>the signing key list expired on %1</source>
-        <translation type="unfinished"></translation>
+        <translation>簽署金鑰清單已於 %1 過期</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="83"/>
+        <location filename="../UpdatePresentation.cpp" line="89"/>
         <source>the update index expired on %1</source>
-        <translation type="unfinished"></translation>
+        <translation>更新索引已於 %1 過期</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="87"/>
+        <location filename="../UpdatePresentation.cpp" line="93"/>
         <source>the update index is older than one seen before (serial %1, %2 seen before)</source>
-        <translation type="unfinished"></translation>
+        <translation>更新索引比先前看過的版本舊（序號 %1，先前看過 %2）</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="94"/>
+        <location filename="../UpdatePresentation.cpp" line="100"/>
         <source>a newer root of trust could not be verified</source>
-        <translation type="unfinished"></translation>
+        <translation>無法驗證較新的信任根</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="97"/>
+        <location filename="../UpdatePresentation.cpp" line="103"/>
         <source>the signing key list could not be verified</source>
-        <translation type="unfinished"></translation>
+        <translation>無法驗證簽署金鑰清單</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="101"/>
+        <location filename="../UpdatePresentation.cpp" line="107"/>
         <source>the release notes don&apos;t match the update index</source>
-        <translation type="unfinished"></translation>
+        <translation>發行說明與更新索引不符</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="104"/>
+        <location filename="../UpdatePresentation.cpp" line="110"/>
         <source>the release details don&apos;t match the update index</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../UpdatePresentation.cpp" line="108"/>
-        <source>an answer from the server was too large</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../UpdatePresentation.cpp" line="111"/>
-        <source>the update index could not be read</source>
-        <translation type="unfinished"></translation>
+        <translation>發行詳細資訊與更新索引不符</translation>
     </message>
     <message>
         <location filename="../UpdatePresentation.cpp" line="114"/>
-        <source>this build&apos;s commit is not among the official builds</source>
-        <translation type="unfinished"></translation>
+        <source>an answer from the server was too large</source>
+        <translation>伺服器的回應過大</translation>
     </message>
     <message>
         <location filename="../UpdatePresentation.cpp" line="117"/>
+        <source>the update index could not be read</source>
+        <translation>無法讀取更新索引</translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="120"/>
+        <source>this build&apos;s commit is not among the official builds</source>
+        <translation>此版本的提交不在官方版本之列</translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="123"/>
         <source>this build was made without a built-in root of trust</source>
-        <translation type="unfinished"></translation>
+        <translation>此版本建置時未包含內建信任根</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="136"/>
+        <location filename="../UpdatePresentation.cpp" line="142"/>
         <source>No server answered</source>
-        <translation type="unfinished"></translation>
+        <translation>沒有伺服器回應</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="138"/>
+        <location filename="../UpdatePresentation.cpp" line="144"/>
         <source>Signature not valid</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../UpdatePresentation.cpp" line="140"/>
-        <source>Signed by a key that isn&apos;t trusted</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../UpdatePresentation.cpp" line="143"/>
-        <source>Expired on %1</source>
-        <translation type="unfinished"></translation>
+        <translation>簽章無效</translation>
     </message>
     <message>
         <location filename="../UpdatePresentation.cpp" line="146"/>
+        <source>Signed by a key that isn&apos;t trusted</source>
+        <translation>由不受信任的金鑰簽署</translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="149"/>
+        <source>Expired on %1</source>
+        <translation>已於 %1 過期</translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="152"/>
         <source>Older than one seen before (serial %1, %2 seen)</source>
-        <translation type="unfinished"></translation>
+        <translation>比先前看過的版本更舊（序號 %1，已看過 %2 次）</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="151"/>
+        <location filename="../UpdatePresentation.cpp" line="157"/>
         <source>A newer root didn&apos;t verify</source>
-        <translation type="unfinished"></translation>
+        <translation>較新的信任根驗證失敗</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="154"/>
+        <location filename="../UpdatePresentation.cpp" line="160"/>
         <source>Didn&apos;t verify</source>
-        <translation type="unfinished"></translation>
+        <translation>驗證失敗</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="156"/>
+        <location filename="../UpdatePresentation.cpp" line="162"/>
         <source>Doesn&apos;t match the update index</source>
-        <translation type="unfinished"></translation>
+        <translation>與更新索引不符</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="159"/>
+        <location filename="../UpdatePresentation.cpp" line="165"/>
         <source>Answer too large</source>
-        <translation type="unfinished"></translation>
+        <translation>回應過大</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="161"/>
+        <location filename="../UpdatePresentation.cpp" line="167"/>
         <source>Not readable</source>
-        <translation type="unfinished"></translation>
+        <translation>無法讀取</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="163"/>
+        <location filename="../UpdatePresentation.cpp" line="169"/>
         <source>Not among the official builds</source>
-        <translation type="unfinished"></translation>
+        <translation>不在官方建置版本中</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="166"/>
-        <location filename="../UpdatePresentation.cpp" line="916"/>
+        <location filename="../UpdatePresentation.cpp" line="172"/>
+        <location filename="../UpdatePresentation.cpp" line="930"/>
         <source>Not included in this build</source>
-        <translation type="unfinished"></translation>
+        <translation>未包含在此建置版本中</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="181"/>
-        <location filename="../UpdatePresentation.cpp" line="457"/>
+        <location filename="../UpdatePresentation.cpp" line="187"/>
+        <location filename="../UpdatePresentation.cpp" line="463"/>
         <source>Verified</source>
-        <translation type="unfinished"></translation>
+        <translation>已驗證</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="190"/>
-        <location filename="../UpdatePresentation.cpp" line="243"/>
-        <location filename="../UpdatePresentation.cpp" line="255"/>
+        <location filename="../UpdatePresentation.cpp" line="196"/>
+        <location filename="../UpdatePresentation.cpp" line="249"/>
+        <location filename="../UpdatePresentation.cpp" line="261"/>
         <source>Signed by %1</source>
-        <translation type="unfinished"></translation>
+        <translation>由 %1 簽署</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="195"/>
-        <location filename="../UpdatePresentation.cpp" line="414"/>
+        <location filename="../UpdatePresentation.cpp" line="201"/>
+        <location filename="../UpdatePresentation.cpp" line="420"/>
         <source>Not run</source>
-        <translation type="unfinished"></translation>
+        <translation>未執行</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="215"/>
-        <location filename="../UpdatePresentation.cpp" line="915"/>
+        <location filename="../UpdatePresentation.cpp" line="221"/>
+        <location filename="../UpdatePresentation.cpp" line="929"/>
         <source>Root of trust</source>
-        <translation type="unfinished"></translation>
+        <translation>信任根</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="236"/>
+        <location filename="../UpdatePresentation.cpp" line="242"/>
         <source>Signing key list</source>
-        <translation type="unfinished"></translation>
+        <translation>簽署金鑰清單</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="237"/>
+        <location filename="../UpdatePresentation.cpp" line="243"/>
         <source>Version %1</source>
-        <translation type="unfinished"></translation>
+        <translation>版本 %1</translation>
     </message>
     <message numerus="yes">
-        <location filename="../UpdatePresentation.cpp" line="239"/>
+        <location filename="../UpdatePresentation.cpp" line="245"/>
         <source>%n key(s)</source>
-        <translation type="unfinished">
-            <numerusform></numerusform>
+        <translation>
+            <numerusform>%n 個金鑰</numerusform>
         </translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="248"/>
+        <location filename="../UpdatePresentation.cpp" line="254"/>
         <source>Update index</source>
-        <translation type="unfinished"></translation>
+        <translation>更新索引</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="278"/>
+        <location filename="../UpdatePresentation.cpp" line="284"/>
         <source>Release details and notes</source>
-        <translation type="unfinished"></translation>
+        <translation>版本詳細資訊與說明</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="286"/>
-        <location filename="../UpdateTab.cpp" line="484"/>
+        <location filename="../UpdatePresentation.cpp" line="292"/>
+        <location filename="../UpdateTab.cpp" line="496"/>
         <source>Official build</source>
-        <translation type="unfinished"></translation>
+        <translation>官方建置</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="217"/>
+        <location filename="../UpdatePresentation.cpp" line="223"/>
         <source>Version %1 (built in)</source>
-        <translation type="unfinished"></translation>
+        <translation>版本 %1（內建）</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="220"/>
+        <location filename="../UpdatePresentation.cpp" line="226"/>
         <source>Version %1 (updated %2 from version %3)</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../UpdatePresentation.cpp" line="225"/>
-        <location filename="../UpdatePresentation.cpp" line="241"/>
-        <location filename="../UpdatePresentation.cpp" line="252"/>
-        <source>Valid until %1</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../UpdatePresentation.cpp" line="227"/>
-        <source>Signed by %1 of %2 root keys</source>
-        <translation type="unfinished"></translation>
+        <translation>版本 %1（已於 %2 從版本 %3 更新）</translation>
     </message>
     <message>
         <location filename="../UpdatePresentation.cpp" line="231"/>
+        <location filename="../UpdatePresentation.cpp" line="247"/>
+        <location filename="../UpdatePresentation.cpp" line="258"/>
+        <source>Valid until %1</source>
+        <translation>有效至 %1</translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="233"/>
+        <source>Signed by %1 of %2 root keys</source>
+        <translation>已由 %2 個根金鑰中的 %1 個簽署</translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="237"/>
         <source>Root keys: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>根金鑰：%1</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="249"/>
+        <location filename="../UpdatePresentation.cpp" line="255"/>
         <source>Serial %1</source>
-        <translation type="unfinished"></translation>
+        <translation>序號 %1</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="254"/>
+        <location filename="../UpdatePresentation.cpp" line="260"/>
         <source>No rollback</source>
-        <translation type="unfinished"></translation>
+        <translation>無回溯</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="269"/>
+        <location filename="../UpdatePresentation.cpp" line="275"/>
         <source>Release details: %1</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../UpdatePresentation.cpp" line="273"/>
-        <source>Release notes: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>發行詳細資訊：%1</translation>
     </message>
     <message>
         <location filename="../UpdatePresentation.cpp" line="279"/>
+        <source>Release notes: %1</source>
+        <translation>發行說明：%1</translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="285"/>
         <source>Match the hashes in the update index</source>
-        <translation type="unfinished"></translation>
+        <translation>與更新索引中的雜湊值相符</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="287"/>
+        <location filename="../UpdatePresentation.cpp" line="293"/>
         <source>Confirmed by %1</source>
-        <translation type="unfinished"></translation>
+        <translation>已由 %1 確認</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="301"/>
+        <location filename="../UpdatePresentation.cpp" line="307"/>
         <source>Later steps not run</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../UpdatePresentation.cpp" line="349"/>
-        <source>stable</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../UpdatePresentation.cpp" line="352"/>
-        <source>mainline</source>
-        <translation type="unfinished"></translation>
+        <translation>後續步驟未執行</translation>
     </message>
     <message>
         <location filename="../UpdatePresentation.cpp" line="355"/>
-        <source>security fixes only</source>
-        <translation type="unfinished"></translation>
+        <source>stable</source>
+        <translation>穩定版</translation>
     </message>
     <message>
         <location filename="../UpdatePresentation.cpp" line="358"/>
+        <source>mainline</source>
+        <translation>主線版</translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="361"/>
+        <source>security fixes only</source>
+        <translation>僅安全性修正</translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="364"/>
         <source>end of life</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../UpdatePresentation.cpp" line="367"/>
-        <source>the Microsoft Store</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../UpdatePresentation.cpp" line="370"/>
-        <source>the Mac App Store</source>
-        <translation type="unfinished"></translation>
+        <translation>終止支援</translation>
     </message>
     <message>
         <location filename="../UpdatePresentation.cpp" line="373"/>
-        <source>Flatpak</source>
-        <translation type="unfinished"></translation>
+        <source>the Microsoft Store</source>
+        <translation>Microsoft Store</translation>
     </message>
     <message>
         <location filename="../UpdatePresentation.cpp" line="376"/>
+        <source>the Mac App Store</source>
+        <translation>Mac App Store</translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="379"/>
+        <source>Flatpak</source>
+        <translation>Flatpak</translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="382"/>
         <source>your distribution&apos;s packages</source>
-        <translation type="unfinished"></translation>
+        <translation>您發行版的套件</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="380"/>
+        <location filename="../UpdatePresentation.cpp" line="386"/>
         <source>the store it was installed from</source>
-        <translation type="unfinished"></translation>
+        <translation>安裝時所用的商店</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="413"/>
-        <location filename="../UpdatePresentation.cpp" line="923"/>
+        <location filename="../UpdatePresentation.cpp" line="419"/>
+        <location filename="../UpdatePresentation.cpp" line="937"/>
         <source>Downloaded file</source>
-        <translation type="unfinished"></translation>
+        <translation>已下載的檔案</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="415"/>
+        <location filename="../UpdatePresentation.cpp" line="421"/>
         <source>Checked against its size and SHA-256 after download</source>
-        <translation type="unfinished"></translation>
+        <translation>下載後已依大小與 SHA-256 核對</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="432"/>
+        <location filename="../UpdatePresentation.cpp" line="438"/>
         <source>Downloading… %1%</source>
         <translation>下載中… %1%</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="440"/>
+        <location filename="../UpdatePresentation.cpp" line="446"/>
         <source>Nightly build %1 is installed</source>
         <translation>已安裝夜間建置 %1</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="445"/>
+        <location filename="../UpdatePresentation.cpp" line="451"/>
         <source>Restart GpgFrontend to start using it.</source>
         <translation>重新啟動 GpgFrontend 即可開始使用。</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="447"/>
+        <location filename="../UpdatePresentation.cpp" line="453"/>
         <source>Close and reopen GpgFrontend to start using it.</source>
         <translation>關閉並重新開啟 GpgFrontend 即可開始使用。</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="453"/>
+        <location filename="../UpdatePresentation.cpp" line="459"/>
         <source>Restart now</source>
         <translation>立即重新啟動</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="459"/>
+        <location filename="../UpdatePresentation.cpp" line="465"/>
         <source>Size and SHA-256 matched after download</source>
-        <translation type="unfinished"></translation>
+        <translation>下載後大小與 SHA-256 相符</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="506"/>
+        <location filename="../UpdatePresentation.cpp" line="512"/>
         <source>The %1 series gets security fixes only, until %2. GpgFrontend %3 is the current release.</source>
         <translation>%1 系列僅會獲得安全性修正，直到 %2。GpgFrontend %3 是目前的發行版本。</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="511"/>
+        <location filename="../UpdatePresentation.cpp" line="517"/>
         <source>The %1 series gets security fixes only, until %2.</source>
         <translation>%1 系列僅會獲得安全性修正，直到 %2。</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="517"/>
+        <location filename="../UpdatePresentation.cpp" line="523"/>
         <source>The %1 series no longer gets fixes. GpgFrontend %2 is the current release.</source>
         <translation>%1 系列已不再獲得修正。GpgFrontend %2 是目前的發行版本。</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="522"/>
+        <location filename="../UpdatePresentation.cpp" line="528"/>
         <source>The %1 series no longer gets fixes, and the current release does not run on this system.</source>
         <translation>%1 系列已不再獲得修正，且目前的發行版本無法在此系統上執行。</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="588"/>
-        <location filename="../UpdatePresentation.cpp" line="698"/>
+        <location filename="../UpdatePresentation.cpp" line="602"/>
+        <location filename="../UpdatePresentation.cpp" line="712"/>
         <source>Couldn&apos;t reach the update server</source>
-        <translation type="unfinished"></translation>
+        <translation>無法連線至更新伺服器</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="590"/>
+        <location filename="../UpdatePresentation.cpp" line="604"/>
         <source>No update server answered.</source>
-        <translation type="unfinished"></translation>
+        <translation>沒有任何更新伺服器回應。</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="594"/>
+        <location filename="../UpdatePresentation.cpp" line="608"/>
         <source>No update information yet</source>
         <translation>尚無更新資訊。</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="595"/>
+        <location filename="../UpdatePresentation.cpp" line="609"/>
         <source>Check now to see whether a newer GpgFrontend is available.</source>
         <translation>立即檢查是否有較新的 GpgFrontend 可用。</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="612"/>
+        <location filename="../UpdatePresentation.cpp" line="626"/>
         <source>Nightly build %1 is available</source>
         <translation>夜間建置 %1 已可用</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="615"/>
+        <location filename="../UpdatePresentation.cpp" line="629"/>
         <source>GpgFrontend %1 is available</source>
         <translation>GpgFrontend %1 已可用</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="618"/>
+        <location filename="../UpdatePresentation.cpp" line="632"/>
         <source>You are using %1.</source>
         <translation>您正在使用%1。</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="641"/>
+        <location filename="../UpdatePresentation.cpp" line="655"/>
         <source>Move to the newest nightly build.</source>
-        <translation type="unfinished"></translation>
+        <translation>請改用最新的夜間建置。</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="645"/>
+        <location filename="../UpdatePresentation.cpp" line="659"/>
         <source>This version has been withdrawn</source>
         <translation>此版本已撤銷</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="647"/>
+        <location filename="../UpdatePresentation.cpp" line="661"/>
         <source>Move to the latest release of its series.</source>
-        <translation type="unfinished"></translation>
+        <translation>請改用其所屬系列的最新發行版本。</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="745"/>
+        <location filename="../UpdatePresentation.cpp" line="759"/>
         <source>Updates aren&apos;t available for this build</source>
-        <translation type="unfinished"></translation>
+        <translation>此建置版本無法使用更新</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="747"/>
+        <location filename="../UpdatePresentation.cpp" line="761"/>
         <source>It was built without the release trust files. Official builds include them and check for updates automatically.</source>
-        <translation type="unfinished"></translation>
+        <translation>此版本建置時未包含發行信任檔案。官方建置會包含這些檔案並自動檢查更新。</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="757"/>
+        <location filename="../UpdatePresentation.cpp" line="771"/>
         <source>Update information couldn&apos;t be verified</source>
-        <translation type="unfinished"></translation>
+        <translation>無法驗證更新資訊</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="762"/>
+        <location filename="../UpdatePresentation.cpp" line="776"/>
         <source>Update information couldn&apos;t be verified: %1.</source>
-        <translation type="unfinished"></translation>
+        <translation>無法驗證更新資訊：%1。</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="766"/>
+        <location filename="../UpdatePresentation.cpp" line="780"/>
         <source>Showing the result from %1.</source>
-        <translation type="unfinished"></translation>
+        <translation>顯示來自 %1 的結果。</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="772"/>
+        <location filename="../UpdatePresentation.cpp" line="786"/>
         <source>Couldn&apos;t reach the update server. Showing the result from %1.</source>
-        <translation type="unfinished"></translation>
+        <translation>無法連線至更新伺服器。顯示來自 %1 的結果。</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="781"/>
-        <location filename="../UpdatePresentation.cpp" line="816"/>
-        <location filename="../UpdatePresentation.cpp" line="924"/>
+        <location filename="../UpdatePresentation.cpp" line="795"/>
+        <location filename="../UpdatePresentation.cpp" line="830"/>
+        <location filename="../UpdatePresentation.cpp" line="938"/>
         <source>Not checked</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../UpdatePresentation.cpp" line="787"/>
-        <source>Not verified · checked %1</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../UpdatePresentation.cpp" line="791"/>
-        <source>Server not reached · checked %1</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../UpdatePresentation.cpp" line="797"/>
-        <source>Verified · checked %1</source>
-        <translation type="unfinished"></translation>
+        <translation>未檢查</translation>
     </message>
     <message>
         <location filename="../UpdatePresentation.cpp" line="801"/>
-        <source>Not checked yet</source>
-        <translation type="unfinished"></translation>
+        <source>Not verified · checked %1</source>
+        <translation>未驗證 · 檢查於 %1</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="809"/>
-        <source>Nightly</source>
-        <translation type="unfinished"></translation>
+        <location filename="../UpdatePresentation.cpp" line="805"/>
+        <source>Server not reached · checked %1</source>
+        <translation>無法連線伺服器 · 檢查於 %1</translation>
     </message>
     <message>
         <location filename="../UpdatePresentation.cpp" line="811"/>
-        <source>Release · series %1</source>
-        <translation type="unfinished"></translation>
+        <source>Verified · checked %1</source>
+        <translation>已驗證 · 檢查於 %1</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="813"/>
-        <source>Release · series %1 (%2)</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../UpdatePresentation.cpp" line="820"/>
-        <source>Yes</source>
-        <translation type="unfinished"></translation>
+        <location filename="../UpdatePresentation.cpp" line="815"/>
+        <source>Not checked yet</source>
+        <translation>尚未檢查</translation>
     </message>
     <message>
         <location filename="../UpdatePresentation.cpp" line="823"/>
+        <source>Nightly</source>
+        <translation>夜間版</translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="825"/>
+        <source>Release · series %1</source>
+        <translation>正式版 · 系列 %1</translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="827"/>
+        <source>Release · series %1 (%2)</source>
+        <translation>正式版 · 系列 %1（%2）</translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="834"/>
+        <source>Yes</source>
+        <translation>是</translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="837"/>
         <source>No, not from the official repository</source>
-        <translation type="unfinished"></translation>
+        <translation>否，並非來自官方儲存庫</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="828"/>
+        <location filename="../UpdatePresentation.cpp" line="842"/>
         <source>Not confirmed</source>
-        <translation type="unfinished"></translation>
+        <translation>未確認</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="840"/>
+        <location filename="../UpdatePresentation.cpp" line="854"/>
         <source>Move to %1, the newest version.</source>
-        <translation type="unfinished"></translation>
+        <translation>移至最新版本 %1。</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="864"/>
+        <location filename="../UpdatePresentation.cpp" line="878"/>
         <source>Newest nightly</source>
-        <translation type="unfinished"></translation>
+        <translation>最新的夜間版</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="865"/>
+        <location filename="../UpdatePresentation.cpp" line="879"/>
         <source>Newest in %1</source>
-        <translation type="unfinished"></translation>
+        <translation>%1 中的最新版本</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="871"/>
+        <location filename="../UpdatePresentation.cpp" line="885"/>
         <source>A newer beta, %1, is available</source>
-        <translation type="unfinished"></translation>
+        <translation>有較新的 beta 版本 %1 可用</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="925"/>
+        <location filename="../UpdatePresentation.cpp" line="939"/>
         <source>Opens in your browser. Compare it with the SHA-256 above.</source>
-        <translation type="unfinished"></translation>
+        <translation>會在瀏覽器中開啟。請與上方的 SHA-256 比對。</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="937"/>
+        <location filename="../UpdatePresentation.cpp" line="951"/>
         <source>Tag v%1</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../UpdatePresentation.cpp" line="965"/>
-        <source>Authenticode</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../UpdatePresentation.cpp" line="882"/>
-        <source>Updates for this build come from %1.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../UpdatePresentation.cpp" line="899"/>
-        <source>GpgFrontend %1 does not support this system.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../UpdatePresentation.cpp" line="903"/>
-        <source>GpgFrontend %1 needs %2 or later, which this system doesn&apos;t have or couldn&apos;t confirm.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../UpdatePresentation.cpp" line="943"/>
-        <source>Built by GitHub Actions</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../UpdatePresentation.cpp" line="954"/>
-        <source>Signed by the maintainer</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../UpdatePresentation.cpp" line="956"/>
-        <source>OpenPGP</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../UpdatePresentation.cpp" line="963"/>
-        <source>Windows installers signed</source>
-        <translation type="unfinished"></translation>
+        <translation>標籤 v%1</translation>
     </message>
     <message>
         <location filename="../UpdatePresentation.cpp" line="979"/>
+        <source>Authenticode</source>
+        <translation>Authenticode</translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="896"/>
+        <source>Updates for this build come from %1.</source>
+        <translation>此版本的更新來自 %1。</translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="913"/>
+        <source>GpgFrontend %1 does not support this system.</source>
+        <translation>GpgFrontend %1 不支援此系統。</translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="917"/>
+        <source>GpgFrontend %1 needs %2 or later, which this system doesn&apos;t have or couldn&apos;t confirm.</source>
+        <translation>GpgFrontend %1 需要 %2 或更新版本，但此系統沒有或無法確認。</translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="957"/>
+        <source>Built by GitHub Actions</source>
+        <translation>由 GitHub Actions 建置</translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="968"/>
+        <source>Signed by the maintainer</source>
+        <translation>由維護者簽署</translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="970"/>
+        <source>OpenPGP</source>
+        <translation>OpenPGP</translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="977"/>
+        <source>Windows installers signed</source>
+        <translation>Windows 安裝程式已簽署</translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="991"/>
         <source>Commit %1</source>
-        <translation type="unfinished"></translation>
+        <translation>提交 %1</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="983"/>
+        <location filename="../UpdatePresentation.cpp" line="995"/>
         <source>Offered %1</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../UpdatePresentation.cpp" line="993"/>
-        <source>Checked %1</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../UpdatePresentation.cpp" line="1003"/>
-        <source>verified</source>
-        <translation type="unfinished"></translation>
+        <translation>提供於 %1</translation>
     </message>
     <message>
         <location filename="../UpdatePresentation.cpp" line="1005"/>
+        <source>Checked %1</source>
+        <translation>檢查於 %1</translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="1015"/>
+        <source>verified</source>
+        <translation>已驗證</translation>
+    </message>
+    <message>
+        <location filename="../UpdatePresentation.cpp" line="1017"/>
         <source>failed</source>
-        <translation type="unfinished"></translation>
+        <translation>失敗</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="1007"/>
+        <location filename="../UpdatePresentation.cpp" line="1019"/>
         <source>not run</source>
-        <translation type="unfinished"></translation>
+        <translation>未執行</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="1009"/>
+        <location filename="../UpdatePresentation.cpp" line="1021"/>
         <source>not checked</source>
-        <translation type="unfinished"></translation>
+        <translation>未檢查</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="1027"/>
-        <location filename="../UpdateTab.cpp" line="588"/>
+        <location filename="../UpdatePresentation.cpp" line="1039"/>
+        <location filename="../UpdateTab.cpp" line="600"/>
         <source>Checked on this device</source>
-        <translation type="unfinished"></translation>
+        <translation>已在此裝置上檢查</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="1034"/>
-        <location filename="../UpdateTab.cpp" line="592"/>
+        <location filename="../UpdatePresentation.cpp" line="1046"/>
+        <location filename="../UpdateTab.cpp" line="604"/>
         <source>Checked by the release server</source>
-        <translation type="unfinished"></translation>
+        <translation>已由發行伺服器檢查</translation>
     </message>
     <message>
         <source>Please move to the latest release of its series.</source>
@@ -856,14 +856,14 @@
         <translation type="vanished">下載 %1</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="623"/>
-        <location filename="../UpdatePresentation.cpp" line="845"/>
-        <location filename="../UpdatePresentation.cpp" line="894"/>
+        <location filename="../UpdatePresentation.cpp" line="637"/>
+        <location filename="../UpdatePresentation.cpp" line="859"/>
+        <location filename="../UpdatePresentation.cpp" line="908"/>
         <source>Download</source>
         <translation>下載</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="639"/>
+        <location filename="../UpdatePresentation.cpp" line="653"/>
         <source>This nightly build has been withdrawn</source>
         <translation>此夜間建置已撤回</translation>
     </message>
@@ -880,47 +880,47 @@
         <translation type="vanished">這可能是預發行版或已撤回的版本。建議使用最新的官方發行版。</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="652"/>
+        <location filename="../UpdatePresentation.cpp" line="666"/>
         <source>This build isn&apos;t from the official repository</source>
         <translation>此 build 並非來自官方倉庫。</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="655"/>
+        <location filename="../UpdatePresentation.cpp" line="669"/>
         <source>Its source commit isn&apos;t among the published builds. That is expected for self-built or modified versions.</source>
         <translation>其來源提交不在已發佈的建置中。對自行建置或修改的版本來說，這是預期情況。</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="660"/>
+        <location filename="../UpdatePresentation.cpp" line="674"/>
         <source>Its source commit wasn&apos;t found upstream. That is expected for self-built or modified versions.</source>
         <translation>其來源 commit 未在上游找到。這在自行編譯或修改的版本中屬正常情況。</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="669"/>
+        <location filename="../UpdatePresentation.cpp" line="683"/>
         <source>This is a release branch build</source>
         <translation>這是發行分支建置</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="671"/>
+        <location filename="../UpdatePresentation.cpp" line="685"/>
         <source>%1 is a test build of a fix release. It is not offered updates; install the release when it is out.</source>
         <translation>%1 是修正版發行的測試建置。它不會收到更新；請在正式發行後安裝該發行版本。</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="680"/>
+        <location filename="../UpdatePresentation.cpp" line="694"/>
         <source>You&apos;re up to date</source>
         <translation>您已是最新版本</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="682"/>
+        <location filename="../UpdatePresentation.cpp" line="696"/>
         <source>%1 is the newest nightly build.</source>
         <translation>%1 是最新的夜間建置。</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="687"/>
+        <location filename="../UpdatePresentation.cpp" line="701"/>
         <source>%1 is the latest release.</source>
         <translation>%1 是最新版本。</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="690"/>
+        <location filename="../UpdatePresentation.cpp" line="704"/>
         <source>No newer release was found for %1.</source>
         <translation>未找到比 %1 更新的版本。</translation>
     </message>
@@ -937,29 +937,29 @@
         <translation type="vanished">剛才無法檢查更新。顯示最後已知的結果。</translation>
     </message>
     <message>
-        <location filename="../UpdatePresentation.cpp" line="579"/>
+        <location filename="../UpdatePresentation.cpp" line="593"/>
         <source>Check again</source>
         <translation>重新檢查</translation>
     </message>
     <message>
         <location filename="../UpdateTab.cpp" line="129"/>
         <source>Copy</source>
-        <translation type="unfinished"></translation>
+        <translation>複製</translation>
     </message>
     <message>
         <location filename="../UpdateTab.cpp" line="137"/>
         <source>Copied</source>
-        <translation type="unfinished"></translation>
+        <translation>已複製</translation>
     </message>
     <message>
         <location filename="../UpdateTab.cpp" line="234"/>
         <source>This build</source>
-        <translation type="unfinished"></translation>
+        <translation>此建置</translation>
     </message>
     <message>
         <location filename="../UpdateTab.cpp" line="246"/>
         <source>Offered</source>
-        <translation type="unfinished"></translation>
+        <translation>提供</translation>
     </message>
     <message>
         <source>Also offer beta versions</source>
@@ -972,67 +972,67 @@
     <message>
         <location filename="../UpdateTab.cpp" line="284"/>
         <source>Details</source>
-        <translation type="unfinished"></translation>
+        <translation>詳細資料</translation>
     </message>
     <message>
         <location filename="../UpdateTab.cpp" line="297"/>
         <source>Copy report</source>
-        <translation type="unfinished"></translation>
+        <translation>複製報告</translation>
     </message>
     <message>
         <location filename="../UpdateTab.cpp" line="303"/>
         <source>Close</source>
-        <translation type="unfinished"></translation>
+        <translation>關閉</translation>
     </message>
     <message>
         <source>Release notes</source>
         <translation type="vanished">版本說明</translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="478"/>
-        <location filename="../UpdateTab.cpp" line="493"/>
+        <location filename="../UpdateTab.cpp" line="490"/>
+        <location filename="../UpdateTab.cpp" line="505"/>
         <source>Version</source>
-        <translation type="unfinished"></translation>
+        <translation>版本</translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="479"/>
+        <location filename="../UpdateTab.cpp" line="491"/>
         <source>Type</source>
-        <translation type="unfinished"></translation>
+        <translation>類型</translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="481"/>
+        <location filename="../UpdateTab.cpp" line="493"/>
         <source>Commit</source>
-        <translation type="unfinished"></translation>
+        <translation>提交</translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="503"/>
+        <location filename="../UpdateTab.cpp" line="515"/>
         <source>File</source>
-        <translation type="unfinished"></translation>
+        <translation>檔案</translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="506"/>
+        <location filename="../UpdateTab.cpp" line="518"/>
         <source>Size</source>
-        <translation type="unfinished"></translation>
+        <translation>大小</translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="512"/>
+        <location filename="../UpdateTab.cpp" line="524"/>
         <source>Copy SHA-256</source>
-        <translation type="unfinished"></translation>
+        <translation>複製 SHA-256</translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="514"/>
+        <location filename="../UpdateTab.cpp" line="526"/>
         <source>SHA-256</source>
-        <translation type="unfinished"></translation>
+        <translation>SHA-256</translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="583"/>
+        <location filename="../UpdateTab.cpp" line="595"/>
         <source>The details appear after the next check.</source>
-        <translation type="unfinished"></translation>
+        <translation>詳細資料會在下次檢查後顯示。</translation>
     </message>
     <message>
-        <location filename="../UpdateTab.cpp" line="599"/>
+        <location filename="../UpdateTab.cpp" line="611"/>
         <source>How to verify the download yourself</source>
-        <translation type="unfinished"></translation>
+        <translation>如何自行驗證下載</translation>
     </message>
     <message>
         <location filename="../UpdateTab.cpp" line="367"/>
@@ -1040,24 +1040,24 @@
         <translation>更新檢查目前不可用。</translation>
     </message>
     <message>
-        <location filename="../AppImageUpdate.cpp" line="109"/>
+        <location filename="../AppImageUpdate.cpp" line="110"/>
         <source>The update does not describe its file.</source>
         <translation>此更新未描述其檔案。</translation>
     </message>
     <message>
-        <location filename="../AppImageUpdate.cpp" line="119"/>
-        <location filename="../AppImageUpdate.cpp" line="181"/>
+        <location filename="../AppImageUpdate.cpp" line="120"/>
+        <location filename="../AppImageUpdate.cpp" line="179"/>
         <source>The update could not be written next to the application: %1</source>
         <translation>無法將更新寫入應用程式所在位置：%1</translation>
     </message>
     <message>
-        <location filename="../AppImageUpdate.cpp" line="156"/>
-        <location filename="../AppImageUpdate.cpp" line="168"/>
+        <location filename="../AppImageUpdate.cpp" line="154"/>
+        <location filename="../AppImageUpdate.cpp" line="166"/>
         <source>The download is not the file the signed update describes.</source>
         <translation>下載的檔案與已簽署更新所描述的檔案不符。</translation>
     </message>
     <message>
-        <location filename="../AppImageUpdate.cpp" line="162"/>
+        <location filename="../AppImageUpdate.cpp" line="160"/>
         <source>The download failed: %1</source>
         <translation>下載失敗：%1</translation>
     </message>
