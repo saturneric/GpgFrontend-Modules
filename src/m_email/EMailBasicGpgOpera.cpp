@@ -1412,21 +1412,15 @@ auto DecryptEMLData(int channel, const QByteArray& data,
    */
   auto part_mime = body->getPartAt(0);
 
-  std::ostringstream oss;
-  vmime::utility::outputStreamAdapter osa(oss);
-
-  auto part_mime_body = part_mime->getBody();
-  auto part_mime_body_content = part_mime_body->getContents();
-  if (!part_mime_body_content) {
+  // DECODED, like the ciphertext part below. Exchange base64-encodes this
+  // part, and the raw form is then "VmVyc2lvbjogMQ0K", not "Version: 1".
+  auto part_mime_body_content_text =
+      QString::fromUtf8(DecodePartContent(part_mime));
+  if (part_mime_body_content_text.trimmed().isEmpty()) {
     eml_data = "Cannot get the content of the first part's body";
     return kEML_FAILED;
   }
-
-  part_mime_body_content->extractRaw(osa);
-  osa.flush();
-
-  auto part_mime_body_content_text = Q_SC(oss.str());
-  FLOG_DEBUG("body part of raw content text: %1",
+  FLOG_DEBUG("body part of decoded content text: %1",
              Elide(part_mime_body_content_text));
 
   /*

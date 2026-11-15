@@ -284,6 +284,73 @@ TEST_F(CryptoBoundaryTest, DecryptedOutputWithAnEmbeddedNulIsNotTruncated) {
       << "decrypted plaintext was truncated at the embedded NUL";
 }
 
+namespace {
+
+constexpr auto kOuterSubject = "...";
+
+/// The ciphertext the engine has to be handed, armored.
+auto ArmoredStub() -> QByteArray {
+  return "-----BEGIN PGP MESSAGE-----\r\nc3R1Yg==\r\n"
+         "-----END PGP MESSAGE-----\r\n";
+}
+
+auto OuterHeaders(const QByteArray& content_type) -> QByteArray {
+  QByteArray eml;
+  eml += "From: Alice <alice@example.com>\r\n";
+  eml += "To: Bob <bob@example.com>\r\n";
+  eml += QByteArray("Subject: ") + kOuterSubject + "\r\n";
+  eml += "MIME-Version: 1.0\r\n";
+  eml += "Content-Type: " + content_type + "\r\n\r\n";
+  return eml;
+}
+
+/// The two RFC 3156 parts as Exchange writes them: base64 attachments.
+auto ExchangeParts(const QByteArray& boundary, const QByteArray& version)
+    -> QByteArray {
+  QByteArray eml;
+  eml += "--" + boundary + "\r\n";
+  eml +=
+      "Content-Type: application/pgp-encrypted; "
+      "name=\"PGPMIME version identification\"\r\n";
+  eml += "Content-Disposition: attachment\r\n";
+  eml += "Content-Transfer-Encoding: base64\r\n\r\n";
+  eml += version.toBase64() + "\r\n";
+  eml += "\r\n--" + boundary + "\r\n";
+  eml += "Content-Type: application/octet-stream; name=\"encrypted.asc\"\r\n";
+  eml += "Content-Disposition: attachment; filename=\"encrypted.asc\"\r\n";
+  eml += "Content-Transfer-Encoding: base64\r\n\r\n";
+  eml += ArmoredStub().toBase64() + "\r\n";
+  eml += "\r\n--" + boundary + "--\r\n";
+  return eml;
+}
+
+auto RunDecrypt(const QByteArray& eml, EMailMetaData& meta, QByteArray& out)
+    -> int {
+  uint32_t err = 0;
+  QString capsule;
+  return DecryptEMLData(0, eml, meta, out, err, capsule);
+}
+
+}  // namespace
+
+TEST_F(CryptoBoundaryTest, ABase64ControlPartStillSaysVersionOne) {
+  // Exchange base64-encodes the control part, and Thunderbird's repair keeps
+  // it that way. The raw bytes are then "VmVyc2lvbjogMQ0K".
+  const auto eml = OuterHeaders(
+                       "multipart/encrypted; "
+                       "protocol=\"application/pgp-encrypted\"; "
+                       "boundary=\"encb\"") +
+                   ExchangeParts("encb", "Version: 1\r\n");
+
+  EMailMetaData meta;
+  QByteArray out;
+  RunDecrypt(eml, meta, out);
+
+  ASSERT_EQ(Get().decrypt.size(), 1) << out.toStdString();
+  // Decoded, as the ciphertext always was: the armor, not its base64.
+  EXPECT_EQ(Get().decrypt.first().data, ArmoredStub());
+}
+
 // --- sign / encrypt ---------------------------------------------------------
 
 TEST_F(CryptoBoundaryTest, SigningPassesTheBodyOctetsWhole) {
