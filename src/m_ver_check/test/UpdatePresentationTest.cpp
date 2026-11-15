@@ -512,7 +512,8 @@ TEST(UpdatePresentationTest, UpToDateShowsTheBuildAndEveryStepVerified) {
   }
   ExpectHostRowsNeverVerified(v);
   EXPECT_EQ(v.security_url,
-            "https://github.com/saturneric/GpgFrontend/blob/main/SECURITY.md");
+            "https://gpgfrontend.bktus.com/appendix/code-binary-verify/"
+            "#which-check-do-i-need");
 }
 
 TEST(UpdatePresentationTest, AnUpdateShowsTheOfferAndAnUncheckedDownload) {
@@ -907,6 +908,9 @@ TEST(UpdatePresentationTest, OnlyAReleaseIsSignedByTheMaintainer) {
       PresentUpdate(Snapshot(Nightly("2.3.0-alpha.414"), Verified()), kNow);
   EXPECT_FALSE(Titles(nightly.host_rows).contains("Signed by the maintainer"));
   EXPECT_EQ(Titles(nightly.host_rows), QStringList{"Built by GitHub Actions"});
+  // The guide's overview, whatever the kind of build.
+  EXPECT_EQ(nightly.security_url, release.security_url);
+  EXPECT_FALSE(nightly.security_url.isEmpty());
 }
 
 TEST(UpdatePresentationTest, TheServerGroupNamesOnlyWhatTheRootSays) {
