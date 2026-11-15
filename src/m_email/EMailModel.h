@@ -372,9 +372,9 @@ struct EMailPart {
   qint64 body_length{0};   ///< exact header block as it was written
   qint64 decoded_size{0};
 
-  /// Decoded content of a leaf part. Empty for multiparts and for the OpenPGP
-  /// protocol parts. Holds plaintext once a message has been decrypted, so it
-  /// must be zeroed by whatever wipes the view.
+  /// Decoded content of a leaf part, the OpenPGP protocol parts included.
+  /// Empty for multiparts. Holds plaintext once a message has been decrypted,
+  /// so it must be zeroed by whatever wipes the view.
   QByteArray data;
 
   bool is_protocol_part{false};  ///< application/pgp-encrypted | pgp-signature

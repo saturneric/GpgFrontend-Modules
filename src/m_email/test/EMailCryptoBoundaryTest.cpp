@@ -351,6 +351,31 @@ TEST_F(CryptoBoundaryTest, ABase64ControlPartStillSaysVersionOne) {
   EXPECT_EQ(Get().decrypt.first().data, ArmoredStub());
 }
 
+TEST_F(CryptoBoundaryTest, AnExchangeMangledMessageIsDecrypted) {
+  // What actually arrives from Exchange: no multipart/encrypted at all.
+  QByteArray eml = OuterHeaders("multipart/mixed; boundary=\"mixb\"");
+  eml += "--mixb\r\nContent-Type: text/plain; charset=\"us-ascii\"\r\n\r\n\r\n";
+  eml += ExchangeParts("mixb", "Version: 1\r\n");
+
+  EMailMetaData meta;
+  QByteArray out;
+  RunDecrypt(eml, meta, out);
+
+  ASSERT_EQ(Get().decrypt.size(), 1) << out.toStdString();
+  EXPECT_EQ(Get().decrypt.first().data, ArmoredStub());
+}
+
+TEST_F(CryptoBoundaryTest, AMixedMessageWithoutVersionOneIsNotDecrypted) {
+  QByteArray eml = OuterHeaders("multipart/mixed; boundary=\"mixb\"");
+  eml += "--mixb\r\nContent-Type: text/plain\r\n\r\nhello\r\n";
+  eml += ExchangeParts("mixb", "Version: 2\r\n");
+
+  EMailMetaData meta;
+  QByteArray out;
+  EXPECT_EQ(RunDecrypt(eml, meta, out), kEML_FAILED);
+  EXPECT_TRUE(Get().decrypt.isEmpty());
+}
+
 // --- sign / encrypt ---------------------------------------------------------
 
 TEST_F(CryptoBoundaryTest, SigningPassesTheBodyOctetsWhole) {

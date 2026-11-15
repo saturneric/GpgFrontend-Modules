@@ -1324,7 +1324,14 @@ auto VerifyEMLMessage(int channel, const QByteArray& raw,
 auto DecryptEMLData(int channel, const QByteArray& data,
                     EMailMetaData& meta_data, QByteArray& eml_data,
                     uint32_t& err, QString& capsule_id) -> int {
-  vmime::string vmime_data(data.constData(), data.size());
+  // Microsoft Exchange rewrites multipart/encrypted into multipart/mixed on
+  // the way through. Such a message is read as the one it was, here and only
+  // in memory: everything below then checks it against RFC 3156 as usual.
+  QByteArray repaired;
+  const auto& source =
+      RepairExchangeMangledEncryption(data, repaired) ? repaired : data;
+
+  vmime::string vmime_data(source.constData(), source.size());
   auto message = vmime::make_shared<vmime::message>();
   try {
     message->parse(vmime_data);

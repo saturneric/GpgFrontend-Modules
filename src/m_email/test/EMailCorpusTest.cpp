@@ -1322,6 +1322,136 @@ TEST(EMailCorpusTest, ASignedMessageHasNoCiphertextPart) {
   EXPECT_EQ(FindEncryptedCiphertextPart(root), nullptr);
 }
 
+namespace {
+
+/// Parses @p raw into a MIME tree, for messages built inside a test.
+auto TreeOf(const QByteArray& raw, EMailPart& root) -> bool {
+  vmime::shared_ptr<vmime::message> message;
+  if (!CheckIfEMLMessage(raw, message)) return false;
+  QList<EMailSignatureRegion> regions;
+  return ParseMimeTree(message, raw, root, regions) == 0;
+}
+
+constexpr auto kExchangeFixture = "golden/19-exchange-mangled-encrypted.eml";
+
+}  // namespace
+
+TEST(EMailCorpusTest, TheCiphertextPartIsFoundInAnExchangeMangledMessage) {
+  QByteArray raw;
+  vmime::shared_ptr<vmime::message> message;
+  ASSERT_TRUE(ParseCorpus(kExchangeFixture, raw, message));
+
+  EMailPart root;
+  QList<EMailSignatureRegion> regions;
+  ASSERT_EQ(ParseMimeTree(message, raw, root, regions), 0);
+
+  // Exchange base64-encoded it; the decoded bytes are the armored block.
+  const auto* ciphertext = FindEncryptedCiphertextPart(root);
+  ASSERT_NE(ciphertext, nullptr);
+  EXPECT_EQ(ciphertext, FindExchangeMangledCiphertext(root));
+  EXPECT_TRUE(ciphertext->data.contains("BEGIN PGP MESSAGE"));
+}
+
+TEST(EMailCorpusTest, AnExchangeMangledMessageIsRepairedToMultipartEncrypted) {
+  QByteArray raw;
+  vmime::shared_ptr<vmime::message> message;
+  ASSERT_TRUE(ParseCorpus(kExchangeFixture, raw, message));
+
+  QByteArray repaired;
+  ASSERT_TRUE(RepairExchangeMangledEncryption(raw, repaired));
+
+  EMailPart root;
+  ASSERT_TRUE(TreeOf(repaired, root));
+  EXPECT_EQ(root.content_type, QString("multipart/encrypted"));
+  ASSERT_EQ(root.children.size(), 2);
+  EXPECT_EQ(root.children.at(0).content_type,
+            QString("application/pgp-encrypted"));
+  EXPECT_TRUE(root.children.at(0).data.contains("Version: 1"));
+  EXPECT_TRUE(root.children.at(1).data.contains("BEGIN PGP MESSAGE"));
+  EXPECT_EQ(ClassifyOpenPGPStructure(root, {}), EMailSecurityState::kENCRYPTED);
+
+  // The envelope travels unchanged; the old root's description does not.
+  EXPECT_TRUE(repaired.contains("Message-ID: <exch-019@example.com>\r\n"));
+  EXPECT_TRUE(repaired.contains("From: Alice <alice@example.com>\r\n"));
+  EXPECT_FALSE(repaired.contains("multipart/mixed"));
+  // The empty text part was outside the encryption and is gone.
+  EXPECT_FALSE(repaired.contains("text/plain"));
+  // Same message, same bytes.
+  QByteArray again;
+  ASSERT_TRUE(RepairExchangeMangledEncryption(raw, again));
+  EXPECT_EQ(again, repaired);
+}
+
+TEST(EMailCorpusTest, OnlyTheExchangeShapeIsRepaired) {
+  for (const auto* name :
+       {"golden/01-plain-text.eml", "golden/03-mixed-attachments.eml",
+        "golden/05-pgpmime-encrypted.eml", "golden/04-pgpmime-signed.eml"}) {
+    QByteArray raw;
+    vmime::shared_ptr<vmime::message> message;
+    ASSERT_TRUE(ParseCorpus(name, raw, message)) << name;
+
+    QByteArray out;
+    EXPECT_FALSE(RepairExchangeMangledEncryption(raw, out)) << name;
+    EXPECT_TRUE(out.isEmpty()) << name;
+  }
+
+  // A repaired message is already multipart/encrypted.
+  QByteArray raw;
+  vmime::shared_ptr<vmime::message> message;
+  ASSERT_TRUE(ParseCorpus(kExchangeFixture, raw, message));
+  QByteArray repaired;
+  ASSERT_TRUE(RepairExchangeMangledEncryption(raw, repaired));
+  QByteArray twice;
+  EXPECT_FALSE(RepairExchangeMangledEncryption(repaired, twice));
+}
+
+TEST(EMailCorpusTest, AMixedMessageWithoutVersionOneIsNotTakenForCiphertext) {
+  // The same three parts, but the control part does not say what it is. An
+  // ordinary multipart/mixed carrying an octet-stream attachment must not
+  // turn into "encrypted" because of where its parts happen to sit.
+  QByteArray eml;
+  eml += "From: a@example.com\r\nMIME-Version: 1.0\r\n";
+  eml += "Content-Type: multipart/mixed; boundary=\"mb\"\r\n\r\n";
+  eml += "--mb\r\nContent-Type: text/plain\r\n\r\nhello\r\n";
+  eml += "--mb\r\nContent-Type: application/pgp-encrypted\r\n\r\n";
+  eml += "Version: 2\r\n";
+  eml += "--mb\r\nContent-Type: application/octet-stream\r\n\r\n";
+  eml += "-----BEGIN PGP MESSAGE-----\r\nc3R1Yg==\r\n";
+  eml += "-----END PGP MESSAGE-----\r\n";
+  eml += "--mb--\r\n";
+
+  EMailPart root;
+  ASSERT_TRUE(TreeOf(eml, root));
+  EXPECT_EQ(FindExchangeMangledCiphertext(root), nullptr);
+  EXPECT_EQ(FindEncryptedCiphertextPart(root), nullptr);
+  EXPECT_EQ(ClassifyOpenPGPStructure(root, {}), EMailSecurityState::kPLAIN);
+
+  QByteArray out;
+  EXPECT_FALSE(RepairExchangeMangledEncryption(eml, out));
+}
+
+TEST(EMailCorpusTest, TheExchangeShapeIsOnlyRecognisedAtTheRoot) {
+  // Forwarding such a message as one part of another is not the same thing:
+  // the outer message is not encrypted.
+  QByteArray eml;
+  eml += "From: a@example.com\r\nMIME-Version: 1.0\r\n";
+  eml += "Content-Type: multipart/mixed; boundary=\"outer\"\r\n\r\n";
+  eml += "--outer\r\nContent-Type: text/plain\r\n\r\nsee below\r\n";
+  eml += "--outer\r\nContent-Type: multipart/mixed; boundary=\"mb\"\r\n\r\n";
+  eml += "--mb\r\nContent-Type: application/pgp-encrypted\r\n\r\n";
+  eml += "Version: 1\r\n";
+  eml += "--mb\r\nContent-Type: application/octet-stream\r\n\r\n";
+  eml += "-----BEGIN PGP MESSAGE-----\r\nc3R1Yg==\r\n";
+  eml += "-----END PGP MESSAGE-----\r\n";
+  eml += "--mb--\r\n";
+  eml += "--outer--\r\n";
+
+  EMailPart root;
+  ASSERT_TRUE(TreeOf(eml, root));
+  EXPECT_EQ(FindEncryptedCiphertextPart(root), nullptr);
+  EXPECT_EQ(ClassifyOpenPGPStructure(root, {}), EMailSecurityState::kPLAIN);
+}
+
 TEST(EMailCorpusTest, HoldingOneRecipientSecretMeansTheMessageCanBeOpened) {
   // The secret is held for the SECOND recipient, and its uid address has
   // nothing to do with any header address. That is the whole point: a message
@@ -2205,6 +2335,8 @@ TEST(EMailCorpusTest, EncryptedMessagesAreClassifiedBeforeAnyDecryption) {
       {"golden/05-pgpmime-encrypted.eml", EMailSecurityState::kENCRYPTED},
       {"golden/06-signed-inside-encrypted.eml",
        EMailSecurityState::kSIGNED_ENCRYPTED},
+      {"golden/19-exchange-mangled-encrypted.eml",
+       EMailSecurityState::kENCRYPTED},
   };
 
   for (const auto& c : cases) {

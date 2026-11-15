@@ -155,6 +155,20 @@ target of its own.
     UDUP), and this fixture is what makes a departure from that visible.
     Security state: kSIGNED.
 
+19-exchange-mangled-encrypted.eml
+    A PGP/MIME encrypted message after Microsoft Exchange rewrote it:
+    multipart/mixed { empty text/plain, version, ciphertext }, the last two
+    as base64 attachments with Exchange's dispositions and Content-IDs, and
+    the "..." subject Thunderbird sends when the real one is encrypted.
+    Modelled on a real message from a nightly tester. It is not
+    multipart/encrypted, yet it is encrypted, and Thunderbird offers to
+    repair it. The module reads it as the message it was:
+    FindExchangeMangledCiphertext() recognises it, and
+    RepairExchangeMangledEncryption() rebuilds the multipart/encrypted root
+    in memory for decryption. The base64 control part also pins that
+    "Version: 1" is looked for in decoded bytes.
+    Security state: kENCRYPTED.
+
 Known divergences from the pre-tree implementation
 --------------------------------------------------
 The differential test compares ExtractParts() against ExtractPartsLegacy(),

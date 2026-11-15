@@ -745,10 +745,44 @@ auto BuildQuotedBody(const EMailMetaData& source, EMailReplyMode mode)
  * Looks for the shape the standard defines -- multipart/encrypted holding
  * exactly two parts, the second an application/octet-stream -- and searches
  * nested parts so an encrypted message inside a signed one is still found.
+ * Also accepts the shape Microsoft Exchange rewrites that one into, see
+ * FindExchangeMangledCiphertext().
  *
  * The returned pointer is into @p root and lives exactly as long as it does.
  */
 auto FindEncryptedCiphertextPart(const EMailPart& root) -> const EMailPart*;
+
+/**
+ * @brief The ciphertext of a PGP/MIME message Microsoft Exchange rewrote.
+ *
+ * Exchange turns multipart/encrypted into multipart/mixed: an empty text part
+ * first, then the control part and the ciphertext as attachments, often
+ * base64-encoded. Thunderbird calls such a message "corrupted by MS-Exchange"
+ * and offers to repair it. This recognises the shape at the root: [text/plain
+ * or text/html, application/pgp-encrypted, application/octet-stream], or the
+ * last two alone, with the control part saying "Version: 1".
+ *
+ * The text part is not looked at. It was never inside the encryption, so
+ * nothing in it belongs to the message that will be read.
+ *
+ * @return the ciphertext part, pointing into @p root, or nullptr
+ */
+auto FindExchangeMangledCiphertext(const EMailPart& root) -> const EMailPart*;
+
+/**
+ * @brief Rebuilds a message Exchange rewrote as the multipart/encrypted it was.
+ *
+ * In memory only: the document keeps the octets the server sent. The top-level
+ * header lines are copied as they were written, except Content-Type and
+ * Content-Transfer-Encoding, and the control and ciphertext parts are copied
+ * byte for byte, headers included, under a new multipart/encrypted root.
+ *
+ * @param raw the whole message
+ * @param out the repaired message, written only when this returns true
+ * @return true if @p raw had the Exchange shape and was rebuilt
+ */
+auto RepairExchangeMangledEncryption(const QByteArray& raw, QByteArray& out)
+    -> bool;
 
 /**
  * @brief Whether @p recipients say this message can be opened here.

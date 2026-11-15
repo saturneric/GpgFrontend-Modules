@@ -1,0 +1,44 @@
+From: Alice <alice@example.com>
+To: "bob@example.com" <bob@example.com>
+Subject: ...
+Thread-Topic: ...
+Date: Sun, 15 Nov 2026 13:12:49 +0000
+Message-ID: <exch-019@example.com>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach: yes
+X-MS-TNEF-Correlator:
+user-agent: Mozilla Thunderbird
+Content-Type: multipart/mixed;
+	boundary="_003_exch019exampleorg_"
+MIME-Version: 1.0
+
+--_003_exch019exampleorg_
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+
+
+--_003_exch019exampleorg_
+Content-Type: application/pgp-encrypted; name="PGPMIME version identification"
+Content-Description: PGP/MIME version identification
+Content-Disposition: attachment; filename="PGPMIME version identification";
+	size=12; creation-date="Sun, 15 Nov 2026 13:12:49 GMT";
+	modification-date="Sun, 15 Nov 2026 13:12:49 GMT"
+Content-ID: <0000000000000000000000000000A019@example.com>
+Content-Transfer-Encoding: base64
+
+VmVyc2lvbjogMQ0K
+
+--_003_exch019exampleorg_
+Content-Type: application/octet-stream; name="encrypted.asc"
+Content-Description: OpenPGP encrypted message.asc
+Content-Disposition: attachment; filename="encrypted.asc"; size=93;
+	creation-date="Sun, 15 Nov 2026 13:12:49 GMT";
+	modification-date="Sun, 15 Nov 2026 13:12:49 GMT"
+Content-ID: <0000000000000000000000000000B019@example.com>
+Content-Transfer-Encoding: base64
+
+LS0tLS1CRUdJTiBQR1AgTUVTU0FHRS0tLS0tDQoNCmhRRU1BZXhhbXBsZWV4YW1wbGVleGFtcGxl
+ZXhhbXBsZQ0KLS0tLS1FTkQgUEdQIE1FU1NBR0UtLS0tLQ0K
+
+--_003_exch019exampleorg_--

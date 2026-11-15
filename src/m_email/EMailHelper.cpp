@@ -1156,6 +1156,14 @@ auto ClassifyOpenPGPStructure(const EMailPart& root,
   if (has_signed && regions.isEmpty()) malformed = true;
 
   if (malformed) return EMailSecurityState::kMALFORMED_PGP;
+
+  // Encrypted all the same, once Exchange is done with it: decryption repairs
+  // the shape first, so offering Decrypt here is offering what will work.
+  if (!has_signed && !has_encrypted &&
+      FindExchangeMangledCiphertext(root) != nullptr) {
+    return EMailSecurityState::kENCRYPTED;
+  }
+
   if (has_signed && has_encrypted) return EMailSecurityState::kSIGNED_ENCRYPTED;
   if (has_encrypted) return EMailSecurityState::kENCRYPTED;
   if (has_signed) return EMailSecurityState::kSIGNED;
@@ -1738,7 +1746,9 @@ void BuildDerivedMetaData(const EMailMetaData& source, EMailReplyMode mode,
   }
 }
 
-auto FindEncryptedCiphertextPart(const EMailPart& root) -> const EMailPart* {
+namespace {
+
+auto FindRfc3156CiphertextPart(const EMailPart& root) -> const EMailPart* {
   // RFC 3156 §4: multipart/encrypted with exactly two parts, the control part
   // first and the ciphertext second. The same shape DecryptEMLData insists on
   // before it hands anything to the engine -- anything looser is not a message
@@ -1752,10 +1762,121 @@ auto FindEncryptedCiphertextPart(const EMailPart& root) -> const EMailPart* {
   }
 
   for (const auto& child : root.children) {
-    if (const auto* found = FindEncryptedCiphertextPart(child)) return found;
+    if (const auto* found = FindRfc3156CiphertextPart(child)) return found;
   }
 
   return nullptr;
+}
+
+}  // namespace
+
+auto FindEncryptedCiphertextPart(const EMailPart& root) -> const EMailPart* {
+  if (const auto* found = FindRfc3156CiphertextPart(root)) return found;
+  return FindExchangeMangledCiphertext(root);
+}
+
+auto FindExchangeMangledCiphertext(const EMailPart& root) -> const EMailPart* {
+  if (root.content_type != "multipart/mixed") return nullptr;
+
+  const auto& children = root.children;
+  qsizetype first = 0;
+  if (children.size() == 3) {
+    const auto& text = children.at(0);
+    if (text.is_multipart || (text.content_type != "text/plain" &&
+                              text.content_type != "text/html")) {
+      return nullptr;
+    }
+    first = 1;
+  } else if (children.size() != 2) {
+    return nullptr;
+  }
+
+  // multipart/mixed is the most ordinary shape there is, so the control part
+  // has to say what it is before an attachment is read as ciphertext. Its
+  // data is decoded: Exchange base64-encodes it.
+  const auto& control = children.at(first);
+  if (control.content_type != "application/pgp-encrypted" ||
+      !control.data.contains("Version: 1")) {
+    return nullptr;
+  }
+
+  const auto& body = children.at(first + 1);
+  if (body.content_type != "application/octet-stream" || body.is_multipart ||
+      body.data.trimmed().isEmpty()) {
+    return nullptr;
+  }
+
+  return &body;
+}
+
+namespace {
+
+/// The bytes of @p part, headers included, or empty if its slice is not
+/// inside @p raw.
+auto RawPartSlice(const EMailPart& part, const QByteArray& raw) -> QByteArray {
+  if (part.raw_offset < 0 || part.raw_length <= 0 ||
+      part.raw_offset + part.raw_length > raw.size()) {
+    return {};
+  }
+  return raw.mid(static_cast<qsizetype>(part.raw_offset),
+                 static_cast<qsizetype>(part.raw_length));
+}
+
+}  // namespace
+
+auto RepairExchangeMangledEncryption(const QByteArray& raw, QByteArray& out)
+    -> bool {
+  vmime::shared_ptr<vmime::message> parsed;
+  if (!CheckIfEMLMessage(raw, parsed)) return false;
+
+  EMailPart root;
+  QList<EMailSignatureRegion> regions;
+  if (ParseMimeTree(parsed, raw, root, regions) != 0) return false;
+
+  const auto* body = FindExchangeMangledCiphertext(root);
+  if (body == nullptr) return false;
+  const auto& control = root.children.at(root.children.size() - 2);
+
+  const auto control_bytes = RawPartSlice(control, raw);
+  const auto body_bytes = RawPartSlice(*body, raw);
+  const auto header_block = RawHeaderBlock(root, raw);
+  if (control_bytes.isEmpty() || body_bytes.isEmpty() ||
+      header_block.isEmpty()) {
+    return false;
+  }
+
+  // The message's own line ending, so the new lines do not mix with the
+  // copied ones.
+  const QByteArray eol = raw.contains("\r\n") ? "\r\n" : "\n";
+
+  // Derived from the message rather than random, so the same message always
+  // repairs to the same bytes. Lengthened until it occurs nowhere in it.
+  auto boundary =
+      "gf-repaired-" + QCryptographicHash::hash(raw, QCryptographicHash::Sha256)
+                           .toHex()
+                           .left(24);
+  while (raw.contains(boundary)) boundary += '_';
+
+  QByteArray rebuilt;
+  for (const auto& field : SplitRawHeaderFields(header_block)) {
+    if (field.name.compare(u"Content-Type"_s, Qt::CaseInsensitive) == 0 ||
+        field.name.compare(u"Content-Transfer-Encoding"_s,
+                           Qt::CaseInsensitive) == 0) {
+      continue;
+    }
+    rebuilt += field.raw_line;
+    if (!field.raw_line.endsWith('\n')) rebuilt += eol;
+  }
+
+  rebuilt += "Content-Type: multipart/encrypted;" + eol +
+             " protocol=\"application/pgp-encrypted\";" + eol + " boundary=\"" +
+             boundary + "\"" + eol + eol;
+  rebuilt += "--" + boundary + eol + control_bytes + eol;
+  rebuilt += "--" + boundary + eol + body_bytes + eol;
+  rebuilt += "--" + boundary + "--" + eol;
+
+  out = rebuilt;
+  return true;
 }
 
 auto DescribeDecryptCapability(const QList<EMailEncRecipient>& recipients)
