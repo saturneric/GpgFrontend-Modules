@@ -1522,6 +1522,9 @@ auto DecryptEMLData(int channel, const QByteArray& data,
   // it used to be handed back as raw source and nothing more.
   vmime::shared_ptr<vmime::message> inner;
   if (CheckIfEMLMessage(eml_data, inner)) {
+    // A hidden subject arrives as "..." outside and the real one in here.
+    ApplyProtectedHeaders(inner, meta_data);
+
     if (ExtractParts(inner, meta_data) != 0) {
       MLogDebug("decrypted message exceeds the supported parsing limits");
     }

@@ -1886,6 +1886,45 @@ auto RepairExchangeMangledEncryption(const QByteArray& raw, QByteArray& out)
   return true;
 }
 
+auto ApplyProtectedHeaders(const vmime::shared_ptr<vmime::message>& inner,
+                           EMailMetaData& meta) -> bool {
+  if (!inner) return false;
+
+  const auto legacy = ContentTypeParam(inner, "protected-headers");
+  const auto hp = ContentTypeParam(inner, "hp").toLower();
+  const bool marked = legacy.compare(u"v1"_s, Qt::CaseInsensitive) == 0 ||
+                      hp == u"cipher"_s || hp == u"clear"_s;
+  if (!marked) return false;
+
+  auto header = inner->getHeader();
+
+  if (const auto subject =
+          ExtractFieldValueText(header, vmime::fields::SUBJECT);
+      !subject.isEmpty()) {
+    meta.subject = subject;
+  }
+  if (const auto from = ExtractFieldValueMailBox(header, vmime::fields::FROM);
+      !from.isEmpty()) {
+    meta.from = from;
+  }
+  if (const auto to =
+          ExtractFieldValueAddressListItems(header, vmime::fields::TO);
+      !to.isEmpty()) {
+    meta.to = to;
+  }
+  if (const auto cc =
+          ExtractFieldValueAddressListItems(header, vmime::fields::CC);
+      !cc.isEmpty()) {
+    meta.cc = cc;
+  }
+  if (const auto reply_to =
+          ExtractFieldValueMailBox(header, vmime::fields::REPLY_TO);
+      !reply_to.isEmpty()) {
+    meta.reply_to = reply_to;
+  }
+  return true;
+}
+
 auto DescribeDecryptCapability(const QList<EMailEncRecipient>& recipients)
     -> EMailDecryptCapability {
   EMailDecryptCapability out;

@@ -785,6 +785,24 @@ auto RepairExchangeMangledEncryption(const QByteArray& raw, QByteArray& out)
     -> bool;
 
 /**
+ * @brief Takes the envelope from a decrypted message's protected headers.
+ *
+ * A client that hides the subject sends "..." outside and the real Subject,
+ * From, To, Cc and Reply-To as headers of the encrypted root part, marked with
+ * protected-headers="v1" (Thunderbird, and the drafts before RFC 9788) or an
+ * hp parameter (RFC 9788). Only a marked part is trusted: unmarked headers
+ * inside the plaintext were not put there to replace the envelope.
+ *
+ * Fields the inner part does not carry keep their outer value.
+ *
+ * @param inner the decrypted message, parsed
+ * @param meta the outer envelope, updated in place
+ * @return true if @p inner was marked and its headers were applied
+ */
+auto ApplyProtectedHeaders(const vmime::shared_ptr<vmime::message>& inner,
+                           EMailMetaData& meta) -> bool;
+
+/**
  * @brief Whether @p recipients say this message can be opened here.
  *
  * The rule that matters: holding the secret half of ANY one recipient key is

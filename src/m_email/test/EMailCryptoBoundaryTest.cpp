@@ -376,6 +376,70 @@ TEST_F(CryptoBoundaryTest, AMixedMessageWithoutVersionOneIsNotDecrypted) {
   EXPECT_TRUE(Get().decrypt.isEmpty());
 }
 
+TEST_F(CryptoBoundaryTest, ProtectedHeadersReplaceTheHiddenSubject) {
+  const auto eml = OuterHeaders(
+                       "multipart/encrypted; "
+                       "protocol=\"application/pgp-encrypted\"; "
+                       "boundary=\"encb\"") +
+                   ExchangeParts("encb", "Version: 1\r\n");
+
+  QByteArray inner;
+  inner +=
+      "Content-Type: multipart/mixed; boundary=\"in\"; "
+      "protected-headers=\"v1\"\r\n";
+  inner += "Subject: The real subject\r\n";
+  inner += "From: Alice Example <alice@example.com>\r\n";
+  inner += "To: Bob Example <bob@example.com>\r\n\r\n";
+  inner += "--in\r\nContent-Type: text/plain\r\n\r\nhello\r\n--in--\r\n";
+  Get().decrypt_output = inner;
+
+  EMailMetaData meta;
+  QByteArray out;
+  ASSERT_EQ(RunDecrypt(eml, meta, out), kSUCCESS) << out.toStdString();
+  EXPECT_EQ(meta.subject, QString("The real subject"));
+  EXPECT_TRUE(meta.from.contains("Alice Example")) << meta.from.toStdString();
+  ASSERT_EQ(meta.to.size(), 1);
+  EXPECT_TRUE(meta.to.first().contains("Bob Example"));
+}
+
+TEST_F(CryptoBoundaryTest, UnmarkedInnerHeadersLeaveTheEnvelopeAlone) {
+  // Headers inside the plaintext were not put there to replace the envelope
+  // unless the sender said so.
+  const auto eml = OuterHeaders(
+                       "multipart/encrypted; "
+                       "protocol=\"application/pgp-encrypted\"; "
+                       "boundary=\"encb\"") +
+                   ExchangeParts("encb", "Version: 1\r\n");
+
+  QByteArray inner;
+  inner += "Content-Type: text/plain\r\n";
+  inner += "Subject: Not trusted\r\n\r\nhello\r\n";
+  Get().decrypt_output = inner;
+
+  EMailMetaData meta;
+  QByteArray out;
+  ASSERT_EQ(RunDecrypt(eml, meta, out), kSUCCESS) << out.toStdString();
+  EXPECT_EQ(meta.subject, QString(kOuterSubject));
+}
+
+TEST_F(CryptoBoundaryTest, RfcNineSevenEightEightHpMarkerIsHonoured) {
+  const auto eml = OuterHeaders(
+                       "multipart/encrypted; "
+                       "protocol=\"application/pgp-encrypted\"; "
+                       "boundary=\"encb\"") +
+                   ExchangeParts("encb", "Version: 1\r\n");
+
+  QByteArray inner;
+  inner += "Content-Type: text/plain; hp=\"cipher\"\r\n";
+  inner += "Subject: From RFC 9788\r\n\r\nhello\r\n";
+  Get().decrypt_output = inner;
+
+  EMailMetaData meta;
+  QByteArray out;
+  ASSERT_EQ(RunDecrypt(eml, meta, out), kSUCCESS) << out.toStdString();
+  EXPECT_EQ(meta.subject, QString("From RFC 9788"));
+}
+
 // --- sign / encrypt ---------------------------------------------------------
 
 TEST_F(CryptoBoundaryTest, SigningPassesTheBodyOctetsWhole) {
