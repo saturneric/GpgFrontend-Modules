@@ -1193,6 +1193,16 @@ TEST(EMailMimeTest, SuggestedNameFallsBackWhenThereIsNoSubject) {
   }
 }
 
+TEST(EMailMimeTest, SuggestedNameFallsBackWhenTheSubjectNamesNothing) {
+  // "..." is what Thunderbird sends outside when the real subject is
+  // encrypted. It used to come out as "attachment.eml".
+  for (const auto* subject : {"...", " . . ", "///", "?*:"}) {
+    EXPECT_EQ(SuggestedEMailFileName(subject), QString("untitled.eml"))
+        << subject;
+  }
+  EXPECT_EQ(SuggestedEMailFileName("..1"), QString("1.eml"));
+}
+
 TEST(EMailMimeTest, SuggestedNameAlwaysEndsInEml) {
   for (const auto* subject : {"Report", "Report.eml", "Report.pdf",
                               "../../etc/passwd", "///", "..."}) {

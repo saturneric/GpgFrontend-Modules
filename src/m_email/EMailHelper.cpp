@@ -544,7 +544,14 @@ auto SplitExtension(const QString& name) -> QPair<QString, QString> {
 
 auto SuggestedEMailFileName(const QString& subject) -> QString {
   const auto trimmed = subject.trimmed();
-  if (trimmed.isEmpty()) return u"untitled.eml"_s;
+
+  // Nothing to name the file after. "..." is the commonest case: it is the
+  // placeholder Thunderbird sends when the real subject is encrypted, and
+  // the sanitizer would turn it into "attachment.eml".
+  if (std::none_of(trimmed.cbegin(), trimmed.cend(),
+                   [](QChar ch) { return ch.isLetterOrNumber(); })) {
+    return u"untitled.eml"_s;
+  }
 
   // Capped before sanitizing rather than after: the sanitizer's own length cap
   // is a filesystem limit, and a name that long is unusable as a suggestion
