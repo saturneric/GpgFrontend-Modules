@@ -227,52 +227,57 @@ Opublikować na %1 mimo to?</translation>
         <translation>Publikowanie kluczy zatrzymane</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="298"/>
+        <location filename="../KeyServerSyncModule.cpp" line="302"/>
+        <source>the key server also sent %1 key(s) that were not asked for; they were not imported</source>
+        <translation>serwer kluczy przesłał także %1 nieoczekiwanych kluczy, o które nie proszono; nie zostały one zaimportowane</translation>
+    </message>
+    <message>
+        <location filename="../KeyServerSyncModule.cpp" line="312"/>
         <source>the fetched keys could not be imported: the key database is no longer available</source>
         <translation>nie udało się zaimportować pobranych kluczy: baza kluczy nie jest już dostępna</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="305"/>
+        <location filename="../KeyServerSyncModule.cpp" line="320"/>
         <source>Key Refresh Finished</source>
         <translation>Odświeżanie kluczy zakończone</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="309"/>
+        <location filename="../KeyServerSyncModule.cpp" line="324"/>
         <source>Key Publishing Finished</source>
         <translation>Publikowanie kluczy zakończone</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="332"/>
+        <location filename="../KeyServerSyncModule.cpp" line="347"/>
         <source>A key server operation is already running. Try again when it has finished.</source>
         <translation>Operacja serwera kluczy już trwa. Spróbuj ponownie po jej zakończeniu.</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="377"/>
+        <location filename="../KeyServerSyncModule.cpp" line="392"/>
         <source>Key Servers</source>
         <translation>Serwery kluczy</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="378"/>
+        <location filename="../KeyServerSyncModule.cpp" line="393"/>
         <source>keyserver,key server,hkp,vks,publish,search</source>
         <translation>keyserver,key server,hkp,vks,publish,search,serwer kluczy,publikuj,szukaj</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="393"/>
-        <location filename="../KeyServerSyncModule.cpp" line="415"/>
-        <location filename="../KeyServerSyncModule.cpp" line="474"/>
+        <location filename="../KeyServerSyncModule.cpp" line="408"/>
+        <location filename="../KeyServerSyncModule.cpp" line="430"/>
+        <location filename="../KeyServerSyncModule.cpp" line="489"/>
         <source>Key Upload Failed</source>
         <translation>Nie udało się wysłać klucza</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="394"/>
+        <location filename="../KeyServerSyncModule.cpp" line="409"/>
         <source>Failed to export the public key before uploading.
 Key: %1</source>
         <translation>Nie udało się wyeksportować klucza publicznego przed wysłaniem.
 Klucz: %1</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="416"/>
-        <location filename="../KeyServerSyncModule.cpp" line="475"/>
+        <location filename="../KeyServerSyncModule.cpp" line="431"/>
+        <location filename="../KeyServerSyncModule.cpp" line="490"/>
         <source>Failed to upload public key to the server.
 Fingerprint: %1
 Error: %2</source>
@@ -281,32 +286,32 @@ Odcisk klucza: %1
 Błąd: %2</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="424"/>
-        <location filename="../KeyServerSyncModule.cpp" line="461"/>
+        <location filename="../KeyServerSyncModule.cpp" line="439"/>
+        <location filename="../KeyServerSyncModule.cpp" line="476"/>
         <source>Public Key Upload Successful</source>
         <translation>Wysłano klucz publiczny</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="425"/>
+        <location filename="../KeyServerSyncModule.cpp" line="440"/>
         <source>The public key was uploaded to the key server %2 over HKP.
 Fingerprint: %1</source>
         <translation>Klucz publiczny został wysłany na serwer kluczy %2 przez HKP.
 Odcisk klucza: %1</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="444"/>
+        <location filename="../KeyServerSyncModule.cpp" line="459"/>
         <source>The following email addresses have status:
 </source>
         <translation>Następujące adresy e-mail mają status:
 </translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="453"/>
+        <location filename="../KeyServerSyncModule.cpp" line="468"/>
         <source>Could not parse status information.</source>
         <translation>Nie udało się przetworzyć informacji o statusie.</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="462"/>
+        <location filename="../KeyServerSyncModule.cpp" line="477"/>
         <source>The public key was successfully uploaded to the key server %4.
 Fingerprint: %1
 
@@ -319,20 +324,28 @@ Odcisk klucza: %1
 Sprawdź swoją pocztę e-mail (%3), aby kontynuować weryfikację od %4.</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="502"/>
-        <location filename="../KeyServerSyncModule.cpp" line="513"/>
+        <location filename="../KeyServerSyncModule.cpp" line="517"/>
+        <location filename="../KeyServerSyncModule.cpp" line="524"/>
+        <location filename="../KeyServerSyncModule.cpp" line="535"/>
         <source>Key Update Failed</source>
         <translation>Nie udało się zaktualizować klucza</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="503"/>
+        <location filename="../KeyServerSyncModule.cpp" line="518"/>
+        <source>%1 did not return the requested key, so nothing was imported.
+Key ID: %2</source>
+        <translation>%1 nie zwrócił żądanego klucza, więc nic nie zaimportowano.
+Identyfikator klucza: %2</translation>
+    </message>
+    <message>
+        <location filename="../KeyServerSyncModule.cpp" line="525"/>
         <source>The public key was fetched but could not be imported, because its key database is no longer available.
 Key ID: %1</source>
         <translation>Klucz publiczny został pobrany, ale nie można go zaimportować, ponieważ jego baza kluczy nie jest już dostępna.
 Identyfikator klucza: %1</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="514"/>
+        <location filename="../KeyServerSyncModule.cpp" line="536"/>
         <source>Failed to retrieve public key from %3.
 Key ID: %1
 Error: %2</source>
@@ -341,42 +354,42 @@ Identyfikator klucza: %1
 Błąd: %2</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="557"/>
+        <location filename="../KeyServerSyncModule.cpp" line="579"/>
         <source>Upload the public key to the key server used for syncing</source>
         <translation>Wyślij klucz publiczny na serwer kluczy używany do synchronizacji</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="569"/>
+        <location filename="../KeyServerSyncModule.cpp" line="591"/>
         <source>Import the latest copy of the public key from the key server</source>
         <translation>Zaimportuj najnowszą kopię klucza publicznego z serwera kluczy</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="581"/>
+        <location filename="../KeyServerSyncModule.cpp" line="603"/>
         <source>Check Publication Status</source>
         <translation>Sprawdź stan publikacji</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="582"/>
+        <location filename="../KeyServerSyncModule.cpp" line="604"/>
         <source>Ask the key server whether it has this public key</source>
         <translation>Zapytaj serwer kluczy, czy ma ten klucz publiczny</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="651"/>
+        <location filename="../KeyServerSyncModule.cpp" line="673"/>
         <source>Publication Status</source>
         <translation>Status publikacji</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="656"/>
+        <location filename="../KeyServerSyncModule.cpp" line="678"/>
         <source>The public key has been published on %1.</source>
         <translation>Klucz publiczny został opublikowany na %1.</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="661"/>
+        <location filename="../KeyServerSyncModule.cpp" line="683"/>
         <source>The public key is not published on %1.</source>
         <translation>Klucz publiczny nie jest opublikowany na %1.</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="665"/>
+        <location filename="../KeyServerSyncModule.cpp" line="687"/>
         <source>Could not ask %1 about this key.
 
 %2</source>
@@ -385,31 +398,31 @@ Błąd: %2</translation>
 %2</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="331"/>
-        <location filename="../KeyServerSyncModule.cpp" line="362"/>
-        <location filename="../KeyServerSyncModule.cpp" line="593"/>
+        <location filename="../KeyServerSyncModule.cpp" line="346"/>
+        <location filename="../KeyServerSyncModule.cpp" line="377"/>
+        <location filename="../KeyServerSyncModule.cpp" line="615"/>
         <source>Key Server</source>
         <translation>Serwer kluczy</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="594"/>
+        <location filename="../KeyServerSyncModule.cpp" line="616"/>
         <source>Import public keys from a trusted key server.</source>
         <translation>Importuj klucze publiczne z zaufanego serwera kluczy.</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="558"/>
-        <location filename="../KeyServerSyncModule.cpp" line="571"/>
-        <location filename="../KeyServerSyncModule.cpp" line="583"/>
+        <location filename="../KeyServerSyncModule.cpp" line="580"/>
+        <location filename="../KeyServerSyncModule.cpp" line="593"/>
+        <location filename="../KeyServerSyncModule.cpp" line="605"/>
         <source>Key Server Operations</source>
         <translation>Operacje na serwerze kluczy</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="556"/>
+        <location filename="../KeyServerSyncModule.cpp" line="578"/>
         <source>Publish Public Key to Key Server</source>
         <translation>Opublikuj klucz publiczny na serwerze kluczy</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="568"/>
+        <location filename="../KeyServerSyncModule.cpp" line="590"/>
         <source>Refresh Public Key From Key Server</source>
         <translation>Odśwież klucz publiczny z serwera kluczy</translation>
     </message>
@@ -588,9 +601,14 @@ Błąd: %2</translation>
         <translation>Nigdy</translation>
     </message>
     <message>
-        <location filename="../SearchKeyDialog.cpp" line="374"/>
+        <location filename="../SearchKeyDialog.cpp" line="375"/>
         <source>No GPG context is available.</source>
         <translation>Brak dostępnego kontekstu GPG.</translation>
+    </message>
+    <message>
+        <location filename="../SearchKeyDialog.cpp" line="384"/>
+        <source>The key server did not return the key that was picked, or it can only be named by a short key ID. Nothing was imported.</source>
+        <translation>Serwer kluczy nie zwrócił wybranego klucza lub można go wskazać tylko za pomocą krótkiego identyfikatora klucza. Nic nie zaimportowano.</translation>
     </message>
 </context>
 </TS>
