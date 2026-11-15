@@ -161,7 +161,7 @@ Aby to uzyskać, ustaw frazę i przekaż ją prywatnie osobie, do której piszes
     <message>
         <location filename="../ImModule.cpp" line="198"/>
         <source>IM Encrypt &amp;&amp; Sign</source>
-        <translation>Zaszyfruj i podpisz do komunikatora</translation>
+        <translation>Zaszyfruj &amp;&amp; podpisz w komunikatorze</translation>
     </message>
     <message>
         <location filename="../ImModule.cpp" line="199"/>
