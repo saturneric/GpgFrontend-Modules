@@ -46,6 +46,12 @@
 
 namespace {
 
+/// How to check a download by hand: the guide's overview, which sends a
+/// reader to the check for their kind of build.
+constexpr auto kVerifyGuide =
+    "https://gpgfrontend.bktus.com/appendix/code-binary-verify/"
+    "#which-check-do-i-need";
+
 /// A date that reads one way only.
 auto Date(const QDateTime& t) -> QString {
   // ISO: "11/6/28" reads three ways.
@@ -974,9 +980,7 @@ auto PresentUpdate(const UpdateSnapshot& s, const QDateTime& now,
               record->authenticode_subject};
         }
       }
-      v.security_url =
-          QStringLiteral("https://github.com/%1/blob/main/SECURITY.md")
-              .arg(record->repository);
+      v.security_url = QString::fromLatin1(kVerifyGuide);
     }
   }
 
