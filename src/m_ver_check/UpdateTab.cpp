@@ -442,6 +442,18 @@ void UpdateTab::fit_window() {
   // that showed something else.
   QTimer::singleShot(0, this, [this] {
     if (!isVisible()) return;
+    // The page sits a few widgets deep, each with its own layout, and a
+    // change reaches the frame one posted layout request per level. Settle
+    // them now, from here up: otherwise the frame still holds the old
+    // minimum height, and a page that got shorter (the details closed)
+    // cannot shrink the window.
+    for (QWidget* w = this; w != nullptr; w = w->parentWidget()) {
+      if (auto* l = w->layout(); l != nullptr) {
+        l->invalidate();
+        l->activate();
+      }
+      if (w->isWindow()) break;
+    }
     auto* frame = window();
     frame->adjustSize();
     // Wrapped text needs the height for the width it got, which
