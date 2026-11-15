@@ -4,7 +4,7 @@
 <context>
     <name>ModulePGPInspect</name>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="225"/>
+        <location filename="../PGPInspectDialog.cpp" line="228"/>
         <location filename="../PGPInspectModule.cpp" line="97"/>
         <source>OpenPGP Structure</source>
         <translation>OpenPGP 结构</translation>
@@ -14,137 +14,137 @@
         <translation type="vanished">结构</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="83"/>
+        <location filename="../PGPInspectDialog.cpp" line="86"/>
         <source>Value</source>
         <translation>值</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="238"/>
+        <location filename="../PGPInspectDialog.cpp" line="241"/>
         <source>Search packets, fields and values</source>
         <translation>搜索数据包、字段和值</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="319"/>
+        <location filename="../PGPInspectDialog.cpp" line="320"/>
         <source>The current tab holds no OpenPGP data.</source>
         <translation>当前标签页不包含 OpenPGP 数据。</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="169"/>
+        <location filename="../PGPInspectDialog.cpp" line="172"/>
         <source>Armor Type</source>
         <translation>装甲类型</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="83"/>
+        <location filename="../PGPInspectDialog.cpp" line="86"/>
         <source>Field</source>
         <translation>字段</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="170"/>
+        <location filename="../PGPInspectDialog.cpp" line="173"/>
         <source>CRC24</source>
         <translation>CRC24</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="175"/>
+        <location filename="../PGPInspectDialog.cpp" line="178"/>
         <source>Signed Text</source>
         <translation>签名文本</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="285"/>
+        <location filename="../PGPInspectDialog.cpp" line="288"/>
         <source>Overview</source>
         <translation>概览</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="286"/>
+        <location filename="../PGPInspectDialog.cpp" line="289"/>
         <source>Subpackets</source>
         <translation>子包</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="139"/>
-        <location filename="../PGPInspectDialog.cpp" line="287"/>
+        <location filename="../PGPInspectDialog.cpp" line="142"/>
+        <location filename="../PGPInspectDialog.cpp" line="290"/>
         <source>Key Material</source>
         <translation>密钥材料</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="134"/>
+        <location filename="../PGPInspectDialog.cpp" line="137"/>
         <source>Signature Material</source>
         <translation>签名材料</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="137"/>
+        <location filename="../PGPInspectDialog.cpp" line="140"/>
         <source>Session Key Material</source>
         <translation>会话密钥材料</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="266"/>
+        <location filename="../PGPInspectDialog.cpp" line="269"/>
         <source>Material format</source>
         <translation>材料格式</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="288"/>
+        <location filename="../PGPInspectDialog.cpp" line="291"/>
         <source>Hex</source>
         <translation>十六进制</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="338"/>
+        <location filename="../PGPInspectDialog.cpp" line="339"/>
         <source>The armor checksum does not match its contents.</source>
         <translation>装甲校验和与内容不符。</translation>
     </message>
     <message numerus="yes">
-        <location filename="../PGPInspectDialog.cpp" line="358"/>
+        <location filename="../PGPInspectDialog.cpp" line="359"/>
         <source>%1, %2, %n packet(s)</source>
         <translation>
             <numerusform>%1，%2，%n 个数据包</numerusform>
         </translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="500"/>
+        <location filename="../PGPInspectDialog.cpp" line="550"/>
         <source>Framing</source>
         <translation>封装</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="502"/>
+        <location filename="../PGPInspectDialog.cpp" line="552"/>
         <source>Position</source>
         <translation>位置</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="503"/>
+        <location filename="../PGPInspectDialog.cpp" line="553"/>
         <source>Packet Type</source>
         <translation>数据包类型</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="506"/>
+        <location filename="../PGPInspectDialog.cpp" line="556"/>
         <source>Offset</source>
         <translation>偏移</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="509"/>
+        <location filename="../PGPInspectDialog.cpp" line="559"/>
         <source>Header</source>
         <translation>包头</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="510"/>
+        <location filename="../PGPInspectDialog.cpp" line="560"/>
         <source>%1 format, %2</source>
         <translation>%1 格式，%2</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="513"/>
+        <location filename="../PGPInspectDialog.cpp" line="563"/>
         <source>Body</source>
         <translation>包体</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="514"/>
+        <location filename="../PGPInspectDialog.cpp" line="564"/>
         <source>%1, %2 length</source>
         <translation>%1，%2 长度</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="517"/>
+        <location filename="../PGPInspectDialog.cpp" line="567"/>
         <source>Size</source>
         <translation>大小</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="179"/>
-        <location filename="../PGPInspectDialog.cpp" line="490"/>
-        <location filename="../PGPInspectDialog.cpp" line="493"/>
+        <location filename="../PGPInspectDialog.cpp" line="182"/>
+        <location filename="../PGPInspectDialog.cpp" line="540"/>
+        <location filename="../PGPInspectDialog.cpp" line="543"/>
         <source>Problem</source>
         <translation>问题</translation>
     </message>

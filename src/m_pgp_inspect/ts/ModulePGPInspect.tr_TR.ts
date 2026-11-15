@@ -4,13 +4,13 @@
 <context>
     <name>ModulePGPInspect</name>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="225"/>
+        <location filename="../PGPInspectDialog.cpp" line="228"/>
         <location filename="../PGPInspectModule.cpp" line="97"/>
         <source>OpenPGP Structure</source>
         <translation>OpenPGP Yapısı</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="238"/>
+        <location filename="../PGPInspectDialog.cpp" line="241"/>
         <source>Search packets, fields and values</source>
         <translation>Paketleri, alanları ve değerleri ara</translation>
     </message>
@@ -19,132 +19,132 @@
         <translation type="vanished">Yapı</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="83"/>
+        <location filename="../PGPInspectDialog.cpp" line="86"/>
         <source>Value</source>
         <translation>Değer</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="319"/>
+        <location filename="../PGPInspectDialog.cpp" line="320"/>
         <source>The current tab holds no OpenPGP data.</source>
         <translation>Geçerli sekmede OpenPGP verisi yok.</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="169"/>
+        <location filename="../PGPInspectDialog.cpp" line="172"/>
         <source>Armor Type</source>
         <translation>Okunabilir ASCII türü</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="83"/>
+        <location filename="../PGPInspectDialog.cpp" line="86"/>
         <source>Field</source>
         <translation>Alan</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="170"/>
+        <location filename="../PGPInspectDialog.cpp" line="173"/>
         <source>CRC24</source>
         <translation>CRC24</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="175"/>
+        <location filename="../PGPInspectDialog.cpp" line="178"/>
         <source>Signed Text</source>
         <translation>İmzalanmış metin</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="179"/>
-        <location filename="../PGPInspectDialog.cpp" line="490"/>
-        <location filename="../PGPInspectDialog.cpp" line="493"/>
+        <location filename="../PGPInspectDialog.cpp" line="182"/>
+        <location filename="../PGPInspectDialog.cpp" line="540"/>
+        <location filename="../PGPInspectDialog.cpp" line="543"/>
         <source>Problem</source>
         <translation>Sorun</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="285"/>
+        <location filename="../PGPInspectDialog.cpp" line="288"/>
         <source>Overview</source>
         <translation>Genel Bakış</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="286"/>
+        <location filename="../PGPInspectDialog.cpp" line="289"/>
         <source>Subpackets</source>
         <translation>Alt Paketler</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="139"/>
-        <location filename="../PGPInspectDialog.cpp" line="287"/>
+        <location filename="../PGPInspectDialog.cpp" line="142"/>
+        <location filename="../PGPInspectDialog.cpp" line="290"/>
         <source>Key Material</source>
         <translation>Anahtar Materyali</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="134"/>
+        <location filename="../PGPInspectDialog.cpp" line="137"/>
         <source>Signature Material</source>
         <translation>İmza Materyali</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="137"/>
+        <location filename="../PGPInspectDialog.cpp" line="140"/>
         <source>Session Key Material</source>
         <translation>Oturum Anahtarı Materyali</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="266"/>
+        <location filename="../PGPInspectDialog.cpp" line="269"/>
         <source>Material format</source>
         <translation>Materyal biçimi</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="288"/>
+        <location filename="../PGPInspectDialog.cpp" line="291"/>
         <source>Hex</source>
         <translation>Hex</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="338"/>
+        <location filename="../PGPInspectDialog.cpp" line="339"/>
         <source>The armor checksum does not match its contents.</source>
         <translation>Zırh sağlama toplamı içerikle eşleşmiyor.</translation>
     </message>
     <message numerus="yes">
-        <location filename="../PGPInspectDialog.cpp" line="358"/>
+        <location filename="../PGPInspectDialog.cpp" line="359"/>
         <source>%1, %2, %n packet(s)</source>
         <translation>
             <numerusform>%1, %2, %n paket</numerusform>
         </translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="500"/>
+        <location filename="../PGPInspectDialog.cpp" line="550"/>
         <source>Framing</source>
         <translation>Çerçeveleme</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="502"/>
+        <location filename="../PGPInspectDialog.cpp" line="552"/>
         <source>Position</source>
         <translation>Konum</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="503"/>
+        <location filename="../PGPInspectDialog.cpp" line="553"/>
         <source>Packet Type</source>
         <translation>Paket Türü</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="506"/>
+        <location filename="../PGPInspectDialog.cpp" line="556"/>
         <source>Offset</source>
         <translation>Ofset</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="509"/>
+        <location filename="../PGPInspectDialog.cpp" line="559"/>
         <source>Header</source>
         <translation>Başlık</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="510"/>
+        <location filename="../PGPInspectDialog.cpp" line="560"/>
         <source>%1 format, %2</source>
         <translation>%1 biçim, %2</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="513"/>
+        <location filename="../PGPInspectDialog.cpp" line="563"/>
         <source>Body</source>
         <translation>Gövde</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="514"/>
+        <location filename="../PGPInspectDialog.cpp" line="564"/>
         <source>%1, %2 length</source>
         <translation>%1, %2 uzunluk</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="517"/>
+        <location filename="../PGPInspectDialog.cpp" line="567"/>
         <source>Size</source>
         <translation>Boyut</translation>
     </message>

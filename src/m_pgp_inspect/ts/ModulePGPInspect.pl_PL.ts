@@ -4,7 +4,7 @@
 <context>
     <name>ModulePGPInspect</name>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="225"/>
+        <location filename="../PGPInspectDialog.cpp" line="228"/>
         <location filename="../PGPInspectModule.cpp" line="97"/>
         <source>OpenPGP Structure</source>
         <translation>Struktura OpenPGP</translation>
@@ -14,141 +14,139 @@
         <translation type="vanished">Struktura</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="83"/>
+        <location filename="../PGPInspectDialog.cpp" line="86"/>
         <source>Value</source>
         <translation>Wartość</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="238"/>
+        <location filename="../PGPInspectDialog.cpp" line="241"/>
         <source>Search packets, fields and values</source>
         <translation>Szukaj pakietów, pól i wartości</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="319"/>
+        <location filename="../PGPInspectDialog.cpp" line="320"/>
         <source>The current tab holds no OpenPGP data.</source>
         <translation>Bieżąca karta nie zawiera danych OpenPGP.</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="169"/>
+        <location filename="../PGPInspectDialog.cpp" line="172"/>
         <source>Armor Type</source>
         <translation>Typ Armor</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="83"/>
+        <location filename="../PGPInspectDialog.cpp" line="86"/>
         <source>Field</source>
         <translation>Pole</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="170"/>
+        <location filename="../PGPInspectDialog.cpp" line="173"/>
         <source>CRC24</source>
         <translation>CRC24</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="175"/>
+        <location filename="../PGPInspectDialog.cpp" line="178"/>
         <source>Signed Text</source>
         <translation>Podpisany tekst</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="285"/>
+        <location filename="../PGPInspectDialog.cpp" line="288"/>
         <source>Overview</source>
         <translation>Przegląd</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="286"/>
+        <location filename="../PGPInspectDialog.cpp" line="289"/>
         <source>Subpackets</source>
         <translation>Podpakiety</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="139"/>
-        <location filename="../PGPInspectDialog.cpp" line="287"/>
+        <location filename="../PGPInspectDialog.cpp" line="142"/>
+        <location filename="../PGPInspectDialog.cpp" line="290"/>
         <source>Key Material</source>
         <translation>Materiał klucza</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="134"/>
+        <location filename="../PGPInspectDialog.cpp" line="137"/>
         <source>Signature Material</source>
         <translation>Materiał podpisu</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="137"/>
+        <location filename="../PGPInspectDialog.cpp" line="140"/>
         <source>Session Key Material</source>
         <translation>Materiał klucza sesji</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="266"/>
+        <location filename="../PGPInspectDialog.cpp" line="269"/>
         <source>Material format</source>
         <translation>Format materiału</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="288"/>
+        <location filename="../PGPInspectDialog.cpp" line="291"/>
         <source>Hex</source>
         <translation>Hex</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="338"/>
+        <location filename="../PGPInspectDialog.cpp" line="339"/>
         <source>The armor checksum does not match its contents.</source>
         <translation>Suma kontrolna Armor nie zgadza się z zawartością.</translation>
     </message>
     <message numerus="yes">
-        <location filename="../PGPInspectDialog.cpp" line="358"/>
+        <location filename="../PGPInspectDialog.cpp" line="359"/>
         <source>%1, %2, %n packet(s)</source>
         <translation>
-            <numerusform>%1, %2, %n pakiet
-%1, %2, %n pakiety
-%1, %2, %n pakietów</numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%1, %2, %n pakiet</numerusform>
+            <numerusform>%1, %2, %n pakiety</numerusform>
+            <numerusform>%1, %2, %n pakietów</numerusform>
         </translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="500"/>
+        <location filename="../PGPInspectDialog.cpp" line="550"/>
         <source>Framing</source>
         <translation>Ramkowanie</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="502"/>
+        <location filename="../PGPInspectDialog.cpp" line="552"/>
         <source>Position</source>
         <translation>Pozycja</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="503"/>
+        <location filename="../PGPInspectDialog.cpp" line="553"/>
         <source>Packet Type</source>
         <translation>Typ pakietu</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="506"/>
+        <location filename="../PGPInspectDialog.cpp" line="556"/>
         <source>Offset</source>
         <translation>Przesunięcie</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="509"/>
+        <location filename="../PGPInspectDialog.cpp" line="559"/>
         <source>Header</source>
         <translation>Nagłówek</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="510"/>
+        <location filename="../PGPInspectDialog.cpp" line="560"/>
         <source>%1 format, %2</source>
         <translation>format %1, %2</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="513"/>
+        <location filename="../PGPInspectDialog.cpp" line="563"/>
         <source>Body</source>
         <translation>Treść</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="514"/>
+        <location filename="../PGPInspectDialog.cpp" line="564"/>
         <source>%1, %2 length</source>
         <translation>%1, długość %2</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="517"/>
+        <location filename="../PGPInspectDialog.cpp" line="567"/>
         <source>Size</source>
         <translation>Rozmiar</translation>
     </message>
     <message>
-        <location filename="../PGPInspectDialog.cpp" line="179"/>
-        <location filename="../PGPInspectDialog.cpp" line="490"/>
-        <location filename="../PGPInspectDialog.cpp" line="493"/>
+        <location filename="../PGPInspectDialog.cpp" line="182"/>
+        <location filename="../PGPInspectDialog.cpp" line="540"/>
+        <location filename="../PGPInspectDialog.cpp" line="543"/>
         <source>Problem</source>
         <translation>Problem</translation>
     </message>
