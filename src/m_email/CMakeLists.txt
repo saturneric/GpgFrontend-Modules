@@ -66,6 +66,20 @@ add_subdirectory(vmime "vmime" EXCLUDE_FROM_ALL)
 # would fail to link with undefined symbols. Attach it here instead.
 target_link_libraries(vmime-static OpenSSL::SSL OpenSSL::Crypto)
 
+# This vmime revision puts ${CMAKE_SOURCE_DIR} and ${CMAKE_SOURCE_DIR}/src on
+# its include path, meaning its own tree when built alone but GpgFrontend's
+# here. The top level holds VERSION, and on a case-insensitive file system
+# libc++'s #include <version> picks that up instead of its own header. Point
+# both entries at vmime's tree, which is what they were meant to name.
+get_target_property(_vmime_include_dirs vmime-static INCLUDE_DIRECTORIES)
+list(REMOVE_ITEM _vmime_include_dirs
+     "${CMAKE_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}/src")
+list(PREPEND _vmime_include_dirs
+     "${CMAKE_CURRENT_SOURCE_DIR}/vmime" "${CMAKE_CURRENT_SOURCE_DIR}/vmime/src")
+set_property(TARGET vmime-static PROPERTY INCLUDE_DIRECTORIES
+             ${_vmime_include_dirs})
+unset(_vmime_include_dirs)
+
 if(MINGW)
   target_link_libraries(vmime-static ws2_32 mlang)
 endif()
