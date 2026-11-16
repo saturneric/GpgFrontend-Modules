@@ -610,11 +610,23 @@ TEST(UpdatePresentationTest, AnUnofficialBuildIsNotAVerificationFailure) {
 TEST(UpdatePresentationTest, AnEolSeriesOffersItsSuccessorOnlyWhereItRuns) {
   auto r = Current();
   r.notice = {"2.1", "eol", "", "2.2", "2.2.4", true, {}};
+  // Where it runs, the checker offers it, with its own verified file.
+  r.offers = {{OfferKind::kSuccessor,
+               "2.2",
+               {"2.2.4", "## 2.2.4", "https://builds.example/2.2.4.AppImage",
+                QString(64, u'c'), 1234}}};
   auto v = PresentUpdate(Snapshot(r, Verified()), kNow, Release());
   EXPECT_TRUE(v.notice.contains("no longer gets fixes"));
+  EXPECT_EQ(v.headline, "GpgFrontend 2.2.4 is available");
+  EXPECT_EQ(v.detail,
+            "You are using 2.1.8. The 2.1 series no longer gets updates; 2.2 "
+            "is the current release series.");
   EXPECT_TRUE(v.show_download);
-  EXPECT_TRUE(v.download_url.isEmpty());  // the downloads page
+  EXPECT_EQ(v.download_url, "https://builds.example/2.2.4.AppImage");
+  EXPECT_EQ(v.selected, OfferKind::kSuccessor);
+  EXPECT_EQ(v.notes, "## 2.2.4");
 
+  r.offers.clear();  // where it does not run, it is not offered
   r.notice.successor_runs_here = false;
   r.notice.unmet = "macos 15.0";
   v = PresentUpdate(Snapshot(r, Verified()), kNow, Release("macos", "dmg"));
@@ -926,4 +938,68 @@ TEST(UpdatePresentationTest, TheServerGroupNamesOnlyWhatTheRootSays) {
   ASSERT_FALSE(v.host_rows.isEmpty());
   EXPECT_TRUE(v.host_rows[0].facts.startsWith("saturneric/GpgFrontend · "));
   EXPECT_EQ(v.host_rows[0].tip, ".github/workflows/build.yml");
+}
+
+TEST(UpdatePresentationTest, BothOffersLetTheUserChoose) {
+  auto r = Known(ListOutcome::kFound, "v2.1.9", RemoteFact::kConfirmed,
+                 RemoteFact::kConfirmed);
+  r.list.latest.html_url = "https://builds.example/2.1.9.AppImage";
+  r.notice = {"2.1", "legacy", "2027-12-31", "2.2", "2.2.4", true, {}};
+  r.offers = {{OfferKind::kSuccessor,
+               "2.2",
+               {"2.2.4", {}, "https://builds.example/2.2.4.AppImage", {}, 0}},
+              {OfferKind::kPrerelease,
+               "2.3",
+               {"2.3.0-rc.1", {}, "https://builds.example/rc.AppImage", {}, 0}}};
+  auto v = PresentUpdate(Snapshot(r, Verified()), kNow, Release());
+  EXPECT_EQ(v.headline, "Updates are available");
+  EXPECT_EQ(v.detail, "You are using 2.1.8. Choose which version to download.");
+  ASSERT_EQ(v.offers.size(), 3);
+  // The successor is the default, and first; a candidate never is.
+  EXPECT_EQ(v.offers[0].kind, OfferKind::kSuccessor);
+  EXPECT_TRUE(v.offers[0].recommended);
+  EXPECT_EQ(v.offers[0].label, "2.2.4 · Current release (recommended)");
+  EXPECT_EQ(v.offers[1].label, "2.1.9 · Fixes for 2.1");
+  EXPECT_EQ(v.offers[2].label, "2.3.0-rc.1 · Prerelease of 2.3 (beta)");
+  EXPECT_EQ(v.selected, OfferKind::kSuccessor);
+  EXPECT_EQ(v.download_url, "https://builds.example/2.2.4.AppImage");
+
+  // The user picks the series' fix: everything follows the choice.
+  v = PresentUpdate(Snapshot(r, Verified()), kNow, Release(),
+                    OfferKind::kSeries);
+  EXPECT_EQ(v.selected, OfferKind::kSeries);
+  EXPECT_EQ(v.offer_version, "2.1.9");
+  EXPECT_EQ(v.download_url, "https://builds.example/2.1.9.AppImage");
+
+  // A candidate is a test build: no maintainer's signature is claimed.
+  v = PresentUpdate(Snapshot(r, Verified()), kNow, Release(),
+                    OfferKind::kPrerelease);
+  EXPECT_EQ(v.offer_version, "2.3.0-rc.1");
+  EXPECT_FALSE(Titles(v.host_rows).contains("Signed by the maintainer"));
+  EXPECT_TRUE(ReportText(v).contains("Offered 2.2.4 · Current release"));
+
+  // A choice no longer offered falls back to the default.
+  r.offers.removeLast();
+  v = PresentUpdate(Snapshot(r, Verified()), kNow, Release(),
+                    OfferKind::kPrerelease);
+  EXPECT_EQ(v.selected, OfferKind::kSuccessor);
+
+  // Without a successor, the series' own release is the default over a beta.
+  r.offers = {{OfferKind::kBeta,
+               "2.1",
+               {"2.1.10-alpha.2", {}, "https://builds.example/b.AppImage", {}, 0}}};
+  v = PresentUpdate(Snapshot(r, Verified()), kNow, Release());
+  EXPECT_EQ(v.selected, OfferKind::kSeries);
+  EXPECT_EQ(v.offers[1].label, "2.1.10-alpha.2 · Beta of 2.1");
+}
+
+TEST(UpdatePresentationTest, OnlyABetaIsStillAnUpdate) {
+  auto r = Current();
+  r.offers = {{OfferKind::kBeta,
+               "2.1",
+               {"2.1.9-alpha.2", {}, "https://builds.example/b.AppImage", {}, 0}}};
+  const auto v = PresentUpdate(Snapshot(r, Verified()), kNow, Release());
+  EXPECT_EQ(v.headline, "GpgFrontend 2.1.9-alpha.2 is available");
+  EXPECT_EQ(v.selected, OfferKind::kBeta);
+  EXPECT_EQ(v.offers.size(), 1);
 }

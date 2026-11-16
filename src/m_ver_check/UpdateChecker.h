@@ -78,6 +78,17 @@ struct CheckStep {
   QString detail;
 };
 
+/// One other offer's files (SoftwareVersion::offers), checked as the own
+/// series' release's are: its release details, its notes.
+struct OfferRecord {
+  OfferKind kind = OfferKind::kSuccessor;
+  QString version;
+  CheckStep descriptor;
+  CheckStep notes;
+  QString descriptor_sha256;  ///< as pinned by the index, once matched
+  QString notes_sha256;
+};
+
 /**
  * @brief How the last check went, step by step, and what it verified: what
  * the update dialog's details show. Filled where the checker already warns;
@@ -116,6 +127,8 @@ struct CheckRecord {
 
   QString descriptor_sha256;  ///< as pinned by the index, once matched
   QString notes_sha256;
+  /// The other offers', in SoftwareVersion::offers' order.
+  QList<OfferRecord> offers;
   QString marker_base;  ///< the host the commit marker was asked of
 
   // What the release host checks before it publishes (TrustRoot).
@@ -141,6 +154,9 @@ struct UpdateSnapshot {
   /// The newest update the user has already been shown. Kept across builds
   /// and failed checks: seeing it once is enough.
   QString last_seen_update_version;
+  /// The same for each other kind of offer, by OfferKindName(): a successor
+  /// seen does not hide a fix of the series, nor the other way round.
+  QHash<QString, QString> last_seen_offers;
 
   /// When the user last saw an update offered. A nightly's next offer waits a
   /// day after it, so frequent pushes to main do not become nagging.
@@ -299,17 +315,22 @@ class UpdateChecker : public QObject {
   void loadTrust();
   void keepTrust();
   void warn(const QString& what) const;
+  /// A step of the running check's record: one of its fixed steps, or one
+  /// of an other offer's (OfferRecord).
+  using StepRef = std::function<CheckStep&()>;
+  [[nodiscard]] auto step(CheckStepId id) -> StepRef;
   /// @p id failed. A refusal is kept over a later "unreachable": a mirror
   /// that refused and one that was down read as refused.
   void fail(CheckStepId id, StepReason reason, const QString& detail = {});
-  /// A fetch for @p id with no usable answer: none at all, too large, or
+  void fail(const StepRef& ref, StepReason reason, const QString& detail = {});
+  /// A fetch for @p ref with no usable answer: none at all, too large, or
   /// an error status (read as @p refused).
-  void failFetch(CheckStepId id, int status, bool oversized,
+  void failFetch(const StepRef& ref, int status, bool oversized,
                  StepReason refused);
   /// A GET of @p url, used only when it is a 200 of at most @p limit bytes:
-  /// then @p ok has the body. Otherwise @p id failed (failFetch) and
+  /// then @p ok has the body. Otherwise @p ref failed (failFetch) and
   /// @p failed runs. Neither runs once the checker is gone.
-  void fetchBounded(const QUrl& url, qsizetype limit, CheckStepId id,
+  void fetchBounded(const QUrl& url, qsizetype limit, const StepRef& ref,
                     StepReason refused,
                     const std::function<void(const QByteArray&)>& ok,
                     const Then& failed);
@@ -320,7 +341,10 @@ class UpdateChecker : public QObject {
   /// A file the accepted index pins by its hash (the descriptor, the
   /// notes), from each build base in turn until one serves exactly it.
   struct Pinned {
-    CheckStepId step;
+    StepRef step;
+    /// Whether there is an offer to fetch it for; otherwise it does not
+    /// apply.
+    bool applies;
     QString path;
     QString sha256;
     qsizetype limit;
@@ -331,6 +355,8 @@ class UpdateChecker : public QObject {
   void askPinned(const Pinned& pinned, qsizetype i = 0);
   void askDescriptor();
   void askNotes();
+  /// Other offer @p i's release details, then its notes, then the next's.
+  void askOffer(qsizetype i);
   void askCommitMarker();
   /// The beta setting as it applies to this build: never for a nightly.
   [[nodiscard]] auto followsBeta() const -> bool;
@@ -353,6 +379,7 @@ class UpdateChecker : public QObject {
   QString descriptor_sha256_;  ///< what the signed index says it hashes to
   QString notes_path_;         ///< that release's notes, when listed
   QString notes_sha256_;
+  QList<OfferChoice> other_offers_;  ///< what the accepted index offers too
   qint64 built_in_root_ = 0;  ///< the version of the root built in
   CheckRecord record_;        ///< the running check's
 };
@@ -362,7 +389,8 @@ class UpdateChecker : public QObject {
 inline constexpr qint64 kNightlyQuietSeconds = 24 * 60 * 60;
 
 /// kUpdateAvailable while the last known result offers a release newer than
-/// the last one the user has seen; a failed check changes nothing. For a
+/// this build and than the last one of its kind the user has seen; a failed
+/// check changes nothing. For a
 /// nightly build, given @p now, not within kNightlyQuietSeconds of the last
 /// update the user saw.
 auto AttentionFor(const UpdateSnapshot& s, const QDateTime& now = {})

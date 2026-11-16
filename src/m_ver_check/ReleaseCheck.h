@@ -44,7 +44,7 @@
 /// What a result means for the user, in precedence order (see Decide()).
 enum class Verdict {
   kUnknown,                ///< the release list could not be read
-  kUpdateAvailable,        ///< a newer release exists in this build's series
+  kUpdateAvailable,        ///< something newer is offered (HasNewerOffer())
   kWithdrawnOrUnreleased,  ///< the signed index says it is withdrawn
   kUnofficialBuild,        ///< no published build is of this commit
   kUpToDate,               ///< nothing newer, and nothing known to be wrong
@@ -77,7 +77,7 @@ auto Merge(const std::optional<SoftwareVersion>& prev,
  * @brief The verdict, first match wins:
  *
  *   1. release list unusable                  -> kUnknown
- *   2. a newer release in this series         -> kUpdateAvailable
+ *   2. anything newer offered (HasNewerOffer)  -> kUpdateAvailable
  *   3. tag fact kNotFound (withdrawn)         -> kWithdrawnOrUnreleased
  *   4. commit marker kNotFound                -> kUnofficialBuild
  *   5. otherwise                              -> kUpToDate
@@ -87,3 +87,8 @@ auto Merge(const std::optional<SoftwareVersion>& prev,
  */
 auto Decide(const SoftwareVersion& r) -> Verdict;
 
+/// Its own series' newest release is newer than the build.
+auto HasNewerRelease(const SoftwareVersion& r) -> bool;
+
+/// That, or any other offer (SoftwareVersion::offers) newer than the build.
+auto HasNewerOffer(const SoftwareVersion& r) -> bool;

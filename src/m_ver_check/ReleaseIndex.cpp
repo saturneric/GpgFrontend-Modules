@@ -33,6 +33,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QRegularExpression>
+#include <QSet>
 #include <QUrl>
 #include <QVersionNumber>
 
@@ -44,6 +45,50 @@ auto IsNightlyBuild(const QString& version) -> bool {
   return v->prerelease.first() == QStringLiteral("alpha") ||
          v->prerelease.contains(QStringLiteral("dev"));
 }
+
+auto IsReleaseCandidate(const QString& version) -> bool {
+  const auto v = SemVer::Parse(version);
+  return v && v->patch == 0 && v->prerelease.size() == 2 &&
+         v->prerelease.first() == QStringLiteral("rc");
+}
+
+auto OnCandidateLine(const QString& version) -> bool {
+  const auto v = SemVer::Parse(version);
+  return v && v->patch == 0 && v->IsPrerelease() &&
+         v->prerelease.first() == QStringLiteral("rc");
+}
+
+namespace {
+
+/// A series key ("2.3", or "1" for a whole generation) as an order: "2.10"
+/// above "2.9", "1" below "1.0". Nothing for a key that is not one.
+auto SeriesOrder(const QString& key) -> std::optional<std::pair<int, int>> {
+  const auto parts = key.split(u'.');
+  if (parts.isEmpty() || parts.size() > 2) return std::nullopt;
+  bool ok = false;
+  const int major = parts[0].toInt(&ok);
+  if (!ok || major < 0) return std::nullopt;
+  int minor = -1;
+  if (parts.size() == 2) {
+    minor = parts[1].toInt(&ok);
+    if (!ok || minor < 0) return std::nullopt;
+  }
+  return std::make_pair(major, minor);
+}
+
+/// Whether series @p a comes after series @p b; false for a key that is not
+/// one.
+auto SeriesNewer(const QString& a, const QString& b) -> bool {
+  const auto x = SeriesOrder(a);
+  const auto y = SeriesOrder(b);
+  return x && y && *x > *y;
+}
+
+auto IsOldLine(const SeriesFacts& s) -> bool {
+  return s.status == u"legacy" || s.status == u"eol";
+}
+
+}  // namespace
 
 namespace {
 
@@ -181,6 +226,20 @@ auto ParseIndex(const QByteArray& json, const QString& trusted_comment,
       facts.beta = old_beta;
       facts.beta_descriptor = old_beta_descriptor;
       facts.beta_descriptor_sha256 = old_beta_sha256;
+    }
+    // A release candidate only comes before its series' first release, and
+    // only of X.Y.0: anything else named one is no candidate.
+    if (facts.latest.isEmpty() && s.contains("rc")) {
+      QString version;
+      QString descriptor;
+      QString sha256;
+      if (ReadBuild(s.value("rc"), version, descriptor, sha256) &&
+          SoftwareVersion::VersionSeries(version) == it.key() &&
+          IsReleaseCandidate(version)) {
+        facts.rc = version;
+        facts.rc_descriptor = descriptor;
+        facts.rc_descriptor_sha256 = sha256;
+      }
     }
     f.series.insert(it.key(), facts);
   }
@@ -339,6 +398,10 @@ auto ChooseUpdate(const IndexFacts& facts, const QString& current, bool nightly,
     return choice;
   }
 
+  // An eol series gets nothing from its own branch: its users go to the
+  // successor, and a fix it might still list is not one to stay for.
+  if (series.status == u"eol") return choice;
+
   // Its series' beta, when newer than what this build runs and than the
   // release it would be offered otherwise: offered when asked for, named
   // otherwise.
@@ -375,17 +438,123 @@ auto MeetsPlatform(const QHash<QString, QString>& required,
   return false;
 }
 
+auto ResolveSuccessor(const IndexFacts& facts, const QString& series_key)
+    -> QString {
+  const auto own = facts.series.constFind(series_key);
+  if (own == facts.series.constEnd() || !IsOldLine(*own)) return {};
+
+  QSet<QString> visited{series_key};
+  QString previous = series_key;
+  QString next = own->successor;
+  QString fallback;
+  // Every step is to a series not visited yet: at most one per series.
+  for (qsizetype steps = 0; steps < facts.series.size(); ++steps) {
+    const auto it = facts.series.constFind(next);
+    if (it == facts.series.constEnd() || visited.contains(next) ||
+        !SeriesNewer(next, previous)) {
+      break;
+    }
+    visited.insert(next);
+    if (it->status == u"stable" && !it->latest.isEmpty()) return next;
+    // A dead end may still fall back here: a release, and a system it is
+    // known to run on (a missing platforms table would read as everywhere).
+    if (!it->latest.isEmpty() && !it->platforms.isEmpty()) fallback = next;
+    if (!IsOldLine(*it)) break;  // mainline, or a prerelease: no further
+    previous = next;
+    next = it->successor;
+  }
+  return fallback;
+}
+
+auto ChooseOtherOffers(const IndexFacts& facts, const QString& current,
+                       bool nightly, bool follow_beta, const Platform& platform)
+    -> QList<OfferChoice> {
+  QList<OfferChoice> offers;
+  if (nightly) return offers;
+  const auto key = SoftwareVersion::VersionSeries(current);
+  const auto own = facts.series.value(key);
+  const auto newer = [&](const QString& version) {
+    return !version.isEmpty() && SemVerCompare(version, current) > 0 &&
+           WithdrawnFact(facts, version) != RemoteFact::kNotFound;
+  };
+  const auto release = [&](OfferKind kind, const QString& series,
+                           const QString& version) {
+    const auto entry = facts.releases.value(version);
+    return OfferChoice{kind,
+                       series,
+                       version,
+                       entry.descriptor,
+                       entry.descriptor_sha256,
+                       entry.notes,
+                       entry.notes_sha256};
+  };
+
+  // Where a series no longer supported goes. A stable series is never sent
+  // anywhere, whatever successor it names.
+  if (IsOldLine(own)) {
+    const auto to = ResolveSuccessor(facts, key);
+    const auto successor = facts.series.value(to);
+    if (!to.isEmpty() && newer(successor.latest) &&
+        MeetsPlatform(successor.platforms, platform)) {
+      offers << release(OfferKind::kSuccessor, to, successor.latest);
+    }
+  }
+
+  // Its own series' beta, asked for, newer than its newest release too.
+  if (follow_beta && own.status != u"eol" && newer(own.beta) &&
+      (own.latest.isEmpty() || SemVerCompare(own.beta, own.latest) > 0)) {
+    offers << OfferChoice{OfferKind::kBeta,
+                          key,
+                          own.beta,
+                          own.beta_descriptor,
+                          own.beta_descriptor_sha256,
+                          {},
+                          {}};
+  }
+
+  // A release candidate: of its own series for a build on that line already,
+  // otherwise of the newest series still in prerelease, newer than its own.
+  const auto candidate = [&](const QString& series, const SeriesFacts& s) {
+    return OfferChoice{OfferKind::kPrerelease,
+                       series,
+                       s.rc,
+                       s.rc_descriptor,
+                       s.rc_descriptor_sha256,
+                       {},
+                       {}};
+  };
+  if (own.IsPrerelease() && newer(own.rc) &&
+      (follow_beta || OnCandidateLine(current))) {
+    offers << candidate(key, own);
+  } else if (follow_beta) {
+    QString best;
+    for (auto it = facts.series.constBegin(); it != facts.series.constEnd();
+         ++it) {
+      if (!it->IsPrerelease() || !SeriesNewer(it.key(), key)) continue;
+      if (best.isEmpty() || SeriesNewer(it.key(), best)) best = it.key();
+    }
+    const auto s = facts.series.value(best);
+    if (!best.isEmpty() && newer(s.rc) && MeetsPlatform(s.platforms, platform)) {
+      offers << candidate(best, s);
+    }
+  }
+  return offers;
+}
+
 auto NoticeFor(const IndexFacts& facts, const QString& current,
                const Platform& platform) -> SeriesNotice {
   SeriesNotice notice;
   const auto key = SoftwareVersion::VersionSeries(current);
   const auto series = facts.series.value(key);
-  if (series.status != u"legacy" && series.status != u"eol") return notice;
+  if (!IsOldLine(series)) return notice;
   notice.series = key;
   notice.status = series.status;
   notice.eol = series.eol;
-  notice.successor = series.successor;
-  const auto successor = facts.series.value(series.successor);
+  // Where the chain of successors lands, as the offer does: the notice and
+  // the offer always name the same release.
+  const auto to = ResolveSuccessor(facts, key);
+  notice.successor = to.isEmpty() ? series.successor : to;
+  const auto successor = facts.series.value(to);
   notice.successor_latest = successor.latest;
   notice.successor_runs_here =
       !successor.latest.isEmpty() &&

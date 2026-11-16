@@ -241,9 +241,19 @@ UpdateTab::UpdateTab(QWidget* parent)
 
   offer_column_ = new QWidget(this);
   offer_form_ = new QFormLayout();
+  offer_choices_ = new QVBoxLayout();
+  offer_choices_->setSpacing(2);
+  offer_group_ = new QButtonGroup(this);
+  // Clicked, not toggled: the choices are rebuilt from render(), and never
+  // while one of them is still in its own signal.
+  connect(offer_group_, &QButtonGroup::idClicked, this, [this](int id) {
+    selected_ = static_cast<OfferKind>(id);
+    QTimer::singleShot(0, this, [this] { render(); });
+  });
   auto* offer_layout = new QVBoxLayout(offer_column_);
   offer_layout->setContentsMargins(0, 0, 0, 0);
   offer_layout->addWidget(Caption(tr("Offered"), offer_column_));
+  offer_layout->addLayout(offer_choices_);
   offer_layout->addLayout(offer_form_);
   offer_layout->addStretch();
 
@@ -371,7 +381,7 @@ void UpdateTab::render() {
     return;
   }
   auto view = PresentUpdate(checker_->State(), QDateTime::currentDateTime(),
-                            checker_->GetBuild());
+                            checker_->GetBuild(), selected_);
   // In place only where this machine allows it: an AppImage of the nightly
   // application, in a place the user can write.
   view.installable = view.installable && !SelfUpdateImage().isEmpty();
@@ -499,6 +509,7 @@ void UpdateTab::apply(const UpdateView& view) {
     build_form_->addRow(view.newest_label, PlainLabel(view.newest, this));
   }
 
+  fill_offer_choices(view);
   ClearForm(offer_form_);
   offer_column_->setVisible(view.show_offer);
   if (view.show_offer) {
@@ -562,6 +573,33 @@ void UpdateTab::apply(const UpdateView& view) {
                          view.action != UpdateView::Action::kRestart);
 
   fit_window();
+}
+
+void UpdateTab::fill_offer_choices(const UpdateView& view) {
+  QStringList labels;
+  if (view.show_offer && view.offers.size() > 1) {
+    for (const auto& offer : view.offers) labels << offer.label;
+  }
+  if (labels != shown_offers_) {
+    shown_offers_ = labels;
+    while (auto* item = offer_choices_->takeAt(0)) {
+      if (auto* button = qobject_cast<QAbstractButton*>(item->widget())) {
+        offer_group_->removeButton(button);
+      }
+      delete item->widget();
+      delete item;
+    }
+    for (const auto& offer : labels.isEmpty() ? QList<OfferView>{}
+                                              : view.offers) {
+      auto* choice = new QRadioButton(offer.label, offer_column_);
+      offer_group_->addButton(choice, static_cast<int>(offer.kind));
+      offer_choices_->addWidget(choice);
+    }
+  }
+  if (auto* button = offer_group_->button(static_cast<int>(view.selected))) {
+    const QSignalBlocker block(button);
+    button->setChecked(true);
+  }
 }
 
 void UpdateTab::fill_details(const UpdateView& view) {

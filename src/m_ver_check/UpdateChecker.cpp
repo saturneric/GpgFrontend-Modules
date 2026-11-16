@@ -87,16 +87,38 @@ auto TimeFromJson(const QJsonValue& v) -> QDateTime {
                       : QDateTime();
 }
 
+auto StepToJson(const CheckStep& step) -> QJsonObject {
+  return {{"status", NameOf(kStatusNames, step.status)},
+          {"reason", NameOf(kReasonNames, step.reason)},
+          {"detail", step.detail}};
+}
+
+/// A step a store does not hold (one from before it was recorded) did not
+/// apply then: it is not one that did not run.
+auto StepFromJson(const QJsonValue& value) -> CheckStep {
+  if (!value.isObject()) return {StepStatus::kNotApplicable};
+  const auto step = value.toObject();
+  return {ValueOf(kStatusNames, step.value("status").toString()),
+          ValueOf(kReasonNames, step.value("reason").toString()),
+          step.value("detail").toString()};
+}
+
 auto RecordToJson(const CheckRecord& r) -> QJsonObject {
   QJsonObject steps;
   for (const auto& [id, name] : kStepNames) {
-    const auto& step = r.Step(id);
-    steps[QString::fromLatin1(name)] =
-        QJsonObject{{"status", NameOf(kStatusNames, step.status)},
-                    {"reason", NameOf(kReasonNames, step.reason)},
-                    {"detail", step.detail}};
+    steps[QString::fromLatin1(name)] = StepToJson(r.Step(id));
+  }
+  QJsonArray offers;
+  for (const auto& o : r.offers) {
+    offers.append(QJsonObject{{"kind", OfferKindName(o.kind)},
+                              {"version", o.version},
+                              {"descriptor", StepToJson(o.descriptor)},
+                              {"notes", StepToJson(o.notes)},
+                              {"descriptor_sha256", o.descriptor_sha256},
+                              {"notes_sha256", o.notes_sha256}});
   }
   return {
+      {"offers", offers},
       {"steps", steps},
       {"root_version", r.root_version},
       {"root_built_in", r.root_built_in},
@@ -127,10 +149,16 @@ auto RecordFromJson(const QJsonObject& obj) -> CheckRecord {
   CheckRecord r;
   const auto steps = obj.value("steps").toObject();
   for (const auto& [id, name] : kStepNames) {
-    const auto step = steps.value(QString::fromLatin1(name)).toObject();
-    r.Step(id) = {ValueOf(kStatusNames, step.value("status").toString()),
-                  ValueOf(kReasonNames, step.value("reason").toString()),
-                  step.value("detail").toString()};
+    r.Step(id) = StepFromJson(steps.value(QString::fromLatin1(name)));
+  }
+  for (const auto& value : obj.value("offers").toArray()) {
+    const auto o = value.toObject();
+    r.offers << OfferRecord{OfferKindFromName(o.value("kind").toString()),
+                            o.value("version").toString(),
+                            StepFromJson(o.value("descriptor")),
+                            StepFromJson(o.value("notes")),
+                            o.value("descriptor_sha256").toString(),
+                            o.value("notes_sha256").toString()};
   }
   const auto strings = [&](const char* key) {
     return obj.value(QLatin1StringView(key)).toVariant().toStringList();
@@ -215,9 +243,18 @@ void UpdateChecker::warn(const QString& what) const {
   if (build_.warn) build_.warn(QStringLiteral("update check: ") + what);
 }
 
+auto UpdateChecker::step(CheckStepId id) -> StepRef {
+  return [this, id]() -> CheckStep& { return record_.Step(id); };
+}
+
 void UpdateChecker::fail(CheckStepId id, StepReason reason,
                          const QString& detail) {
-  auto& step = record_.Step(id);
+  fail(step(id), reason, detail);
+}
+
+void UpdateChecker::fail(const StepRef& ref, StepReason reason,
+                         const QString& detail) {
+  auto& step = ref();
   if (reason == StepReason::kUnreachable &&
       step.status == StepStatus::kFailed &&
       step.reason != StepReason::kUnreachable) {
@@ -226,14 +263,14 @@ void UpdateChecker::fail(CheckStepId id, StepReason reason,
   step = {StepStatus::kFailed, reason, detail};
 }
 
-void UpdateChecker::failFetch(CheckStepId id, int status, bool oversized,
+void UpdateChecker::failFetch(const StepRef& ref, int status, bool oversized,
                               StepReason refused) {
   if (oversized || status == kStatusOversized) {
-    fail(id, StepReason::kOversized);
+    fail(ref, StepReason::kOversized);
   } else if (status == 0) {
-    fail(id, StepReason::kUnreachable);
+    fail(ref, StepReason::kUnreachable);
   } else {
-    fail(id, refused, QStringLiteral("HTTP %1").arg(status));
+    fail(ref, refused, QStringLiteral("HTTP %1").arg(status));
   }
 }
 
@@ -280,14 +317,14 @@ void UpdateChecker::keepTrust() {
 }
 
 void UpdateChecker::fetchBounded(
-    const QUrl& url, qsizetype limit, CheckStepId id, StepReason refused,
+    const QUrl& url, qsizetype limit, const StepRef& ref, StepReason refused,
     const std::function<void(const QByteArray&)>& ok, const Then& failed) {
   QPointer<UpdateChecker> self(this);
   fetch_(url, [=](int status, const QByteArray& body) {
     if (self.isNull()) return;
     if (status != 200 || body.size() > limit) {
       self->warn(QStringLiteral("%1: HTTP %2").arg(url.toString()).arg(status));
-      self->failFetch(id, status, body.size() > limit, refused);
+      self->failFetch(ref, status, body.size() > limit, refused);
       failed();
       return;
     }
@@ -343,7 +380,22 @@ auto UpdateChecker::Attention() const -> UpdateAttention {
 
 void UpdateChecker::Acknowledge() {
   if (Attention() == UpdateAttention::kNone) return;
-  state_.last_seen_update_version = state_.last_good->list.latest.version;
+  // Each kind of offer as seen, never lowered: a check that offers less does
+  // not bring back what was seen before.
+  const auto raise = [](QString& seen, const QString& version) {
+    if (!version.isEmpty() &&
+        (seen.isEmpty() || SemVerCompare(version, seen) > 0)) {
+      seen = version;
+    }
+  };
+  const auto& good = *state_.last_good;
+  if (good.list.outcome == ListOutcome::kFound) {
+    raise(state_.last_seen_update_version, good.list.latest.version);
+  }
+  for (const auto& offer : good.offers) {
+    raise(state_.last_seen_offers[OfferKindName(offer.kind)],
+          offer.release.version);
+  }
   state_.last_seen_at = clock_();
   if (store_.save) store_.save(ToStorage(state_));
   emit Changed();
@@ -366,6 +418,7 @@ void UpdateChecker::Start(CheckMode mode) {
   descriptor_sha256_.clear();
   notes_path_.clear();
   notes_sha256_.clear();
+  other_offers_.clear();
   record_ = {};
   startIndex();
 }
@@ -406,11 +459,11 @@ void UpdateChecker::tryIndexBase(qsizetype i, bool retried) {
   const QString url = trustBase(i) + QStringLiteral("index.json");
   const auto next = [this, i] { tryIndexBase(i + 1); };
   fetchBounded(
-      QUrl(url), kMaxFetchBytes, CheckStepId::kIndex, StepReason::kUnreachable,
+      QUrl(url), kMaxFetchBytes, step(CheckStepId::kIndex), StepReason::kUnreachable,
       [this, i, url, retried, next](const QByteArray& body) {
         fetchBounded(
             QUrl(url + QStringLiteral(".minisig")), kMaxFetchBytes,
-            CheckStepId::kIndex, StepReason::kUnreachable,
+            step(CheckStepId::kIndex), StepReason::kUnreachable,
             [this, i, body, retried](const QByteArray& signature) {
               checkIndex(i, body, signature, retried);
             },
@@ -453,7 +506,7 @@ void UpdateChecker::walkRoots(qsizetype i, qint64 target, int steps,
   const auto url = trustBase(i) + QStringLiteral("root/%1.root.json").arg(n);
   QPointer<UpdateChecker> self(this);
   fetchBounded(
-      QUrl(url), kMaxFetchBytes, CheckStepId::kRoot,
+      QUrl(url), kMaxFetchBytes, step(CheckStepId::kRoot),
       StepReason::kRootWalkFailed,
       [=](const QByteArray& data) {
         // Signed by root keys of the trusted root, and of its own.
@@ -513,12 +566,12 @@ void UpdateChecker::takeIndexKeys(qsizetype i, qint64 version,
   const auto url = trustBase(i) + QStringLiteral("index-keys/%1.json")
                                       .arg(version);
   fetchBounded(
-      QUrl(url), kMaxFetchBytes, CheckStepId::kIndexKeys,
+      QUrl(url), kMaxFetchBytes, step(CheckStepId::kIndexKeys),
       StepReason::kListRejected,
       [this, url, then](const QByteArray& data) {
         fetchBounded(
             QUrl(url + QStringLiteral(".minisig")), kMaxFetchBytes,
-            CheckStepId::kIndexKeys, StepReason::kListRejected,
+            step(CheckStepId::kIndexKeys), StepReason::kListRejected,
             [this, url, data, then](const QByteArray& sig) {
               QString why;
               auto keys = ParseIndexKeys(*root_, {data, {{QString(), sig}}},
@@ -608,9 +661,16 @@ auto UpdateChecker::acceptIndex(const QByteArray& body,
     return false;
   }
 
-  const auto choice =
-      ChooseUpdate(*facts, build_.version, nightly_, fresh_.follow_beta);
+  // A release build's own series: its newest release. A beta it asked for is
+  // one more offer beside it (ChooseOtherOffers()), never in its place.
+  const auto choice = ChooseUpdate(*facts, build_.version, nightly_, false);
   fresh_.list = choice.list;
+  other_offers_ = ChooseOtherOffers(*facts, build_.version, nightly_,
+                                    fresh_.follow_beta, build_.platform);
+  for (const auto& offer : other_offers_) {
+    fresh_.offers << Offer{offer.kind, offer.series, {offer.version}};
+    record_.offers << OfferRecord{offer.kind, offer.version};
+  }
   fresh_.other_series = choice.other_series;
   fresh_.tag_fact = nightly_ ? WithdrawnFact(*facts, build_.version)
                              : ReleaseFact(*facts, build_.version);
@@ -635,13 +695,14 @@ auto UpdateChecker::acceptIndex(const QByteArray& body,
   record_.series_status =
       facts->series.value(SoftwareVersion::VersionSeries(build_.version))
           .status;
-  record_.newer_beta = choice.newer_beta;
+  // Named only while betas are not asked for: asked for, it is an offer.
+  if (!fresh_.follow_beta) record_.newer_beta = choice.newer_beta;
   return true;
 }
 
 void UpdateChecker::askPinned(const Pinned& pinned, qsizetype i) {
-  if (pinned.path.isEmpty() || fresh_.list.outcome != ListOutcome::kFound) {
-    record_.Step(pinned.step).status = StepStatus::kNotApplicable;
+  if (pinned.path.isEmpty() || !pinned.applies) {
+    pinned.step().status = StepStatus::kNotApplicable;
     pinned.next();
     return;
   }
@@ -660,7 +721,7 @@ void UpdateChecker::askPinned(const Pinned& pinned, qsizetype i) {
           askPinned(pinned, i + 1);
           return;
         }
-        record_.Step(pinned.step) = {StepStatus::kVerified};
+        pinned.step() = {StepStatus::kVerified};
         pinned.take(base, body);
         pinned.next();
       },
@@ -670,8 +731,9 @@ void UpdateChecker::askPinned(const Pinned& pinned, qsizetype i) {
 void UpdateChecker::askDescriptor() {
   // Only for the link behind "Download": whatever goes wrong here leaves it
   // to the downloads page, and changes no verdict.
-  askPinned({CheckStepId::kDescriptor, descriptor_path_, descriptor_sha256_,
-             kMaxFetchBytes,
+  const bool found = fresh_.list.outcome == ListOutcome::kFound;
+  askPinned({step(CheckStepId::kDescriptor), found, descriptor_path_,
+             descriptor_sha256_, kMaxFetchBytes,
              [this](const QString& base, const QByteArray& body) {
                record_.descriptor_sha256 = descriptor_sha256_;
                const auto choice = SelectArtifact(body, build_.platform);
@@ -689,12 +751,53 @@ void UpdateChecker::askNotes() {
   // The offer's release notes, as reviewed and signed: kept only when they
   // are exactly what the signed index states, otherwise the page shows the
   // version and a link, and no verdict changes.
-  askPinned({CheckStepId::kNotes, notes_path_, notes_sha256_, kMaxNotesBytes,
+  const bool found = fresh_.list.outcome == ListOutcome::kFound;
+  askPinned({step(CheckStepId::kNotes), found, notes_path_, notes_sha256_,
+             kMaxNotesBytes,
              [this](const QString& /*base*/, const QByteArray& body) {
                record_.notes_sha256 = notes_sha256_;
                fresh_.list.latest.notes = QString::fromUtf8(body);
              },
-             [this] { askCommitMarker(); }});
+             [this] { askOffer(0); }});
+}
+
+void UpdateChecker::askOffer(qsizetype i) {
+  if (i >= other_offers_.size()) {
+    askCommitMarker();
+    return;
+  }
+  // As the own series' release: each offer's files are checked on their
+  // own, and what goes wrong costs that offer its link or notes only.
+  const auto offer = other_offers_[i];
+  const StepRef descriptor = [this, i]() -> CheckStep& {
+    return record_.offers[i].descriptor;
+  };
+  const StepRef notes = [this, i]() -> CheckStep& {
+    return record_.offers[i].notes;
+  };
+  askPinned(
+      {descriptor, true, offer.descriptor, offer.descriptor_sha256,
+       kMaxFetchBytes,
+       [this, i, offer](const QString& base, const QByteArray& body) {
+         record_.offers[i].descriptor_sha256 = offer.descriptor_sha256;
+         const auto choice = SelectArtifact(body, build_.platform);
+         if (!choice.path.isEmpty()) {
+           auto& release = fresh_.offers[i].release;
+           release.html_url = base + choice.path;
+           release.download_sha256 = choice.sha256;
+           release.download_size = choice.size;
+         }
+       },
+       [this, i, offer, notes] {
+         askPinned({notes, true, offer.notes, offer.notes_sha256,
+                    kMaxNotesBytes,
+                    [this, i, offer](const QString& /*base*/,
+                                     const QByteArray& body) {
+                      record_.offers[i].notes_sha256 = offer.notes_sha256;
+                      fresh_.offers[i].release.notes = QString::fromUtf8(body);
+                    },
+                    [this, i] { askOffer(i + 1); }});
+       }});
 }
 
 void UpdateChecker::askCommitMarker() {
@@ -723,7 +826,7 @@ void UpdateChecker::askCommitMarker() {
            } else if (status == 404) {
              self->fail(CheckStepId::kCommit, StepReason::kNotFound);
            } else {
-             self->failFetch(CheckStepId::kCommit, status, false,
+             self->failFetch(self->step(CheckStepId::kCommit), status, false,
                              StepReason::kUnreachable);
            }
            self->finish();
@@ -791,6 +894,14 @@ auto UpdateChecker::ToStorage(const UpdateSnapshot& s) -> QByteArray {
   if (!s.last_seen_update_version.isEmpty()) {
     obj["last_seen_update_version"] = s.last_seen_update_version;
   }
+  if (!s.last_seen_offers.isEmpty()) {  // additive
+    QJsonObject seen;
+    for (auto it = s.last_seen_offers.begin(); it != s.last_seen_offers.end();
+         ++it) {
+      seen[it.key()] = it.value();
+    }
+    obj["last_seen_offers"] = seen;
+  }
   // Additive: a build that does not know these fields leaves them out.
   if (!s.serial_floor.isEmpty()) {
     QJsonObject floors;
@@ -827,6 +938,12 @@ auto UpdateChecker::FromStorage(const QByteArray& data, const Build& build)
   // Which update the user has seen is not a fact about this build: an
   // upgrade, or a rebuild, must not advertise it again.
   s.last_seen_update_version = obj.value("last_seen_update_version").toString();
+  const auto seen = obj.value("last_seen_offers").toObject();
+  for (auto it = seen.begin(); it != seen.end(); ++it) {
+    if (!it.value().toString().isEmpty()) {
+      s.last_seen_offers[it.key()] = it.value().toString();
+    }
+  }
   // Never below zero: a damaged store only forgets what was seen.
   const auto floors = obj.value("serial_floor").toObject();
   for (auto it = floors.begin(); it != floors.end(); ++it) {
@@ -865,11 +982,21 @@ auto AttentionFor(const UpdateSnapshot& s, const QDateTime& now)
   if (!s.last_good || Decide(*s.last_good) != Verdict::kUpdateAvailable) {
     return UpdateAttention::kNone;
   }
-  const auto& latest = s.last_good->list.latest.version;
-  const auto& seen = s.last_seen_update_version;
-  if (!seen.isEmpty() && SemVerCompare(latest, seen) <= 0) {
-    return UpdateAttention::kNone;
+  const auto& good = *s.last_good;
+  // Something newer than this build that the user has not seen yet, each
+  // kind of offer against what was last seen of that kind.
+  const auto unseen = [&](const QString& version, const QString& seen) {
+    return SemVerCompare(good.current_version, version) < 0 &&
+           (seen.isEmpty() || SemVerCompare(version, seen) > 0);
+  };
+  bool any = good.list.outcome == ListOutcome::kFound &&
+             unseen(good.list.latest.version, s.last_seen_update_version);
+  for (const auto& offer : good.offers) {
+    any = any ||
+          unseen(offer.release.version,
+                 s.last_seen_offers.value(OfferKindName(offer.kind)));
   }
+  if (!any) return UpdateAttention::kNone;
   // A nightly's channel moves with every push: after one offer was seen, the
   // next waits a day. The dialog still shows the newest whenever opened. One
   // seen "in the future" was seen under a clock that was ahead: how long ago

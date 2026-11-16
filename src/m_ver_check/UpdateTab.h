@@ -29,6 +29,7 @@
 #pragma once
 
 #include <QPointer>
+#include <optional>
 #include <QtWidgets/QtWidgets>
 
 #include "UpdatePresentation.h"
@@ -63,6 +64,7 @@ class UpdateTab : public QWidget {
   void render();
   void apply(const UpdateView& view);
   void fill_details(const UpdateView& view);
+  void fill_offer_choices(const UpdateView& view);
   void fill_notes_palette();
   void fit_window();
   void on_main_button();
@@ -77,6 +79,13 @@ class UpdateTab : public QWidget {
   QLabel* build_caption_;
   QFormLayout* build_form_;
   QWidget* offer_column_;  ///< only with an offer
+  /// One choice per version offered, when there is more than one; rebuilt
+  /// only when what is offered changes.
+  QVBoxLayout* offer_choices_;
+  QButtonGroup* offer_group_;
+  QStringList shown_offers_;  ///< the labels the choices were built for
+  /// The offer the user picked; none follows the default.
+  std::optional<OfferKind> selected_;
   QFormLayout* offer_form_;
   QLabel* beta_hint_;    ///< "A newer beta, X, is available"
   QTextBrowser* notes_;  ///< the part that scrolls and takes the height

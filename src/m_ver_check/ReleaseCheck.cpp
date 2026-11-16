@@ -28,6 +28,8 @@
 
 #include "ReleaseCheck.h"
 
+#include <algorithm>
+
 #include "SemVer.h"
 
 auto IsUsable(const SoftwareVersion& r) -> bool {
@@ -59,12 +61,21 @@ auto Merge(const std::optional<SoftwareVersion>& prev,
   return merged;
 }
 
+auto HasNewerRelease(const SoftwareVersion& r) -> bool {
+  return r.list.outcome == ListOutcome::kFound &&
+         SemVerCompare(r.current_version, r.list.latest.version) < 0;
+}
+
+auto HasNewerOffer(const SoftwareVersion& r) -> bool {
+  if (HasNewerRelease(r)) return true;
+  return std::any_of(r.offers.begin(), r.offers.end(), [&](const Offer& o) {
+    return SemVerCompare(r.current_version, o.release.version) < 0;
+  });
+}
+
 auto Decide(const SoftwareVersion& r) -> Verdict {
   if (!IsUsable(r)) return Verdict::kUnknown;
-  if (r.list.outcome == ListOutcome::kFound &&
-      SemVerCompare(r.current_version, r.list.latest.version) < 0) {
-    return Verdict::kUpdateAvailable;
-  }
+  if (HasNewerOffer(r)) return Verdict::kUpdateAvailable;
   if (r.tag_fact == RemoteFact::kNotFound) {
     return Verdict::kWithdrawnOrUnreleased;
   }
