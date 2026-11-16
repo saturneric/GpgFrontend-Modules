@@ -28,6 +28,7 @@
 
 #include "SoftwareVersion.h"
 
+#include <QJsonArray>
 #include <QJsonObject>
 #include <QString>
 
@@ -47,7 +48,44 @@ constexpr std::array<std::pair<ListOutcome, const char*>, 3> kListNames = {{
     {ListOutcome::kFound, "found"},
 }};
 
+constexpr std::array<std::pair<OfferKind, const char*>, 4> kOfferNames = {{
+    {OfferKind::kSeries, "series"},
+    {OfferKind::kSuccessor, "successor"},
+    {OfferKind::kBeta, "beta"},
+    {OfferKind::kPrerelease, "prerelease"},
+}};
+
+auto ReleaseToJson(const LatestRelease& r) -> QJsonObject {
+  QJsonObject obj;
+  obj["version"] = r.version;
+  obj["notes"] = r.notes;
+  obj["html_url"] = r.html_url;
+  if (!r.download_sha256.isEmpty()) {  // additive
+    obj["download_sha256"] = r.download_sha256;
+    obj["download_size"] = r.download_size;
+  }
+  return obj;
+}
+
+auto ReleaseFromJson(const QJsonObject& obj) -> LatestRelease {
+  LatestRelease r;
+  r.version = obj.value("version").toString();
+  r.notes = obj.value("notes").toString();
+  r.html_url = obj.value("html_url").toString();
+  r.download_sha256 = obj.value("download_sha256").toString();
+  r.download_size = obj.value("download_size").toInteger();
+  return r;
+}
+
 }  // namespace
+
+auto OfferKindName(OfferKind kind) -> QString {
+  return NameOf(kOfferNames, kind);
+}
+
+auto OfferKindFromName(const QString& name) -> OfferKind {
+  return ValueOf(kOfferNames, name);
+}
 
 auto SoftwareVersion::SameBuild(const QString& version,
                                 const QString& commit) const -> bool {
@@ -55,21 +93,22 @@ auto SoftwareVersion::SameBuild(const QString& version,
 }
 
 auto SoftwareVersion::ToJson() const -> QJsonObject {
-  QJsonObject latest;
-  latest["version"] = list.latest.version;
-  latest["notes"] = list.latest.notes;
-  latest["html_url"] = list.latest.html_url;
-  if (!list.latest.download_sha256.isEmpty()) {  // additive
-    latest["download_sha256"] = list.latest.download_sha256;
-    latest["download_size"] = list.latest.download_size;
-  }
-
   QJsonObject obj;
   obj["schema"] = kSchema;
   obj["current_version"] = current_version;
   obj["local_commit_hash"] = local_commit_hash;
   obj["list"] = NameOf(kListNames, list.outcome);
-  obj["latest"] = latest;
+  obj["latest"] = ReleaseToJson(list.latest);
+  if (!offers.isEmpty()) {  // additive: an older build reads none
+    QJsonArray out;
+    for (const auto& offer : offers) {
+      auto o = ReleaseToJson(offer.release);
+      o["kind"] = OfferKindName(offer.kind);
+      o["series"] = offer.series;
+      out.append(o);
+    }
+    obj["offers"] = out;
+  }
   obj["tag_fact"] = NameOf(kFactNames, tag_fact);
   obj["commit_fact"] = NameOf(kFactNames, commit_fact);
   obj["complete"] = complete;
@@ -101,12 +140,17 @@ auto SoftwareVersion::FromJson(const QJsonObject& obj)
   sv.local_commit_hash = obj.value("local_commit_hash").toString();
   sv.list.outcome = ValueOf(kListNames, obj.value("list").toString());
 
-  const auto latest = obj.value("latest").toObject();
-  sv.list.latest.version = latest.value("version").toString();
-  sv.list.latest.notes = latest.value("notes").toString();
-  sv.list.latest.html_url = latest.value("html_url").toString();
-  sv.list.latest.download_sha256 = latest.value("download_sha256").toString();
-  sv.list.latest.download_size = latest.value("download_size").toInteger();
+  sv.list.latest = ReleaseFromJson(obj.value("latest").toObject());
+  for (const auto& value : obj.value("offers").toArray()) {
+    const auto o = value.toObject();
+    Offer offer{OfferKindFromName(o.value("kind").toString()),
+                o.value("series").toString(), ReleaseFromJson(o)};
+    // Only what ToJson() writes: another kind of offer, with a version.
+    if (offer.kind == OfferKind::kSeries || offer.release.version.isEmpty()) {
+      continue;
+    }
+    sv.offers << offer;
+  }
 
   sv.tag_fact = ValueOf(kFactNames, obj.value("tag_fact").toString());
   sv.commit_fact = ValueOf(kFactNames, obj.value("commit_fact").toString());

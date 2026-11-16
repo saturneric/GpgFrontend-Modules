@@ -71,6 +71,14 @@ void FillGrtWithVersionInfo(const UpdateSnapshot& state) {
        good ? VerdictName(Decide(*good)) : VerdictName(Verdict::kUnknown));
   text("version.current_version", good ? good->current_version : QString{});
   text("version.latest_version", good ? good->list.latest.version : QString{});
+  // The release a legacy or eol series is sent to; empty when none.
+  QString successor;
+  if (good) {
+    for (const auto& offer : good->offers) {
+      if (offer.kind == OfferKind::kSuccessor) successor = offer.release.version;
+    }
+  }
+  text("version.successor_version", successor);
   text("version.checked_at",
        good ? good->checked_at.toString(Qt::ISODate) : QString{});
   flag("version.last_attempt_failed", state.last_attempt_failed);

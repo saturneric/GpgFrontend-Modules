@@ -65,6 +65,15 @@ struct DetailRow {
   bool download = false;  ///< the downloaded file's (PresentInstall())
 };
 
+/// One version the user may choose to download, when more than one is
+/// offered.
+struct OfferView {
+  OfferKind kind = OfferKind::kSeries;
+  QString version;  ///< as published
+  QString label;    ///< "2.3.1 · Current release (recommended)"
+  bool recommended = false;
+};
+
 struct UpdateView {
   UpdateTone tone = UpdateTone::kNeutral;
   QString headline;
@@ -83,6 +92,11 @@ struct UpdateView {
   /// "A newer beta, X, is available": a beta not offered while "Also offer
   /// beta versions" (Settings > Updates) is off.
   QString newer_beta;
+
+  /// Every version offered, the default first; more than one lets the user
+  /// choose. `selected` is the one the fields below describe.
+  QList<OfferView> offers;
+  OfferKind selected = OfferKind::kSeries;
 
   // "Offered"
   bool show_offer = false;
@@ -134,9 +148,14 @@ struct UpdateView {
 };
 
 /// @p build is what the checker was made for (UpdateChecker::GetBuild()):
-/// this build's block, its package source and platform.
+/// this build's block, its package source and platform. @p selected is the
+/// offer the user picked; without one, or one no longer offered, the
+/// default: the successor where there is one, else the series' own release,
+/// else the first. A beta or a release candidate is never the default while
+/// anything else is offered.
 auto PresentUpdate(const UpdateSnapshot& s, const QDateTime& now,
-                   const UpdateChecker::Build& build = {}) -> UpdateView;
+                   const UpdateChecker::Build& build = {},
+                   std::optional<OfferKind> selected = {}) -> UpdateView;
 
 /// The details as plain text, one line per step, for a bug report: no
 /// paths, nothing about the user.

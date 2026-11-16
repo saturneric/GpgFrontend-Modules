@@ -98,6 +98,16 @@ struct SeriesFacts {
   QString beta;
   QString beta_descriptor;
   QString beta_descriptor_sha256;
+
+  /// Its release candidate: the newest X.Y.0-rc.N tag build of a series
+  /// that has no release yet; empty otherwise (an rc after X.Y.0, or of any
+  /// patch but 0, is never one). While it has one, the series is a
+  /// prerelease, whatever its policy status says.
+  QString rc;
+  QString rc_descriptor;
+  QString rc_descriptor_sha256;
+
+  [[nodiscard]] auto IsPrerelease() const -> bool { return !rc.isEmpty(); }
 };
 
 /// One listed release: its descriptor, and its notes, each pinned by the
@@ -181,6 +191,13 @@ auto SelectArtifact(const QByteArray& descriptor, const Platform& platform)
 /// is an untagged one: "X.Y.Z-alpha.N" or "...-beta.K.dev.N".
 auto IsNightlyBuild(const QString& version) -> bool;
 
+/// A release candidate tag's version, "X.Y.0-rc.N": only ever of X.Y.0.
+auto IsReleaseCandidate(const QString& version) -> bool;
+
+/// A build of a release candidate's line: the candidate itself, or a build
+/// after it on its release branch ("X.Y.0-rc.N.dev.M").
+auto OnCandidateLine(const QString& version) -> bool;
+
 /// The longest an index may say it is valid, from `generated_at` to
 /// `expires`. The host signs for 14 days; one signed for longer is refused, so
 /// no index, however obtained, can be replayed to a client for long.
@@ -231,9 +248,55 @@ struct ChannelChoice {
  * series, as the index lists it (withdrawn ones never are); with
  * @p follow_beta, its series' beta too when it is newer than both that
  * release and @p current. No build is ever offered another series' beta.
+ * A release build of an eol series is offered nothing from its own branch:
+ * its way out is the successor (ChooseOtherOffers()).
  */
 auto ChooseUpdate(const IndexFacts& facts, const QString& current, bool nightly,
                   bool follow_beta = false) -> ChannelChoice;
+
+/**
+ * @brief Where the users of legacy or eol series @p series_key go.
+ *
+ * Its `successor`, followed on through every legacy and eol series, to the
+ * first stable one with a release: never one step only, so a successor not
+ * updated since still lands on a current series. Each step must be to a
+ * newer series (no loop, never back). On a dead end (unlisted, a loop, an
+ * older series, mainline or a prerelease reached first): the newest series
+ * met on the way that has a release and states its platforms, if any.
+ * @return the series key; empty when none, and for a series that is not
+ * legacy or eol.
+ */
+auto ResolveSuccessor(const IndexFacts& facts, const QString& series_key)
+    -> QString;
+
+/// One offer beside the build's own series' newest release, and where its
+/// files and notes are listed.
+struct OfferChoice {
+  OfferKind kind = OfferKind::kSuccessor;
+  QString series;
+  QString version;
+  QString descriptor;
+  QString descriptor_sha256;
+  QString notes;  ///< empty when none is listed (a beta, a candidate)
+  QString notes_sha256;
+};
+
+/**
+ * @brief What a release build is offered beside ChooseUpdate()'s own-series
+ * release, in the order the dialog lists them. Each is newer than
+ * @p current; a nightly is offered none of these.
+ *
+ * - A legacy or eol series: the release of ResolveSuccessor(), where its
+ *   platforms hold here. A stable one: never, even with a successor set.
+ * - With @p follow_beta: its series' beta (not for an eol series, which gets
+ *   nothing from its own branch), and the release candidate of the newest
+ *   newer series that is a prerelease, where its platforms hold here.
+ * - A release candidate (X.Y.0-rc.N) is offered its series' newer one
+ *   whether or not betas are asked for: it is on that line already.
+ */
+auto ChooseOtherOffers(const IndexFacts& facts, const QString& current,
+                       bool nightly, bool follow_beta,
+                       const Platform& platform) -> QList<OfferChoice>;
 
 /// Its series is no longer the one users are meant to be on: what the
 /// update page says about it (SoftwareVersion::Notice, which keeps it).

@@ -30,6 +30,7 @@
 
 #include <QDateTime>
 #include <QJsonObject>
+#include <QList>
 #include <QString>
 #include <array>
 #include <optional>
@@ -86,6 +87,26 @@ struct ListResult {
   LatestRelease latest;  ///< meaningful only for kFound
 };
 
+/// What else a release build may move to, beside its own series' newest
+/// release (ListResult): the user picks one.
+enum class OfferKind {
+  kSeries,      ///< its own series' newest release: fixes (ListResult)
+  kSuccessor,   ///< a legacy or eol series: the release its users go to
+  kBeta,        ///< its own series' beta, when betas are asked for
+  kPrerelease,  ///< a newer series' release candidate, when betas are asked
+                ///< for; or a release candidate's newer one
+};
+
+/// The stored name of @p kind, and back; an unknown name reads as kSeries.
+auto OfferKindName(OfferKind kind) -> QString;
+auto OfferKindFromName(const QString& name) -> OfferKind;
+
+struct Offer {
+  OfferKind kind = OfferKind::kSuccessor;
+  QString series;         ///< the series it is of: "2.3"
+  LatestRelease release;  ///< as ListResult's, filled the same way
+};
+
 /**
  * @brief One update check, for one build.
  *
@@ -103,6 +124,10 @@ struct SoftwareVersion {
   QString local_commit_hash;
 
   ListResult list;
+  /// A release build's other offers, in the order the dialog lists them:
+  /// the successor, its series' beta, a release candidate. Each is offered
+  /// only when newer than this build (ChooseOtherOffers()).
+  QList<Offer> offers;
   RemoteFact tag_fact = RemoteFact::kUnknown;
   RemoteFact commit_fact = RemoteFact::kUnknown;
   bool complete = false;

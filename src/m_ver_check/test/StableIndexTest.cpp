@@ -149,6 +149,18 @@ struct Stable {
     series[key] = s;
   }
 
+  /// A series' release candidate, as the index lists it while the series
+  /// has no release.
+  void SeriesRc(const QString& key, const QString& version) {
+    auto entry = series[key].toObject();
+    entry["rc"] = QJsonObject{
+        {"version", version},
+        {"descriptor", "nightly/" + version + "/release.json"},
+        {"sha256", Sha(BetaDescriptor(version))}};
+    entry["prerelease"] = true;
+    series[key] = entry;
+  }
+
   void Release(const QString& version, const QByteArray& descriptor,
                const QByteArray& notes = {}) {
     QJsonObject r{{"descriptor", "releases/" + version + "/release.json"},
@@ -892,12 +904,23 @@ TEST(StableCheckTest, ALegacySeriesShowsItsNotice) {
   s.Release("2.2.4", StableDescriptor("2.2.4"));
   server.Publish(s);
   server.Put(QStringLiteral("commits/") + kCommit, {});
+  server.Put("releases/2.2.4/release.json", StableDescriptor("2.2.4"));
   auto c = server.Make("v2.1.13", Linux("2.39"));
   c->Start(CheckMode::kForce);
   const auto& r = *c->State().last_good;
-  EXPECT_EQ(Decide(r), Verdict::kUpToDate);
+  // Its own series has nothing newer; the successor it goes to is offered.
+  EXPECT_EQ(Decide(r), Verdict::kUpdateAvailable);
+  EXPECT_EQ(r.list.latest.version, "2.1.13");
+  ASSERT_EQ(r.offers.size(), 1);
+  EXPECT_EQ(r.offers[0].kind, OfferKind::kSuccessor);
+  EXPECT_EQ(r.offers[0].series, "2.2");
+  EXPECT_EQ(r.offers[0].release.version, "2.2.4");
+  EXPECT_FALSE(r.offers[0].release.html_url.isEmpty());  // its own file
   EXPECT_EQ(r.notice.successor_latest, "2.2.4");
-  EXPECT_TRUE(PresentUpdate(c->State(), kNow).notice.contains("2.2.4"));
+  const auto view = PresentUpdate(c->State(), kNow);
+  EXPECT_TRUE(view.notice.contains("2.2.4"));
+  EXPECT_EQ(view.download_version, "2.2.4");
+  EXPECT_EQ(view.download_url, r.offers[0].release.html_url);
 }
 
 TEST(StableCheckTest, AReleaseBranchNightlyIsOfferedNothing) {
@@ -946,26 +969,42 @@ TEST(StableCheckTest, ABetaIsOfferedWithItsVerifiedFileWhenAsked) {
   ASSERT_TRUE(c->State().last_good);
   const auto& r = *c->State().last_good;
   EXPECT_EQ(Decide(r), Verdict::kUpdateAvailable);
-  EXPECT_EQ(r.list.latest.version, kBeta);
+  // The release stays the series' offer; the beta is one more, beside it.
+  EXPECT_EQ(r.list.latest.version, "2.2.4");
   EXPECT_TRUE(r.follow_beta);
-  EXPECT_EQ(r.list.latest.html_url, QString(kBuilds) + "gpgfrontend/nightly/" +
-                                        kBeta + "/beta.AppImage");
-  EXPECT_EQ(r.list.latest.download_sha256, QString(64, u'b'));
-  EXPECT_TRUE(r.list.latest.notes.isEmpty());  // the beta lists none
-  EXPECT_FALSE(PresentUpdate(c->State(), kNow).installable);
+  ASSERT_EQ(r.offers.size(), 1);
+  const auto& beta = r.offers[0];
+  EXPECT_EQ(beta.kind, OfferKind::kBeta);
+  EXPECT_EQ(beta.release.version, kBeta);
+  EXPECT_EQ(beta.release.html_url, QString(kBuilds) + "gpgfrontend/nightly/" +
+                                       kBeta + "/beta.AppImage");
+  EXPECT_EQ(beta.release.download_sha256, QString(64, u'b'));
+  EXPECT_TRUE(beta.release.notes.isEmpty());  // the beta lists none
+  const auto view = PresentUpdate(c->State(), kNow);
+  EXPECT_FALSE(view.installable);
+  EXPECT_EQ(view.download_version, "2.2.4");  // a beta is never the default
+  ASSERT_EQ(view.offers.size(), 2);
+  EXPECT_TRUE(view.newer_beta.isEmpty());  // offered, not hinted at
+  EXPECT_EQ(PresentUpdate(c->State(), kNow, {}, OfferKind::kBeta)
+                .download_url,
+            beta.release.html_url);
 
   // A descriptor that is not the one the index signed: no link, same offer.
   server.Put(QString("nightly/") + kBeta + "/release.json",
              BetaDescriptor("6.6.6"));
   c->Start(CheckMode::kForce);
-  EXPECT_EQ(c->State().last_good->list.latest.version, kBeta);
-  EXPECT_TRUE(c->State().last_good->list.latest.html_url.isEmpty());
+  ASSERT_EQ(c->State().last_good->offers.size(), 1);
+  EXPECT_EQ(c->State().last_good->offers[0].release.version, kBeta);
+  EXPECT_TRUE(c->State().last_good->offers[0].release.html_url.isEmpty());
+  EXPECT_FALSE(c->State().last_good->list.latest.html_url.isEmpty());
 
-  // Not asked: the release, as ever.
+  // Not asked: the release, and the beta only named.
   auto plain = server.Make();
   plain->Start(CheckMode::kForce);
   EXPECT_EQ(plain->State().last_good->list.latest.version, "2.2.4");
+  EXPECT_TRUE(plain->State().last_good->offers.isEmpty());
   EXPECT_FALSE(plain->State().last_good->follow_beta);
+  EXPECT_FALSE(PresentUpdate(plain->State(), kNow).newer_beta.isEmpty());
 }
 
 TEST(StableCheckTest, ChangingTheBetaSettingAsksAgain) {
@@ -981,7 +1020,8 @@ TEST(StableCheckTest, ChangingTheBetaSettingAsksAgain) {
   server.asked.clear();
   c->Start(CheckMode::kIfStale);
   EXPECT_FALSE(server.asked.isEmpty());
-  EXPECT_EQ(c->State().last_good->list.latest.version, kBeta);
+  ASSERT_EQ(c->State().last_good->offers.size(), 1);
+  EXPECT_EQ(c->State().last_good->offers[0].release.version, kBeta);
   EXPECT_TRUE(c->IsFresh());
 
   // A restart with the same answer keeps the result; with the other, not.
@@ -1021,4 +1061,292 @@ TEST(StableIndexTest, HistoricalBetaVersionsKeepTheirIdentity) {
   EXPECT_TRUE(IsNightlyBuild("v2.2.0-beta.1.dev.4+gabc"));
   EXPECT_TRUE(IsNightlyBuild("v2.3.0-alpha.12+gabc"));
   EXPECT_FALSE(IsNightlyBuild("v2.2.4"));
+}
+
+// ------------------------------------------------- successors and offers
+
+namespace {
+
+auto Kinds(const QList<OfferChoice>& offers) -> QStringList {
+  QStringList out;
+  for (const auto& o : offers) {
+    out << OfferKindName(o.kind) + u' ' + o.version;
+  }
+  return out;
+}
+
+const QJsonObject kGlibc{{"linux_glibc", "2.35"}};
+
+}  // namespace
+
+TEST(StableIndexTest, AStaleSuccessorIsFollowedToTheStableSeries) {
+  Stable s;
+  s.Series("2.4", "stable", "2.4.1", {}, kGlibc);
+  s.Series("2.3", "legacy", "2.3.6", "2.4", kGlibc);
+  s.Series("2.2", "legacy", "2.2.9", "2.3", kGlibc);
+  s.Series("2.1", "legacy", "2.1.14", "2.2");  // not updated since
+  s.Release("2.4.1", StableDescriptor("2.4.1"));
+  const auto f = Parse(s);
+  EXPECT_EQ(ResolveSuccessor(f, "2.1"), "2.4");
+  EXPECT_EQ(ResolveSuccessor(f, "2.3"), "2.4");
+  EXPECT_EQ(ResolveSuccessor(f, "2.4"), "");  // stable: goes nowhere
+
+  const auto offers = ChooseOtherOffers(f, "v2.1.13", false, false, Linux());
+  EXPECT_EQ(Kinds(offers), QStringList{"successor 2.4.1"});
+  EXPECT_EQ(offers[0].series, "2.4");
+  EXPECT_EQ(offers[0].descriptor, "releases/2.4.1/release.json");
+  // The notice names the same release the offer does.
+  EXPECT_EQ(NoticeFor(f, "v2.1.13", Linux()).successor_latest, "2.4.1");
+  EXPECT_EQ(NoticeFor(f, "v2.1.13", Linux()).successor, "2.4");
+}
+
+TEST(StableIndexTest, TheWalkStopsAtTheFirstStableSeries) {
+  // 2.2 still gets fixes beside 2.3: both stable. 2.2 is never sent on, and
+  // 2.1's chain lands where it says, on 2.2.
+  Stable s;
+  s.Series("2.3", "stable", "2.3.1", {}, kGlibc);
+  s.Series("2.2", "stable", "2.2.6", {}, kGlibc);
+  s.Series("2.1", "legacy", "2.1.14", "2.2", kGlibc);
+  const auto f = Parse(s);
+  EXPECT_TRUE(ChooseOtherOffers(f, "v2.2.5", false, false, Linux()).isEmpty());
+  EXPECT_TRUE(NoticeFor(f, "v2.2.5", Linux()).series.isEmpty());
+  EXPECT_EQ(ResolveSuccessor(f, "2.1"), "2.2");
+  EXPECT_EQ(Kinds(ChooseOtherOffers(f, "v2.1.13", false, false, Linux())),
+            QStringList{"successor 2.2.6"});
+}
+
+TEST(StableIndexTest, AStableSeriesIsNeverSentOnEvenWithASuccessor) {
+  Stable s;
+  s.Series("2.3", "stable", "2.3.1", {}, kGlibc);
+  s.Series("2.2", "stable", "2.2.6", {}, kGlibc);
+  auto entry = s.series["2.2"].toObject();
+  entry["successor"] = "2.3";  // set early: means nothing until legacy
+  s.series["2.2"] = entry;
+  const auto f = Parse(s);
+  EXPECT_EQ(ResolveSuccessor(f, "2.2"), "");
+  EXPECT_TRUE(ChooseOtherOffers(f, "v2.2.5", false, false, Linux()).isEmpty());
+}
+
+TEST(StableIndexTest, ASuccessorWalkRefusesLoopsAndBackSteps) {
+  Stable s;
+  s.Series("2.1", "legacy", "2.1.14", "2.0", kGlibc);
+  s.Series("2.0", "eol", "2.0.9", "2.1", kGlibc);
+  const auto f = Parse(s);
+  EXPECT_EQ(ResolveSuccessor(f, "2.1"), "");  // back to 2.0: refused
+  EXPECT_EQ(ResolveSuccessor(f, "2.0"), "2.1");  // the dead end's fallback
+
+  Stable loop;
+  loop.Series("2.0", "eol", "2.0.9", "2.1");
+  loop.Series("2.1", "eol", "2.1.14", "2.0");
+  EXPECT_EQ(ResolveSuccessor(Parse(loop), "2.0"), "");  // no platforms: none
+  EXPECT_EQ(ResolveSuccessor(Parse(loop), "9.9"), "");
+}
+
+TEST(StableIndexTest, MainlineAndPrereleaseAreNotLandedOn) {
+  Stable s;
+  s.Series("2.3", "mainline", "", {}, kGlibc);
+  s.Series("2.2", "legacy", "2.2.9", "2.3", kGlibc);
+  EXPECT_EQ(ResolveSuccessor(Parse(s), "2.2"), "");
+
+  Stable rc;
+  rc.Series("2.3", "stable", "", {}, kGlibc);
+  rc.SeriesRc("2.3", "2.3.0-rc.1");
+  rc.Series("2.2", "legacy", "2.2.9", "2.3", kGlibc);
+  EXPECT_EQ(ResolveSuccessor(Parse(rc), "2.2"), "");
+}
+
+TEST(StableIndexTest, SeriesAreOrderedNumerically) {
+  Stable s;
+  s.Series("2.10", "stable", "2.10.0", {}, kGlibc);
+  s.Series("2.9", "legacy", "2.9.3", "2.10", kGlibc);
+  EXPECT_EQ(ResolveSuccessor(Parse(s), "2.9"), "2.10");
+}
+
+TEST(StableIndexTest, ASuccessorThatDoesNotRunHereIsNotOffered) {
+  Stable s;
+  s.Series("2.2", "stable", "2.2.4", {}, {{"linux_glibc", "2.40"}});
+  s.Series("2.1", "eol", "2.1.13", "2.2");
+  const auto f = Parse(s);
+  EXPECT_TRUE(ChooseOtherOffers(f, "v2.1.13", false, false, Linux("2.39"))
+                  .isEmpty());
+  const auto notice = NoticeFor(f, "v2.1.13", Linux("2.39"));
+  EXPECT_FALSE(notice.successor_runs_here);
+  EXPECT_EQ(notice.unmet, "linux_glibc 2.40");
+}
+
+TEST(StableIndexTest, AnEolSeriesGetsNothingFromItsOwnBranch) {
+  Stable s;
+  s.Series("2.2", "stable", "2.2.4", {}, kGlibc);
+  s.Series("2.1", "eol", "2.1.14", "2.2");
+  s.SeriesBeta("2.1", "2.1.15-alpha.2");
+  s.Release("2.1.14", StableDescriptor("2.1.14"));
+  const auto f = Parse(s);
+  const auto own = ChooseUpdate(f, "v2.1.13", false, true);
+  EXPECT_EQ(own.list.outcome, ListOutcome::kNoMatch);
+  EXPECT_TRUE(own.newer_beta.isEmpty());
+  EXPECT_EQ(Kinds(ChooseOtherOffers(f, "v2.1.13", false, true, Linux())),
+            QStringList{"successor 2.2.4"});
+
+  // Legacy still gets its fixes, and the successor beside them.
+  s.Series("2.1", "legacy", "2.1.14", "2.2");
+  const auto legacy = Parse(s);
+  EXPECT_EQ(ChooseUpdate(legacy, "v2.1.13", false, false).list.latest.version,
+            "2.1.14");
+  EXPECT_EQ(Kinds(ChooseOtherOffers(legacy, "v2.1.13", false, false, Linux())),
+            QStringList{"successor 2.2.4"});
+}
+
+TEST(StableIndexTest, AReleaseCandidateIsAPrereleaseUntilItsRelease) {
+  Stable s;
+  s.Series("2.4", "stable", "", {}, kGlibc);
+  s.SeriesRc("2.4", "2.4.0-rc.2");
+  s.Series("2.3", "stable", "2.3.5", {}, kGlibc);
+  auto f = Parse(s);
+  EXPECT_TRUE(f.series.value("2.4").IsPrerelease());
+  EXPECT_EQ(f.series.value("2.4").rc, "2.4.0-rc.2");
+
+  // Offered only to those who ask for betas, and never instead of a fix.
+  EXPECT_TRUE(ChooseOtherOffers(f, "v2.3.4", false, false, Linux()).isEmpty());
+  EXPECT_EQ(Kinds(ChooseOtherOffers(f, "v2.3.4", false, true, Linux())),
+            QStringList{"prerelease 2.4.0-rc.2"});
+  EXPECT_TRUE(ChooseOtherOffers(f, "v2.3.4", true, true, Linux()).isEmpty());
+  // A candidate is offered its line's newer one without asking.
+  EXPECT_EQ(Kinds(ChooseOtherOffers(f, "v2.4.0-rc.1", false, false, Linux())),
+            QStringList{"prerelease 2.4.0-rc.2"});
+  EXPECT_TRUE(
+      ChooseOtherOffers(f, "v2.4.0-rc.2", false, false, Linux()).isEmpty());
+
+  // Its release makes it a stable series like any: no candidate any more.
+  s.Series("2.4", "stable", "2.4.0", {}, kGlibc);
+  s.SeriesRc("2.4", "2.4.0-rc.2");
+  s.Release("2.4.0", StableDescriptor("2.4.0"));
+  f = Parse(s);
+  EXPECT_FALSE(f.series.value("2.4").IsPrerelease());
+  EXPECT_TRUE(ChooseOtherOffers(f, "v2.3.4", false, true, Linux()).isEmpty());
+  EXPECT_EQ(ChooseUpdate(f, "v2.4.0-rc.2", false, false).list.latest.version,
+            "2.4.0");
+}
+
+TEST(StableIndexTest, OnlyAnRcOfXY0IsACandidate) {
+  Stable s;
+  s.Series("2.4", "stable", "", {}, kGlibc);
+  s.SeriesRc("2.4", "2.4.1-rc.1");
+  EXPECT_FALSE(Parse(s).series.value("2.4").IsPrerelease());
+  s.SeriesRc("2.4", "2.4.0-beta.1");
+  EXPECT_FALSE(Parse(s).series.value("2.4").IsPrerelease());
+  s.SeriesRc("2.4", "2.5.0-rc.1");  // another series' candidate
+  EXPECT_FALSE(Parse(s).series.value("2.4").IsPrerelease());
+  EXPECT_TRUE(IsReleaseCandidate("2.4.0-rc.3"));
+  EXPECT_FALSE(IsReleaseCandidate("2.4.0-rc.3.dev.2"));
+  EXPECT_TRUE(OnCandidateLine("2.4.0-rc.3.dev.2+gabc"));
+  EXPECT_FALSE(OnCandidateLine("2.4.1-alpha.2"));
+}
+
+TEST(StableIndexTest, TheNewestPrereleaseSeriesIsOfferedWithItsBeta) {
+  Stable s;
+  s.Series("2.5", "stable", "", {}, kGlibc);
+  s.SeriesRc("2.5", "2.5.0-rc.1");
+  s.Series("2.4", "stable", "", {}, kGlibc);
+  s.SeriesRc("2.4", "2.4.0-rc.4");
+  s.Series("2.3", "stable", "2.3.5", {}, kGlibc);
+  s.SeriesBeta("2.3", "2.3.6-alpha.3");
+  EXPECT_EQ(Kinds(ChooseOtherOffers(Parse(s), "v2.3.5", false, true, Linux())),
+            (QStringList{"beta 2.3.6-alpha.3", "prerelease 2.5.0-rc.1"}));
+}
+
+namespace {
+
+/// A legacy 2.1 with its fix 2.1.14 out, and 2.2 stable at @p successor:
+/// both releases' files stored.
+auto LegacyWithSuccessor(Server& server, const QString& successor) -> Stable {
+  Stable s;
+  s.Series("2.2", "stable", successor, {}, {{"linux_glibc", "2.35"}});
+  s.Series("2.1", "legacy", "2.1.14", "2.2");
+  for (const auto& v : {QString("2.1.14"), successor}) {
+    s.Release(v, StableDescriptor(v));
+    server.Put("releases/" + v + "/release.json", StableDescriptor(v));
+  }
+  server.Put(QStringLiteral("commits/") + kCommit, {});
+  return s;
+}
+
+}  // namespace
+
+TEST(StableCheckTest, BothOffersAreFetchedAndVerified) {
+  Server server;
+  server.Publish(LegacyWithSuccessor(server, "2.2.4"));
+  auto c = server.Make("v2.1.13");
+  c->Start(CheckMode::kForce);
+  const auto& r = *c->State().last_good;
+  EXPECT_EQ(r.list.latest.version, "2.1.14");
+  EXPECT_FALSE(r.list.latest.html_url.isEmpty());
+  ASSERT_EQ(r.offers.size(), 1);
+  EXPECT_FALSE(r.offers[0].release.html_url.isEmpty());
+  const auto& record = *c->State().last_check;
+  ASSERT_EQ(record.offers.size(), 1);
+  EXPECT_EQ(record.offers[0].descriptor.status, StepStatus::kVerified);
+  EXPECT_EQ(record.offers[0].notes.status, StepStatus::kNotApplicable);
+  EXPECT_FALSE(record.offers[0].descriptor_sha256.isEmpty());
+
+  const auto view = PresentUpdate(c->State(), kNow);
+  EXPECT_EQ(view.offers.size(), 2);
+  EXPECT_EQ(view.selected, OfferKind::kSuccessor);
+
+  // Kept as stored, offers and their steps alike.
+  const auto back = UpdateChecker::FromStorage(
+      UpdateChecker::ToStorage(c->State()), c->GetBuild());
+  ASSERT_TRUE(back.last_good);
+  ASSERT_EQ(back.last_good->offers.size(), 1);
+  EXPECT_EQ(back.last_good->offers[0].release.html_url,
+            r.offers[0].release.html_url);
+  ASSERT_EQ(back.last_check->offers.size(), 1);
+  EXPECT_EQ(back.last_check->offers[0].descriptor.status,
+            StepStatus::kVerified);
+}
+
+TEST(StableCheckTest, ASuccessorDescriptorNotTheIndexsCostsOnlyItsLink) {
+  Server server;
+  server.Publish(LegacyWithSuccessor(server, "2.2.4"));
+  server.Put("releases/2.2.4/release.json", StableDescriptor("6.6.6"));
+  auto c = server.Make("v2.1.13");
+  c->Start(CheckMode::kForce);
+  const auto& r = *c->State().last_good;
+  EXPECT_FALSE(r.list.latest.html_url.isEmpty());
+  ASSERT_EQ(r.offers.size(), 1);
+  EXPECT_TRUE(r.offers[0].release.html_url.isEmpty());
+  EXPECT_EQ(c->State().last_check->offers[0].descriptor.reason,
+            StepReason::kHashMismatch);
+  // A refusal is named, as it is for the series' own release.
+  EXPECT_TRUE(PresentUpdate(c->State(), kNow)
+                  .notice.contains("couldn't be verified"));
+}
+
+TEST(StableCheckTest, EachKindOfOfferIsSeenOnItsOwn) {
+  Server server;
+  server.Publish(LegacyWithSuccessor(server, "2.2.4"));
+  {
+    auto c = server.Make("v2.1.13");
+    c->Start(CheckMode::kForce);
+    EXPECT_EQ(c->Attention(), UpdateAttention::kUpdateAvailable);
+    c->Acknowledge();
+    EXPECT_EQ(c->Attention(), UpdateAttention::kNone);
+    EXPECT_EQ(c->State().last_seen_update_version, "2.1.14");
+    EXPECT_EQ(c->State().last_seen_offers.value("successor"), "2.2.4");
+  }
+
+  // A newer successor asks again, though 2.1.14 was seen.
+  server.Publish(LegacyWithSuccessor(server, "2.2.5"), 6);
+  auto c = server.Make("v2.1.13");
+  EXPECT_EQ(c->State().last_seen_offers.value("successor"), "2.2.4");
+  c->Start(CheckMode::kForce);
+  EXPECT_EQ(c->Attention(), UpdateAttention::kUpdateAvailable);
+  c->Acknowledge();
+
+  // So does a newer fix, though a newer successor was seen.
+  auto s = LegacyWithSuccessor(server, "2.2.5");
+  s.Series("2.1", "legacy", "2.1.15", "2.2");
+  s.Release("2.1.15", StableDescriptor("2.1.15"));
+  server.Publish(s, 7);
+  c->Start(CheckMode::kForce);
+  EXPECT_EQ(c->Attention(), UpdateAttention::kUpdateAvailable);
 }

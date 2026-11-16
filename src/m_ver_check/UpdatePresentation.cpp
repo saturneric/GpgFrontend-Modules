@@ -35,6 +35,7 @@
 #include <QTextDocument>
 #include <QUrl>
 #include <algorithm>
+#include <tuple>
 
 #include "ReleaseCheck.h"
 #include "ReleaseIndex.h"
@@ -210,6 +211,25 @@ auto Facts(const QStringList& facts) -> QString {
   return facts.join(QStringLiteral(" · "));
 }
 
+/// The worse of two steps, as one row shows them: a failure first, then
+/// one that ran or should have, then one that does not apply.
+auto Worse(const CheckStep& a, const CheckStep& b) -> const CheckStep& {
+  const auto rank = [](const CheckStep& s) {
+    switch (s.status) {
+      case StepStatus::kFailed:
+        return 3;
+      case StepStatus::kNotRun:
+        return 2;
+      case StepStatus::kVerified:
+        return 1;
+      case StepStatus::kNotApplicable:
+        break;
+    }
+    return 0;
+  };
+  return rank(b) > rank(a) ? b : a;
+}
+
 /// The rows of what this device checked, from the last check's record, with
 /// @p file (the offer's download) in its place.
 auto DeviceRows(const UpdateSnapshot& s, const CheckRecord& r,
@@ -261,23 +281,45 @@ auto DeviceRows(const UpdateSnapshot& s, const CheckRecord& r,
       QCoreApplication::translate("UpdateTab", "Signed by %1")
           .arg(r.index_key));
 
-  // The release details and its notes: one row, the worse of the two.
-  const auto& descriptor = r.Step(CheckStepId::kDescriptor);
-  const auto& notes = r.Step(CheckStepId::kNotes);
-  const auto& worse = descriptor.status == StepStatus::kFailed ? descriptor
-                      : notes.status == StepStatus::kFailed    ? notes
-                      : descriptor.status == StepStatus::kVerified ||
-                              descriptor.status == StepStatus::kNotRun
-                          ? descriptor
-                          : notes;
-  QStringList hashes;
-  if (!r.descriptor_sha256.isEmpty()) {
-    hashes << QCoreApplication::translate("UpdateTab", "Release details: %1")
-                  .arg(r.descriptor_sha256);
+  // The release details and notes of every offer: one row, the worst.
+  const CheckStep* worst = &Worse(r.Step(CheckStepId::kDescriptor),
+                                  r.Step(CheckStepId::kNotes));
+  for (const auto& o : r.offers) {
+    worst = &Worse(*worst, Worse(o.descriptor, o.notes));
   }
-  if (!r.notes_sha256.isEmpty()) {
-    hashes << QCoreApplication::translate("UpdateTab", "Release notes: %1")
-                  .arg(r.notes_sha256);
+  const auto& worse = *worst;
+  QStringList hashes;
+  if (r.offers.isEmpty()) {
+    if (!r.descriptor_sha256.isEmpty()) {
+      hashes << QCoreApplication::translate("UpdateTab", "Release details: %1")
+                    .arg(r.descriptor_sha256);
+    }
+    if (!r.notes_sha256.isEmpty()) {
+      hashes << QCoreApplication::translate("UpdateTab", "Release notes: %1")
+                    .arg(r.notes_sha256);
+    }
+  } else {
+    // Several releases: each hash says which one it is of.
+    QList<std::tuple<QString, QString, QString>> all;
+    if (s.last_good) {
+      all.append({s.last_good->list.latest.version, r.descriptor_sha256,
+                  r.notes_sha256});
+    }
+    for (const auto& o : r.offers) {
+      all.append({o.version, o.descriptor_sha256, o.notes_sha256});
+    }
+    for (const auto& [version, details, notes] : all) {
+      if (!details.isEmpty()) {
+        hashes << QCoreApplication::translate("UpdateTab",
+                                              "Release details for %1: %2")
+                      .arg(DisplayVersion(version), details);
+      }
+      if (!notes.isEmpty()) {
+        hashes << QCoreApplication::translate("UpdateTab",
+                                              "Release notes for %1: %2")
+                      .arg(DisplayVersion(version), notes);
+      }
+    }
   }
   steps << StepRow(
       worse,
@@ -335,10 +377,17 @@ auto SizeText(qint64 bytes) -> QString {
 /// commit marker is the verdict's to report.
 auto FirstFailure(const CheckRecord& r)
     -> std::optional<std::pair<CheckStepId, CheckStep>> {
+  QList<std::pair<CheckStepId, CheckStep>> steps;
   for (const auto id :
        {CheckStepId::kRoot, CheckStepId::kIndexKeys, CheckStepId::kIndex,
         CheckStepId::kDescriptor, CheckStepId::kNotes}) {
-    const auto& step = r.Step(id);
+    steps.append({id, r.Step(id)});
+  }
+  for (const auto& o : r.offers) {
+    steps.append({CheckStepId::kDescriptor, o.descriptor});
+    steps.append({CheckStepId::kNotes, o.notes});
+  }
+  for (const auto& [id, step] : steps) {
     if (step.status != StepStatus::kFailed) continue;
     if ((id == CheckStepId::kDescriptor || id == CheckStepId::kNotes) &&
         step.reason == StepReason::kUnreachable) {
@@ -582,8 +631,57 @@ void RestrictNotesLinks(QTextDocument* document, const QStringList& hosts) {
 
 namespace {
 
+/// One version on offer, as PresentStatus() chooses among them.
+struct Candidate {
+  OfferKind kind;
+  QString series;
+  const LatestRelease* release;
+};
+
+/// What the user may choose, the default first (PresentUpdate()).
+auto Candidates(const SoftwareVersion& r) -> QList<Candidate> {
+  QList<Candidate> out;
+  if (HasNewerRelease(r)) {
+    out.append({OfferKind::kSeries,
+                SoftwareVersion::VersionSeries(r.current_version),
+                &r.list.latest});
+  }
+  for (const auto& o : r.offers) {
+    if (SemVerCompare(r.current_version, o.release.version) < 0) {
+      out.append({o.kind, o.series, &o.release});
+    }
+  }
+  // The successor first: where a series no longer supported is meant to go.
+  std::stable_sort(out.begin(), out.end(), [](const auto& a, const auto& b) {
+    return a.kind == OfferKind::kSuccessor && b.kind != OfferKind::kSuccessor;
+  });
+  return out;
+}
+
+auto OfferLabel(const Candidate& c) -> QString {
+  const auto version = DisplayVersion(c.release->version);
+  switch (c.kind) {
+    case OfferKind::kSuccessor:
+      return QCoreApplication::translate("UpdateTab",
+                                         "%1 · Current release (recommended)")
+          .arg(version);
+    case OfferKind::kBeta:
+      return QCoreApplication::translate("UpdateTab", "%1 · Beta of %2")
+          .arg(version, c.series);
+    case OfferKind::kPrerelease:
+      return QCoreApplication::translate("UpdateTab",
+                                         "%1 · Prerelease of %2 (beta)")
+          .arg(version, c.series);
+    case OfferKind::kSeries:
+      break;
+  }
+  return QCoreApplication::translate("UpdateTab", "%1 · Fixes for %2")
+      .arg(version, c.series);
+}
+
 /// The status line and the buttons, from the verdict alone.
-auto PresentStatus(const UpdateSnapshot& s) -> UpdateView {
+auto PresentStatus(const UpdateSnapshot& s, std::optional<OfferKind> selected)
+    -> UpdateView {
   UpdateView v;
   v.check_enabled = !s.checking;
   v.check_label = s.checking
@@ -614,39 +712,79 @@ auto PresentStatus(const UpdateSnapshot& s) -> UpdateView {
   }
 
   const auto& r = *s.last_good;
-  const auto latest = DisplayVersion(r.list.latest.version);
   const auto current = DisplayVersion(r.current_version);
   // A nightly follows the signed nightly channel, a release build its
   // series' releases in the same signed index; the wording says which.
   const bool nightly = r.nightly;
 
   switch (Decide(r)) {
-    case Verdict::kUpdateAvailable:
+    case Verdict::kUpdateAvailable: {
+      const auto candidates = Candidates(r);
+      if (candidates.isEmpty()) break;  // not reached: Decide() saw one
+      const auto* chosen = &candidates.first();
+      for (const auto& c : candidates) {
+        if (selected && c.kind == *selected) chosen = &c;
+      }
+      for (const auto& c : candidates) {
+        v.offers.append({c.kind, c.release->version, OfferLabel(c),
+                         c.kind == OfferKind::kSuccessor});
+      }
+      v.selected = chosen->kind;
+      const auto& offered = *chosen->release;
+      const auto shown = DisplayVersion(offered.version);
+
       v.tone = UpdateTone::kUpdate;
-      v.headline = nightly ? QCoreApplication::translate(
-                                 "UpdateTab", "Nightly build %1 is available")
-                                 .arg(latest)
-                           : QCoreApplication::translate(
-                                 "UpdateTab", "GpgFrontend %1 is available")
-                                 .arg(latest);
-      v.detail = QCoreApplication::translate("UpdateTab", "You are using %1.")
-                     .arg(current);
+      if (candidates.size() > 1) {
+        v.headline =
+            QCoreApplication::translate("UpdateTab", "Updates are available");
+        v.detail = QCoreApplication::translate(
+                       "UpdateTab",
+                       "You are using %1. Choose which version to download.")
+                       .arg(current);
+      } else {
+        v.headline = nightly ? QCoreApplication::translate(
+                                   "UpdateTab", "Nightly build %1 is available")
+                                   .arg(shown)
+                             : QCoreApplication::translate(
+                                   "UpdateTab", "GpgFrontend %1 is available")
+                                   .arg(shown);
+        if (chosen->kind == OfferKind::kSuccessor) {
+          const auto own = SoftwareVersion::VersionSeries(r.current_version);
+          v.detail =
+              r.notice.status == u"eol"
+                  ? QCoreApplication::translate(
+                        "UpdateTab",
+                        "You are using %1. The %2 series no longer gets "
+                        "updates; %3 is the current release series.")
+                        .arg(current, own, chosen->series)
+                  : QCoreApplication::translate(
+                        "UpdateTab",
+                        "You are using %1. The %2 series gets security fixes "
+                        "only; %3 is the current release series.")
+                        .arg(current, own, chosen->series);
+        } else {
+          v.detail =
+              QCoreApplication::translate("UpdateTab", "You are using %1.")
+                  .arg(current);
+        }
+      }
       v.show_download = true;
-      v.download_version = r.list.latest.version;
+      v.download_version = offered.version;
       // The version is in the headline: the button only says what it does.
       v.download_label = QCoreApplication::translate("UpdateTab", "Download");
       // Only a link the checker made from a verified descriptor. In place
       // only for a nightly: a stable update is installed by its installer.
-      if (r.list.latest.html_url.startsWith(u"https://")) {
-        v.download_url = r.list.latest.html_url;
-        v.download_sha256 = r.list.latest.download_sha256;
-        v.download_size = r.list.latest.download_size;
+      if (offered.html_url.startsWith(u"https://")) {
+        v.download_url = offered.html_url;
+        v.download_sha256 = offered.download_sha256;
+        v.download_size = offered.download_size;
         v.installable =
             nightly && IsSha256(v.download_sha256) && v.download_size > 0;
       }
-      v.notes = r.list.latest.notes.trimmed();
+      v.notes = offered.notes.trimmed();
       v.show_notes = !v.notes.isEmpty();
       break;
+    }
     case Verdict::kWithdrawnOrUnreleased:
       v.tone = UpdateTone::kAttention;
       if (nightly) {
@@ -726,8 +864,9 @@ void PrependNotice(UpdateView& v, const QString& line) {
 }  // namespace
 
 auto PresentUpdate(const UpdateSnapshot& s, const QDateTime& now,
-                   const UpdateChecker::Build& build) -> UpdateView {
-  auto v = PresentStatus(s);
+                   const UpdateChecker::Build& build,
+                   std::optional<OfferKind> selected) -> UpdateView {
+  auto v = PresentStatus(s, selected);
 
   const SoftwareVersion* r = s.last_good ? &*s.last_good : nullptr;
   const CheckRecord* record = s.last_check ? &*s.last_check : nullptr;
@@ -865,7 +1004,7 @@ auto PresentUpdate(const UpdateSnapshot& s, const QDateTime& now,
     }
     if (v.show_download) {
       v.show_offer = true;
-      v.offer_version = DisplayVersion(latest.version);
+      v.offer_version = DisplayVersion(v.download_version);
       if (!v.download_url.isEmpty()) {
         v.offer_file = QUrl(v.download_url).fileName();
         if (v.download_size > 0) {
@@ -898,28 +1037,23 @@ auto PresentUpdate(const UpdateSnapshot& s, const QDateTime& now,
                     .arg(source);
   }
 
-  // A series no longer supported: its successor, where it runs here.
+  // A series no longer supported whose successor does not run here: why it
+  // is not offered. Where it runs, it is an offer of its own.
   if (r != nullptr && !r->notice.series.isEmpty() && source.isEmpty() &&
-      !v.show_download && !r->notice.successor_latest.isEmpty()) {
+      !r->notice.successor_latest.isEmpty() &&
+      !r->notice.successor_runs_here) {
     const auto successor = DisplayVersion(r->notice.successor_latest);
-    if (r->notice.successor_runs_here) {
-      v.show_download = true;  // the downloads page: no descriptor read
-      v.download_version = r->notice.successor_latest;
-      v.download_label = QCoreApplication::translate("UpdateTab", "Download");
-    } else {
-      v.notice +=
-          u'\n' +
-          (r->notice.unmet.isEmpty()
-               ? QCoreApplication::translate(
-                     "UpdateTab",
-                     "GpgFrontend %1 does not support this system.")
-                     .arg(successor)
-               : QCoreApplication::translate(
-                     "UpdateTab",
-                     "GpgFrontend %1 needs %2 or later, which this system "
-                     "doesn't have or couldn't confirm.")
-                     .arg(successor, RequirementText(r->notice.unmet)));
-    }
+    v.notice +=
+        u'\n' +
+        (r->notice.unmet.isEmpty()
+             ? QCoreApplication::translate(
+                   "UpdateTab", "GpgFrontend %1 does not support this system.")
+                   .arg(successor)
+             : QCoreApplication::translate(
+                   "UpdateTab",
+                   "GpgFrontend %1 needs %2 or later, which this system "
+                   "doesn't have or couldn't confirm.")
+                   .arg(successor, RequirementText(r->notice.unmet)));
   }
 
   // The details: what this device checked, then what the server did.
@@ -945,9 +1079,13 @@ auto PresentUpdate(const UpdateSnapshot& s, const QDateTime& now,
     v.device_rows = DeviceRows(s, *record, file);
 
     // What the trusted root's host_policy names, as it names it.
+    // A beta and a release candidate are test builds: CI's, not signed by
+    // the maintainer. A candidate is tagged; a beta is not.
+    const bool test_build = v.show_offer && (v.selected == OfferKind::kBeta ||
+                                             v.selected == OfferKind::kPrerelease);
     if (!record->repository.isEmpty()) {
       QStringList built{record->repository, record->workflow.section(u'/', -1)};
-      if (!nightly && v.show_offer) {
+      if (!nightly && v.show_offer && v.selected != OfferKind::kBeta) {
         built << QCoreApplication::translate("UpdateTab", "Tag v%1")
                      .arg(v.offer_version);
       }
@@ -958,7 +1096,7 @@ auto PresentUpdate(const UpdateSnapshot& s, const QDateTime& now,
           {},
           Facts(built),
           record->workflow};
-      if (!nightly && !record->pgp_fingerprints.isEmpty()) {
+      if (!nightly && !test_build && !record->pgp_fingerprints.isEmpty()) {
         QStringList grouped;
         for (const auto& fpr : record->pgp_fingerprints) {
           grouped << Grouped(fpr);
@@ -1000,6 +1138,12 @@ auto PresentUpdate(const UpdateSnapshot& s, const QDateTime& now,
                           : QStringLiteral("SHA-256 %1").arg(v.offer_sha256)};
     offer.removeAll(QString());
     v.report_head << offer.join(QStringLiteral(" · "));
+    // The others the user could have chosen.
+    for (const auto& o : v.offers) {
+      if (o.kind == v.selected) continue;
+      v.report_head << QCoreApplication::translate("UpdateTab", "Offered %1")
+                           .arg(o.label);
+    }
   }
   if (s.last_attempt.isValid()) {
     v.report_head << QCoreApplication::translate("UpdateTab", "Checked %1")
