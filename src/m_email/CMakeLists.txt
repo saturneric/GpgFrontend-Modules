@@ -45,6 +45,18 @@ set(VMIME_HAVE_MESSAGING_PROTO_MAILDIR OFF CACHE BOOL "No Maildir protocol")
 set(VMIME_HAVE_MESSAGING_PROTO_SENDMAIL OFF CACHE BOOL "No Sendmail protocol")
 add_subdirectory(vmime "vmime" EXCLUDE_FROM_ALL)
 
+# vmime adds ${CMAKE_SOURCE_DIR} to its include path, meaning its own root;
+# built as part of GpgFrontend that is GpgFrontend's root, which holds the
+# VERSION file of cmake/GitVersion.cmake. On a case-insensitive file system
+# (macOS) that file then stands in for the C++ <version> header, which libc++
+# includes everywhere. Nothing vmime needs is there.
+get_target_property(_vmime_include_dirs vmime-static INCLUDE_DIRECTORIES)
+if(_vmime_include_dirs)
+  list(REMOVE_ITEM _vmime_include_dirs "${CMAKE_SOURCE_DIR}")
+  set_target_properties(vmime-static PROPERTIES
+    INCLUDE_DIRECTORIES "${_vmime_include_dirs}")
+endif()
+
 if(MINGW)
   target_link_libraries(vmime-static ws2_32 mlang)
 endif()
