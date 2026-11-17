@@ -34,8 +34,7 @@
 #include "VersionCheckingModule.h"
 
 //
-#include "BKTUSVersionCheckTask.h"
-#include "GitHubVersionCheckTask.h"
+#include "UpdateIndexVersionCheckTask.h"
 
 UpdateTab::UpdateTab(QWidget* parent)
     : QWidget(parent), current_version_(GFProjectVersion()) {
@@ -156,8 +155,15 @@ void UpdateTab::slot_show_version_status() {
   current_version_box_->show();
 
   if (is_need_upgrade != 0) {
+    // The latest stable release, whichever series it is in: 2.1 users are
+    // recommended to move to it, where their system supports it.
     upgrade_label_->setText(
-        "<center>" + tr("Your current version is outdated.") +
+        "<center>" +
+        tr("GpgFrontend %1 is the latest stable release.").arg(latest_version) +
+        " <a href=\"https://github.com/saturneric/GpgFrontend/releases/tag/" +
+        latest_version.toHtmlEscaped() + "\">" + tr("What is new") +
+        "</a></center><center>" +
+        tr("Please upgrade to it if your system supports it.") +
         "</center><center>" + tr("Click") +
         " <a "
         "href=\"https://www.gpgfrontend.bktus.com/overview/downloads/\">" +
@@ -214,26 +220,13 @@ void UpdateTab::slot_check_version_update() {
   check_update_btn_->setEnabled(false);
   pb_->show();
 
-  auto api = UDUP(GFModuleRetrieveRTValueOrDefault(
-      DUP("ui"), DUP("settings.network.update_checking_api"), DUP("github")));
-
-  if (api == "bktus") {
-    auto* task = new BKTUSVersionCheckTask();
-    connect(
-        task, &BKTUSVersionCheckTask::SignalUpgradeVersion, this,
-        [this](const SoftwareVersion&) -> void { slot_show_version_status(); });
-    connect(task, &BKTUSVersionCheckTask::SignalUpgradeVersion, task,
-            &QObject::deleteLater);
-    task->Run();
-  } else {
-    auto* task = new GitHubVersionCheckTask();
-    connect(
-        task, &GitHubVersionCheckTask::SignalUpgradeVersion, this,
-        [this](const SoftwareVersion&) -> void { slot_show_version_status(); });
-    connect(task, &GitHubVersionCheckTask::SignalUpgradeVersion, task,
-            &QObject::deleteLater);
-    task->Run();
-  }
+  auto* task = new UpdateIndexVersionCheckTask();
+  connect(
+      task, &UpdateIndexVersionCheckTask::SignalUpgradeVersion, this,
+      [this](const SoftwareVersion&) -> void { slot_show_version_status(); });
+  connect(task, &UpdateIndexVersionCheckTask::SignalUpgradeVersion, task,
+          &QObject::deleteLater);
+  task->Run();
 }
 
 void UpdateTab::showEvent(QShowEvent* event) {

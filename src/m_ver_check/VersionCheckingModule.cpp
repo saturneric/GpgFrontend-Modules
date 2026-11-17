@@ -37,16 +37,15 @@
 #include <QMetaType>
 #include <QtNetwork>
 
-#include "BKTUSVersionCheckTask.h"
 #include "GFModuleCommonUtils.hpp"
 #include "GFModuleDefine.h"
-#include "GitHubVersionCheckTask.h"
 #include "SoftwareVersion.h"
+#include "UpdateIndexVersionCheckTask.h"
 #include "UpdateTab.h"
 #include "Utils.h"
 
 GF_MODULE_API_DEFINE_V2("com.bktus.gpgfrontend.module.version_checking",
-                        "VersionChecking", "1.4.2",
+                        "VersionChecking", "1.5.0",
                         "Try checking GpgFrontend version.", "Saturneric");
 
 DEFINE_TRANSLATIONS_STRUCTURE(ModuleVersionChecking);
@@ -72,34 +71,37 @@ auto GFActiveModule() -> int {
 
 namespace {
 
-auto CheckUpdate(const QMap<QString, QString>& event) -> int {
-  if (event["api"] == "bktus") {
-    MLogInfo("checking updating using api of bktus.com");
-    auto* task = new BKTUSVersionCheckTask();
-    QObject::connect(
-        task, &BKTUSVersionCheckTask::SignalUpgradeVersion,
-        QThread::currentThread(), [event](const SoftwareVersion& sv) {
-          GFDurableCacheSave(DUP("update_checking_cache"),
+/// Where the last check's answer is kept, for a day. Not the 2.1.13 key: what
+/// that version cached came from the GitHub and BKTUS checks.
+constexpr const char* kCacheKey = "update_checking_cache_v2";
+/// The stable version the user was last told about at startup.
+constexpr const char* kNotifiedKey = "update_checking_notified_stable";
+
+/// The host's setting, "network/prohibit_update_check", is the one the first
+/// start wizard writes; the network settings tab of this module writes it
+/// too. Checking at startup is off unless the user turned it on.
+auto StartupCheckEnabled(QSettings* settings) -> bool {
+  return !settings->value("network/prohibit_update_check", true).toBool();
+}
+
+auto CheckUpdate(const QMap<QString, QString>& event,
+                 const std::function<void(const SoftwareVersion&)>& done = {})
+    -> int {
+  MLogInfo("checking for updates in the update index");
+  auto* task = new UpdateIndexVersionCheckTask();
+  QObject::connect(
+      task, &UpdateIndexVersionCheckTask::SignalUpgradeVersion,
+      QCoreApplication::instance(), [event, done](const SoftwareVersion& sv) {
+        if (!sv.latest_version.isEmpty()) {
+          GFDurableCacheSave(DUP(kCacheKey),
                              DUP(QJsonDocument(sv.ToJson()).toJson()));
-          CB_SUCC(event);
-        });
-    QObject::connect(task, &BKTUSVersionCheckTask::SignalUpgradeVersion, task,
-                     &QObject::deleteLater);
-    task->Run();
-  } else {
-    MLogInfo("checking updating using api of github.com");
-    auto* task = new GitHubVersionCheckTask();
-    QObject::connect(
-        task, &GitHubVersionCheckTask::SignalUpgradeVersion,
-        QCoreApplication::instance(), [event](const SoftwareVersion& sv) {
-          GFDurableCacheSave(DUP("update_checking_cache"),
-                             DUP(QJsonDocument(sv.ToJson()).toJson()));
-          CB_SUCC(event);
-        });
-    QObject::connect(task, &GitHubVersionCheckTask::SignalUpgradeVersion, task,
-                     &QObject::deleteLater);
-    task->Run();
-  }
+        }
+        if (done) done(sv);
+        CB_SUCC(event);
+      });
+  QObject::connect(task, &UpdateIndexVersionCheckTask::SignalUpgradeVersion,
+                   task, &QObject::deleteLater);
+  task->Run();
   return 0;
 }
 
@@ -198,38 +200,49 @@ REGISTER_EVENT_HANDLER(APPLICATION_LOADED, [](const MEvent& event) -> int {
     CB_ERR(event, -1, "global settings handle invalid");
   }
 
-  // ensure that it will not perform at the first startup before wizard is done
-  if (!settings->contains("network/prohibit_update_checking")) {
-    LOG_DEBUG(
-        "application loaded: prohibit_update_checking setting "
-        "not found");
+  // We only check for updates if the user did set the option to allow it;
+  // the wizard asks at the first start.
+  if (!StartupCheckEnabled(settings)) {
+    LOG_DEBUG("application loaded: update checking is not enabled");
     CB_SUCC(event);
   }
 
-  auto update_checking_api =
-      settings->value("network/update_checking_api", "github").toString();
-  FLOG_DEBUG("application loaded: update checking api: %1",
-             update_checking_api);
+  // Told once per stable release, not at every start: a 2.1 user stays behind
+  // the stable series on purpose, and may not be able to move.
+  auto p_parent = QPointer<QWidget>(parent);
+  auto notify = [p_parent](const SoftwareVersion& sv) {
+    if (!sv.NeedUpgrade() && sv.CurrentVersionReleased()) return;
+    // The durable cache holds JSON documents only.
+    const auto notified =
+        QJsonDocument::fromJson(
+            UDUP(GFDurableCacheGet(DUP(kNotifiedKey))).toUtf8())
+            .object()
+            .value("stable")
+            .toString();
+    if (notified == sv.latest_version) return;
+    GFDurableCacheSave(
+        DUP(kNotifiedKey),
+        DUP(QJsonDocument(QJsonObject{{"stable", sv.latest_version}})
+                .toJson()));
 
-  // we only check for update if the user did set the option to allow it
-  auto prohibit_update_checking =
-      settings->value("network/prohibit_update_checking", true).toBool();
-  FLOG_DEBUG("application loaded: prohibit update checking: %1",
-             prohibit_update_checking);
+    LOG_INFO("a newer stable release is available, notifying user");
+    QMetaObject::invokeMethod(
+        QApplication::instance(),
+        [p_parent]() {
+          if (p_parent.isNull()) return;
+          RaiseUpdateDialog(p_parent);
+        },
+        Qt::QueuedConnection);
+  };
 
-  if (prohibit_update_checking) {
-    LOG_DEBUG("application loaded: update checking is prohibited");
-    CB_SUCC(event);
-  }
-
-  auto cache = UDUP(GFDurableCacheGet(DUP("update_checking_cache")));
+  auto cache = UDUP(GFDurableCacheGet(DUP(kCacheKey)));
   auto json = QJsonDocument::fromJson(cache.toUtf8());
 
   if (json.isEmpty() || !json.isObject()) {
     LOG_DEBUG(
         "application loaded: no valid cached version info found, "
         "checking update");
-    return CheckUpdate(event);
+    return CheckUpdate(event, notify);
   }
 
   SoftwareVersion sv;
@@ -237,24 +250,11 @@ REGISTER_EVENT_HANDLER(APPLICATION_LOADED, [](const MEvent& event) -> int {
 
   FLOG_DEBUG("got software version meta data: %1", json.toJson());
   if (sv.timestamp.addDays(1) < QDateTime::currentDateTime()) {
-    return CheckUpdate(event);
+    return CheckUpdate(event, notify);
   }
 
   FillGrtWithVersionInfo(sv);
-
-  if (sv.NeedUpgrade() || !sv.CurrentVersionReleased() ||
-      !sv.current_commit_hash_publish_in_remote) {
-    LOG_INFO(
-        "software version is outdated or not fully released, notifying user");
-
-    QMetaObject::invokeMethod(
-        QApplication::instance(),
-        [=]() {
-          auto* dialog = RaiseUpdateDialog(parent);
-          Q_UNUSED(dialog);
-        },
-        Qt::QueuedConnection);
-  }
+  notify(sv);
 
   CB_SUCC(event);
 });
@@ -299,27 +299,6 @@ REGISTER_EVENT_HANDLER(
 
             capability_group_box->layout()->addWidget(
                 update_checking_check_box);
-
-            auto* github_radio_button =
-                new QRadioButton(QCoreApplication::translate("GTrC", "GitHub"),
-                                 capability_group_box);
-            auto* bktus_radio_button = new QRadioButton(
-                QCoreApplication::translate("GTrC", "BKTUS.com"),
-                capability_group_box);
-
-            auto layout = new QHBoxLayout();
-            layout->addWidget(new QLabel(
-                QCoreApplication::translate("GTrC", "Update Checking API:"),
-                capability_group_box));
-            layout->addWidget(github_radio_button);
-            layout->addWidget(bktus_radio_button);
-
-            capability_group_box->layout()->addItem(layout);
-
-            auto* update_api_group = new QButtonGroup(tab);
-            update_api_group->setObjectName("update_api_group");
-            update_api_group->addButton(github_radio_button);
-            update_api_group->addButton(bktus_radio_button);
           },
           Qt::QueuedConnection);
 
@@ -363,34 +342,16 @@ REGISTER_EVENT_HANDLER(
             auto* update_checking_check_box =
                 p_tab->findChild<QCheckBox*>("update_checking_check_box");
             if (update_checking_check_box) {
-              settings->setValue(
-                  "network/version_checking/"
-                  "check_for_updates_on_startup",
-                  update_checking_check_box->isChecked());
-            }
-
-            auto* update_api_group =
-                tab->findChild<QButtonGroup*>("update_api_group");
-            if (update_api_group) {
-              QString api = "github";
-              if (update_api_group->buttons().at(1)->isChecked()) {
-                api = "bktus";
-              }
-              settings->setValue("network/version_checking/update_checking_api",
-                                 api);
+              // The setting the wizard writes and the startup check reads.
+              settings->setValue("network/prohibit_update_check",
+                                 !update_checking_check_box->isChecked());
             }
 
             FLOG_DEBUG(
-                "network settings tab apply settings: version checking "
-                "settings applied, "
-                "check for updates on startup: %1, update checking api: %2",
+                "network settings tab apply settings: check for updates on "
+                "startup: %1",
                 update_checking_check_box
                     ? QString::number(update_checking_check_box->isChecked())
-                    : "null",
-                update_api_group
-                    ? (update_api_group->buttons().at(1)->isChecked()
-                           ? "bktus"
-                           : "github")
                     : "null");
           },
           Qt::QueuedConnection);
@@ -428,30 +389,8 @@ REGISTER_EVENT_HANDLER(
             auto* update_checking_check_box =
                 tab->findChild<QCheckBox*>("update_checking_check_box");
             if (update_checking_check_box) {
-              auto check_for_updates_on_startup =
-                  settings
-                      ->value(
-                          "network/version_checking/"
-                          "check_for_updates_on_startup",
-                          false)
-                      .toBool();
               update_checking_check_box->setChecked(
-                  check_for_updates_on_startup);
-            }
-
-            auto* update_api_group =
-                tab->findChild<QButtonGroup*>("update_api_group");
-            if (update_api_group) {
-              auto update_checking_api =
-                  settings
-                      ->value("network/version_checking/update_checking_api",
-                              "github")
-                      .toString();
-              if (update_checking_api == "github") {
-                update_api_group->buttons().at(0)->setChecked(true);
-              } else {
-                update_api_group->buttons().at(1)->setChecked(true);
-              }
+                  StartupCheckEnabled(settings));
             }
           },
           Qt::BlockingQueuedConnection);

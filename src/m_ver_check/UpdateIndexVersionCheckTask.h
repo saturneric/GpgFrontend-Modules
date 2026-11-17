@@ -36,66 +36,41 @@ class QNetworkReply;
 class QNetworkAccessManager;
 
 /**
- * @brief
+ * @brief Learns the latest stable release from the update index.
  *
+ * Reads only `channels.stable` of https://update.bktus.com/gpgfrontend/v1/
+ * index.json, which is always a final release, and whether the running
+ * version is listed there (and not withdrawn). Nothing is downloaded or
+ * installed: the user is pointed at the official download page, so the
+ * index's signature is not checked here.
  */
-class GitHubVersionCheckTask : public QObject {
+class UpdateIndexVersionCheckTask : public QObject {
   Q_OBJECT
  public:
-  /**
-   * @brief Construct a new Version Check Thread object
-   *
-   */
-  GitHubVersionCheckTask();
+  UpdateIndexVersionCheckTask();
 
   /**
-   * @brief
-   *
-   * @return int
+   * @brief Fetch the index; SignalUpgradeVersion() follows, also on failure
+   * (then with an empty latest version).
    */
-  auto Run() -> int;
+  void Run();
+
+  /**
+   * @brief What the index says about @p current_version: fills
+   * latest_version and current_version_publish_in_remote of @p meta.
+   *
+   * @return false when @p index is not GpgFrontend's update index
+   */
+  static auto ParseIndex(const QByteArray& index, SoftwareVersion& meta)
+      -> bool;
 
  signals:
-
-  /**
-   * @brief
-   *
-   * @param version
-   */
   void SignalUpgradeVersion(SoftwareVersion version);
 
  private slots:
-
-  /**
-   * @brief
-   *
-   */
   void slot_parse_reply(QNetworkReply* reply);
 
-  /**
-   * @brief
-   *
-   * @param reply
-   */
-  void slot_parse_latest_version_info(QNetworkReply* reply);
-
-  /**
-   * @brief
-   *
-   * @param reply
-   */
-  void slot_parse_current_version_info(QNetworkReply* reply);
-
-  /**
-   * @brief
-   *
-   * @param reply
-   */
-  void slot_parse_current_commit_info(QNetworkReply* reply);
-
  private:
-  QList<QNetworkReply*> replies_;           ///<
   QNetworkAccessManager* network_manager_;  ///<
-  QString current_version_;                 ///<
   SoftwareVersion meta_;
 };
