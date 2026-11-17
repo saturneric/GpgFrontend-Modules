@@ -174,23 +174,6 @@ auto ParseIndex(const QByteArray& json, const QString& trusted_comment,
     if (SemVer::Parse(version)) f.withdrawn << version;
   }
 
-  // An index from before each series named its own beta names one for all:
-  // as channels.beta, and (to fetch its files) as the top-level entry.
-  QString old_beta;
-  QString old_beta_descriptor;
-  QString old_beta_sha256;
-  const auto channel_beta = obj.value("channels").toObject().value("beta");
-  if (channel_beta.isString() && SemVer::Parse(channel_beta.toString())) {
-    old_beta = channel_beta.toString();
-    QString listed;
-    if (!ReadBuild(obj.value("beta"), listed, old_beta_descriptor,
-                   old_beta_sha256) ||
-        listed != old_beta) {
-      old_beta_descriptor.clear();
-      old_beta_sha256.clear();
-    }
-  }
-
   // The series and the releases: what a release build is offered. A
   // malformed entry costs that entry only, never the rest of the index; a
   // beta that cannot be read is no beta (it is an opt-in extra).
@@ -221,11 +204,6 @@ auto ParseIndex(const QByteArray& json, const QString& trusted_comment,
         facts.beta_descriptor = descriptor;
         facts.beta_descriptor_sha256 = sha256;
       }
-    } else if (!old_beta.isEmpty() &&
-               SoftwareVersion::VersionSeries(old_beta) == it.key()) {
-      facts.beta = old_beta;
-      facts.beta_descriptor = old_beta_descriptor;
-      facts.beta_descriptor_sha256 = old_beta_sha256;
     }
     // A release candidate only comes before its series' first release, and
     // only of X.Y.0: anything else named one is no candidate.

@@ -213,9 +213,9 @@ inline constexpr qint64 kMaxIndexLifetimeSeconds = 60LL * 24 * 60 * 60;
  * expired by more than kExpirySkewSeconds at @p now. @p expired gets the
  * expiry of an index refused for that reason alone.
  *
- * Each series' beta is its `series.<X.Y>.beta`. An index from before that
- * entry names one beta for all (`channels.beta` and the top-level `beta`):
- * it counts as the beta of its own series only.
+ * Each series' beta is its `series.<X.Y>.beta`, and nothing else: the one
+ * beta for all series that indexes once also named (`channels.beta` and the
+ * top-level `beta`) is not read; the release tooling no longer writes it.
  */
 auto ParseIndex(const QByteArray& json, const QString& trusted_comment,
                 const QString& product, const QDateTime& now,
