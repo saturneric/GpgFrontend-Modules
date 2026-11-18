@@ -27,6 +27,9 @@
  */
 
 #include <gtest/gtest.h>
+#ifndef _WIN32
+#include <unistd.h>
+#endif
 
 #include <QDir>
 #include <QFile>
@@ -216,6 +219,9 @@ TEST(ReplaceableAppImageTest, OnlyAWritableImageInAWritableFolder) {
   EXPECT_TRUE(ReplaceableAppImage(link).isEmpty());
 
   // A folder the user cannot write: the new file has nowhere to go.
+#ifndef _WIN32
+  if (::geteuid() == 0) GTEST_SKIP() << "root ignores folder permissions";
+#endif
   const auto locked = QFileDevice::ReadOwner | QFileDevice::ExeOwner;
   ASSERT_TRUE(QFile::setPermissions(dir.path(), locked));
   EXPECT_TRUE(ReplaceableAppImage(image).isEmpty());
