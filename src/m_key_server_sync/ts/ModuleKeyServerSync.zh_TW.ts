@@ -232,17 +232,17 @@ Key: %1</source>
 金鑰：%1</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="477"/>
-        <source>The public key was successfully uploaded to the key server %4.
+        <location filename="../KeyServerSyncModule.cpp" line="478"/>
+        <source>The public key was successfully uploaded to the key server %3.
 Fingerprint: %1
 
 %2
-Please check your email (%3) for further verification from %4.</source>
-        <translation>公鑰已成功上傳至金鑰伺服器 %4。
+%3 shows the email addresses in a key only after each one has been confirmed. GpgFrontend does not ask the server to send the confirmation email: request it on the website of %3.</source>
+        <translation>公鑰已成功上傳至金鑰伺服器 %3。
 指紋：%1
 
 %2
-請檢查您的電子郵件（%3）以接收 %4 的進一步驗證通知。</translation>
+%3 僅在金鑰中的每個電子郵件地址都經過確認後才會顯示這些地址。GpgFrontend 不會要求伺服器傳送確認郵件：請在 %3 的網站上申請傳送。</translation>
     </message>
     <message>
         <location filename="../KeyServerSyncModule.cpp" line="431"/>

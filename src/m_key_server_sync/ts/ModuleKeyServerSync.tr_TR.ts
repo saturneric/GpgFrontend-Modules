@@ -339,17 +339,17 @@ Parmak izi: %1</translation>
         <translation>Durum bilgisi ayrıştırılamadı.</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="477"/>
-        <source>The public key was successfully uploaded to the key server %4.
+        <location filename="../KeyServerSyncModule.cpp" line="478"/>
+        <source>The public key was successfully uploaded to the key server %3.
 Fingerprint: %1
 
 %2
-Please check your email (%3) for further verification from %4.</source>
-        <translation>Açık anahtar, %4 anahtar sunucusuna başarıyla yüklendi.
+%3 shows the email addresses in a key only after each one has been confirmed. GpgFrontend does not ask the server to send the confirmation email: request it on the website of %3.</source>
+        <translation>Açık anahtar, %3 anahtar sunucusuna başarıyla yüklendi.
 Parmak izi: %1
 
 %2
-Ek doğrulama için %4 tarafından gönderilen iletiyi e-postanızda (%3) kontrol edin.</translation>
+%3, bir anahtardaki e-posta adreslerini ancak her biri onaylandıktan sonra gösterir. GpgFrontend sunucudan onay e-postası göndermesini istemez: bunu %3 web sitesinden isteyin.</translation>
     </message>
     <message>
         <location filename="../KeyServerSyncModule.cpp" line="517"/>

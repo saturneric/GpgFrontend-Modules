@@ -332,17 +332,17 @@ Fingerprint: %1</source>
 Отпечаток: %1</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="477"/>
-        <source>The public key was successfully uploaded to the key server %4.
+        <location filename="../KeyServerSyncModule.cpp" line="478"/>
+        <source>The public key was successfully uploaded to the key server %3.
 Fingerprint: %1
 
 %2
-Please check your email (%3) for further verification from %4.</source>
-        <translation>Открытый ключ успешно загружен на сервер ключей %4.
+%3 shows the email addresses in a key only after each one has been confirmed. GpgFrontend does not ask the server to send the confirmation email: request it on the website of %3.</source>
+        <translation>Открытый ключ успешно загружен на сервер ключей %3.
 Отпечаток: %1
 
 %2
-Пожалуйста, проверьте вашу электронную почту (%3) на наличие дальнейшего подтверждения от %4.</translation>
+%3 показывает адреса электронной почты из ключа только после подтверждения каждого из них. GpgFrontend не просит сервер отправить письмо с подтверждением: запросите его на сайте %3.</translation>
     </message>
     <message>
         <location filename="../KeyServerSyncModule.cpp" line="518"/>

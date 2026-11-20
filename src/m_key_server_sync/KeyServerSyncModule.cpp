@@ -457,12 +457,10 @@ auto UploadKeyToServer(int channel, const QString& key_id) -> int {
         // Handle successful response
         QString status_message =
             GTrC::tr("The following email addresses have status:\n");
-        QStringList email_list;
         if (!status.isEmpty()) {
           for (auto it = status.constBegin(); it != status.constEnd(); ++it) {
             status_message +=
                 QString("%1: %2\n").arg(it.key(), it.value().toString());
-            email_list.append(it.key());
           }
         } else {
           status_message += GTrC::tr("Could not parse status information.");
@@ -472,15 +470,20 @@ auto UploadKeyToServer(int channel, const QString& key_id) -> int {
         // hard-coded host in this message could simply be wrong.
         const auto host = QUrl(server).host();
 
-        // Notify user of successful upload and status details
+        // Notify user of successful upload and status details. The upload
+        // alone sends no confirmation mail: the server mails an address only
+        // when asked to (/vks/v1/request-verify), which is never done here,
+        // so the message must not promise one.
         Tell(Severity::kInfo, GTrC::tr("Public Key Upload Successful"),
              GTrC::tr("The public key was successfully uploaded to the "
-                      "key server %4.\n"
+                      "key server %3.\n"
                       "Fingerprint: %1\n\n"
                       "%2\n"
-                      "Please check your email (%3) for further "
-                      "verification from %4.")
-                 .arg(fpr, status_message, email_list.join(", "), host));
+                      "%3 shows the email addresses in a key only after "
+                      "each one has been confirmed. GpgFrontend does not ask "
+                      "the server to send the confirmation email: request it "
+                      "on the website of %3.")
+                 .arg(fpr, status_message, host));
       });
 
   QObject::connect(

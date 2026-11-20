@@ -311,17 +311,17 @@ Odcisk klucza: %1</translation>
         <translation>Nie udało się przetworzyć informacji o statusie.</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="477"/>
-        <source>The public key was successfully uploaded to the key server %4.
+        <location filename="../KeyServerSyncModule.cpp" line="478"/>
+        <source>The public key was successfully uploaded to the key server %3.
 Fingerprint: %1
 
 %2
-Please check your email (%3) for further verification from %4.</source>
-        <translation>Klucz publiczny został pomyślnie wysłany na serwer kluczy %4.
+%3 shows the email addresses in a key only after each one has been confirmed. GpgFrontend does not ask the server to send the confirmation email: request it on the website of %3.</source>
+        <translation>Klucz publiczny został pomyślnie wysłany na serwer kluczy %3.
 Odcisk klucza: %1
 
 %2
-Sprawdź swoją pocztę e-mail (%3), aby kontynuować weryfikację od %4.</translation>
+%3 pokazuje adresy e-mail z klucza dopiero po potwierdzeniu każdego z nich. GpgFrontend nie prosi serwera o wysłanie wiadomości z potwierdzeniem: poproś o nią na stronie internetowej %3.</translation>
     </message>
     <message>
         <location filename="../KeyServerSyncModule.cpp" line="517"/>

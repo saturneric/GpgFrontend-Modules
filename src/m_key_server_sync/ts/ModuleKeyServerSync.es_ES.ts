@@ -232,17 +232,17 @@ Key: %1</source>
 Clave: %1</translation>
     </message>
     <message>
-        <location filename="../KeyServerSyncModule.cpp" line="477"/>
-        <source>The public key was successfully uploaded to the key server %4.
+        <location filename="../KeyServerSyncModule.cpp" line="478"/>
+        <source>The public key was successfully uploaded to the key server %3.
 Fingerprint: %1
 
 %2
-Please check your email (%3) for further verification from %4.</source>
-        <translation>La clave pública se cargó correctamente en el servidor de claves %4.
+%3 shows the email addresses in a key only after each one has been confirmed. GpgFrontend does not ask the server to send the confirmation email: request it on the website of %3.</source>
+        <translation>La clave pública se cargó correctamente en el servidor de claves %3.
 Huella: %1
 
 %2
-Por favor, revise su correo electrónico (%3) para obtener la verificación adicional de %4.</translation>
+%3 muestra las direcciones de correo electrónico de una clave solo después de que cada una haya sido confirmada. GpgFrontend no pide al servidor que envíe el correo de confirmación: solicítelo en el sitio web de %3.</translation>
     </message>
     <message>
         <location filename="../KeyServerSyncModule.cpp" line="431"/>
